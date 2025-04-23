@@ -1,0 +1,35 @@
+name: build
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || (github.ref == 'refs/heads/main' && github.sha) || github.ref }}
+  cancel-in-progress: true
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  #--------------------------------------------------
+  # Build and Tests the project on Linux
+  #--------------------------------------------------
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 'Setup: checkout project'
+        uses: actions/checkout@v4
+      - name: 'Setup: Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: 'Setup: Java'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: maven
+      - name: 'Test: run tests'
+        run: |
+          mvn --batch-mode -ntp clean verify
