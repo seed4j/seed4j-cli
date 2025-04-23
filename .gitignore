@@ -128,3 +128,5 @@ Desktop.ini
 # ESLint
 ######################
 .eslintcache
+# Maven Wrapper
+!.mvn/wrapper/maven-wrapper.jar
