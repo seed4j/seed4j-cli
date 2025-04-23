@@ -21,5 +21,16 @@
       "indentSize" : 2,
       "springConfigurationFormat" : "yaml"
     }
+  }, {
+    "module" : "license-apache",
+    "date" : "2025-04-23T13:07:33.514210279Z",
+    "properties" : {
+      "packageName" : "tech.jhipster.lite.cli",
+      "projectName" : "JHLite Cli",
+      "baseName" : "JHLiteCliApplication",
+      "endOfLine" : "lf",
+      "indentSize" : 2,
+      "springConfigurationFormat" : "yaml"
+    }
   } ]
 }
