@@ -1,0 +1,14 @@
+{
+  "actions" : [ {
+    "module" : "init",
+    "date" : "2025-04-23T13:01:23.938216743Z",
+    "properties" : {
+      "packageName" : "tech.jhipster.lite.cli",
+      "projectName" : "JHLite Cli",
+      "baseName" : "JHLiteCliApplication",
+      "endOfLine" : "lf",
+      "indentSize" : 2,
+      "springConfigurationFormat" : "yaml"
+    }
+  } ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "j-h-lite-cli-application",
+  "version": "0.0.0",
+  "private": true,
+  "description": "JHLite Cli",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "15.5.1"
+  }
+}
