@@ -37,6 +37,11 @@
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>${picocli.version}</version>
+    </dependency>
   </dependencies>
 
   <properties>
@@ -57,6 +62,7 @@
     <jacoco.version>0.8.11</jacoco.version>
     <properties-maven-plugin.version>1.2.1</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
+    <picocli.version>4.7.7</picocli.version>
   </properties>
 
   <build>
