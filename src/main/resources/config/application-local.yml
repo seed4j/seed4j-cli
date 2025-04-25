@@ -1,0 +1,6 @@
+logging:
+  level:
+    tech:
+      jhipster:
+        lite:
+          cli: DEBUG
