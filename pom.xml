@@ -43,6 +43,11 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
+      <groupId>tech.jhipster.lite</groupId>
+      <artifactId>jhlite</artifactId>
+      <version>${jhlite.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
@@ -67,6 +72,7 @@
     <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
     <picocli.version>4.7.7</picocli.version>
     <spring-boot.version>3.4.4</spring-boot.version>
+    <jhlite.version>1.31.0</jhlite.version>
   </properties>
 
   <build>
