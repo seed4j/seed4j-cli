@@ -26,8 +26,8 @@
   <dependencies>
     <dependency>
       <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>${picocli.version}</version>
+      <artifactId>picocli-spring-boot-starter</artifactId>
+      <version>${picocli-spring-boot-starter.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -70,7 +70,7 @@
     <jacoco.version>0.8.11</jacoco.version>
     <properties-maven-plugin.version>1.2.1</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
-    <picocli.version>4.7.7</picocli.version>
+    <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>3.4.4</spring-boot.version>
     <jhlite.version>1.31.0</jhlite.version>
   </properties>
