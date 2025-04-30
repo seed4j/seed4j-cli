@@ -17,6 +17,10 @@ record OutputModuleSlugs(Collection<OutputModuleSlug> moduleSlugs) {
     );
   }
 
+  public Integer size() {
+    return moduleSlugs().size();
+  }
+
   public String toPrint() {
     return moduleSlugs().stream().map(OutputModuleSlug::slug).collect(Collectors.joining("\n"));
   }

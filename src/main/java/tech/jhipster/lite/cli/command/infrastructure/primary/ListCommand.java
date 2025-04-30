@@ -13,7 +13,7 @@ class ListCommand implements Callable<Integer> {
 
   public Integer call() {
     OutputModuleSlugs moduleSlugs = OutputModuleSlugs.from(jhlite.modules());
-    System.out.printf("Listing all jhipster-lite modules (%s):%n", moduleSlugs.moduleSlugs().size());
+    System.out.printf("Listing all jhipster-lite modules (%s):%n", moduleSlugs.size());
     System.out.println(moduleSlugs.toPrint());
 
     return 0;
