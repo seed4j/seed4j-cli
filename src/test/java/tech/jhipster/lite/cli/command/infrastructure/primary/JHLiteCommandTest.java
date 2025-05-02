@@ -43,7 +43,7 @@ class JHLiteCommandTest {
   @Test
   void shouldListModules(CapturedOutput output) {
     String[] args = { "list" };
-    CommandLine cmd = new CommandLine(jhliteCommand);
+    CommandLine cmd = new CommandLine(jhliteCommand, factory);
 
     int exitCode = cmd.execute(args);
 
