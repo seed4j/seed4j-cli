@@ -52,6 +52,14 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>tech.jhipster.lite</groupId>
+      <artifactId>jhlite</artifactId>
+      <version>${jhlite.version}</version>
+      <type>test-jar</type>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <properties>

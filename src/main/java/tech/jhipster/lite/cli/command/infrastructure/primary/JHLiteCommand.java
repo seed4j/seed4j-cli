@@ -7,7 +7,7 @@ import picocli.CommandLine.Command;
 @Command(
   name = "jhlite",
   mixinStandardHelpOptions = true,
-  subcommands = ListModulesCommand.class,
+  subcommands = { ListModulesCommand.class, ApplyModuleCommand.class },
   description = "JHipster Lite CLI",
   headerHeading = "%n",
   commandListHeading = "%nCommands:%n"
