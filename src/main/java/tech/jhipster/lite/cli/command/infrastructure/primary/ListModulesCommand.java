@@ -16,7 +16,7 @@ class ListModulesCommand implements Callable<Integer> {
   }
 
   public Integer call() {
-    OutputModuleSlugs moduleSlugs = OutputModuleSlugs.from(modules);
+    OutputModuleSlugs moduleSlugs = OutputModuleSlugs.from(modules.resources());
     System.out.printf("Listing all jhipster-lite modules (%s):%n", moduleSlugs.size());
     System.out.println(moduleSlugs.toPrint());
 
