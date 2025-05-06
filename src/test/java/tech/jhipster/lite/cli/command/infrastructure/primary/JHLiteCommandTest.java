@@ -30,7 +30,7 @@ class JHLiteCommandTest {
     assertThat(exitCode).isEqualTo(2);
     assertThat(output.toString()).contains(
       """
-      JHLite CLI Application
+      JHipster Lite CLI
         -h, --help      Show this help message and exit.
         -V, --version   Print version information and exit.
 
