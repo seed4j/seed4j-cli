@@ -7,11 +7,11 @@ import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 
 @Component
 @CommandLine.Command(name = "list", description = "List all jhipster-lite modules")
-class ListCommand implements Callable<Integer> {
+class ListModulesCommand implements Callable<Integer> {
 
   private final JHipsterModulesApplicationService modules;
 
-  public ListCommand(JHipsterModulesApplicationService modules) {
+  public ListModulesCommand(JHipsterModulesApplicationService modules) {
     this.modules = modules;
   }
 
