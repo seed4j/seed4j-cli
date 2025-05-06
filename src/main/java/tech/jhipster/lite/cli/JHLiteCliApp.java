@@ -9,12 +9,12 @@ import org.springframework.context.ConfigurableApplicationContext;
 import tech.jhipster.lite.JHLiteApp;
 import tech.jhipster.lite.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 
-@SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, JHLiteCliApplicationApp.class })
+@SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, JHLiteCliApp.class })
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
-public class JHLiteCliApplicationApp {
+public class JHLiteCliApp {
 
   public static void main(String[] args) {
-    ConfigurableApplicationContext context = new SpringApplicationBuilder(JHLiteCliApplicationApp.class)
+    ConfigurableApplicationContext context = new SpringApplicationBuilder(JHLiteCliApp.class)
       .bannerMode(Banner.Mode.OFF)
       .web(WebApplicationType.NONE)
       .lazyInitialization(true)
