@@ -7,9 +7,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>tech.jhipster.lite.cli</groupId>
-  <artifactId>j-h-lite-cli-application</artifactId>
+  <artifactId>j-h-lite-cli</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>JHLiteCliApplication</name>
+  <name>JHLiteCli</name>
   <description>JHLite Cli</description>
   <packaging>jar</packaging>
   <dependencyManagement>

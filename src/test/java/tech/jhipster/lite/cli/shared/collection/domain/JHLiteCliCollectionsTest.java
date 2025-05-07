@@ -15,16 +15,16 @@ import org.junit.jupiter.api.Test;
 import tech.jhipster.lite.cli.UnitTest;
 
 @UnitTest
-class JHLiteCliApplicationCollectionsTest {
+class JHLiteCliCollectionsTest {
 
   @Nested
   @DisplayName("Collections")
-  class JHLiteCliApplicationCollectionsCollectionsTest {
+  class JHLiteCliCollectionsCollectionsTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       Collection<Object> input = null;
-      Collection<Object> collection = JHLiteCliApplicationCollections.immutable(input);
+      Collection<Object> collection = JHLiteCliCollections.immutable(input);
 
       assertThat(collection).isEmpty();
       assertThatThrownBy(collection::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -34,7 +34,7 @@ class JHLiteCliApplicationCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       Collection<String> input = new ArrayList<>();
       input.add("value");
-      Collection<String> collection = JHLiteCliApplicationCollections.immutable(input);
+      Collection<String> collection = JHLiteCliCollections.immutable(input);
 
       assertThat(collection).containsExactly("value");
       assertThatThrownBy(collection::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -43,12 +43,12 @@ class JHLiteCliApplicationCollectionsTest {
 
   @Nested
   @DisplayName("Set")
-  class JHLiteCliApplicationCollectionsSetTest {
+  class JHLiteCliCollectionsSetTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       Set<Object> input = null;
-      Set<Object> set = JHLiteCliApplicationCollections.immutable(input);
+      Set<Object> set = JHLiteCliCollections.immutable(input);
 
       assertThat(set).isEmpty();
       assertThatThrownBy(set::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -58,7 +58,7 @@ class JHLiteCliApplicationCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       Set<String> input = new HashSet<>();
       input.add("value");
-      Set<String> set = JHLiteCliApplicationCollections.immutable(input);
+      Set<String> set = JHLiteCliCollections.immutable(input);
 
       assertThat(set).containsExactly("value");
       assertThatThrownBy(set::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -67,12 +67,12 @@ class JHLiteCliApplicationCollectionsTest {
 
   @Nested
   @DisplayName("List")
-  class JHLiteCliApplicationCollectionsListTest {
+  class JHLiteCliCollectionsListTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       List<Object> input = null;
-      List<Object> list = JHLiteCliApplicationCollections.immutable(input);
+      List<Object> list = JHLiteCliCollections.immutable(input);
 
       assertThat(list).isEmpty();
       assertThatThrownBy(list::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -82,7 +82,7 @@ class JHLiteCliApplicationCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       List<String> input = new ArrayList<>();
       input.add("value");
-      List<String> list = JHLiteCliApplicationCollections.immutable(input);
+      List<String> list = JHLiteCliCollections.immutable(input);
 
       assertThat(list).containsExactly("value");
       assertThatThrownBy(list::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -91,12 +91,12 @@ class JHLiteCliApplicationCollectionsTest {
 
   @Nested
   @DisplayName("Map")
-  class JHLiteCliApplicationMapTest {
+  class JHLiteCliMapTest {
 
     @Test
     void shouldGetEmptyImmutableMapFromNullMap() {
       Map<Object, Object> input = null;
-      Map<Object, Object> map = JHLiteCliApplicationCollections.immutable(input);
+      Map<Object, Object> map = JHLiteCliCollections.immutable(input);
 
       assertThat(map).isEmpty();
       assertThatThrownBy(map::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -106,7 +106,7 @@ class JHLiteCliApplicationCollectionsTest {
     void shouldGetImmutableMapFromMutableMap() {
       Map<String, String> input = new HashMap<>();
       input.put("key", "value");
-      Map<String, String> map = JHLiteCliApplicationCollections.immutable(input);
+      Map<String, String> map = JHLiteCliCollections.immutable(input);
 
       assertThat(map).containsExactly(Map.entry("key", "value"));
       assertThatThrownBy(map::clear).isExactlyInstanceOf(UnsupportedOperationException.class);

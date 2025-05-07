@@ -6,4 +6,4 @@ logging:
           cli: INFO
 spring:
   application:
-    name: JHLiteCliApplication
+    name: JHLiteCli
