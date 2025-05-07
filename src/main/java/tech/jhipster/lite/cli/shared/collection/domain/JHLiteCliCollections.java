@@ -9,9 +9,9 @@ import java.util.Set;
 /**
  * Null safe utility class to manage collections
  */
-public final class JHLiteCliApplicationCollections {
+public final class JHLiteCliCollections {
 
-  private JHLiteCliApplicationCollections() {}
+  private JHLiteCliCollections() {}
 
   /**
    * Get an immutable collection from the given collection

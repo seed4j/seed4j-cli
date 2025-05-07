@@ -6,7 +6,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -18,7 +18,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -30,7 +30,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -42,7 +42,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -54,7 +54,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -66,7 +66,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -78,7 +78,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -90,7 +90,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -102,7 +102,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -114,7 +114,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -126,7 +126,7 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -138,10 +138,23 @@
       "properties": {
         "packageName": "tech.jhipster.lite.cli",
         "projectName": "JHLite Cli",
-        "baseName": "JHLiteCliApplication",
+        "baseName": "JHLiteCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
+      }
+    },
+    {
+      "module": "spring-boot",
+      "date": "2025-04-25T12:45:04.156884156Z",
+      "properties": {
+        "packageName": "tech.jhipster.lite.cli",
+        "projectName": "JHLite Cli",
+        "baseName": "JHLiteCli",
+        "endOfLine": "lf",
+        "indentSize": 2,
+        "springConfigurationFormat": "yaml",
+        "serverPort": 8080
       }
     }
   ]
