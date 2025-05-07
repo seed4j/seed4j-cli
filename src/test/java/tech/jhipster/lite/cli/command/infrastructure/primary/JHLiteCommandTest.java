@@ -6,6 +6,8 @@ import static tech.jhipster.lite.TestProjects.newTestFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import picocli.CommandLine;
 import tech.jhipster.lite.cli.IntegrationTest;
+import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.infrastructure.secondary.git.GitTestUtil;
 import tech.jhipster.lite.project.application.ProjectsApplicationService;
 import tech.jhipster.lite.project.domain.ProjectPath;
@@ -36,6 +39,9 @@ class JHLiteCommandTest {
   @Autowired
   private ProjectsApplicationService projects;
 
+  @Autowired
+  private JHipsterModulesApplicationService modules;
+
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
@@ -55,136 +61,154 @@ class JHLiteCommandTest {
     );
   }
 
-  @Test
-  void shouldListModules(CapturedOutput output) {
-    String[] args = { "list" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+  @Nested
+  @DisplayName("list")
+  class ListModulesCommandTest {
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldListModules(CapturedOutput output) {
+      String[] args = { "list" };
+      CommandLine cmd = new CommandLine(jhliteCommand, factory);
 
-    assertThat(exitCode).isZero();
-    assertThat(output.toString()).contains("Listing all jhipster-lite modules");
-    assertThat(output.toString()).contains("init");
-    assertThat(output.toString()).contains("prettier");
+      int exitCode = cmd.execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.toString()).contains("Listing all jhipster-lite modules");
+      assertThat(output.toString()).contains("init");
+      assertThat(output.toString()).contains("prettier");
+    }
   }
 
-  @Test
-  void shouldApplyInitModuleWithDefaultOptions() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString() };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+  @Nested
+  @DisplayName("apply")
+  class ApplyModuleCommandTest {
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithDefaultOptions() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString() };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
-    assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.mycompany.myapp");
-    assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
-    assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("jhipsterSampleApplication");
-    assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(2);
-  }
+      int exitCode = cmd.execute(args);
 
-  private Object projectPropertyValue(Path projectPath, String propertyKey) {
-    ProjectHistory history = projects.getHistory(new ProjectPath(projectPath.toString()));
-    return history.latestProperties().parameters().getOrDefault(propertyKey, null);
-  }
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
+      assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.mycompany.myapp");
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("jhipsterSampleApplication");
+      assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(2);
+    }
 
-  @Test
-  void shouldApplyInitModuleWithCommit() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--commit" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+    private Object projectPropertyValue(Path projectPath, String propertyKey) {
+      ProjectHistory history = projects.getHistory(new ProjectPath(projectPath.toString()));
+      return history.latestProperties().parameters().getOrDefault(propertyKey, null);
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithCommit() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--commit" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldApplyInitModuleWithoutCommit() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--no-commit" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithoutCommit() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--no-commit" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldApplyInitModuleWithPackageName() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--package-name", "com.newcompany.newapp" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithPackageName() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--package-name", "com.newcompany.newapp" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.newcompany.newapp");
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldApplyInitModuleWithProjectName() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--project-name", "My New App" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isZero();
+      assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.newcompany.newapp");
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithProjectName() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--project-name", "My New App" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("My New App");
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldApplyInitModuleWithBaseName() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "myNewApp" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isZero();
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("My New App");
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithBaseName() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "myNewApp" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("myNewApp");
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldNotApplyModuleWithInvalidBaseName() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "my.New@pp" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isZero();
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("myNewApp");
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldNotApplyModuleWithInvalidBaseName() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "my.New@pp" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isEqualTo(1);
-  }
+      int exitCode = cmd.execute(args);
 
-  @Test
-  void shouldApplyInitModuleWithIndentation() throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--indentation", "4" };
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      assertThat(exitCode).isEqualTo(1);
+    }
 
-    int exitCode = cmd.execute(args);
+    @Test
+    void shouldApplyInitModuleWithIndentation() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--indentation", "4" };
+      CommandLine cmd = commandLineWithFreshApplySubcommand();
 
-    assertThat(exitCode).isZero();
-    assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(4);
-  }
+      int exitCode = cmd.execute(args);
 
-  private static Path setupProjectTestFolder() throws IOException {
-    String projectFolder = newTestFolder();
-    Path projectPath = Path.of(projectFolder);
-    Files.createDirectories(projectPath);
-    loadGitConfig(projectPath);
+      assertThat(exitCode).isZero();
+      assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(4);
+    }
 
-    return projectPath;
-  }
+    private CommandLine commandLineWithFreshApplySubcommand() {
+      CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      cmd.getCommandSpec().removeSubcommand("apply");
+      cmd.addSubcommand("apply", new ApplyModuleCommand(modules));
 
-  private static void loadGitConfig(Path project) {
-    GitTestUtil.execute(project, "init");
-    GitTestUtil.execute(project, "config", "init.defaultBranch", "main");
-    GitTestUtil.execute(project, "config", "user.email", "\"test@jhipster.com\"");
-    GitTestUtil.execute(project, "config", "user.name", "\"Test\"");
+      return cmd;
+    }
+
+    private static Path setupProjectTestFolder() throws IOException {
+      String projectFolder = newTestFolder();
+      Path projectPath = Path.of(projectFolder);
+      Files.createDirectories(projectPath);
+      loadGitConfig(projectPath);
+
+      return projectPath;
+    }
+
+    private static void loadGitConfig(Path project) {
+      GitTestUtil.execute(project, "init");
+      GitTestUtil.execute(project, "config", "init.defaultBranch", "main");
+      GitTestUtil.execute(project, "config", "user.email", "\"test@jhipster.com\"");
+      GitTestUtil.execute(project, "config", "user.name", "\"Test\"");
+    }
   }
 }
