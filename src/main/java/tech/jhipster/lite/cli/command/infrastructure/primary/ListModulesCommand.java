@@ -4,6 +4,7 @@ import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
+import picocli.CommandLine.ExitCode;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 
 @Component
@@ -21,7 +22,7 @@ class ListModulesCommand implements Callable<Integer> {
     System.out.printf("Listing all jhipster-lite modules (%s):%n", moduleSlugs.size());
     System.out.println(toPrint(moduleSlugs));
 
-    return 0;
+    return ExitCode.OK;
   }
 
   private String toPrint(OutputModuleSlugs moduleSlugs) {
