@@ -73,9 +73,9 @@ class JHLiteCommandTest {
       int exitCode = cmd.execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).contains("Listing all jhipster-lite modules");
-      assertThat(output.toString()).contains("init");
-      assertThat(output.toString()).contains("prettier");
+    assertThat(output.toString()).contains("Available jhipster-lite modules");
+    assertThat(output.toString()).contains("init").contains("Init project");
+    assertThat(output.toString()).contains("prettier").contains("Format project with prettier");
     }
   }
 
