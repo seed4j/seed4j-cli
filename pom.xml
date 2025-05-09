@@ -6,11 +6,11 @@
 >
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>tech.jhipster.lite.cli</groupId>
-  <artifactId>j-h-lite-cli</artifactId>
+  <groupId>tech.jhipster.lite</groupId>
+  <artifactId>jhlite-cli</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>JHLiteCli</name>
-  <description>JHLite Cli</description>
+  <name>JHipster Lite CLI</name>
+  <description>JHipster Lite CLI</description>
   <packaging>jar</packaging>
   <dependencyManagement>
     <dependencies>
