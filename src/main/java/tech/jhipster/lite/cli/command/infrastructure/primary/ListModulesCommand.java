@@ -1,16 +1,21 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
+import java.util.Comparator;
 import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.ExitCode;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
+import tech.jhipster.lite.module.domain.JHipsterSlug;
+import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
+import tech.jhipster.lite.module.domain.resource.JHipsterModulesResources;
 
 @Component
-@CommandLine.Command(name = "list", description = "List all jhipster-lite modules")
+@CommandLine.Command(name = "list", description = "List available jhipster-lite modules")
 class ListModulesCommand implements Callable<Integer> {
 
+  private static final int MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION = 2;
   private final JHipsterModulesApplicationService modules;
 
   public ListModulesCommand(JHipsterModulesApplicationService modules) {
@@ -18,14 +23,26 @@ class ListModulesCommand implements Callable<Integer> {
   }
 
   public Integer call() {
-    OutputModuleSlugs moduleSlugs = OutputModuleSlugs.from(modules.resources());
-    System.out.printf("Listing all jhipster-lite modules (%s):%n", moduleSlugs.size());
-    System.out.println(toPrint(moduleSlugs));
+    JHipsterModulesResources modulesResources = modules.resources();
+    System.out.printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
+    modulesResources.stream().sorted(byModuleSlug()).forEach(printModule(maxSlugLength(modulesResources)));
 
     return ExitCode.OK;
   }
 
-  private String toPrint(OutputModuleSlugs moduleSlugs) {
-    return moduleSlugs.stream().map(OutputModuleSlug::slug).collect(Collectors.joining(System.lineSeparator()));
+  private static Comparator<JHipsterModuleResource> byModuleSlug() {
+    return Comparator.comparing(jHipsterModuleResource -> jHipsterModuleResource.slug().get());
+  }
+
+  private int maxSlugLength(JHipsterModulesResources modulesResources) {
+    return modulesResources.stream().map(JHipsterModuleResource::slug).map(JHipsterSlug::get).mapToInt(String::length).max().orElse(0);
+  }
+
+  private Consumer<? super JHipsterModuleResource> printModule(int maxSlugLength) {
+    return moduleResource -> {
+      String spacesBetweenSlugAndDescription =
+        " ".repeat(maxSlugLength - moduleResource.slug().get().length() + MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION);
+      System.out.printf("  %s%s%s%n", moduleResource.slug(), spacesBetweenSlugAndDescription, moduleResource.apiDoc().operation());
+    };
   }
 }
