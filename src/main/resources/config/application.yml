@@ -1,9 +1,3 @@
-logging:
-  level:
-    tech:
-      jhipster:
-        lite:
-          cli: INFO
 spring:
   application:
     name: JHLiteCli
