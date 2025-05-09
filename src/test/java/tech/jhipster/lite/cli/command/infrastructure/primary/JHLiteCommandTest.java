@@ -63,7 +63,7 @@ class JHLiteCommandTest {
 
   @Nested
   @DisplayName("list")
-  class ListModulesCommandTest {
+  class ListModules {
 
     @Test
     void shouldListModules(CapturedOutput output) {
@@ -81,7 +81,7 @@ class JHLiteCommandTest {
 
   @Nested
   @DisplayName("apply")
-  class ApplyModuleCommandTest {
+  class ApplyModule {
 
     @Test
     void shouldApplyInitModuleWithDefaultOptions() throws IOException {
