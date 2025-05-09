@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
@@ -48,7 +49,7 @@ class ApplyModuleCommand implements Callable<Integer> {
     JHipsterModuleToApply moduleToApply = new JHipsterModuleToApply(new JHipsterModuleSlug(moduleSlug), properties);
     modules.apply(moduleToApply);
 
-    return 0;
+    return ExitCode.OK;
   }
 
   private boolean commit() {
