@@ -31,12 +31,6 @@ class JHLiteCommandTest {
   private static final String INDENT_SIZE = "indentSize";
 
   @Autowired
-  private JHLiteCommand jhliteCommand;
-
-  @Autowired
-  private CommandLine.IFactory factory;
-
-  @Autowired
   private ProjectsApplicationService projects;
 
   @Autowired
@@ -45,7 +39,7 @@ class JHLiteCommandTest {
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
-    CommandLine cmd = new CommandLine(jhliteCommand, factory);
+    CommandLine cmd = commandLine();
 
     int exitCode = cmd.execute(args);
 
@@ -68,14 +62,14 @@ class JHLiteCommandTest {
     @Test
     void shouldListModules(CapturedOutput output) {
       String[] args = { "list" };
-      CommandLine cmd = new CommandLine(jhliteCommand, factory);
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
       assertThat(exitCode).isZero();
-    assertThat(output.toString()).contains("Available jhipster-lite modules");
-    assertThat(output.toString()).contains("init").contains("Init project");
-    assertThat(output.toString()).contains("prettier").contains("Format project with prettier");
+      assertThat(output.toString()).contains("Available jhipster-lite modules");
+      assertThat(output.toString()).contains("init").contains("Init project");
+      assertThat(output.toString()).contains("prettier").contains("Format project with prettier");
     }
   }
 
@@ -84,10 +78,22 @@ class JHLiteCommandTest {
   class ApplyModule {
 
     @Test
+    void shouldNotApplyWithoutModuleSlug(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "--project-path", projectPath.toString() };
+      CommandLine cmd = commandLine();
+
+      int exitCode = cmd.execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.toString()).contains("Missing required parameter: 'MODULE_SLUG'");
+    }
+
+    @Test
     void shouldApplyInitModuleWithDefaultOptions() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -108,7 +114,7 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithCommit() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--commit" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -120,7 +126,7 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithoutCommit() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--no-commit" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -132,7 +138,7 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithPackageName() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--package-name", "com.newcompany.newapp" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -144,7 +150,7 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithProjectName() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--project-name", "My New App" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -156,7 +162,7 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithBaseName() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "myNewApp" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -168,7 +174,7 @@ class JHLiteCommandTest {
     void shouldNotApplyModuleWithInvalidBaseName() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "my.New@pp" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
@@ -179,20 +185,12 @@ class JHLiteCommandTest {
     void shouldApplyInitModuleWithIndentation() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--indentation", "4" };
-      CommandLine cmd = commandLineWithFreshApplySubcommand();
+      CommandLine cmd = commandLine();
 
       int exitCode = cmd.execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(4);
-    }
-
-    private CommandLine commandLineWithFreshApplySubcommand() {
-      CommandLine cmd = new CommandLine(jhliteCommand, factory);
-      cmd.getCommandSpec().removeSubcommand("apply");
-      cmd.addSubcommand("apply", new ApplyModuleCommand(modules));
-
-      return cmd;
     }
 
     private static Path setupProjectTestFolder() throws IOException {
@@ -210,5 +208,14 @@ class JHLiteCommandTest {
       GitTestUtil.execute(project, "config", "user.email", "\"test@jhipster.com\"");
       GitTestUtil.execute(project, "config", "user.name", "\"Test\"");
     }
+  }
+
+  private CommandLine commandLine() {
+    ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
+    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules);
+
+    JHLiteCommand jhliteCommand = new JHLiteCommand(listModulesCommand, applyModuleCommand);
+
+    return new CommandLine(jhliteCommand.buildCommandSpec());
   }
 }

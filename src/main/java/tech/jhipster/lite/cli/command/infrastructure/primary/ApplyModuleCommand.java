@@ -1,71 +1,170 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.ExitCode;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
+import picocli.CommandLine;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Model.OptionSpec;
+import picocli.CommandLine.Model.PositionalParamSpec;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.domain.JHipsterModuleSlug;
 import tech.jhipster.lite.module.domain.JHipsterModuleToApply;
 import tech.jhipster.lite.module.domain.properties.JHipsterModuleProperties;
 
 @Component
-@Command(name = "apply", description = "Apply jhipster-lite specific module")
 class ApplyModuleCommand implements Callable<Integer> {
 
   private final JHipsterModulesApplicationService modules;
-
-  @Option(names = "--project-path", description = "Project Path Folder", defaultValue = ".")
-  private String projectPath;
-
-  @Option(names = "--commit", description = "Commit changes", negatable = true)
-  private Boolean commit;
-
-  @Option(names = "--package-name", description = "Base java package", defaultValue = "com.mycompany.myapp")
-  private String packageName;
-
-  @Option(names = "--project-name", description = "Project full name", defaultValue = "JHipster Sample Application")
-  private String projectName;
-
-  @Option(names = "--base-name", description = "Project short name (only letters and numbers)", defaultValue = "jhipsterSampleApplication")
-  private String baseName;
-
-  @Option(names = "--indentation", description = "Number of spaces in indentation", defaultValue = "2")
-  private Integer indentation;
-
-  @Parameters(description = "Module Slug to be applied")
-  private String moduleSlug;
+  private CommandSpec spec;
 
   public ApplyModuleCommand(JHipsterModulesApplicationService modules) {
     this.modules = modules;
   }
 
+  public CommandSpec buildCommandSpec() {
+    CommandSpec commandSpec = createSpec();
+    addOptions(commandSpec);
+    addPositional(commandSpec);
+
+    this.spec = commandSpec;
+
+    return commandSpec;
+  }
+
+  private CommandSpec createSpec() {
+    CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("apply");
+    spec.usageMessage().description("Apply jhipster-lite specific module");
+
+    return spec;
+  }
+
+  private void addOptions(CommandSpec spec) {
+    spec.addOption(
+      OptionSpec.builder("--project-path")
+        .description("Project Path Folder")
+        .paramLabel("PROJECT_PATH")
+        .defaultValue(".")
+        .type(String.class)
+        .build()
+    );
+
+    spec.addOption(OptionSpec.builder("--commit").description("Commit changes").negatable(true).type(Boolean.class).build());
+
+    spec.addOption(
+      OptionSpec.builder("--package-name")
+        .description("Base java package")
+        .paramLabel("PACKAGE_NAME")
+        .defaultValue("com.mycompany.myapp")
+        .type(String.class)
+        .build()
+    );
+
+    spec.addOption(
+      OptionSpec.builder("--project-name")
+        .description("Project full name")
+        .paramLabel("PROJECT_NAME")
+        .defaultValue("JHipster Sample Application")
+        .type(String.class)
+        .build()
+    );
+
+    spec.addOption(
+      OptionSpec.builder("--base-name")
+        .description("Project short name (only letters and numbers)")
+        .paramLabel("BASE_NAME")
+        .defaultValue("jhipsterSampleApplication")
+        .type(String.class)
+        .build()
+    );
+
+    spec.addOption(
+      OptionSpec.builder("--indentation")
+        .description("Number of spaces in indentation")
+        .paramLabel("INDENTATION")
+        .defaultValue("2")
+        .type(Integer.class)
+        .build()
+    );
+  }
+
+  private void addPositional(CommandSpec spec) {
+    spec.addPositional(
+      PositionalParamSpec.builder()
+        .description("Module Slug to be applied")
+        .paramLabel("MODULE_SLUG")
+        .type(String.class)
+        .required(true)
+        .build()
+    );
+  }
+
   @Override
   public Integer call() {
-    JHipsterModuleProperties properties = new JHipsterModuleProperties(projectPath, commit(), parameters());
+    String moduleSlug = moduleSlug();
+
+    JHipsterModuleProperties properties = new JHipsterModuleProperties(getProjectPath(), isCommitEnabled(), parameters());
     JHipsterModuleToApply moduleToApply = new JHipsterModuleToApply(new JHipsterModuleSlug(moduleSlug), properties);
     modules.apply(moduleToApply);
 
-    return ExitCode.OK;
-  }
-
-  private boolean commit() {
-    return commit == null || commit;
+    return CommandLine.ExitCode.OK;
   }
 
   private Map<String, Object> parameters() {
     return Map.of(
       JHipsterModuleProperties.BASE_PACKAGE_PARAMETER,
-      packageName,
+      packageName(),
       JHipsterModuleProperties.PROJECT_NAME_PARAMETER,
-      projectName,
+      projectName(),
       JHipsterModuleProperties.PROJECT_BASE_NAME_PARAMETER,
-      baseName,
+      baseName(),
       JHipsterModuleProperties.INDENTATION_PARAMETER,
-      indentation
+      indentation()
     );
+  }
+
+  private String getProjectPath() {
+    return optionValue("--project-path", ".");
+  }
+
+  private String optionValue(String optionName, String defaultValue) {
+    return spec
+      .options()
+      .stream()
+      .filter(option -> option.longestName().equals(optionName))
+      .findFirst()
+      .map(option -> option.getValue() != null ? option.getValue().toString() : defaultValue)
+      .orElse(defaultValue);
+  }
+
+  private boolean isCommitEnabled() {
+    Optional<OptionSpec> commitOption = spec.options().stream().filter(option -> option.longestName().equals("--commit")).findFirst();
+
+    if (commitOption.isPresent() && commitOption.get().getValue() != null) {
+      return commitOption.get().getValue();
+    }
+    return true;
+  }
+
+  private String packageName() {
+    return optionValue("--package-name", "com.mycompany.myapp");
+  }
+
+  private String projectName() {
+    return optionValue("--project-name", "JHipster Sample Application");
+  }
+
+  private String baseName() {
+    return optionValue("--base-name", "jhipsterSampleApplication");
+  }
+
+  private Integer indentation() {
+    String value = optionValue("--indentation", "2");
+    return Integer.parseInt(value);
+  }
+
+  private String moduleSlug() {
+    return spec.positionalParameters().getFirst().getValue().toString();
   }
 }
