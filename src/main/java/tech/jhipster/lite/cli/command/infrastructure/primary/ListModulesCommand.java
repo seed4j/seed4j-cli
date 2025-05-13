@@ -4,7 +4,7 @@ import java.util.Comparator;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
-import picocli.CommandLine;
+import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.domain.JHipsterSlug;
@@ -35,7 +35,7 @@ class ListModulesCommand implements Callable<Integer> {
     System.out.printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
     modulesResources.stream().sorted(byModuleSlug()).forEach(printModule(maxSlugLength(modulesResources)));
 
-    return CommandLine.ExitCode.OK;
+    return ExitCode.OK;
   }
 
   private static Comparator<JHipsterModuleResource> byModuleSlug() {

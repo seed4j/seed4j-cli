@@ -76,14 +76,14 @@ class JHLiteCommandTest {
   class ApplyModule {
 
     @Test
-    void shouldNotApplyWithoutModuleSlug(CapturedOutput output) throws IOException {
+    void shouldNotApplyWithoutModuleSlugSubcommand(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "--project-path", projectPath.toString() };
 
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(output.toString()).contains("Missing required").contains("'<moduleslug>'");
+      assertThat(output.toString()).contains("Missing required subcommand").contains("init  Init project");
     }
 
     @Test
