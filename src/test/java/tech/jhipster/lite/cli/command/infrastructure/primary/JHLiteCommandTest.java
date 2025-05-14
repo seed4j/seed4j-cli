@@ -76,14 +76,43 @@ class JHLiteCommandTest {
   class ApplyModule {
 
     @Test
-    void shouldNotApplyWithoutModuleSlugSubcommand(CapturedOutput output) throws IOException {
-      Path projectPath = setupProjectTestFolder();
-      String[] args = { "apply", "--project-path", projectPath.toString() };
+    void shouldNotApplyWithoutModuleSlugSubcommand(CapturedOutput output) {
+      String[] args = { "apply" };
 
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(output.toString()).contains("Missing required subcommand").contains("init  Init project");
+      assertThat(output.toString()).contains("Missing required subcommand").contains("init").contains("prettier");
+    }
+
+    @Test
+    void shouldEscapeCommandDescriptionInHelpCommand(CapturedOutput output) {
+      String[] args = { "apply", "--help" };
+
+      int exitCode = commandLine().execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.toString()).doesNotContain(
+        "[picocli WARN] Could not format 'Add JaCoCo for code coverage reporting and 100% coverage check' (Underlying error: Conversion = c, Flags =  ). Using raw String: '%n' format strings have not been replaced with newlines. Please ensure to escape '%' characters with another '%'."
+      );
+    }
+
+    @Test
+    void shouldDisplayModuleSlugsInHelpCommand(CapturedOutput output) {
+      String[] args = { "apply", "--help" };
+
+      int exitCode = commandLine().execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.toString()).contains(
+        """
+        Apply jhipster-lite specific module
+          -h, --help      Show this help message and exit.
+          -V, --version   Print version information and exit.
+        Commands:
+        """
+      );
+      assertThat(output.toString()).contains("init").contains("Init project").contains("prettier").contains("Format project with prettier");
     }
 
     @Test
@@ -221,7 +250,7 @@ class JHLiteCommandTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
-        "--indentation",
+        "--indent-size",
         "4",
       };
 

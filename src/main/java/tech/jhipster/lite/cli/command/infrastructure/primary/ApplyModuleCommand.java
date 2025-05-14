@@ -14,10 +14,10 @@ class ApplyModuleCommand {
   }
 
   public CommandSpec buildCommandSpec() {
-    CommandSpec commandSpec = createSpec();
-    addSubcommand(commandSpec);
+    CommandSpec spec = createSpec();
+    addModuleSlugSubcommands(spec);
 
-    return commandSpec;
+    return spec;
   }
 
   private CommandSpec createSpec() {
@@ -27,7 +27,10 @@ class ApplyModuleCommand {
     return spec;
   }
 
-  private void addSubcommand(CommandSpec commandSpec) {
-    commandSpec.addSubcommand("init", new ModuleSlugCommand(modules, "init").commandSpec());
+  private void addModuleSlugSubcommands(CommandSpec spec) {
+    modules
+      .resources()
+      .stream()
+      .forEach(module -> spec.addSubcommand(module.slug().get(), new ModuleSlugCommand(modules, module).commandSpec()));
   }
 }

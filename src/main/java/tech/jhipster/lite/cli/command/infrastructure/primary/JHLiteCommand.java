@@ -21,6 +21,7 @@ class JHLiteCommand {
 
     spec.addSubcommand("list", listModulesCommand.buildCommandSpec());
     spec.addSubcommand("apply", applyModuleCommand.buildCommandSpec());
+
     return spec;
   }
 }
