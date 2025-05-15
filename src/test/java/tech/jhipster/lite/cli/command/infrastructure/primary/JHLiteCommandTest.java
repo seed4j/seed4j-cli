@@ -116,6 +116,18 @@ class JHLiteCommandTest {
     }
 
     @Test
+    void shouldDisplayModuleSlugsInAlphabeticalOrderInApplyHelpCommand(CapturedOutput output) {
+      String[] args = { "apply", "--help" };
+
+      int exitCode = commandLine().execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.toString().indexOf("angular-core"))
+        .withFailMessage("Command 'angular-core' should appear before 'gradle-java' in alphabetical order")
+        .isLessThan(output.toString().indexOf("gradle-java"));
+    }
+
+    @Test
     void shouldApplyInitModuleWithRequiredOptions() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = {

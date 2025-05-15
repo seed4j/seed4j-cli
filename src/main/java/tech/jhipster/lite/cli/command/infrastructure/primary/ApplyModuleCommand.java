@@ -1,8 +1,10 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
+import java.util.Comparator;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
+import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 
 @Component
 class ApplyModuleCommand {
@@ -31,6 +33,11 @@ class ApplyModuleCommand {
     modules
       .resources()
       .stream()
+      .sorted(byModuleSlug())
       .forEach(module -> spec.addSubcommand(module.slug().get(), new ModuleSlugCommand(modules, module).commandSpec()));
+  }
+
+  private static Comparator<JHipsterModuleResource> byModuleSlug() {
+    return Comparator.comparing(jHipsterModuleResource -> jHipsterModuleResource.slug().get());
   }
 }
