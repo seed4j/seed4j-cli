@@ -156,6 +156,19 @@
         "springConfigurationFormat": "yaml",
         "serverPort": 8080
       }
+    },
+    {
+      "module": "sonar-qube-java-backend",
+      "date": "2025-06-04T14:09:38.302443633Z",
+      "properties": {
+        "endOfLine": "lf",
+        "springConfigurationFormat": "yaml",
+        "packageName": "tech.jhipster.lite.cli",
+        "projectName": "JHLite Cli",
+        "indentSize": 2,
+        "serverPort": 8080,
+        "baseName": "JHLiteCli"
+      }
     }
   ]
 }
