@@ -30,6 +30,15 @@ jobs:
           distribution: 'temurin'
           java-version: 21
           cache: maven
+      - name: 'Start local Sonar'
+        run: docker compose -f src/main/docker/sonar.yml up -d
       - name: 'Test: run tests'
         run: |
           mvn --batch-mode -ntp clean verify
+      - name: 'Analysis: local Sonar'
+        run: |
+          SONAR_TOKEN=$(docker logs sonar-token)
+          mvn initialize sonar:sonar -Dsonar.token=$SONAR_TOKEN
+          ./tests-ci/sonar.sh
+      - name: 'Analysis: see results'
+        run: ./tests-ci/sonar.sh
