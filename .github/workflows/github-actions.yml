@@ -30,6 +30,31 @@ jobs:
           distribution: 'temurin'
           java-version: 21
           cache: maven
+      - name: 'Start local Sonar'
+        run: docker compose -f src/main/docker/sonar.yml up -d
+      - name: 'Wait for SonarQube to be ready'
+        run: |
+          echo 'Waiting for SonarQube to start...'
+          for attempt in {1..30}; do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9001/api/system/status)" -eq 200 ] && \
+               curl -s http://localhost:9001/api/system/status | jq -e '.status == "UP"' > /dev/null; then
+              echo "SonarQube is UP"
+              break
+            fi
+            echo "Waiting for SonarQube... ($attempt/30)"
+            sleep 10
+          done
+          if [ $attempt -eq 30 ]; then
+            echo 'SonarQube did not become ready in time. Exiting.'
+            exit 1
+          fi
       - name: 'Test: run tests'
         run: |
           mvn --batch-mode -ntp clean verify
+      - name: 'Analysis: local Sonar'
+        run: |
+          SONAR_TOKEN=$(docker logs sonar-token)
+          mvn initialize sonar:sonar -Dsonar.token=$SONAR_TOKEN
+          ./tests-ci/sonar.sh
+      - name: 'Analysis: see results'
+        run: ./tests-ci/sonar.sh
