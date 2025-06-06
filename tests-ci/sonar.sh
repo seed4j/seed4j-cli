@@ -49,7 +49,7 @@ echo "----- Local Sonar Analysis -----"
 echo "  Coverage:          $cov"
 echo "  Vulnerabilities:   $vul"
 echo "  Bugs:              $bug"
-echo "  Duplication:       $dup"
+echo "  Duplications:      $dup"
 echo "  Code smells:       $csm"
 echo "  Security Hotspots: $sec"
 echo "--------------------------------"
@@ -73,7 +73,7 @@ if [[ $bug != "0" ]]; then
 fi
 
 if [[ $dup != "0.0" ]]; then
-  echo "Sonar Analysis failed -> Duplication"
+  echo "Sonar Analysis failed -> Duplications"
   fail;
 fi
 
