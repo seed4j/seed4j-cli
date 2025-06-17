@@ -200,7 +200,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
       throw new MissingParameterException(
         commandSpec.commandLine(),
-        missingOptions.stream().map(option -> (ArgSpec) option).collect(Collectors.toList()),
+        missingOptions.stream().map(ArgSpec.class::cast).toList(),
         "Missing required options: %s".formatted(missingOptionsDescription)
       );
     }

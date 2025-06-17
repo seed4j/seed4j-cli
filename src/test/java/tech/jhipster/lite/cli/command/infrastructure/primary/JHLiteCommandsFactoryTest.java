@@ -67,9 +67,12 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("Available jhipster-lite modules");
-      assertThat(output).contains("init").contains("Init project");
-      assertThat(output).contains("prettier").contains("Format project with prettier");
+      assertThat(output)
+        .contains("Available jhipster-lite modules")
+        .contains("init")
+        .contains("Init project")
+        .contains("prettier")
+        .contains("Format project with prettier");
     }
   }
 
@@ -106,15 +109,19 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains(
-        """
-        Apply jhipster-lite specific module
-          -h, --help      Show this help message and exit.
-          -V, --version   Print version information and exit.
-        Commands:
-        """
-      );
-      assertThat(output).contains("init").contains("Init project").contains("prettier").contains("Format project with prettier");
+      assertThat(output)
+        .contains(
+          """
+          Apply jhipster-lite specific module
+            -h, --help      Show this help message and exit.
+            -V, --version   Print version information and exit.
+          Commands:
+          """
+        )
+        .contains("init")
+        .contains("Init project")
+        .contains("prettier")
+        .contains("Format project with prettier");
     }
 
     @Test
