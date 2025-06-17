@@ -4,12 +4,12 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
 
 @Component
-class JHLiteCommand {
+class JHLiteCommandsFactory {
 
   private final ListModulesCommand listModulesCommand;
   private final ApplyModuleCommand applyModuleCommand;
 
-  public JHLiteCommand(ListModulesCommand listModulesCommand, ApplyModuleCommand applyModuleCommand) {
+  public JHLiteCommandsFactory(ListModulesCommand listModulesCommand, ApplyModuleCommand applyModuleCommand) {
     this.listModulesCommand = listModulesCommand;
     this.applyModuleCommand = applyModuleCommand;
   }

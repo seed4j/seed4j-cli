@@ -9,10 +9,10 @@ import tech.jhipster.lite.cli.shared.generation.domain.ExcludeFromGeneratedCodeC
 @Component
 class JHLiteCommandRunner implements CommandLineRunner, ExitCodeGenerator {
 
-  private final JHLiteCommand command;
+  private final JHLiteCommandsFactory command;
   private int exitCode;
 
-  public JHLiteCommandRunner(JHLiteCommand command) {
+  public JHLiteCommandRunner(JHLiteCommandsFactory command) {
     this.command = command;
   }
 

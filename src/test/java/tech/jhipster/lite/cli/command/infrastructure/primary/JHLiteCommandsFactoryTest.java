@@ -23,7 +23,7 @@ import tech.jhipster.lite.project.domain.history.ProjectHistory;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-class JHLiteCommandTest {
+class JHLiteCommandsFactoryTest {
 
   private static final String PROJECT_NAME = "projectName";
   private static final String BASE_NAME = "baseName";
@@ -315,8 +315,8 @@ class JHLiteCommandTest {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules);
 
-    JHLiteCommand jhliteCommand = new JHLiteCommand(listModulesCommand, applyModuleCommand);
+    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(listModulesCommand, applyModuleCommand);
 
-    return new CommandLine(jhliteCommand.buildCommandSpec());
+    return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
   }
 }
