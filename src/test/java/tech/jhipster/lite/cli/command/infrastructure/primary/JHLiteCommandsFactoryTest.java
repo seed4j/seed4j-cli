@@ -45,7 +45,7 @@ class JHLiteCommandsFactoryTest {
     int exitCode = commandLine().execute(args);
 
     assertThat(exitCode).isEqualTo(2);
-    assertThat(output.toString()).contains(
+    assertThat(output).contains(
       """
       JHipster Lite CLI
         -h, --help      Show this help message and exit.
@@ -67,9 +67,9 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).contains("Available jhipster-lite modules");
-      assertThat(output.toString()).contains("init").contains("Init project");
-      assertThat(output.toString()).contains("prettier").contains("Format project with prettier");
+      assertThat(output).contains("Available jhipster-lite modules");
+      assertThat(output).contains("init").contains("Init project");
+      assertThat(output).contains("prettier").contains("Format project with prettier");
     }
   }
 
@@ -84,7 +84,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(output.toString()).contains("Missing required subcommand").contains("init").contains("prettier");
+      assertThat(output).contains("Missing required subcommand").contains("init").contains("prettier");
     }
 
     @Test
@@ -94,7 +94,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).doesNotContain(
+      assertThat(output).doesNotContain(
         "[picocli WARN] Could not format 'Add JaCoCo for code coverage reporting and 100% coverage check' (Underlying error: Conversion = c, Flags =  ). Using raw String: '%n' format strings have not been replaced with newlines. Please ensure to escape '%' characters with another '%'."
       );
     }
@@ -106,7 +106,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).contains(
+      assertThat(output).contains(
         """
         Apply jhipster-lite specific module
           -h, --help      Show this help message and exit.
@@ -114,7 +114,7 @@ class JHLiteCommandsFactoryTest {
         Commands:
         """
       );
-      assertThat(output.toString()).contains("init").contains("Init project").contains("prettier").contains("Format project with prettier");
+      assertThat(output).contains("init").contains("Init project").contains("prettier").contains("Format project with prettier");
     }
 
     @Test
@@ -160,7 +160,7 @@ class JHLiteCommandsFactoryTest {
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(output.toString())
+      assertThat(output)
         .contains("Missing required")
         .contains("'--base-name=<basename*>'")
         .contains("'--project-name=<projectname*>'")
