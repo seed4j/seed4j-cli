@@ -1,17 +1,16 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
+import java.util.List;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
 
 @Component
 class JHLiteCommandsFactory {
 
-  private final ListModulesCommand listModulesCommand;
-  private final ApplyModuleCommand applyModuleCommand;
+  private final List<JHLiteCommand> jhliteCommands;
 
-  public JHLiteCommandsFactory(ListModulesCommand listModulesCommand, ApplyModuleCommand applyModuleCommand) {
-    this.listModulesCommand = listModulesCommand;
-    this.applyModuleCommand = applyModuleCommand;
+  public JHLiteCommandsFactory(List<JHLiteCommand> jhliteCommands) {
+    this.jhliteCommands = jhliteCommands;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -19,8 +18,7 @@ class JHLiteCommandsFactory {
 
     spec.usageMessage().description("JHipster Lite CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
 
-    spec.addSubcommand("list", listModulesCommand.buildCommandSpec());
-    spec.addSubcommand("apply", applyModuleCommand.buildCommandSpec());
+    jhliteCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));
 
     return spec;
   }

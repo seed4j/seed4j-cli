@@ -7,7 +7,7 @@ import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 
 @Component
-class ApplyModuleCommand {
+class ApplyModuleCommand implements JHLiteCommand {
 
   private final JHipsterModulesApplicationService modules;
 
@@ -15,11 +15,17 @@ class ApplyModuleCommand {
     this.modules = modules;
   }
 
-  public CommandSpec buildCommandSpec() {
+  @Override
+  public CommandSpec spec() {
     CommandSpec spec = createSpec();
     addModuleSlugSubcommands(spec);
 
     return spec;
+  }
+
+  @Override
+  public String name() {
+    return "apply";
   }
 
   private CommandSpec createSpec() {

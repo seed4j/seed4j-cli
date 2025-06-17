@@ -6,6 +6,7 @@ import static tech.jhipster.lite.TestProjects.newTestFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -315,7 +316,7 @@ class JHLiteCommandsFactoryTest {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules);
 
-    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(listModulesCommand, applyModuleCommand);
+    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand));
 
     return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
   }
