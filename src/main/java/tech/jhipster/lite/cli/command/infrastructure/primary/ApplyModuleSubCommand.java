@@ -1,9 +1,13 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import picocli.CommandLine.ExitCode;
+import picocli.CommandLine.MissingParameterException;
+import picocli.CommandLine.Model.ArgSpec;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Model.OptionSpec;
 import tech.jhipster.lite.cli.shared.error.domain.Assert;
@@ -17,19 +21,30 @@ import tech.jhipster.lite.module.domain.properties.JHipsterPropertyKey;
 import tech.jhipster.lite.module.domain.properties.JHipsterPropertyType;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleOperation;
 import tech.jhipster.lite.module.domain.resource.JHipsterModulePropertiesDefinition;
+import tech.jhipster.lite.module.domain.resource.JHipsterModulePropertyDefinition;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
+import tech.jhipster.lite.project.application.ProjectsApplicationService;
+import tech.jhipster.lite.project.domain.ProjectPath;
+import tech.jhipster.lite.project.domain.history.ModuleParameters;
 
 class ApplyModuleSubCommand implements Callable<Integer> {
 
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
-  private final JHipsterModulesApplicationService modules;
-  private final JHipsterModuleSlug moduleSlug;
-  private final CommandSpec commandSpec;
 
-  public ApplyModuleSubCommand(JHipsterModulesApplicationService modules, JHipsterModuleResource module) {
+  private final JHipsterModulesApplicationService modules;
+  private final JHipsterModuleResource module;
+  private final CommandSpec commandSpec;
+  private final ProjectsApplicationService projects;
+
+  public ApplyModuleSubCommand(
+    JHipsterModulesApplicationService modules,
+    JHipsterModuleResource module,
+    ProjectsApplicationService projects
+  ) {
     this.modules = modules;
-    this.moduleSlug = module.slug();
+    this.module = module;
+    this.projects = projects;
     this.commandSpec = buildCommandSpec(module.slug(), module.apiDoc().operation(), module.propertiesDefinition());
   }
 
@@ -67,9 +82,13 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       .forEach(property ->
         spec.addOption(
           OptionSpec.builder(toDashedFormat(property.key()))
-            .description(property.description().map(JHipsterPropertyDescription::get).orElse(""))
-            .paramLabel("<%s>".formatted(property.key().get().toLowerCase()))
-            .required(property.isMandatory())
+            .description(
+              "%s%s".formatted(
+                  property.description().map(JHipsterPropertyDescription::get).orElse(""),
+                  property.isMandatory() ? " (required)" : ""
+                )
+            )
+            .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
             .type(toOptionType(property.type()))
             .build()
         )
@@ -125,7 +144,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   @Override
   public Integer call() {
     JHipsterModuleProperties properties = new JHipsterModuleProperties(projectPath(), commitEnabled(), parameters());
-    JHipsterModuleToApply moduleToApply = new JHipsterModuleToApply(new JHipsterModuleSlug(moduleSlug.get()), properties);
+    JHipsterModuleToApply moduleToApply = new JHipsterModuleToApply(new JHipsterModuleSlug(module.slug().get()), properties);
     modules.apply(moduleToApply);
 
     return ExitCode.OK;
@@ -142,7 +161,18 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   }
 
   private Map<String, Object> parameters() {
-    HashMap<String, Object> map = new HashMap<>();
+    ModuleParameters moduleParameters = projects
+      .getHistory(new ProjectPath(projectPath()))
+      .latestProperties()
+      .merge(new ModuleParameters(parametersFromOptions()));
+
+    validateRequiredOptions(moduleParameters);
+
+    return moduleParameters.get();
+  }
+
+  private Map<String, Object> parametersFromOptions() {
+    Map<String, Object> map = new HashMap<>();
 
     commandSpec
       .options()
@@ -151,5 +181,28 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       .forEach(option -> map.put(toCamelCaseFormat(option.longestName()), option.getValue()));
 
     return map;
+  }
+
+  private void validateRequiredOptions(ModuleParameters moduleParameters) {
+    List<OptionSpec> missingOptions = module
+      .propertiesDefinition()
+      .stream()
+      .filter(JHipsterModulePropertyDefinition::isMandatory)
+      .filter(property -> !moduleParameters.get().containsKey(property.key().get()))
+      .map(property -> commandSpec.findOption(toDashedFormat(property.key())))
+      .toList();
+
+    if (!missingOptions.isEmpty()) {
+      String missingOptionsDescription = missingOptions
+        .stream()
+        .map(option -> "'%s=%s'".formatted(option.longestName(), option.paramLabel()))
+        .collect(Collectors.joining(", "));
+
+      throw new MissingParameterException(
+        commandSpec.commandLine(),
+        missingOptions.stream().map(option -> (ArgSpec) option).collect(Collectors.toList()),
+        "Missing required options: %s".formatted(missingOptionsDescription)
+      );
+    }
   }
 }

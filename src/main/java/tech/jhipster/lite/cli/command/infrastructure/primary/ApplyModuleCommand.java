@@ -10,9 +10,11 @@ import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 class ApplyModuleCommand implements JHLiteCommand {
 
   private final JHipsterModulesApplicationService modules;
+  private final ApplyModuleSubCommandsFactory subCommandsFactory;
 
-  public ApplyModuleCommand(JHipsterModulesApplicationService modules) {
+  public ApplyModuleCommand(JHipsterModulesApplicationService modules, ApplyModuleSubCommandsFactory subCommandsFactory) {
     this.modules = modules;
+    this.subCommandsFactory = subCommandsFactory;
   }
 
   @Override
@@ -40,7 +42,7 @@ class ApplyModuleCommand implements JHLiteCommand {
       .resources()
       .stream()
       .sorted(byModuleSlug())
-      .forEach(module -> spec.addSubcommand(module.slug().get(), new ApplyModuleSubCommand(modules, module).commandSpec()));
+      .forEach(module -> spec.addSubcommand(module.slug().get(), subCommandsFactory.create(module).commandSpec()));
   }
 
   private static Comparator<JHipsterModuleResource> byModuleSlug() {
