@@ -4,24 +4,38 @@ import java.util.Comparator;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
-import picocli.CommandLine;
 import picocli.CommandLine.ExitCode;
+import picocli.CommandLine.Model.CommandSpec;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.domain.JHipsterSlug;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 import tech.jhipster.lite.module.domain.resource.JHipsterModulesResources;
 
 @Component
-@CommandLine.Command(name = "list", description = "List available jhipster-lite modules")
-class ListModulesCommand implements Callable<Integer> {
+class ListModulesCommand implements JHLiteCommand, Callable<Integer> {
 
   private static final int MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION = 2;
+
   private final JHipsterModulesApplicationService modules;
 
   public ListModulesCommand(JHipsterModulesApplicationService modules) {
     this.modules = modules;
   }
 
+  @Override
+  public CommandSpec spec() {
+    CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("list");
+    spec.usageMessage().description("List available jhipster-lite modules");
+
+    return spec;
+  }
+
+  @Override
+  public String name() {
+    return "list";
+  }
+
+  @Override
   public Integer call() {
     JHipsterModulesResources modulesResources = modules.resources();
     System.out.printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
