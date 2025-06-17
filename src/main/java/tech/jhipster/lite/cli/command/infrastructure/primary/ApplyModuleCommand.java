@@ -40,7 +40,7 @@ class ApplyModuleCommand implements JHLiteCommand {
       .resources()
       .stream()
       .sorted(byModuleSlug())
-      .forEach(module -> spec.addSubcommand(module.slug().get(), new ModuleSlugCommand(modules, module).commandSpec()));
+      .forEach(module -> spec.addSubcommand(module.slug().get(), new ApplyModuleSubCommand(modules, module).commandSpec()));
   }
 
   private static Comparator<JHipsterModuleResource> byModuleSlug() {

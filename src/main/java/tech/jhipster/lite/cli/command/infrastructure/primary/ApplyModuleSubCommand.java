@@ -19,7 +19,7 @@ import tech.jhipster.lite.module.domain.resource.JHipsterModuleOperation;
 import tech.jhipster.lite.module.domain.resource.JHipsterModulePropertiesDefinition;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 
-class ModuleSlugCommand implements Callable<Integer> {
+class ApplyModuleSubCommand implements Callable<Integer> {
 
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
@@ -27,7 +27,7 @@ class ModuleSlugCommand implements Callable<Integer> {
   private final JHipsterModuleSlug moduleSlug;
   private final CommandSpec commandSpec;
 
-  public ModuleSlugCommand(JHipsterModulesApplicationService modules, JHipsterModuleResource module) {
+  public ApplyModuleSubCommand(JHipsterModulesApplicationService modules, JHipsterModuleResource module) {
     this.modules = modules;
     this.moduleSlug = module.slug();
     this.commandSpec = buildCommandSpec(module.slug(), module.apiDoc().operation(), module.propertiesDefinition());
