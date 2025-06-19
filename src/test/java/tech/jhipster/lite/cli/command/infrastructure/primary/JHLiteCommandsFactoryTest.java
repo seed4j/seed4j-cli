@@ -30,6 +30,7 @@ class JHLiteCommandsFactoryTest {
   private static final String BASE_NAME = "baseName";
   private static final String END_OF_LINE = "endOfLine";
   private static final String INDENT_SIZE = "indentSize";
+  private static final String PACKAGE_NAME = "packageName";
 
   @Autowired
   private ProjectsApplicationService projects;
@@ -44,7 +45,7 @@ class JHLiteCommandsFactoryTest {
     int exitCode = commandLine().execute(args);
 
     assertThat(exitCode).isEqualTo(2);
-    assertThat(output.toString()).contains(
+    assertThat(output).contains(
       """
       JHipster Lite CLI
         -h, --help      Show this help message and exit.
@@ -66,9 +67,12 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).contains("Available jhipster-lite modules");
-      assertThat(output.toString()).contains("init").contains("Init project");
-      assertThat(output.toString()).contains("prettier").contains("Format project with prettier");
+      assertThat(output)
+        .contains("Available jhipster-lite modules")
+        .contains("init")
+        .contains("Init project")
+        .contains("prettier")
+        .contains("Format project with prettier");
     }
   }
 
@@ -83,7 +87,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(output.toString()).contains("Missing required subcommand").contains("init").contains("prettier");
+      assertThat(output).contains("Missing required subcommand").contains("init").contains("prettier");
     }
 
     @Test
@@ -93,7 +97,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).doesNotContain(
+      assertThat(output).doesNotContain(
         "[picocli WARN] Could not format 'Add JaCoCo for code coverage reporting and 100% coverage check' (Underlying error: Conversion = c, Flags =  ). Using raw String: '%n' format strings have not been replaced with newlines. Please ensure to escape '%' characters with another '%'."
       );
     }
@@ -105,15 +109,19 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output.toString()).contains(
-        """
-        Apply jhipster-lite specific module
-          -h, --help      Show this help message and exit.
-          -V, --version   Print version information and exit.
-        Commands:
-        """
-      );
-      assertThat(output.toString()).contains("init").contains("Init project").contains("prettier").contains("Format project with prettier");
+      assertThat(output)
+        .contains(
+          """
+          Apply jhipster-lite specific module
+            -h, --help      Show this help message and exit.
+            -V, --version   Print version information and exit.
+          Commands:
+          """
+        )
+        .contains("init")
+        .contains("Init project")
+        .contains("prettier")
+        .contains("Format project with prettier");
     }
 
     @Test
@@ -159,10 +167,12 @@ class JHLiteCommandsFactoryTest {
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(output.toString())
+      assertThat(output)
         .contains("Missing required")
-        .contains("'--base-name=<basename>'")
-        .contains("'--project-name=<projectname>'");
+        .contains("'--base-name=<basename*>'")
+        .contains("'--project-name=<projectname*>'")
+        .contains("Project short name (only letters and numbers) (required)")
+        .contains("Project full name (required)");
     }
 
     @Test
@@ -295,6 +305,38 @@ class JHLiteCommandsFactoryTest {
       assertThat(projectPropertyValue(projectPath, END_OF_LINE)).isEqualTo("lf");
     }
 
+    @Test
+    void shouldReuseParametersFromPreviousModuleApplications() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initModuleArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "jhipsterSampleApplication",
+        "--project-name",
+        "JHipster Sample Application",
+      };
+      int initModuleExitCode = commandLine().execute(initModuleArgs);
+      assertThat(initModuleExitCode).isZero();
+      String[] mavenJavaModuleArgs = {
+        "apply",
+        "maven-java",
+        "--project-path",
+        projectPath.toString(),
+        "--package-name",
+        "com.my.company",
+      };
+
+      int mavenJavaModuleExitCode = commandLine().execute(mavenJavaModuleArgs);
+
+      assertThat(mavenJavaModuleExitCode).isZero();
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("jhipsterSampleApplication");
+      assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.my.company");
+    }
+
     private static Path setupProjectTestFolder() throws IOException {
       String projectFolder = newTestFolder();
       Path projectPath = Path.of(projectFolder);
@@ -314,7 +356,8 @@ class JHLiteCommandsFactoryTest {
 
   private CommandLine commandLine() {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
-    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules);
+    ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
+    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
     JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand));
 
