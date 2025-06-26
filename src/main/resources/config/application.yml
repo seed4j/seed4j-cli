@@ -3,3 +3,4 @@ spring:
     name: JHLiteCli
 project:
   version: ${project.version}
+  jhlite-version: ${jhlite.version}

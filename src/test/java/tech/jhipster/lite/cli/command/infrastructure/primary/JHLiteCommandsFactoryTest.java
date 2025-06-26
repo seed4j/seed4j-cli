@@ -344,7 +344,7 @@ class JHLiteCommandsFactoryTest {
       int exitCode = commandLine().execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("JHipster Lite CLI v0.0.1-SNAPSHOT");
+      assertThat(output).contains("JHipster Lite CLI v1").contains("JHipster Lite version: 2");
     }
 
     private static Path setupProjectTestFolder() throws IOException {
@@ -369,10 +369,7 @@ class JHLiteCommandsFactoryTest {
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
-    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand),
-      "0.0.1-SNAPSHOT"
-    );
+    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
 
     return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
   }

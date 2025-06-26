@@ -10,17 +10,27 @@ class JHLiteCommandsFactory {
 
   private final List<JHLiteCommand> jhliteCommands;
   private final String version;
+  private final String jHLiteVersion;
 
-  public JHLiteCommandsFactory(List<JHLiteCommand> jhliteCommands, @Value("${project.version:0.0.1-SNAPSHOT}") String version) {
+  public JHLiteCommandsFactory(
+    List<JHLiteCommand> jhliteCommands,
+    @Value("${project.version}") String version,
+    @Value("${project.jhlite-version}") String jHLiteVersion
+  ) {
     this.jhliteCommands = jhliteCommands;
     this.version = version;
+    this.jHLiteVersion = jHLiteVersion;
   }
 
   public CommandSpec buildCommandSpec() {
     CommandSpec spec = CommandSpec.create()
       .name("jhlite")
       .mixinStandardHelpOptions(true)
-      .version("JHipster Lite CLI v%s".formatted(version));
+      .version(
+        """
+        JHipster Lite CLI v%s
+        JHipster Lite version: %s""".formatted(version, jHLiteVersion)
+      );
 
     spec.usageMessage().description("JHipster Lite CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
 
