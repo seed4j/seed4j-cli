@@ -337,6 +337,16 @@ class JHLiteCommandsFactoryTest {
       assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.my.company");
     }
 
+    @Test
+    void shouldShowVersion(CapturedOutput output) {
+      String[] args = { "--version" };
+
+      int exitCode = commandLine().execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("JHipster Lite CLI v1").contains("JHipster Lite version: 2");
+    }
+
     private static Path setupProjectTestFolder() throws IOException {
       String projectFolder = newTestFolder();
       Path projectPath = Path.of(projectFolder);
@@ -359,7 +369,7 @@ class JHLiteCommandsFactoryTest {
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
-    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand));
+    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
 
     return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
   }
