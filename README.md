@@ -1,4 +1,4 @@
-# JHLite Cli
+# JHLite Cli <img src="https://renanfranca.github.io/assets/icons/icon-terminal-solid-blue.svg" alt="console icon" height="20" width="20"/>
 
 ## Prerequisites
 
