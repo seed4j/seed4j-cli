@@ -92,6 +92,7 @@ jhlite --help
 
 ## Documentation
 
+- [Commands Guide](documentation/Commands.md)
 - [Hexagonal architecture](documentation/hexagonal-architecture.md)
 - [Package types](documentation/package-types.md)
 - [Assertions](documentation/assertions.md)
