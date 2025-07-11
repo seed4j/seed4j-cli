@@ -4,6 +4,23 @@
 
 JHipster Lite CLI is a command-line interface tool that helps you apply and manage JHipster Lite modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [JHipster Lite](https://github.com/jhipster/jhipster-lite) to learn more about it.
 
+## Quick Start
+
+You need to clone this project and go into the folder:
+
+```bash
+git clone https://github.com/jhipster/jhipster-lite
+cd jhipster-lite
+```
+
+Install `jhlite` command in your bin folder:
+
+```bash
+./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+```
+
+Then you can follow the [Commands Guide](documentation/Commands.md)
+
 ## Prerequisites
 
 ### Java
