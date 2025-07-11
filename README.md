@@ -1,5 +1,9 @@
 # JHLite Cli <img src="https://renanfranca.github.io/assets/icons/icon-terminal-solid-blue.svg" alt="console icon" height="20" width="20"/>
 
+## Description
+
+JHipster Lite CLI is a command-line interface tool that helps you apply and manage JHipster Lite modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [JHipster Lite](https://github.com/jhipster/jhipster-lite) to learn more about it.
+
 ## Prerequisites
 
 ### Java
