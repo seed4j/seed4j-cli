@@ -1,4 +1,27 @@
-# JHLite Cli
+# JHipster Lite CLI <img src="https://renanfranca.github.io/assets/icons/icon-terminal-solid-blue.svg" alt="console icon" height="20" width="20"/>
+
+[![Build Status][github-actions-jhlite-lite-cli-image]][github-actions-url]
+
+## Description
+
+JHipster Lite CLI is a command-line interface tool that helps you apply and manage JHipster Lite modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [JHipster Lite](https://github.com/jhipster/jhipster-lite) to learn more about it.
+
+## Quick Start
+
+You need to clone this project and go into the folder:
+
+```bash
+git clone https://github.com/jhipster/jhipster-lite
+cd jhipster-lite
+```
+
+Install `jhlite` command in your bin folder:
+
+```bash
+./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+```
+
+Then you can follow the [Commands Guide](documentation/Commands.md)
 
 ## Prerequisites
 
@@ -32,13 +55,52 @@ npm install
 ./mvnw
 ```
 
+## Install CLI Command
+
+```bash
+./mvnw clean package
+
+echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null
+
+# Make the script executable
+sudo chmod +x /usr/local/bin/jhlite
+
+# Find the JAR file in the target directory and move it as jhlite.jar
+JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1)
+if [ -n "$JAR_SOURCE" ]; then
+  sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar
+else
+  echo "No JAR file found in target directory"
+fi
+```
+
+Copy and paste the above script into a terminal to install the jhlite command.
+
+You can use a single command:
+
+```bash
+./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+```
+
+### Usage
+
+After the installation, you can use the `jhlite` with help command to know the options:
+
+```bash
+jhlite --help
+```
+
 <!-- jhipster-needle-startupCommand -->
 
 ## Documentation
 
+- [Commands Guide](documentation/Commands.md)
 - [Hexagonal architecture](documentation/hexagonal-architecture.md)
 - [Package types](documentation/package-types.md)
 - [Assertions](documentation/assertions.md)
 - [sonar](documentation/sonar.md)
 
 <!-- jhipster-needle-documentation -->
+
+[github-actions-jhlite-lite-cli-image]: https://github.com/jhipster/jhipster-lite-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
+[github-actions-url]: https://github.com/jhipster/jhipster-lite-cli/actions
