@@ -32,6 +32,41 @@ npm install
 ./mvnw
 ```
 
+## Install CLI Command
+
+```bash
+./mvnw clean package
+
+echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null
+
+# Make the script executable
+sudo chmod +x /usr/local/bin/jhlite
+
+# Find the JAR file in the target directory and move it as jhlite.jar
+JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1)
+if [ -n "$JAR_SOURCE" ]; then
+  sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar
+else
+  echo "No JAR file found in target directory"
+fi
+```
+
+Copy and paste the above script into a terminal to install the jhlite command.
+
+You can use a single command:
+
+```bash
+./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+```
+
+### Usage
+
+After the installation, you can use the `jhlite` with help command to know the options:
+
+```bash
+jhlite --help
+```
+
 <!-- jhipster-needle-startupCommand -->
 
 ## Documentation
