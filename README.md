@@ -1,5 +1,7 @@
 # JHipster Lite CLI <img src="https://renanfranca.github.io/assets/icons/icon-terminal-solid-blue.svg" alt="console icon" height="20" width="20"/>
 
+[![Build Status][github-actions-jhlite-lite-cli-image]][github-actions-url]
+
 ## Description
 
 JHipster Lite CLI is a command-line interface tool that helps you apply and manage JHipster Lite modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [JHipster Lite](https://github.com/jhipster/jhipster-lite) to learn more about it.
@@ -99,3 +101,6 @@ jhlite --help
 - [sonar](documentation/sonar.md)
 
 <!-- jhipster-needle-documentation -->
+
+[github-actions-jhlite-lite-cli-image]: https://github.com/jhipster/jhipster-lite-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
+[github-actions-url]: https://github.com/jhipster/jhipster-lite-cli/actions
