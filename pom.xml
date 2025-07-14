@@ -75,7 +75,7 @@
     <failsafe-plugin.version>3.5.3</failsafe-plugin.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
     <checkstyle.version>10.26.1</checkstyle.version>
-    <jacoco.version>0.8.11</jacoco.version>
+    <jacoco.version>0.8.13</jacoco.version>
     <properties-maven-plugin.version>1.2.1</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
