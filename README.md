@@ -11,8 +11,8 @@ JHipster Lite CLI is a command-line interface tool that helps you apply and mana
 You need to clone this project and go into the folder:
 
 ```bash
-git clone https://github.com/jhipster/jhipster-lite
-cd jhipster-lite
+git clone https://github.com/jhipster/jhipster-lite-cli
+cd jhipster-lite-cli
 ```
 
 Install `jhlite` command in your bin folder:
