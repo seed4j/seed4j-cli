@@ -1,4 +1,4 @@
-# JHipster Lite CLI <img src="https://renanfranca.github.io/assets/icons/icon-terminal-solid-blue.svg" alt="console icon" height="20" width="20"/>
+# JHipster Lite CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal.svg" alt="console icon" height="43" align="top"/>
 
 [![Build Status][github-actions-jhlite-lite-cli-image]][github-actions-url]
 
