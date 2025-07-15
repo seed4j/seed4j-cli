@@ -148,6 +148,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
       };
 
       int exitCode = commandLine().execute(args);
@@ -187,6 +189,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
       };
 
       int exitCode = commandLine().execute(args);
@@ -212,6 +216,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
         "--commit",
       };
 
@@ -233,6 +239,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
         "--no-commit",
       };
 
@@ -254,6 +262,8 @@ class JHLiteCommandsFactoryTest {
         "my.New@pp",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
       };
 
       int exitCode = commandLine().execute(args);
@@ -273,6 +283,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
         "--indent-size",
         "4",
       };
@@ -295,6 +307,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
         "--end-of-line",
         "lf",
       };
@@ -317,6 +331,8 @@ class JHLiteCommandsFactoryTest {
         "jhipsterSampleApplication",
         "--project-name",
         "JHipster Sample Application",
+        "--node-package-manager",
+        "npm",
       };
       int initModuleExitCode = commandLine().execute(initModuleArgs);
       assertThat(initModuleExitCode).isZero();
