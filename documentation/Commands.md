@@ -115,5 +115,6 @@ Most commands accept additional options and parameters:
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)
 - `--package-name=<packagename>`: The base Java package (required for Java projects)
+- `--node-package-manager=<npm|pnpm>`: The node package manager to use for Node.js projects
 
 Options are module-specific. When a required option is missing, the CLI will show an error message indicating which option is required.
