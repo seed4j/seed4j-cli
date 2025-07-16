@@ -73,7 +73,7 @@ A typical workflow to initialize a new project might look like:
 2. Initialize a new project:
 
    ```bash
-   jhlite apply init --project-name "My Project" --base-name MyProject
+   jhlite apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
    ```
 
 3. Add code formatting support:
