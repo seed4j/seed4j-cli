@@ -30,7 +30,7 @@ To check the JHipster Lite CLI version:
 jhlite --version
 ```
 
-This will display the JHipster Lite CLI version and the JHipster Lite server version.
+This will display the JHipster Lite CLI version and the JHipster Lite version.
 
 ### List Available Modules
 
