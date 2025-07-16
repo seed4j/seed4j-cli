@@ -11,6 +11,7 @@ This document provides an overview of the JHipster Lite CLI commands available i
   - [Apply a Module](#apply-a-module)
 - [Project Creation Workflow Example](#project-creation-workflow-example)
 - [Options and Parameters](#options-and-parameters)
+  - [Parameters Reuse](#parameter-reuse)
 
 ## Getting Started
 
@@ -118,3 +119,25 @@ Most commands accept additional options and parameters:
 - `--node-package-manager=<npm|pnpm>`: The node package manager to use for Node.js projects
 
 Options are module-specific. When a required option is missing, the CLI will show an error message indicating which option is required.
+
+### Parameter Reuse
+
+JHipster Lite CLI automatically reuses parameters from previous module applications. This means:
+
+- Parameters you've provided when applying one module will be remembered for subsequent module applications
+- You don't need to specify the same parameters repeatedly for different modules
+- Only new parameters or parameters you want to override need to be specified
+
+For example, if you've already run:
+
+```bash
+jhlite apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
+```
+
+Then when applying another module, you can omit the previously provided parameters:
+
+```bash
+jhlite apply maven-java --package-name com.example.myproject
+```
+
+The CLI will automatically reuse the `project-name`, `base-name`, and `node-package-manager` values from your previous command.
