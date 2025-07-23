@@ -9,21 +9,21 @@ import org.springframework.context.ConfigurableApplicationContext;
 import tech.jhipster.lite.JHLiteApp;
 import tech.jhipster.lite.cli.shared.exit.domain.SpringApplicationExit;
 import tech.jhipster.lite.cli.shared.exit.domain.SystemExit;
-import tech.jhipster.lite.cli.shared.spinnerprogress.domain.SpinnerProgress;
-import tech.jhipster.lite.cli.shared.spinnerprogress.infrastructure.primary.SpinnerProgressProvider;
+import tech.jhipster.lite.cli.shared.progressstatus.domain.ProgressStatus;
+import tech.jhipster.lite.cli.shared.progressstatus.infrastructure.primary.ProgressStatusProvider;
 
 @SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, JHLiteCliApp.class })
 public class JHLiteCliApp {
 
   public static void main(String[] args) {
-    SpinnerProgress spinnerProgress = SpinnerProgressProvider.get();
-    spinnerProgress.show("Loading JHipster Lite CLI");
+    ProgressStatus progressStatus = ProgressStatusProvider.get();
+    progressStatus.show("Loading JHipster Lite CLI");
 
     ConfigurableApplicationContext context = new SpringApplicationBuilder(JHLiteCliApp.class)
       .bannerMode(Banner.Mode.OFF)
       .web(WebApplicationType.NONE)
       .lazyInitialization(true)
-      .listeners(event -> handleApplicationEvent(event, spinnerProgress))
+      .listeners(event -> handleApplicationEvent(event, progressStatus))
       .run(args);
 
     SystemExit systemExit = context.getBean(SystemExit.class);
@@ -34,9 +34,9 @@ public class JHLiteCliApp {
     systemExit.exit(exitCode);
   }
 
-  private static void handleApplicationEvent(Object event, SpinnerProgress spinnerProgress) {
+  private static void handleApplicationEvent(Object event, ProgressStatus progressStatus) {
     if (event instanceof ApplicationStartedEvent) {
-      spinnerProgress.success("JHipster Lite CLI is ready");
+      progressStatus.success("JHipster Lite CLI is ready");
     }
   }
 }

@@ -7,28 +7,28 @@ import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import tech.jhipster.lite.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
-import tech.jhipster.lite.cli.shared.spinnerprogress.domain.SpinnerProgress;
-import tech.jhipster.lite.cli.shared.spinnerprogress.infrastructure.primary.SpinnerProgressProvider;
+import tech.jhipster.lite.cli.shared.progressstatus.domain.ProgressStatus;
+import tech.jhipster.lite.cli.shared.progressstatus.infrastructure.primary.ProgressStatusProvider;
 
 @Component
 class JHLiteCommandRunner implements CommandLineRunner, ExitCodeGenerator {
 
   private final JHLiteCommandsFactory commandsFactory;
-  private final SpinnerProgress spinnerProgress;
+  private final ProgressStatus progressStatus;
   private int exitCode;
 
   public JHLiteCommandRunner(JHLiteCommandsFactory commandsFactory) {
     this.commandsFactory = commandsFactory;
-    this.spinnerProgress = SpinnerProgressProvider.get();
+    this.progressStatus = ProgressStatusProvider.get();
   }
 
   @Override
   public void run(String... args) {
-    spinnerProgress.show("Running command");
+    progressStatus.show("Running command");
 
     CommandLineOutput output = captureCommandExecution(args);
 
-    displayResultsWithSpinner(spinnerProgress, output);
+    displayResultsWithSpinner(progressStatus, output);
     displayOutputAndErrors(output);
   }
 
@@ -47,11 +47,11 @@ class JHLiteCommandRunner implements CommandLineRunner, ExitCodeGenerator {
     }
   }
 
-  private void displayResultsWithSpinner(SpinnerProgress spinnerProgress, CommandLineOutput output) {
+  private void displayResultsWithSpinner(ProgressStatus progressStatus, CommandLineOutput output) {
     if (output.isSuccessful()) {
-      spinnerProgress.success("Command executed");
+      progressStatus.success("Command executed");
     } else {
-      spinnerProgress.failure("Command failed");
+      progressStatus.failure("Command failed");
     }
   }
 

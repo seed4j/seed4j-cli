@@ -1,6 +1,6 @@
-package tech.jhipster.lite.cli.shared.spinnerprogress.domain;
+package tech.jhipster.lite.cli.shared.progressstatus.domain;
 
-public interface SpinnerProgress {
+public interface ProgressStatus {
   void show();
   void show(String message);
   void update(String message);

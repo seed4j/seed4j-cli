@@ -1,4 +1,4 @@
-package tech.jhipster.lite.cli.shared.spinnerprogress.infrastructure.primary;
+package tech.jhipster.lite.cli.shared.progressstatus.infrastructure.primary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,11 +9,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import tech.jhipster.lite.cli.UnitTest;
-import tech.jhipster.lite.cli.shared.spinnerprogress.domain.SpinnerProgress;
+import tech.jhipster.lite.cli.shared.progressstatus.domain.ProgressStatus;
 
 @UnitTest
 @ExtendWith(OutputCaptureExtension.class)
-class SpinnerProgressTest {
+class ProgressStatusTest {
 
   private static final String CLEAR_LINE = "\r\033[K";
 
@@ -23,22 +23,22 @@ class SpinnerProgressTest {
 
     @Test
     void shouldDisplaySpinnerWithMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
 
-      spinnerProgress.show("Loading test data");
+      progressStatus.show("Loading test data");
 
       assertThat(output.toString()).contains("Loading test data");
-      spinnerProgress.hide();
+      progressStatus.hide();
     }
 
     @Test
     void shouldDisplaySpinnerWithDefaultMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
 
-      spinnerProgress.show();
+      progressStatus.show();
 
       assertThat(output.toString()).contains("Processing");
-      spinnerProgress.hide();
+      progressStatus.hide();
     }
   }
 
@@ -48,13 +48,13 @@ class SpinnerProgressTest {
 
     @Test
     void shouldUpdateSpinnerMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
-      spinnerProgress.show("Initial message");
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
+      progressStatus.show("Initial message");
 
-      spinnerProgress.update("Updated message");
+      progressStatus.update("Updated message");
 
       assertThat(output.toString()).contains("Updated message");
-      spinnerProgress.hide();
+      progressStatus.hide();
     }
   }
 
@@ -64,30 +64,30 @@ class SpinnerProgressTest {
 
     @Test
     void shouldShowSuccessMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
-      spinnerProgress.show("Operation in progress");
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
+      progressStatus.show("Operation in progress");
 
-      spinnerProgress.success("Completed successfully");
+      progressStatus.success("Completed successfully");
 
       assertThat(output.toString()).contains("✓").contains("Completed successfully");
     }
 
     @Test
     void shouldShowFailureMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
-      spinnerProgress.show("Operation in progress");
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
+      progressStatus.show("Operation in progress");
 
-      spinnerProgress.failure("Operation failed");
+      progressStatus.failure("Operation failed");
 
       assertThat(output.toString()).contains("✗").contains("Operation failed");
     }
 
     @Test
     void shouldHideSpinnerWithoutCompletionMessage(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
-      spinnerProgress.show("Operation in progress");
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
+      progressStatus.show("Operation in progress");
 
-      spinnerProgress.hide();
+      progressStatus.hide();
 
       assertThat(output).endsWith(CLEAR_LINE).doesNotContain("✓ ").doesNotContain("✗ ");
     }
@@ -99,39 +99,39 @@ class SpinnerProgressTest {
 
     @Test
     void shouldHandleMultipleShowCalls(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
-      spinnerProgress.show("First message");
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
+      progressStatus.show("First message");
 
-      spinnerProgress.show("Second message");
+      progressStatus.show("Second message");
 
       assertThat(output.toString()).contains("Second message");
-      spinnerProgress.hide();
+      progressStatus.hide();
     }
 
     @Test
     void shouldHandleSuccessWhenNotRunning(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
 
-      spinnerProgress.success("Success without running");
+      progressStatus.success("Success without running");
 
       assertThat(output.toString()).doesNotContain("✓").doesNotContain("Success without running");
     }
 
     @Test
     void shouldHandleFailureWhenNotRunning(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
 
-      spinnerProgress.failure("Failure without running");
+      progressStatus.failure("Failure without running");
 
       assertThat(output.toString()).doesNotContain("✗").doesNotContain("Failure without running");
     }
 
     @Test
     void shouldHandleHideWhenNotRunning(CapturedOutput output) {
-      SpinnerProgress spinnerProgress = new ConsoleSpinnerProgress();
+      ProgressStatus progressStatus = new SpinnerProgressStatus();
 
       String outputBefore = output.toString();
-      spinnerProgress.hide();
+      progressStatus.hide();
       String outputAfter = output.toString();
 
       assertThat(outputAfter).isEqualTo(outputBefore);

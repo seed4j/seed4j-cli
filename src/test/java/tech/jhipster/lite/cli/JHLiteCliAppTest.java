@@ -41,7 +41,7 @@ class JHLiteCliAppTest {
 
   @Nested
   @DisplayName("spinner progress messages")
-  class SpinnerProgressMessages {
+  class ProgressStatusMessages {
 
     @Nested
     @DisplayName("should show messages in correct order when")

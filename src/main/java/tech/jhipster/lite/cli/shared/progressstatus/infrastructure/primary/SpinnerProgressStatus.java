@@ -1,4 +1,4 @@
-package tech.jhipster.lite.cli.shared.spinnerprogress.infrastructure.primary;
+package tech.jhipster.lite.cli.shared.progressstatus.infrastructure.primary;
 
 import java.util.Arrays;
 import java.util.concurrent.Executors;
@@ -7,9 +7,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import tech.jhipster.lite.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
-import tech.jhipster.lite.cli.shared.spinnerprogress.domain.SpinnerProgress;
+import tech.jhipster.lite.cli.shared.progressstatus.domain.ProgressStatus;
 
-class ConsoleSpinnerProgress implements SpinnerProgress {
+class SpinnerProgressStatus implements ProgressStatus {
 
   private static final String ANSI_RESET = "\u001B[0m";
   private static final String ANSI_GREEN = "\u001B[32m";
