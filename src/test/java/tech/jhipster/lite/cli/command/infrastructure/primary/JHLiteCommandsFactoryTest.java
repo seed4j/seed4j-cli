@@ -1,12 +1,11 @@
 package tech.jhipster.lite.cli.command.infrastructure.primary;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static tech.jhipster.lite.TestProjects.newTestFolder;
+import static tech.jhipster.lite.cli.command.infrastructure.primary.CliFixture.commandLine;
+import static tech.jhipster.lite.cli.command.infrastructure.primary.CliFixture.setupProjectTestFolder;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import picocli.CommandLine;
 import tech.jhipster.lite.cli.IntegrationTest;
 import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.infrastructure.secondary.git.GitTestUtil;
@@ -42,18 +40,18 @@ class JHLiteCommandsFactoryTest {
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
 
-    int exitCode = commandLine().execute(args);
+    int exitCode = commandLine(modules, projects).execute(args);
 
     assertThat(exitCode).isEqualTo(2);
     assertThat(output).contains(
-      """
-      JHipster Lite CLI
-        -h, --help      Show this help message and exit.
-        -V, --version   Print version information and exit.
+        """
+        JHipster Lite CLI
+          -h, --help      Show this help message and exit.
+          -V, --version   Print version information and exit.
 
-      Commands:
-      """
-    );
+        Commands:
+        """
+      );
   }
 
   @Nested
@@ -64,7 +62,7 @@ class JHLiteCommandsFactoryTest {
     void shouldListModules(CapturedOutput output) {
       String[] args = { "list" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -84,7 +82,7 @@ class JHLiteCommandsFactoryTest {
     void shouldNotApplyWithoutModuleSlugSubcommand(CapturedOutput output) {
       String[] args = { "apply" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output).contains("Missing required subcommand").contains("init").contains("prettier");
@@ -94,7 +92,7 @@ class JHLiteCommandsFactoryTest {
     void shouldEscapeCommandDescriptionInHelpCommand(CapturedOutput output) {
       String[] args = { "apply", "--help" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).doesNotContain(
@@ -106,7 +104,7 @@ class JHLiteCommandsFactoryTest {
     void shouldDisplayModuleSlugsInHelpCommand(CapturedOutput output) {
       String[] args = { "apply", "--help" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -128,7 +126,7 @@ class JHLiteCommandsFactoryTest {
     void shouldDisplayModuleSlugsInAlphabeticalOrderInApplyHelpCommand(CapturedOutput output) {
       String[] args = { "apply", "--help" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output.toString().indexOf("angular-core"))
@@ -152,7 +150,7 @@ class JHLiteCommandsFactoryTest {
         "npm",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
@@ -165,7 +163,7 @@ class JHLiteCommandsFactoryTest {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
@@ -193,7 +191,7 @@ class JHLiteCommandsFactoryTest {
         "npm",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
@@ -221,7 +219,7 @@ class JHLiteCommandsFactoryTest {
         "--commit",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
@@ -244,7 +242,7 @@ class JHLiteCommandsFactoryTest {
         "--no-commit",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
@@ -266,7 +264,7 @@ class JHLiteCommandsFactoryTest {
         "npm",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(1);
     }
@@ -289,7 +287,7 @@ class JHLiteCommandsFactoryTest {
         "4",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(projectPropertyValue(projectPath, INDENT_SIZE)).isEqualTo(4);
@@ -313,7 +311,7 @@ class JHLiteCommandsFactoryTest {
         "lf",
       };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(projectPropertyValue(projectPath, END_OF_LINE)).isEqualTo("lf");
@@ -334,7 +332,7 @@ class JHLiteCommandsFactoryTest {
         "--node-package-manager",
         "npm",
       };
-      int initModuleExitCode = commandLine().execute(initModuleArgs);
+      int initModuleExitCode = commandLine(modules, projects).execute(initModuleArgs);
       assertThat(initModuleExitCode).isZero();
       String[] mavenJavaModuleArgs = {
         "apply",
@@ -345,7 +343,7 @@ class JHLiteCommandsFactoryTest {
         "com.my.company",
       };
 
-      int mavenJavaModuleExitCode = commandLine().execute(mavenJavaModuleArgs);
+      int mavenJavaModuleExitCode = commandLine(modules, projects).execute(mavenJavaModuleArgs);
 
       assertThat(mavenJavaModuleExitCode).isZero();
       assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
@@ -357,36 +355,10 @@ class JHLiteCommandsFactoryTest {
     void shouldShowVersion(CapturedOutput output) {
       String[] args = { "--version" };
 
-      int exitCode = commandLine().execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("JHipster Lite CLI v1").contains("JHipster Lite version: 2");
     }
-
-    private static Path setupProjectTestFolder() throws IOException {
-      String projectFolder = newTestFolder();
-      Path projectPath = Path.of(projectFolder);
-      Files.createDirectories(projectPath);
-      loadGitConfig(projectPath);
-
-      return projectPath;
-    }
-
-    private static void loadGitConfig(Path project) {
-      GitTestUtil.execute(project, "init");
-      GitTestUtil.execute(project, "config", "init.defaultBranch", "main");
-      GitTestUtil.execute(project, "config", "user.email", "\"test@jhipster.com\"");
-      GitTestUtil.execute(project, "config", "user.name", "\"Test\"");
-    }
-  }
-
-  private CommandLine commandLine() {
-    ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
-    ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
-    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
-
-    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
-
-    return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
   }
 }
