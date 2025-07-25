@@ -12,6 +12,7 @@ This document provides an overview of the JHipster Lite CLI commands available i
 - [Project Creation Workflow Example](#project-creation-workflow-example)
 - [Options and Parameters](#options-and-parameters)
   - [Parameters Reuse](#parameter-reuse)
+- [External Configuration](#external-configuration)
 
 ## Getting Started
 
@@ -141,3 +142,46 @@ jhlite apply maven-java --package-name com.example.myproject
 ```
 
 The CLI will automatically reuse the `project-name`, `base-name`, and `node-package-manager` values from your previous command.
+
+## External Configuration
+
+JHipster Lite CLI supports external configuration files to customize its behavior. The CLI automatically looks for a configuration file at:
+
+```
+~/.config/jhlite-cli.yml
+```
+
+If this file exists, it will be loaded automatically when the CLI starts.
+
+### Configuration Options
+
+#### Hidden Resources
+
+You can hide specific modules from being displayed in the `list` command and prevent them from being applied. This is useful for customizing which modules are available in different environments.
+
+Create a `~/.config/jhlite-cli.yml` file with the following structure:
+
+```yaml
+jhlite:
+  hidden-resources:
+    slugs:
+      - gradle-java
+      - module-slug-to-hide
+    tags:
+      - setup
+      - tag-to-hide
+```
+
+**Configuration properties:**
+
+- `slugs`: List of specific module slugs to hide
+- `tags`: List of module tags to hide (hides all modules with these tags)
+
+**Effects of hidden resources:**
+
+- Hidden modules will not appear in the output of `jhlite list`
+- Hidden modules cannot be applied using `jhlite apply <hidden-module>`
+- Attempting to apply a hidden module will result in an "Unmatched arguments" error
+
+**Example:**
+If you hide the `gradle-java` module, running `jhlite list` will not show it in the available modules, and running `jhlite apply gradle-java` will fail with an error.
