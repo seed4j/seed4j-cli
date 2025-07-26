@@ -22,8 +22,8 @@ import tech.jhipster.lite.project.application.ProjectsApplicationService;
 import tech.jhipster.lite.project.domain.ProjectPath;
 import tech.jhipster.lite.project.domain.history.ProjectHistory;
 
-@ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
+@ExtendWith(OutputCaptureExtension.class)
 class JHLiteCommandsFactoryTest {
 
   private static final String PROJECT_NAME = "projectName";

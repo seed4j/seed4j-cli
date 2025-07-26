@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE configuration>
-<configuration scan="true">
+<configuration scan="false">
   <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
   <springProperty name="log.level" source="logging.level.root" defaultValue="ERROR" />
   <include resource="org/springframework/boot/logging/logback/defaults.xml" />

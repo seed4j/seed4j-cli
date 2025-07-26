@@ -17,16 +17,22 @@ class ListModulesCommand implements JHLiteCommand, Callable<Integer> {
   private static final int MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION = 2;
 
   private final JHipsterModulesApplicationService modules;
+  private final CommandSpec spec;
 
   public ListModulesCommand(JHipsterModulesApplicationService modules) {
     this.modules = modules;
+    this.spec = buildCommandSpec();
+  }
+
+  private CommandSpec buildCommandSpec() {
+    CommandSpec commandSpec = CommandSpec.wrapWithoutInspection(this).name("list");
+    commandSpec.usageMessage().description("List available jhipster-lite modules");
+
+    return commandSpec;
   }
 
   @Override
   public CommandSpec spec() {
-    CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("list");
-    spec.usageMessage().description("List available jhipster-lite modules");
-
     return spec;
   }
 
@@ -38,7 +44,7 @@ class ListModulesCommand implements JHLiteCommand, Callable<Integer> {
   @Override
   public Integer call() {
     JHipsterModulesResources modulesResources = modules.resources();
-    System.out.printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
+    spec.commandLine().getOut().printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
     modulesResources.stream().sorted(byModuleSlug()).forEach(printModule(maxSlugLength(modulesResources)));
 
     return ExitCode.OK;
@@ -56,7 +62,10 @@ class ListModulesCommand implements JHLiteCommand, Callable<Integer> {
     return moduleResource -> {
       String spacesBetweenSlugAndDescription =
         " ".repeat(maxSlugLength - moduleResource.slug().get().length() + MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION);
-      System.out.printf("  %s%s%s%n", moduleResource.slug(), spacesBetweenSlugAndDescription, moduleResource.apiDoc().operation());
+      spec
+        .commandLine()
+        .getOut()
+        .printf("  %s%s%s%n", moduleResource.slug(), spacesBetweenSlugAndDescription, moduleResource.apiDoc().operation());
     };
   }
 }
