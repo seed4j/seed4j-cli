@@ -1,5 +1,7 @@
 package tech.jhipster.lite.cli;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -13,12 +15,34 @@ import tech.jhipster.lite.cli.shared.generation.domain.ExcludeFromGeneratedCodeC
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class JHLiteCliApp {
 
+  private static final String CONFIG_FILE_NAME = "/.config/jhlite-cli.yml";
+  private static final String SPRING_CONFIG_LOCATION_PROPERTY = "spring.config.location";
+  private static final String SPRING_CONFIG_LOCATION_VALUE = "classpath:/config/,file:";
+
   public static void main(String[] args) {
-    ConfigurableApplicationContext context = new SpringApplicationBuilder(JHLiteCliApp.class)
+    ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
+
+    System.exit(SpringApplication.exit(context));
+  }
+
+  private static SpringApplicationBuilder createApplicationBuilder() {
+    return new SpringApplicationBuilder(JHLiteCliApp.class)
       .bannerMode(Banner.Mode.OFF)
       .web(WebApplicationType.NONE)
-      .lazyInitialization(true)
-      .run(args);
-    System.exit(SpringApplication.exit(context));
+      .lazyInitialization(true);
+  }
+
+  private static SpringApplicationBuilder loadExternalConfigFile(SpringApplicationBuilder builder) {
+    String configPath = getConfigPath();
+
+    if (Files.exists(Path.of(configPath))) {
+      builder.properties(SPRING_CONFIG_LOCATION_PROPERTY + "=" + SPRING_CONFIG_LOCATION_VALUE + configPath);
+    }
+
+    return builder;
+  }
+
+  private static String getConfigPath() {
+    return System.getProperty("user.home") + CONFIG_FILE_NAME;
   }
 }

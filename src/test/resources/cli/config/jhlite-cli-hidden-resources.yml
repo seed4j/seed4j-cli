@@ -1,0 +1,6 @@
+jhlite:
+  hidden-resources:
+    slugs:
+      - gradle-java
+    tags:
+      - setup
