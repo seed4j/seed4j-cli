@@ -4,21 +4,21 @@
 
 ## Description
 
-Seed4J CLI is a command-line interface tool that helps you apply and manage Seed4J modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [Seed4J](https://github.com/seed4J/seed4J) to learn more about it.
+Seed4J CLI is a command-line interface tool that helps you apply and manage Seed4J modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [Seed4J](https://github.com/seed4j/seed4j) to learn more about it.
 
 ## Quick Start
 
 You need to clone this project and go into the folder:
 
 ```bash
-git clone https://github.com/seed4J/seed4J-cli
-cd seed4J-cli
+git clone https://github.com/seed4j/seed4j-cli
+cd seed4j-cli
 ```
 
-Install `seed4J` command in your bin folder:
+Install `seed4j` command in your bin folder:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null && sudo chmod +x /usr/local/bin/seed4J && JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
 ```
 
 Then you can follow the [Commands Guide](documentation/Commands.md)
@@ -60,34 +60,34 @@ npm install
 ```bash
 ./mvnw clean package
 
-echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null
+echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null
 
 # Make the script executable
-sudo chmod +x /usr/local/bin/seed4J
+sudo chmod +x /usr/local/bin/seed4j
 
-# Find the JAR file in the target directory and move it as seed4J.jar
-JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1)
+# Find the JAR file in the target directory and move it as seed4j.jar
+JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1)
 if [ -n "$JAR_SOURCE" ]; then
-  sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar
+  sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar
 else
   echo "No JAR file found in target directory"
 fi
 ```
 
-Copy and paste the above script into a terminal to install the seed4J command.
+Copy and paste the above script into a terminal to install the `seed4j` command.
 
 You can use a single command:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null && sudo chmod +x /usr/local/bin/seed4J && JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
 ```
 
 ### Usage
 
-After the installation, you can use the `seed4J` with help command to know the options:
+After the installation, you can use the `seed4j` with help command to know the options:
 
 ```bash
-seed4J --help
+seed4j --help
 ```
 
 <!-- jhipster-needle-startupCommand -->
