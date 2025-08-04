@@ -1,6 +1,6 @@
-# JHipster Lite CLI Commands
+# Seed4J CLI Commands
 
-This document provides an overview of the JHipster Lite CLI commands available in this project.
+This document provides an overview of the Seed4J CLI commands available in this project.
 
 ## Table of Contents
 
@@ -16,30 +16,30 @@ This document provides an overview of the JHipster Lite CLI commands available i
 
 ## Getting Started
 
-To use JHipster Lite CLI, make sure it's installed and available in your PATH. You can check if it's properly installed with:
+To use Seed4J CLI, make sure it's installed and available in your PATH. You can check if it's properly installed with:
 
 ```bash
-jhlite --version
+seed4j --version
 ```
 
 ## Basic Commands
 
 ### Version
 
-To check the JHipster Lite CLI version:
+To check the Seed4J CLI version:
 
 ```bash
-jhlite --version
+seed4j --version
 ```
 
-This will display the JHipster Lite CLI version and the JHipster Lite version.
+This will display the Seed4J CLI version and the Seed4J version.
 
 ### List Available Modules
 
 To see all available modules that can be applied to your project:
 
 ```bash
-jhlite list
+seed4j list
 ```
 
 This command displays a list of all available modules with their names and descriptions.
@@ -49,7 +49,7 @@ This command displays a list of all available modules with their names and descr
 To apply a specific module to your project:
 
 ```bash
-jhlite apply <module-name> [options]
+seed4j apply <module-name> [options]
 ```
 
 Most modules require specific parameters. If you miss required parameters, the CLI will inform you which ones are missing.
@@ -57,7 +57,7 @@ Most modules require specific parameters. If you miss required parameters, the C
 To see the specific parameters for a module and which one is required, run:
 
 ```bash
-jhlite apply <module-name> --help
+seed4j apply <module-name> --help
 ```
 
 ## Project Creation Workflow Example
@@ -74,36 +74,36 @@ A typical workflow to initialize a new project might look like:
 2. Initialize a new project:
 
    ```bash
-   jhlite apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
+   seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
    ```
 
 3. Add code formatting support:
 
    ```bash
-   jhlite apply prettier
+   seed4j apply prettier
    ```
 
 4. Set up a Maven project structure:
 
    ```bash
-   jhlite apply maven-java --package-name com.example.myproject
+   seed4j apply maven-java --package-name com.example.myproject
    ```
 
 5. Add Maven wrapper:
 
    ```bash
-   jhlite apply maven-wrapper
+   seed4j apply maven-wrapper
    ```
 
 6. Add Java base classes:
 
    ```bash
-   jhlite apply java-base
+   seed4j apply java-base
    ```
 
 7. Add Spring Boot:
    ```bash
-   jhlite apply spring-boot
+   seed4j apply spring-boot
    ```
 
 After this basic setup, you can add more specific modules based on your project requirements.
@@ -123,7 +123,7 @@ Options are module-specific. When a required option is missing, the CLI will sho
 
 ### Parameter Reuse
 
-JHipster Lite CLI automatically reuses parameters from previous module applications. This means:
+Seed4J CLI automatically reuses parameters from previous module applications. This means:
 
 - Parameters you've provided when applying one module will be remembered for subsequent module applications
 - You don't need to specify the same parameters repeatedly for different modules
@@ -132,23 +132,23 @@ JHipster Lite CLI automatically reuses parameters from previous module applicati
 For example, if you've already run:
 
 ```bash
-jhlite apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
+seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
 ```
 
 Then when applying another module, you can omit the previously provided parameters:
 
 ```bash
-jhlite apply maven-java --package-name com.example.myproject
+seed4j apply maven-java --package-name com.example.myproject
 ```
 
 The CLI will automatically reuse the `project-name`, `base-name`, and `node-package-manager` values from your previous command.
 
 ## External Configuration
 
-JHipster Lite CLI supports external configuration files to customize its behavior. The CLI automatically looks for a configuration file at:
+Seed4J CLI supports external configuration files to customize its behavior. The CLI automatically looks for a configuration file at:
 
 ```
-~/.config/jhlite-cli.yml
+~/.config/seed4j-cli.yml
 ```
 
 If this file exists, it will be loaded automatically when the CLI starts.
@@ -159,7 +159,7 @@ If this file exists, it will be loaded automatically when the CLI starts.
 
 You can hide specific modules from being displayed in the `list` command and prevent them from being applied. This is useful for customizing which modules are available in different environments.
 
-Create a `~/.config/jhlite-cli.yml` file with the following structure:
+Create a `~/.config/seed4j-cli.yml` file with the following structure:
 
 ```yaml
 jhlite:
@@ -179,9 +179,9 @@ jhlite:
 
 **Effects of hidden resources:**
 
-- Hidden modules will not appear in the output of `jhlite list`
-- Hidden modules cannot be applied using `jhlite apply <hidden-module>`
+- Hidden modules will not appear in the output of `seed4j list`
+- Hidden modules cannot be applied using `seed4j apply <hidden-module>`
 - Attempting to apply a hidden module will result in an "Unmatched arguments" error
 
 **Example:**
-If you hide the `gradle-java` module, running `jhlite list` will not show it in the available modules, and running `jhlite apply gradle-java` will fail with an error.
+If you hide the `gradle-java` module, running `seed4j list` will not show it in the available modules, and running `seed4j apply gradle-java` will fail with an error.
