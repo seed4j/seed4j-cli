@@ -1,24 +1,24 @@
-# JHipster Lite CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal.svg" alt="console icon" height="43" align="top"/>
+# Seed4J CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal.svg" alt="console icon" height="43" align="top"/>
 
-[![Build Status][github-actions-jhlite-lite-cli-image]][github-actions-url]
+[![Build Status][github-actions-seed4j-cli-image]][github-actions-url]
 
 ## Description
 
-JHipster Lite CLI is a command-line interface tool that helps you apply and manage JHipster Lite modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [JHipster Lite](https://github.com/jhipster/jhipster-lite) to learn more about it.
+Seed4J CLI is a command-line interface tool that helps you apply and manage Seed4J modules. It provides a modular approach to application generation, allowing you to select specific modules and features for your project. Visit [Seed4J](https://github.com/seed4J/seed4J) to learn more about it.
 
 ## Quick Start
 
 You need to clone this project and go into the folder:
 
 ```bash
-git clone https://github.com/jhipster/jhipster-lite-cli
-cd jhipster-lite-cli
+git clone https://github.com/seed4J/seed4J-cli
+cd seed4J-cli
 ```
 
-Install `jhlite` command in your bin folder:
+Install `seed4J` command in your bin folder:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null && sudo chmod +x /usr/local/bin/seed4J && JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar || echo "No JAR file found in target directory"
 ```
 
 Then you can follow the [Commands Guide](documentation/Commands.md)
@@ -60,34 +60,34 @@ npm install
 ```bash
 ./mvnw clean package
 
-echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null
+echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null
 
 # Make the script executable
-sudo chmod +x /usr/local/bin/jhlite
+sudo chmod +x /usr/local/bin/seed4J
 
-# Find the JAR file in the target directory and move it as jhlite.jar
-JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1)
+# Find the JAR file in the target directory and move it as seed4J.jar
+JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1)
 if [ -n "$JAR_SOURCE" ]; then
-  sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar
+  sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar
 else
   echo "No JAR file found in target directory"
 fi
 ```
 
-Copy and paste the above script into a terminal to install the jhlite command.
+Copy and paste the above script into a terminal to install the seed4J command.
 
 You can use a single command:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/jhlite.jar\" \"\$@\"" | sudo tee /usr/local/bin/jhlite > /dev/null && sudo chmod +x /usr/local/bin/jhlite && JAR_SOURCE=$(ls target/jhlite-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/jhlite.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4J.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4J > /dev/null && sudo chmod +x /usr/local/bin/seed4J && JAR_SOURCE=$(ls target/seed4J-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4J.jar || echo "No JAR file found in target directory"
 ```
 
 ### Usage
 
-After the installation, you can use the `jhlite` with help command to know the options:
+After the installation, you can use the `seed4J` with help command to know the options:
 
 ```bash
-jhlite --help
+seed4J --help
 ```
 
 <!-- jhipster-needle-startupCommand -->
@@ -102,5 +102,5 @@ jhlite --help
 
 <!-- jhipster-needle-documentation -->
 
-[github-actions-jhlite-lite-cli-image]: https://github.com/jhipster/jhipster-lite-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
-[github-actions-url]: https://github.com/jhipster/jhipster-lite-cli/actions
+[github-actions-seed4j-cli-image]: https://github.com/seed4j/seed4j-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
+[github-actions-url]: https://github.com/jhipster/seed4j-cli/actions
