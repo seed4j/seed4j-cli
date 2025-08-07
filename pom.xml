@@ -263,7 +263,7 @@
             </execution>
           </executions>
           <configuration>
-            <mainClass>com.seed4j.cli.JHLiteCliApp</mainClass>
+            <mainClass>com.seed4j.cli.Seed4JCliApp</mainClass>
           </configuration>
         </plugin>
       </plugins>

@@ -11,9 +11,9 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import tech.jhipster.lite.JHLiteApp;
 
-@SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, JHLiteCliApp.class })
+@SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, Seed4JCliApp.class })
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
-public class JHLiteCliApp {
+public class Seed4JCliApp {
 
   private static final String CONFIG_FILE_NAME = "/.config/jhlite-cli.yml";
   private static final String SPRING_CONFIG_LOCATION_PROPERTY = "spring.config.location";
@@ -26,7 +26,7 @@ public class JHLiteCliApp {
   }
 
   private static SpringApplicationBuilder createApplicationBuilder() {
-    return new SpringApplicationBuilder(JHLiteCliApp.class)
+    return new SpringApplicationBuilder(Seed4JCliApp.class)
       .bannerMode(Banner.Mode.OFF)
       .web(WebApplicationType.NONE)
       .lazyInitialization(true);
