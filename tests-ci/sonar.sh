@@ -2,8 +2,8 @@
 
 application=$1
 if [[ $application == '' ]]; then
-  echo "using JHLiteCli by default"
-  application='JHLiteCli'
+  echo "using Seed4JCli by default"
+  application='Seed4JCli'
 fi
 
 retry_count=0

@@ -6,11 +6,11 @@
 >
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>tech.jhipster.lite</groupId>
-  <artifactId>jhlite-cli</artifactId>
+  <groupId>com.seed4j.cli</groupId>
+  <artifactId>seed4jcli</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>JHipster Lite CLI</name>
-  <description>JHipster Lite CLI</description>
+  <name>Seed4J CLI</name>
+  <description>Seed4J CLI</description>
   <packaging>jar</packaging>
   <dependencyManagement>
     <dependencies>

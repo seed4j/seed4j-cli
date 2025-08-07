@@ -4,9 +4,9 @@
       "module": "init",
       "date": "2025-04-23T13:01:23.938216743Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -16,9 +16,9 @@
       "module": "application-service-hexagonal-architecture-documentation",
       "date": "2025-04-23T13:07:33.184888386Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -28,9 +28,9 @@
       "module": "license-apache",
       "date": "2025-04-23T13:07:33.514210279Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -40,9 +40,9 @@
       "module": "renovate",
       "date": "2025-04-23T13:07:33.833092318Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -52,9 +52,9 @@
       "module": "checkstyle",
       "date": "2025-04-23T13:07:34.098240254Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -64,9 +64,9 @@
       "module": "maven-java",
       "date": "2025-04-23T13:07:34.213965552Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -76,9 +76,9 @@
       "module": "prettier",
       "date": "2025-04-23T13:07:34.573448894Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -88,9 +88,9 @@
       "module": "jacoco-with-min-coverage-check",
       "date": "2025-04-23T13:07:36.022540404Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -100,9 +100,9 @@
       "module": "java-base",
       "date": "2025-04-23T13:07:39.670492159Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -112,9 +112,9 @@
       "module": "maven-wrapper",
       "date": "2025-04-23T13:07:42.709580800Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -124,9 +124,9 @@
       "module": "github-actions-maven",
       "date": "2025-04-23T13:07:44.634797971Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -136,9 +136,9 @@
       "module": "sonar-qube-java-backend",
       "date": "2025-04-23T13:07:46.552636291Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml"
@@ -148,9 +148,9 @@
       "module": "spring-boot",
       "date": "2025-04-25T12:45:04.156884156Z",
       "properties": {
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
-        "baseName": "JHLiteCli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
+        "baseName": "Seed4JCli",
         "endOfLine": "lf",
         "indentSize": 2,
         "springConfigurationFormat": "yaml",
@@ -163,11 +163,11 @@
       "properties": {
         "endOfLine": "lf",
         "springConfigurationFormat": "yaml",
-        "packageName": "tech.jhipster.lite.cli",
-        "projectName": "JHLite Cli",
+        "packageName": "com.seed4j.cli",
+        "projectName": "Seed4J Cli",
         "indentSize": 2,
         "serverPort": 8080,
-        "baseName": "JHLiteCli"
+        "baseName": "Seed4JCli"
       }
     }
   ]
