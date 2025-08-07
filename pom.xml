@@ -263,7 +263,7 @@
             </execution>
           </executions>
           <configuration>
-            <mainClass>tech.jhipster.lite.cli.JHLiteCliApp</mainClass>
+            <mainClass>com.seed4j.cli.JHLiteCliApp</mainClass>
           </configuration>
         </plugin>
       </plugins>
