@@ -1,6 +1,6 @@
 spring:
   application:
-    name: JHLiteCli
+    name: Seed4JCli
 project:
   version: ${project.version}
   jhlite-version: ${jhlite.version}
