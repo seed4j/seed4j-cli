@@ -22,7 +22,7 @@ import tech.jhipster.lite.project.domain.history.ProjectHistory;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-class JHLiteCommandsFactoryTest {
+class Seed4JCommandsFactoryTest {
 
   private static final String PROJECT_NAME = "projectName";
   private static final String BASE_NAME = "baseName";

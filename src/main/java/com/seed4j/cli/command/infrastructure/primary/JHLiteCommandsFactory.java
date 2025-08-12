@@ -6,18 +6,18 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
 
 @Component
-class JHLiteCommandsFactory {
+class Seed4JCommandsFactory {
 
-  private final List<JHLiteCommand> jhliteCommands;
+  private final List<Seed4JCommand> seed4JCommands;
   private final String version;
   private final String jHLiteVersion;
 
-  public JHLiteCommandsFactory(
-    List<JHLiteCommand> jhliteCommands,
+  public Seed4JCommandsFactory(
+    List<Seed4JCommand> seed4JCommands,
     @Value("${project.version}") String version,
     @Value("${project.jhlite-version}") String jHLiteVersion
   ) {
-    this.jhliteCommands = jhliteCommands;
+    this.seed4JCommands = seed4JCommands;
     this.version = version;
     this.jHLiteVersion = jHLiteVersion;
   }
@@ -34,7 +34,7 @@ class JHLiteCommandsFactory {
 
     spec.usageMessage().description("JHipster Lite CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
 
-    jhliteCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));
+    seed4JCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));
 
     return spec;
   }

@@ -12,7 +12,7 @@ import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 import tech.jhipster.lite.module.domain.resource.JHipsterModulesResources;
 
 @Component
-class ListModulesCommand implements JHLiteCommand, Callable<Integer> {
+class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
   private static final int MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION = 2;
 
