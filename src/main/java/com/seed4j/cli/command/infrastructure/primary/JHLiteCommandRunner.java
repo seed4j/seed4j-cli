@@ -9,10 +9,10 @@ import picocli.CommandLine;
 @Component
 class JHLiteCommandRunner implements CommandLineRunner, ExitCodeGenerator {
 
-  private final JHLiteCommandsFactory command;
+  private final Seed4JCommandsFactory command;
   private int exitCode;
 
-  public JHLiteCommandRunner(JHLiteCommandsFactory command) {
+  public JHLiteCommandRunner(Seed4JCommandsFactory command) {
     this.command = command;
   }
 
