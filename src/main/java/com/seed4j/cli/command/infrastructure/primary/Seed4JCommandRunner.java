@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-class JHLiteCommandRunner implements CommandLineRunner, ExitCodeGenerator {
+class Seed4JCommandRunner implements CommandLineRunner, ExitCodeGenerator {
 
   private final Seed4JCommandsFactory command;
   private int exitCode;
 
-  public JHLiteCommandRunner(Seed4JCommandsFactory command) {
+  public Seed4JCommandRunner(Seed4JCommandsFactory command) {
     this.command = command;
   }
 
