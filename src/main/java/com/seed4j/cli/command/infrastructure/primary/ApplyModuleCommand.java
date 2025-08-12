@@ -7,7 +7,7 @@ import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 
 @Component
-class ApplyModuleCommand implements JHLiteCommand {
+class ApplyModuleCommand implements Seed4JCommand {
 
   private final JHipsterModulesApplicationService modules;
   private final ApplyModuleSubCommandsFactory subCommandsFactory;

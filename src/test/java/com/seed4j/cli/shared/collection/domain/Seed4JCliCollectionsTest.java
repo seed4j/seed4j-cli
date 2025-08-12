@@ -15,16 +15,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class JHLiteCliCollectionsTest {
+class Seed4JCliCollectionsTest {
 
   @Nested
   @DisplayName("Collections")
-  class JHLiteCliCollectionsCollectionsTest {
+  class Seed4JCliCollectionsCollectionsTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       Collection<Object> input = null;
-      Collection<Object> collection = JHLiteCliCollections.immutable(input);
+      Collection<Object> collection = Seed4JCliCollections.immutable(input);
 
       assertThat(collection).isEmpty();
       assertThatThrownBy(collection::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -34,7 +34,7 @@ class JHLiteCliCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       Collection<String> input = new ArrayList<>();
       input.add("value");
-      Collection<String> collection = JHLiteCliCollections.immutable(input);
+      Collection<String> collection = Seed4JCliCollections.immutable(input);
 
       assertThat(collection).containsExactly("value");
       assertThatThrownBy(collection::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -43,12 +43,12 @@ class JHLiteCliCollectionsTest {
 
   @Nested
   @DisplayName("Set")
-  class JHLiteCliCollectionsSetTest {
+  class Seed4JCliCollectionsSetTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       Set<Object> input = null;
-      Set<Object> set = JHLiteCliCollections.immutable(input);
+      Set<Object> set = Seed4JCliCollections.immutable(input);
 
       assertThat(set).isEmpty();
       assertThatThrownBy(set::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -58,7 +58,7 @@ class JHLiteCliCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       Set<String> input = new HashSet<>();
       input.add("value");
-      Set<String> set = JHLiteCliCollections.immutable(input);
+      Set<String> set = Seed4JCliCollections.immutable(input);
 
       assertThat(set).containsExactly("value");
       assertThatThrownBy(set::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -67,12 +67,12 @@ class JHLiteCliCollectionsTest {
 
   @Nested
   @DisplayName("List")
-  class JHLiteCliCollectionsListTest {
+  class Seed4JCliCollectionsListTest {
 
     @Test
     void shouldGetEmptyImmutableCollectionFromNullCollection() {
       List<Object> input = null;
-      List<Object> list = JHLiteCliCollections.immutable(input);
+      List<Object> list = Seed4JCliCollections.immutable(input);
 
       assertThat(list).isEmpty();
       assertThatThrownBy(list::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -82,7 +82,7 @@ class JHLiteCliCollectionsTest {
     void shouldGetImmutableCollectionFromMutableCollection() {
       List<String> input = new ArrayList<>();
       input.add("value");
-      List<String> list = JHLiteCliCollections.immutable(input);
+      List<String> list = Seed4JCliCollections.immutable(input);
 
       assertThat(list).containsExactly("value");
       assertThatThrownBy(list::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -91,12 +91,12 @@ class JHLiteCliCollectionsTest {
 
   @Nested
   @DisplayName("Map")
-  class JHLiteCliMapTest {
+  class Seed4JCliMapTest {
 
     @Test
     void shouldGetEmptyImmutableMapFromNullMap() {
       Map<Object, Object> input = null;
-      Map<Object, Object> map = JHLiteCliCollections.immutable(input);
+      Map<Object, Object> map = Seed4JCliCollections.immutable(input);
 
       assertThat(map).isEmpty();
       assertThatThrownBy(map::clear).isExactlyInstanceOf(UnsupportedOperationException.class);
@@ -106,7 +106,7 @@ class JHLiteCliCollectionsTest {
     void shouldGetImmutableMapFromMutableMap() {
       Map<String, String> input = new HashMap<>();
       input.put("key", "value");
-      Map<String, String> map = JHLiteCliCollections.immutable(input);
+      Map<String, String> map = Seed4JCliCollections.immutable(input);
 
       assertThat(map).containsExactly(Map.entry("key", "value"));
       assertThatThrownBy(map::clear).isExactlyInstanceOf(UnsupportedOperationException.class);

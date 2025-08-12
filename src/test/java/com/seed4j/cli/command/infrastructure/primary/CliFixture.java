@@ -34,8 +34,8 @@ class CliFixture {
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
-    JHLiteCommandsFactory jhliteCommandsFactory = new JHLiteCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
+    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
 
-    return new CommandLine(jhliteCommandsFactory.buildCommandSpec());
+    return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
   }
 }
