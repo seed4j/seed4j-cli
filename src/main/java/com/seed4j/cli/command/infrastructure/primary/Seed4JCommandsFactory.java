@@ -24,7 +24,7 @@ class Seed4JCommandsFactory {
 
   public CommandSpec buildCommandSpec() {
     CommandSpec spec = CommandSpec.create()
-      .name("jhlite")
+      .name("seed4j")
       .mixinStandardHelpOptions(true)
       .version(
         """
