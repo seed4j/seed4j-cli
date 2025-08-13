@@ -18,7 +18,7 @@ cd seed4j-cli
 Install `seed4j` command in your bin folder:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4jcli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
 ```
 
 Then you can follow the [Commands Guide](documentation/Commands.md)
@@ -66,7 +66,7 @@ echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin
 sudo chmod +x /usr/local/bin/seed4j
 
 # Find the JAR file in the target directory and move it as seed4j.jar
-JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1)
+JAR_SOURCE=$(ls target/seed4jcli-*.jar | head -n 1)
 if [ -n "$JAR_SOURCE" ]; then
   sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar
 else
@@ -79,7 +79,7 @@ Copy and paste the above script into a terminal to install the `seed4j` command.
 You can use a single command:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
+./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4jcli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
 ```
 
 ### Usage

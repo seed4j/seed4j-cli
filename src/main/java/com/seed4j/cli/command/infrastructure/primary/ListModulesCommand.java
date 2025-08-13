@@ -25,7 +25,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   @Override
   public CommandSpec spec() {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("list");
-    spec.usageMessage().description("List available jhipster-lite modules");
+    spec.usageMessage().description("List available seed4j modules");
 
     return spec;
   }
@@ -38,7 +38,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   @Override
   public Integer call() {
     JHipsterModulesResources modulesResources = modules.resources();
-    System.out.printf("Available jhipster-lite modules (%s):%n", modulesResources.stream().count());
+    System.out.printf("Available seed4j modules (%s):%n", modulesResources.stream().count());
     modulesResources.stream().sorted(byModuleSlug()).forEach(printModule(maxSlugLength(modulesResources)));
 
     return ExitCode.OK;
