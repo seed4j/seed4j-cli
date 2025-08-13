@@ -32,7 +32,7 @@ class ApplyModuleCommand implements Seed4JCommand {
 
   private CommandSpec createSpec() {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("apply").mixinStandardHelpOptions(true);
-    spec.usageMessage().description("Apply jhipster-lite specific module");
+    spec.usageMessage().description("Apply seed4j specific module");
 
     return spec;
   }

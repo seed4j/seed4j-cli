@@ -45,7 +45,7 @@ class Seed4JCommandsFactoryTest {
     assertThat(exitCode).isEqualTo(2);
     assertThat(output).contains(
         """
-        JHipster Lite CLI
+        Seed4J CLI
           -h, --help      Show this help message and exit.
           -V, --version   Print version information and exit.
 
@@ -66,7 +66,7 @@ class Seed4JCommandsFactoryTest {
 
       assertThat(exitCode).isZero();
       assertThat(output)
-        .contains("Available jhipster-lite modules")
+        .contains("Available seed4j modules")
         .contains("init")
         .contains("Init project")
         .contains("prettier")
@@ -110,7 +110,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains(
           """
-          Apply jhipster-lite specific module
+          Apply seed4j specific module
             -h, --help      Show this help message and exit.
             -V, --version   Print version information and exit.
           Commands:
@@ -143,9 +143,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
       };
@@ -154,8 +154,8 @@ class Seed4JCommandsFactoryTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
-      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
-      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("jhipsterSampleApplication");
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("Seed4J Sample Application");
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("seed4jSampleApplication");
     }
 
     @Test
@@ -184,9 +184,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
       };
@@ -211,9 +211,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
         "--commit",
@@ -234,9 +234,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
         "--no-commit",
@@ -259,7 +259,7 @@ class Seed4JCommandsFactoryTest {
         "--base-name",
         "my.New@pp",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
       };
@@ -278,9 +278,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4JSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
         "--indent-size",
@@ -302,9 +302,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
         "--end-of-line",
@@ -326,9 +326,9 @@ class Seed4JCommandsFactoryTest {
         "--project-path",
         projectPath.toString(),
         "--base-name",
-        "jhipsterSampleApplication",
+        "seed4jSampleApplication",
         "--project-name",
-        "JHipster Sample Application",
+        "Seed4J Sample Application",
         "--node-package-manager",
         "npm",
       };
@@ -346,8 +346,8 @@ class Seed4JCommandsFactoryTest {
       int mavenJavaModuleExitCode = commandLine(modules, projects).execute(mavenJavaModuleArgs);
 
       assertThat(mavenJavaModuleExitCode).isZero();
-      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("JHipster Sample Application");
-      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("jhipsterSampleApplication");
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("Seed4J Sample Application");
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("seed4jSampleApplication");
       assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.my.company");
     }
 
@@ -358,7 +358,7 @@ class Seed4JCommandsFactoryTest {
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("JHipster Lite CLI v1").contains("JHipster Lite version: 2");
+      assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
     }
   }
 }

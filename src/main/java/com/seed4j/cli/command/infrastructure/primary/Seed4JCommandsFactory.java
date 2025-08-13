@@ -28,11 +28,11 @@ class Seed4JCommandsFactory {
       .mixinStandardHelpOptions(true)
       .version(
         """
-        JHipster Lite CLI v%s
-        JHipster Lite version: %s""".formatted(version, jHLiteVersion)
+        Seed4J CLI v%s
+        Seed4J version: %s""".formatted(version, jHLiteVersion)
       );
 
-    spec.usageMessage().description("JHipster Lite CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
+    spec.usageMessage().description("Seed4J CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
 
     seed4JCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));
 
