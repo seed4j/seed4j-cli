@@ -1,8 +1,8 @@
 {
-  "name": "jhlite-cli",
+  "name": "seed4j-cli",
   "version": "0.0.0",
   "private": true,
-  "description": "JHLite Cli",
+  "description": "Seed4J CLI",
   "license": "UNLICENSED",
   "scripts": {
     "prepare": "husky",
