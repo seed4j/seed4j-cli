@@ -15,7 +15,7 @@ import tech.jhipster.lite.JHLiteApp;
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class Seed4JCliApp {
 
-  private static final String CONFIG_FILE_NAME = "/.config/jhlite-cli.yml";
+  private static final String CONFIG_FILE_NAME = "/.config/seed4j-cli.yml";
   private static final String SPRING_CONFIG_LOCATION_PROPERTY = "spring.config.location";
   private static final String SPRING_CONFIG_LOCATION_VALUE = "classpath:/config/,file:";
 

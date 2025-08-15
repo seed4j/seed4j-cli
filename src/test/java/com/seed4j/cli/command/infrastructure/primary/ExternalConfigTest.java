@@ -15,7 +15,7 @@ import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
 import tech.jhipster.lite.project.application.ProjectsApplicationService;
 
 @IntegrationTest
-@TestPropertySource(properties = { "spring.config.location=classpath:/cli/config/jhlite-cli-hidden-resources.yml" })
+@TestPropertySource(properties = { "spring.config.location=classpath:/cli/config/seed4j-cli-hidden-resources.yml" })
 class ExternalConfigTest {
 
   @Autowired
