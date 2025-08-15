@@ -7,7 +7,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.seed4j.cli</groupId>
-  <artifactId>seed4jcli</artifactId>
+  <artifactId>seed4j-cli</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>Seed4J CLI</name>
   <description>Seed4J CLI</description>
