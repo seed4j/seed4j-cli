@@ -3,6 +3,7 @@ package com.seed4j.cli;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -15,9 +16,8 @@ import tech.jhipster.lite.JHLiteApp;
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class Seed4JCliApp {
 
-  private static final String CONFIG_FILE_NAME = "/.config/jhlite-cli.yml";
-  private static final String SPRING_CONFIG_LOCATION_PROPERTY = "spring.config.location";
-  private static final String SPRING_CONFIG_LOCATION_VALUE = "classpath:/config/,file:";
+  private static final String CONFIG_FILE_NAME = "/.config/seed4j-cli.yml";
+  private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
 
   public static void main(String[] args) {
     ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
@@ -33,13 +33,10 @@ public class Seed4JCliApp {
   }
 
   private static SpringApplicationBuilder loadExternalConfigFile(SpringApplicationBuilder builder) {
-    String configPath = getConfigPath();
-
-    if (Files.exists(Path.of(configPath))) {
-      builder.properties(SPRING_CONFIG_LOCATION_PROPERTY + "=" + SPRING_CONFIG_LOCATION_VALUE + configPath);
-    }
-
-    return builder;
+    return Optional.of(getConfigPath())
+      .filter(configPath -> Files.exists(Path.of(configPath)))
+      .map(configPath -> builder.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath)))
+      .orElse(builder);
   }
 
   private static String getConfigPath() {
