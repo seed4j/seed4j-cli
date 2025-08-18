@@ -47,7 +47,7 @@ npm install
 
 ## Local environment
 
-<!-- jhipster-needle-localEnvironment -->
+<!-- seed4j-needle-localEnvironment -->
 
 ## Start up
 
@@ -90,7 +90,7 @@ After the installation, you can use the `seed4j` with help command to know the o
 seed4j --help
 ```
 
-<!-- jhipster-needle-startupCommand -->
+<!-- seed4j-needle-startupCommand -->
 
 ## Documentation
 
@@ -100,7 +100,7 @@ seed4j --help
 - [Assertions](documentation/assertions.md)
 - [sonar](documentation/sonar.md)
 
-<!-- jhipster-needle-documentation -->
+<!-- seed4j-needle-documentation -->
 
 [github-actions-seed4j-cli-image]: https://github.com/seed4j/seed4j-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
 [github-actions-url]: https://github.com/jhipster/seed4j-cli/actions
