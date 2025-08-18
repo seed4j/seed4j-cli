@@ -1,4 +1,4 @@
-# Seed4J CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal.svg" alt="console icon" height="43" align="top"/>
+# Seed4J CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal-seed4j-cli.svg" alt="console icon" height="43" align="top"/>
 
 [![Build Status][github-actions-seed4j-cli-image]][github-actions-url]
 
