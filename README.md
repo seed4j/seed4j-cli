@@ -1,6 +1,16 @@
 # Seed4J CLI <img src="https://renanfranca.github.io/assets/icons/icon-complete-terminal-seed4j-cli.svg" alt="console icon" height="43" align="top"/>
 
 [![Build Status][github-actions-seed4j-cli-image]][github-actions-url]
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=coverage)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=alert_status)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=alert_status)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=bugs)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=vulnerabilities)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=security_rating)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=code_smells)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
 
 ## Description
 
