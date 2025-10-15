@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-until [ "$(curl -s $JHIPSTER_SONAR_URL/api/system/status | jq -r .status)" = "UP" ]; do
+until [[ "$(curl -s $JHIPSTER_SONAR_URL/api/system/status | jq -r .status)" = "UP" ]]; do
   sleep 5
 done
 
