@@ -79,7 +79,7 @@
     <properties-maven-plugin.version>1.2.1</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.3.0.6276</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
-    <spring-boot.version>3.5.7</spring-boot.version>
+    <spring-boot.version>3.5.8</spring-boot.version>
     <jhlite.version>1.35.0</jhlite.version>
   </properties>
 
