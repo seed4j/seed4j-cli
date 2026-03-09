@@ -43,8 +43,8 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
-      <groupId>tech.jhipster.lite</groupId>
-      <artifactId>jhlite</artifactId>
+      <groupId>com.seed4j</groupId>
+      <artifactId>seed4j</artifactId>
       <version>${jhlite.version}</version>
     </dependency>
     <dependency>
@@ -53,8 +53,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>tech.jhipster.lite</groupId>
-      <artifactId>jhlite</artifactId>
+      <groupId>com.seed4j</groupId>
+      <artifactId>seed4j</artifactId>
       <version>${jhlite.version}</version>
       <type>test-jar</type>
       <classifier>tests</classifier>
@@ -80,7 +80,7 @@
     <sonar-maven-plugin.version>5.5.0.6356</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>3.5.11</spring-boot.version>
-    <jhlite.version>1.35.0</jhlite.version>
+    <jhlite.version>2.2.0</jhlite.version>
   </properties>
 
   <build>
