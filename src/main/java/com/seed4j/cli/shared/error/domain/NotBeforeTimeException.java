@@ -22,7 +22,8 @@ public final class NotBeforeTimeException extends AssertionException {
   }
 
   public static final class NotBeforeTimeExceptionBuilder
-    implements NotBeforeTimeExceptionValueBuilder, NotBeforeTimeExceptionFieldBuilder, NotBeforeTimeExceptionOtherBuilder {
+    implements NotBeforeTimeExceptionValueBuilder, NotBeforeTimeExceptionFieldBuilder, NotBeforeTimeExceptionOtherBuilder
+  {
 
     private final String hint;
     private Instant value;
