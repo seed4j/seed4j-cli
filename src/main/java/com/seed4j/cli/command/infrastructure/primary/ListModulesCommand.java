@@ -1,24 +1,23 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.domain.resource.Seed4JModuleResource;
+import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.Comparator;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.domain.JHipsterSlug;
-import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
-import tech.jhipster.lite.module.domain.resource.JHipsterModulesResources;
 
 @Component
 class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
   private static final int MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION = 2;
 
-  private final JHipsterModulesApplicationService modules;
+  private final Seed4JModulesApplicationService modules;
 
-  public ListModulesCommand(JHipsterModulesApplicationService modules) {
+  public ListModulesCommand(Seed4JModulesApplicationService modules) {
     this.modules = modules;
   }
 
@@ -37,22 +36,28 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
   @Override
   public Integer call() {
-    JHipsterModulesResources modulesResources = modules.resources();
+    Seed4JModulesResources modulesResources = modules.resources();
     System.out.printf("Available seed4j modules (%s):%n", modulesResources.stream().count());
     modulesResources.stream().sorted(byModuleSlug()).forEach(printModule(maxSlugLength(modulesResources)));
 
     return ExitCode.OK;
   }
 
-  private static Comparator<JHipsterModuleResource> byModuleSlug() {
-    return Comparator.comparing(jHipsterModuleResource -> jHipsterModuleResource.slug().get());
+  private static Comparator<Seed4JModuleResource> byModuleSlug() {
+    return Comparator.comparing(moduleResource -> moduleResource.slug().get());
   }
 
-  private int maxSlugLength(JHipsterModulesResources modulesResources) {
-    return modulesResources.stream().map(JHipsterModuleResource::slug).map(JHipsterSlug::get).mapToInt(String::length).max().orElse(0);
+  private int maxSlugLength(Seed4JModulesResources modulesResources) {
+    return modulesResources
+      .stream()
+      .map(Seed4JModuleResource::slug)
+      .map(slug -> slug.get())
+      .mapToInt(String::length)
+      .max()
+      .orElse(0);
   }
 
-  private Consumer<? super JHipsterModuleResource> printModule(int maxSlugLength) {
+  private Consumer<? super Seed4JModuleResource> printModule(int maxSlugLength) {
     return moduleResource -> {
       String spacesBetweenSlugAndDescription = " ".repeat(
         maxSlugLength - moduleResource.slug().get().length() + MINIMAL_SPACES_BETWEEN_SLUG_AND_DESCRIPTION

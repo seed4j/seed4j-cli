@@ -5,6 +5,11 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
+import com.seed4j.project.application.ProjectsApplicationService;
+import com.seed4j.project.domain.ProjectPath;
+import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
@@ -14,14 +19,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.infrastructure.secondary.git.GitTestUtil;
-import tech.jhipster.lite.project.application.ProjectsApplicationService;
-import tech.jhipster.lite.project.domain.ProjectPath;
-import tech.jhipster.lite.project.domain.history.ProjectHistory;
+import org.springframework.test.annotation.DirtiesContext;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class Seed4JCommandsFactoryTest {
 
   private static final String PROJECT_NAME = "projectName";
@@ -34,7 +36,7 @@ class Seed4JCommandsFactoryTest {
   private ProjectsApplicationService projects;
 
   @Autowired
-  private JHipsterModulesApplicationService modules;
+  private Seed4JModulesApplicationService modules;
 
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
@@ -159,20 +161,16 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldNotApplyInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
+    void shouldApplyInitModuleWithSeed4JDefaultOptions() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
-      assertThat(exitCode).isEqualTo(2);
-      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(output)
-        .contains("Missing required")
-        .contains("'--base-name=<basename*>'")
-        .contains("'--project-name=<projectname*>'")
-        .contains("Project short name (only letters and numbers) (required)")
-        .contains("Project full name (required)");
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
+      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("Seed4J Sample Application");
+      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("seed4jSampleApplication");
     }
 
     @Test

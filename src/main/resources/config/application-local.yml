@@ -1,6 +1,5 @@
 logging:
   level:
-    tech:
-      jhipster:
-        lite:
-          cli: DEBUG
+    com:
+      seed4j:
+        cli: DEBUG

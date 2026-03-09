@@ -1,22 +1,18 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import static tech.jhipster.lite.TestProjects.newTestFolder;
-
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
+import com.seed4j.project.application.ProjectsApplicationService;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import picocli.CommandLine;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.infrastructure.secondary.git.GitTestUtil;
-import tech.jhipster.lite.project.application.ProjectsApplicationService;
 
 class CliFixture {
 
   static Path setupProjectTestFolder() throws IOException {
-    String projectFolder = newTestFolder();
-    Path projectPath = Path.of(projectFolder);
-    Files.createDirectories(projectPath);
+    Path projectPath = Files.createTempDirectory("seed4j-cli-");
     loadGitConfig(projectPath);
 
     return projectPath;
@@ -25,11 +21,11 @@ class CliFixture {
   static void loadGitConfig(Path project) {
     GitTestUtil.execute(project, "init");
     GitTestUtil.execute(project, "config", "init.defaultBranch", "main");
-    GitTestUtil.execute(project, "config", "user.email", "\"test@jhipster.com\"");
+    GitTestUtil.execute(project, "config", "user.email", "\"test@seed4j.com\"");
     GitTestUtil.execute(project, "config", "user.name", "\"Test\"");
   }
 
-  static CommandLine commandLine(JHipsterModulesApplicationService modules, ProjectsApplicationService projects) {
+  static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
