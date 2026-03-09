@@ -44,14 +44,14 @@ class Seed4JCommandsFactoryTest {
 
     assertThat(exitCode).isEqualTo(2);
     assertThat(output).contains(
-        """
-        Seed4J CLI
-          -h, --help      Show this help message and exit.
-          -V, --version   Print version information and exit.
+      """
+      Seed4J CLI
+        -h, --help      Show this help message and exit.
+        -V, --version   Print version information and exit.
 
-        Commands:
-        """
-      );
+      Commands:
+      """
+    );
   }
 
   @Nested
