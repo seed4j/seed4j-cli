@@ -19,11 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.test.annotation.DirtiesContext;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class Seed4JCommandsFactoryTest {
 
   private static final String PROJECT_NAME = "projectName";
@@ -161,16 +159,20 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldApplyInitModuleWithSeed4JDefaultOptions() throws IOException {
+    void shouldNotApplyInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
-      assertThat(exitCode).isZero();
-      assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: init");
-      assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("Seed4J Sample Application");
-      assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("seed4jSampleApplication");
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+      assertThat(output)
+        .contains("Missing required")
+        .contains("'--base-name=<basename*>'")
+        .contains("'--project-name=<projectname*>'")
+        .contains("Project short name (only letters and numbers) (required)")
+        .contains("Project full name (required)");
     }
 
     @Test

@@ -11,11 +11,25 @@ import picocli.CommandLine;
 
 class CliFixture {
 
+  private static final Path HISTORY_FILE = Path.of(".seed4j", "modules", "history.json");
+  private static final String EMPTY_HISTORY = """
+    {
+      "actions": []
+    }
+    """;
+
   static Path setupProjectTestFolder() throws IOException {
     Path projectPath = Files.createTempDirectory("seed4j-cli-");
+    setupSeed4JHistory(projectPath);
     loadGitConfig(projectPath);
 
     return projectPath;
+  }
+
+  private static void setupSeed4JHistory(Path projectPath) throws IOException {
+    Path historyFile = projectPath.resolve(HISTORY_FILE);
+    Files.createDirectories(historyFile.getParent());
+    Files.writeString(historyFile, EMPTY_HISTORY);
   }
 
   static void loadGitConfig(Path project) {
