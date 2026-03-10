@@ -32,6 +32,14 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       throw new InvalidRuntimeConfigurationException("Invalid distribution.kind, expected extension but got: " + distributionKind);
     }
 
+    String artifactFilename = artifactFilename(runtimeConfiguration.extension().metadataPath());
+    String selectedJarFilename = runtimeConfiguration.extension().jarPath().getFileName().toString();
+    if (!selectedJarFilename.equals(artifactFilename)) {
+      throw new InvalidRuntimeConfigurationException(
+        "Invalid artifact.filename, expected " + selectedJarFilename + " but got: " + artifactFilename
+      );
+    }
+
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
   }
 
@@ -49,6 +57,25 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       }
 
       return String.valueOf(distribution.get("kind"));
+    } catch (IOException e) {
+      throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + metadataPath);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static String artifactFilename(Path metadataPath) {
+    try {
+      Map<String, Object> metadata = new Yaml().load(Files.newInputStream(metadataPath));
+      if (metadata == null) {
+        throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + metadataPath);
+      }
+
+      Map<String, Object> artifact = (Map<String, Object>) metadata.get("artifact");
+      if (artifact == null || artifact.get("filename") == null) {
+        throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + metadataPath);
+      }
+
+      return String.valueOf(artifact.get("filename"));
     } catch (IOException e) {
       throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + metadataPath);
     }

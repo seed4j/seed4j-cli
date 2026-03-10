@@ -145,4 +145,34 @@ class RuntimeSelectionTest {
       .hasMessageContaining("distribution.kind")
       .hasMessageContaining("extension");
   }
+
+  @Test
+  void shouldFailWhenArtifactFilenameDoesNotMatchSelectedJar() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(
+      tempDirectory.resolve("extension-metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: extension
+        vendor: acme
+      artifact:
+        filename: other-extension.jar
+      compatibility:
+        cli: 0.0.1
+      """
+    );
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("artifact.filename")
+      .hasMessageContaining("other-extension.jar")
+      .hasMessageContaining("company-extension.jar");
+  }
 }
