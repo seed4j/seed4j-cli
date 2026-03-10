@@ -23,6 +23,17 @@ class RuntimeSelectionTest {
     compatibility:
       cli: 0.0.1
     """;
+  private static final String VALID_DEFAULT_EXTENSION_METADATA = """
+    distribution:
+      id: company-extension
+      version: 1.0.0
+      kind: extension
+      vendor: acme
+    artifact:
+      filename: extension.jar
+    compatibility:
+      cli: 0.0.1
+    """;
 
   @Test
   void shouldDefaultToStandardModeWhenRuntimeConfigurationIsMissing() {
@@ -67,7 +78,7 @@ class RuntimeSelectionTest {
 
     try {
       System.setProperty("user.home", tempDirectory.toString());
-      Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+      Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_DEFAULT_EXTENSION_METADATA);
       Path defaultJarPath = Path.of(tempDirectory.toString(), ".config", "seed4j-cli", "runtime", "active", "extension.jar");
       Files.createDirectories(defaultJarPath.getParent());
       Files.createFile(defaultJarPath);
