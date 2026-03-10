@@ -1,8 +1,11 @@
 package com.seed4j.cli.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
@@ -30,11 +33,13 @@ class RuntimeSelectionTest {
   }
 
   @Test
-  void shouldUseConfiguredJarPathWhenModeIsExtension() {
-    Path configuredJarPath = Path.of("company-extension.jar");
+  void shouldUseConfiguredJarPathWhenModeIsExtension() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path configuredJarPath = tempDirectory.resolve("company-extension.jar");
+    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(configuredJarPath, Path.of("extension-metadata.yml"))
+      new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
     );
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
@@ -44,10 +49,12 @@ class RuntimeSelectionTest {
   }
 
   @Test
-  void shouldUseDefaultJarPathWhenModeIsExtensionAndConfiguredPathIsMissing() {
+  void shouldUseDefaultJarPathWhenModeIsExtensionAndConfiguredPathIsMissing() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
-      RuntimeExtensionConfiguration.withDefaultJarPath(Path.of("extension-metadata.yml"))
+      RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
     );
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
@@ -58,5 +65,19 @@ class RuntimeSelectionTest {
     );
   }
 
-  // [TEST] Extension mode fails when metadata is missing
+  @Test
+  void shouldFailWhenMetadataIsMissingInExtensionMode() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path missingMetadataPath = tempDirectory.resolve("missing-metadata.yml");
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, missingMetadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("metadata")
+      .hasMessageContaining(missingMetadataPath.toString());
+  }
 }
