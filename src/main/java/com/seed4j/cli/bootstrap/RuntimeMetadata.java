@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
-record RuntimeMetadata(String distributionKind, String artifactFilename) {
+record RuntimeMetadata(String distributionKind, String artifactFilename, String compatibilityCli) {
   static RuntimeMetadata read(Path metadataPath) {
     try {
       Object loadedMetadata = new Yaml().load(Files.newInputStream(metadataPath));
@@ -14,10 +14,15 @@ record RuntimeMetadata(String distributionKind, String artifactFilename) {
         throw invalidMetadata(metadataPath);
       }
 
-      Map<?, ?> distribution = mapValue(metadata, "distribution", metadataPath);
-      Map<?, ?> artifact = mapValue(metadata, "artifact", metadataPath);
+      Map<?, ?> distribution = mapValue(metadata, "distribution", "distribution.kind", metadataPath);
+      Map<?, ?> artifact = mapValue(metadata, "artifact", "artifact.filename", metadataPath);
+      Map<?, ?> compatibility = mapValue(metadata, "compatibility", "compatibility.cli", metadataPath);
 
-      return new RuntimeMetadata(stringValue(distribution, "kind", metadataPath), stringValue(artifact, "filename", metadataPath));
+      return new RuntimeMetadata(
+        stringValue(distribution, "kind", "distribution.kind", metadataPath),
+        stringValue(artifact, "filename", "artifact.filename", metadataPath),
+        stringValue(compatibility, "cli", "compatibility.cli", metadataPath)
+      );
     } catch (IOException | RuntimeException e) {
       if (e instanceof InvalidRuntimeConfigurationException runtimeConfigurationException) {
         throw runtimeConfigurationException;
@@ -27,19 +32,19 @@ record RuntimeMetadata(String distributionKind, String artifactFilename) {
     }
   }
 
-  private static Map<?, ?> mapValue(Map<?, ?> source, String key, Path metadataPath) {
+  private static Map<?, ?> mapValue(Map<?, ?> source, String key, String fieldName, Path metadataPath) {
     Object value = source.get(key);
     if (!(value instanceof Map<?, ?> mapValue)) {
-      throw invalidMetadata(metadataPath);
+      throw invalidMetadata(fieldName, metadataPath);
     }
 
     return mapValue;
   }
 
-  private static String stringValue(Map<?, ?> source, String key, Path metadataPath) {
+  private static String stringValue(Map<?, ?> source, String key, String fieldName, Path metadataPath) {
     Object value = source.get(key);
     if (!(value instanceof String stringValue) || stringValue.isBlank()) {
-      throw invalidMetadata(metadataPath);
+      throw invalidMetadata(fieldName, metadataPath);
     }
 
     return stringValue;
@@ -47,5 +52,9 @@ record RuntimeMetadata(String distributionKind, String artifactFilename) {
 
   private static InvalidRuntimeConfigurationException invalidMetadata(Path metadataPath) {
     return new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + metadataPath);
+  }
+
+  private static InvalidRuntimeConfigurationException invalidMetadata(String fieldName, Path metadataPath) {
+    return new InvalidRuntimeConfigurationException("Invalid " + fieldName + " in runtime metadata file: " + metadataPath);
   }
 }
