@@ -18,6 +18,10 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + runtimeConfiguration.extension().metadataPath());
     }
 
+    if (!Files.exists(runtimeConfiguration.extension().jarPath())) {
+      throw new InvalidRuntimeConfigurationException("Invalid runtime jar file: " + runtimeConfiguration.extension().jarPath());
+    }
+
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
   }
 }

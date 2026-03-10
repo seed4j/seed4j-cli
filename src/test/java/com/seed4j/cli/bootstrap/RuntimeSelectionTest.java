@@ -35,7 +35,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldUseConfiguredJarPathWhenModeIsExtension() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = tempDirectory.resolve("company-extension.jar");
+    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -50,19 +50,27 @@ class RuntimeSelectionTest {
 
   @Test
   void shouldUseDefaultJarPathWhenModeIsExtensionAndConfiguredPathIsMissing() throws IOException {
+    String originalUserHome = System.getProperty("user.home");
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
-    );
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+    try {
+      System.setProperty("user.home", tempDirectory.toString());
+      Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
+      Path defaultJarPath = Path.of(tempDirectory.toString(), ".config", "seed4j-cli", "runtime", "active", "extension.jar");
+      Files.createDirectories(defaultJarPath.getParent());
+      Files.createFile(defaultJarPath);
+      RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+        RuntimeMode.EXTENSION,
+        RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
+      );
 
-    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(runtimeSelection.extensionJarPath()).contains(
-      Path.of(System.getProperty("user.home"), ".config", "seed4j-cli", "runtime", "active", "extension.jar")
-    );
+      RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+
+      assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+      assertThat(runtimeSelection.extensionJarPath()).contains(defaultJarPath);
+    } finally {
+      System.setProperty("user.home", originalUserHome);
+    }
   }
 
   @Test
@@ -79,5 +87,21 @@ class RuntimeSelectionTest {
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("metadata")
       .hasMessageContaining(missingMetadataPath.toString());
+  }
+
+  @Test
+  void shouldFailWhenJarIsMissingInExtensionMode() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path missingJarPath = tempDirectory.resolve("missing-extension.jar");
+    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(missingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("jar")
+      .hasMessageContaining(missingJarPath.toString());
   }
 }
