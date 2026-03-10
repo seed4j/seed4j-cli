@@ -1,7 +1,18 @@
 package com.seed4j.cli.bootstrap;
 
-public record RuntimeSelection(RuntimeMode mode) {
+import java.nio.file.Path;
+import java.util.Optional;
+
+public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath) {
   public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
-    return new RuntimeSelection(RuntimeMode.STANDARD);
+    if (runtimeConfiguration == null) {
+      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty());
+    }
+
+    if (runtimeConfiguration.mode() == RuntimeMode.STANDARD) {
+      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty());
+    }
+
+    return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
   }
 }
