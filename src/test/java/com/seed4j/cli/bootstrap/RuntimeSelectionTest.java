@@ -12,6 +12,18 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class RuntimeSelectionTest {
 
+  private static final String VALID_EXTENSION_METADATA = """
+    distribution:
+      id: company-extension
+      version: 1.0.0
+      kind: extension
+      vendor: acme
+    artifact:
+      filename: company-extension.jar
+    compatibility:
+      cli: 0.0.1
+    """;
+
   @Test
   void shouldDefaultToStandardModeWhenRuntimeConfigurationIsMissing() {
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(null);
@@ -36,7 +48,7 @@ class RuntimeSelectionTest {
   void shouldUseConfiguredJarPathWhenModeIsExtension() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
@@ -55,7 +67,7 @@ class RuntimeSelectionTest {
 
     try {
       System.setProperty("user.home", tempDirectory.toString());
-      Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
+      Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
       Path defaultJarPath = Path.of(tempDirectory.toString(), ".config", "seed4j-cli", "runtime", "active", "extension.jar");
       Files.createDirectories(defaultJarPath.getParent());
       Files.createFile(defaultJarPath);
@@ -103,5 +115,34 @@ class RuntimeSelectionTest {
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("jar")
       .hasMessageContaining(missingJarPath.toString());
+  }
+
+  @Test
+  void shouldFailWhenDistributionKindIsNotExtension() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(
+      tempDirectory.resolve("extension-metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: standard
+        vendor: acme
+      artifact:
+        filename: company-extension.jar
+      compatibility:
+        cli: 0.0.1
+      """
+    );
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("distribution.kind")
+      .hasMessageContaining("extension");
   }
 }
