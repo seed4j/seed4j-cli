@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.domain.Seed4JSlug;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.Comparator;
@@ -48,13 +49,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   }
 
   private int maxSlugLength(Seed4JModulesResources modulesResources) {
-    return modulesResources
-      .stream()
-      .map(Seed4JModuleResource::slug)
-      .map(slug -> slug.get())
-      .mapToInt(String::length)
-      .max()
-      .orElse(0);
+    return modulesResources.stream().map(Seed4JModuleResource::slug).map(Seed4JSlug::get).mapToInt(String::length).max().orElse(0);
   }
 
   private Consumer<? super Seed4JModuleResource> printModule(int maxSlugLength) {
