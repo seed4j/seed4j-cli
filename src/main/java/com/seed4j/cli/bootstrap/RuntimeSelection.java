@@ -38,10 +38,6 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       );
     }
 
-    if (metadata.compatibilityCli().isBlank()) {
-      throw new InvalidRuntimeConfigurationException("Invalid compatibility.cli in runtime metadata file");
-    }
-
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
   }
 }
