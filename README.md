@@ -100,6 +100,14 @@ After the installation, you can use the `seed4j` with help command to know the o
 seed4j --help
 ```
 
+To confirm the installed binary and embedded platform version:
+
+```bash
+seed4j --version
+```
+
+This prints both the Seed4J CLI version and the bundled Seed4J version.
+
 <!-- seed4j-needle-startupCommand -->
 
 ## Documentation

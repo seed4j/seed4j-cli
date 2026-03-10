@@ -162,7 +162,7 @@ You can hide specific modules from being displayed in the `list` command and pre
 Create a `~/.config/seed4j-cli.yml` file with the following structure:
 
 ```yaml
-jhlite:
+seed4j:
   hidden-resources:
     slugs:
       - gradle-java
@@ -176,6 +176,8 @@ jhlite:
 
 - `slugs`: List of specific module slugs to hide
 - `tags`: List of module tags to hide (hides all modules with these tags)
+
+These values are exposed through the `seed4j.hidden-resources.*` configuration namespace.
 
 **Effects of hidden resources:**
 
