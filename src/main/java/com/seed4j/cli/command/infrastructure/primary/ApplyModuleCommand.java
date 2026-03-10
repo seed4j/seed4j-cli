@@ -1,18 +1,18 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import java.util.Comparator;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
 
 @Component
 class ApplyModuleCommand implements Seed4JCommand {
 
-  private final JHipsterModulesApplicationService modules;
+  private final Seed4JModulesApplicationService modules;
   private final ApplyModuleSubCommandsFactory subCommandsFactory;
 
-  public ApplyModuleCommand(JHipsterModulesApplicationService modules, ApplyModuleSubCommandsFactory subCommandsFactory) {
+  public ApplyModuleCommand(Seed4JModulesApplicationService modules, ApplyModuleSubCommandsFactory subCommandsFactory) {
     this.modules = modules;
     this.subCommandsFactory = subCommandsFactory;
   }
@@ -45,7 +45,7 @@ class ApplyModuleCommand implements Seed4JCommand {
       .forEach(module -> spec.addSubcommand(module.slug().get(), subCommandsFactory.create(module).commandSpec()));
   }
 
-  private static Comparator<JHipsterModuleResource> byModuleSlug() {
-    return Comparator.comparing(jHipsterModuleResource -> jHipsterModuleResource.slug().get());
+  private static Comparator<Seed4JModuleResource> byModuleSlug() {
+    return Comparator.comparing(moduleResource -> moduleResource.slug().get());
   }
 }

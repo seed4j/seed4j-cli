@@ -5,14 +5,14 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.project.application.ProjectsApplicationService;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.TestPropertySource;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.project.application.ProjectsApplicationService;
 
 @IntegrationTest
 @TestPropertySource(properties = { "spring.config.location=classpath:/cli/config/seed4j-cli-hidden-resources.yml" })
@@ -22,14 +22,14 @@ class ExternalConfigTest {
   private ProjectsApplicationService projects;
 
   @Autowired
-  private JHipsterModulesApplicationService modules;
+  private Seed4JModulesApplicationService modules;
 
   @Autowired
   private Environment environment;
 
   @Test
   void shouldLoadExternalConfiguration() {
-    assertThat(environment.getProperty("jhlite.hidden-resources.slugs[0]")).isEqualTo("gradle-java");
+    assertThat(environment.getProperty("seed4j.hidden-resources.slugs[0]")).isEqualTo("gradle-java");
   }
 
   @Test

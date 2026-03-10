@@ -1,5 +1,6 @@
 package com.seed4j.cli;
 
+import com.seed4j.Seed4JApp;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,9 +11,8 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
-import tech.jhipster.lite.JHLiteApp;
 
-@SpringBootApplication(scanBasePackageClasses = { JHLiteApp.class, Seed4JCliApp.class })
+@SpringBootApplication(scanBasePackageClasses = { Seed4JApp.class, Seed4JCliApp.class })
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class Seed4JCliApp {
 

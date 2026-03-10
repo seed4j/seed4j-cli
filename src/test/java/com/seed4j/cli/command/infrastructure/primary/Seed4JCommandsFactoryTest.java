@@ -5,6 +5,11 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
+import com.seed4j.project.application.ProjectsApplicationService;
+import com.seed4j.project.domain.ProjectPath;
+import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
@@ -14,11 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.infrastructure.secondary.git.GitTestUtil;
-import tech.jhipster.lite.project.application.ProjectsApplicationService;
-import tech.jhipster.lite.project.domain.ProjectPath;
-import tech.jhipster.lite.project.domain.history.ProjectHistory;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
@@ -34,7 +34,7 @@ class Seed4JCommandsFactoryTest {
   private ProjectsApplicationService projects;
 
   @Autowired
-  private JHipsterModulesApplicationService modules;
+  private Seed4JModulesApplicationService modules;
 
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {

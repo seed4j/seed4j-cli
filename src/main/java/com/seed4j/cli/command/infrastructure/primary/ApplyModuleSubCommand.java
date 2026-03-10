@@ -2,6 +2,20 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
+import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.domain.Seed4JModuleSlug;
+import com.seed4j.module.domain.Seed4JModuleToApply;
+import com.seed4j.module.domain.properties.Seed4JModuleProperties;
+import com.seed4j.module.domain.properties.Seed4JPropertyDescription;
+import com.seed4j.module.domain.properties.Seed4JPropertyKey;
+import com.seed4j.module.domain.properties.Seed4JPropertyType;
+import com.seed4j.module.domain.resource.Seed4JModuleOperation;
+import com.seed4j.module.domain.resource.Seed4JModulePropertiesDefinition;
+import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
+import com.seed4j.module.domain.resource.Seed4JModuleResource;
+import com.seed4j.project.application.ProjectsApplicationService;
+import com.seed4j.project.domain.ProjectPath;
+import com.seed4j.project.domain.history.ModuleParameters;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,36 +26,18 @@ import picocli.CommandLine.MissingParameterException;
 import picocli.CommandLine.Model.ArgSpec;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Model.OptionSpec;
-import tech.jhipster.lite.module.application.JHipsterModulesApplicationService;
-import tech.jhipster.lite.module.domain.JHipsterModuleSlug;
-import tech.jhipster.lite.module.domain.JHipsterModuleToApply;
-import tech.jhipster.lite.module.domain.properties.JHipsterModuleProperties;
-import tech.jhipster.lite.module.domain.properties.JHipsterPropertyDescription;
-import tech.jhipster.lite.module.domain.properties.JHipsterPropertyKey;
-import tech.jhipster.lite.module.domain.properties.JHipsterPropertyType;
-import tech.jhipster.lite.module.domain.resource.JHipsterModuleOperation;
-import tech.jhipster.lite.module.domain.resource.JHipsterModulePropertiesDefinition;
-import tech.jhipster.lite.module.domain.resource.JHipsterModulePropertyDefinition;
-import tech.jhipster.lite.module.domain.resource.JHipsterModuleResource;
-import tech.jhipster.lite.project.application.ProjectsApplicationService;
-import tech.jhipster.lite.project.domain.ProjectPath;
-import tech.jhipster.lite.project.domain.history.ModuleParameters;
 
 class ApplyModuleSubCommand implements Callable<Integer> {
 
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
 
-  private final JHipsterModulesApplicationService modules;
-  private final JHipsterModuleResource module;
+  private final Seed4JModulesApplicationService modules;
+  private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
   private final ProjectsApplicationService projects;
 
-  public ApplyModuleSubCommand(
-    JHipsterModulesApplicationService modules,
-    JHipsterModuleResource module,
-    ProjectsApplicationService projects
-  ) {
+  public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
     this.modules = modules;
     this.module = module;
     this.projects = projects;
@@ -49,9 +45,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   }
 
   private CommandSpec buildCommandSpec(
-    JHipsterModuleSlug moduleSlug,
-    JHipsterModuleOperation operation,
-    JHipsterModulePropertiesDefinition properties
+    Seed4JModuleSlug moduleSlug,
+    Seed4JModuleOperation operation,
+    Seed4JModulePropertiesDefinition properties
   ) {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name(moduleSlug.get()).mixinStandardHelpOptions(true);
     spec.usageMessage().description(escape(operation));
@@ -61,11 +57,11 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     return spec;
   }
 
-  private String escape(JHipsterModuleOperation operation) {
+  private String escape(Seed4JModuleOperation operation) {
     return operation.get().replace("%", "%%");
   }
 
-  private void addOptions(CommandSpec spec, JHipsterModulePropertiesDefinition properties) {
+  private void addOptions(CommandSpec spec, Seed4JModulePropertiesDefinition properties) {
     spec.addOption(
       OptionSpec.builder(PROJECT_PATH_OPTION)
         .description("Project Path Folder")
@@ -84,7 +80,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
           OptionSpec.builder(toDashedFormat(property.key()))
             .description(
               "%s%s".formatted(
-                property.description().map(JHipsterPropertyDescription::get).orElse(""),
+                property.description().map(Seed4JPropertyDescription::get).orElse(""),
                 property.isMandatory() ? " (required)" : ""
               )
             )
@@ -95,8 +91,8 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       );
   }
 
-  @ExcludeFromGeneratedCodeCoverage(reason = "There is no JHipster-Lite module using a property with the BOOLEAN type")
-  private static Class<?> toOptionType(JHipsterPropertyType type) {
+  @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")
+  private static Class<?> toOptionType(Seed4JPropertyType type) {
     return switch (type) {
       case BOOLEAN -> boolean.class;
       case INTEGER -> int.class;
@@ -104,7 +100,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     };
   }
 
-  private static String toDashedFormat(JHipsterPropertyKey key) {
+  private static String toDashedFormat(Seed4JPropertyKey key) {
     StringBuilder dashed = new StringBuilder("--");
     for (char c : key.get().toCharArray()) {
       if (Character.isUpperCase(c)) {
@@ -143,8 +139,8 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    JHipsterModuleProperties properties = new JHipsterModuleProperties(projectPath(), commitEnabled(), parameters());
-    JHipsterModuleToApply moduleToApply = new JHipsterModuleToApply(new JHipsterModuleSlug(module.slug().get()), properties);
+    Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath(), commitEnabled(), parameters());
+    Seed4JModuleToApply moduleToApply = new Seed4JModuleToApply(new Seed4JModuleSlug(module.slug().get()), properties);
     modules.apply(moduleToApply);
 
     return ExitCode.OK;
@@ -187,7 +183,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     List<OptionSpec> missingOptions = module
       .propertiesDefinition()
       .stream()
-      .filter(JHipsterModulePropertyDefinition::isMandatory)
+      .filter(Seed4JModulePropertyDefinition::isMandatory)
       .filter(property -> !moduleParameters.get().containsKey(property.key().get()))
       .map(property -> commandSpec.findOption(toDashedFormat(property.key())))
       .toList();
