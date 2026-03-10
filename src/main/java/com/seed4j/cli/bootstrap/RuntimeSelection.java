@@ -8,6 +8,10 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
   private static final String EXPECTED_DISTRIBUTION_KIND = "extension";
 
   public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
+    return resolve(runtimeConfiguration, "");
+  }
+
+  public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration, String currentCliVersion) {
     if (runtimeConfiguration == null) {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty());
     }
@@ -38,6 +42,28 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       );
     }
 
+    String normalizedCliVersion = normalizeCliVersion(currentCliVersion);
+    if (!normalizedCliVersion.equals(metadata.compatibilityCli())) {
+      throw new InvalidRuntimeConfigurationException(
+        "Invalid compatibility.cli, expected "
+          + metadata.compatibilityCli()
+          + " to match current CLI version "
+          + currentCliVersion
+          + " (normalized as "
+          + normalizedCliVersion
+          + ")"
+      );
+    }
+
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
+  }
+
+  private static String normalizeCliVersion(String currentCliVersion) {
+    int qualifierIndex = currentCliVersion.indexOf('-');
+    if (qualifierIndex < 0) {
+      return currentCliVersion;
+    }
+
+    return currentCliVersion.substring(0, qualifierIndex);
   }
 }

@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class RuntimeSelectionTest {
 
+  private static final String CURRENT_CLI_VERSION = "0.0.1-SNAPSHOT";
+
   private static final String VALID_EXTENSION_METADATA = """
     distribution:
       id: company-extension
@@ -37,7 +39,7 @@ class RuntimeSelectionTest {
 
   @Test
   void shouldDefaultToStandardModeWhenRuntimeConfigurationIsMissing() {
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(null);
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(null, CURRENT_CLI_VERSION);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.STANDARD);
   }
@@ -49,7 +51,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(Path.of("missing-extension.jar"), Path.of("missing-metadata.yml"))
     );
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.STANDARD);
     assertThat(runtimeSelection.extensionJarPath()).isEmpty();
@@ -65,7 +67,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
     );
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.extensionJarPath()).contains(configuredJarPath);
@@ -87,7 +89,7 @@ class RuntimeSelectionTest {
         RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
       );
 
-      RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+      RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
 
       assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
       assertThat(runtimeSelection.extensionJarPath()).contains(defaultJarPath);
@@ -106,7 +108,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, missingMetadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("metadata")
       .hasMessageContaining(missingMetadataPath.toString());
@@ -122,7 +124,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(missingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("jar")
       .hasMessageContaining(missingJarPath.toString());
@@ -151,7 +153,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("distribution.kind")
       .hasMessageContaining("extension");
@@ -180,7 +182,7 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("artifact.filename")
       .hasMessageContaining("other-extension.jar")
@@ -208,8 +210,38 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("compatibility.cli");
+  }
+
+  @Test
+  void shouldFailWhenCliCompatibilityIsIncompatible() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(
+      tempDirectory.resolve("extension-metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: extension
+        vendor: acme
+      artifact:
+        filename: company-extension.jar
+      compatibility:
+        cli: 999.0.0
+      """
+    );
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("compatibility.cli")
+      .hasMessageContaining("999.0.0")
+      .hasMessageContaining(CURRENT_CLI_VERSION);
   }
 }
