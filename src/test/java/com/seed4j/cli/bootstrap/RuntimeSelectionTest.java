@@ -43,6 +43,20 @@ class RuntimeSelectionTest {
     assertThat(runtimeSelection.extensionJarPath()).contains(configuredJarPath);
   }
 
-  // [TEST] Extension mode uses the default jar path when the configured path is absent
+  @Test
+  void shouldUseDefaultJarPathWhenModeIsExtensionAndConfiguredPathIsMissing() {
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      RuntimeExtensionConfiguration.withDefaultJarPath(Path.of("extension-metadata.yml"))
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(
+      Path.of(System.getProperty("user.home"), ".config", "seed4j-cli", "runtime", "active", "extension.jar")
+    );
+  }
+
   // [TEST] Extension mode fails when metadata is missing
 }
