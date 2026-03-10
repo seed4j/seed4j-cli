@@ -29,7 +29,20 @@ class RuntimeSelectionTest {
     assertThat(runtimeSelection.extensionJarPath()).isEmpty();
   }
 
-  // [TEST] Extension mode uses the configured jar path when provided
+  @Test
+  void shouldUseConfiguredJarPathWhenModeIsExtension() {
+    Path configuredJarPath = Path.of("company-extension.jar");
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(configuredJarPath, Path.of("extension-metadata.yml"))
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(configuredJarPath);
+  }
+
   // [TEST] Extension mode uses the default jar path when the configured path is absent
   // [TEST] Extension mode fails when metadata is missing
 }
