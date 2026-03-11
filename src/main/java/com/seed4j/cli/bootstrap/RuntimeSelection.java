@@ -4,7 +4,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath, Optional<String> distributionId) {
+public record RuntimeSelection(
+  RuntimeMode mode,
+  Optional<Path> extensionJarPath,
+  Optional<String> distributionId,
+  Optional<String> distributionVersion
+) {
   private static final String EXPECTED_DISTRIBUTION_KIND = "extension";
 
   public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
@@ -13,11 +18,11 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
 
   public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration, String currentCliVersion) {
     if (runtimeConfiguration == null) {
-      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty());
+      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     if (runtimeConfiguration.mode() == RuntimeMode.STANDARD) {
-      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty());
+      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     if (!Files.exists(runtimeConfiguration.extension().metadataPath())) {
@@ -47,7 +52,8 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
     return new RuntimeSelection(
       RuntimeMode.EXTENSION,
       Optional.of(runtimeConfiguration.extension().jarPath()),
-      Optional.of(metadata.distributionId())
+      Optional.of(metadata.distributionId()),
+      Optional.of(metadata.distributionVersion())
     );
   }
 }
