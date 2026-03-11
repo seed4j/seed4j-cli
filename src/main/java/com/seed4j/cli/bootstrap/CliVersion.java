@@ -5,11 +5,39 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 
 record CliVersion(String value, String normalizedValue, List<Integer> segments) implements Comparable<CliVersion> {
-  static CliVersion from(String value) {
-    String normalizedValue = normalized(value);
-    List<Integer> segments = Arrays.stream(normalizedValue.split("\\.")).map(CliVersion::parsedSegment).toList();
+  static CliVersion current(String value) {
+    return from(value, "Invalid current CLI version: " + value);
+  }
 
-    return new CliVersion(value, normalizedValue, segments);
+  static CliVersion minimumCompatibility(String value) {
+    return from(value, "Invalid compatibility.cli: " + value);
+  }
+
+  void validateCompatibilityWith(CliVersion minimumCompatibleVersion) {
+    if (atLeast(minimumCompatibleVersion)) {
+      return;
+    }
+
+    throw new InvalidRuntimeConfigurationException(
+      "Invalid compatibility.cli, expected minimum "
+        + minimumCompatibleVersion
+        + " to be compatible with current CLI version "
+        + this
+        + " (normalized as "
+        + normalizedValue
+        + ")"
+    );
+  }
+
+  private static CliVersion from(String value, String invalidMessage) {
+    try {
+      String normalizedValue = normalized(value);
+      List<Integer> segments = Arrays.stream(normalizedValue.split("\\.")).map(CliVersion::parsedSegment).toList();
+
+      return new CliVersion(value, normalizedValue, segments);
+    } catch (NumberFormatException e) {
+      throw new InvalidRuntimeConfigurationException(invalidMessage);
+    }
   }
 
   boolean atLeast(CliVersion other) {

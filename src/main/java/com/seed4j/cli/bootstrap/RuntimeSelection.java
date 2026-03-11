@@ -42,36 +42,8 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       );
     }
 
-    CliVersion currentVersion = cliVersion(currentCliVersion);
-    CliVersion minimumCompatibleVersion = compatibilityCliVersion(metadata.compatibilityCli());
-    if (!currentVersion.atLeast(minimumCompatibleVersion)) {
-      throw new InvalidRuntimeConfigurationException(
-        "Invalid compatibility.cli, expected minimum "
-          + minimumCompatibleVersion
-          + " to be compatible with current CLI version "
-          + currentVersion
-          + " (normalized as "
-          + currentVersion.normalizedValue()
-          + ")"
-      );
-    }
+    CliVersion.current(currentCliVersion).validateCompatibilityWith(CliVersion.minimumCompatibility(metadata.compatibilityCli()));
 
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
-  }
-
-  private static CliVersion cliVersion(String currentCliVersion) {
-    try {
-      return CliVersion.from(currentCliVersion);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidRuntimeConfigurationException("Invalid current CLI version: " + currentCliVersion);
-    }
-  }
-
-  private static CliVersion compatibilityCliVersion(String compatibilityCli) {
-    try {
-      return CliVersion.from(compatibilityCli);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidRuntimeConfigurationException("Invalid compatibility.cli: " + compatibilityCli);
-    }
   }
 }
