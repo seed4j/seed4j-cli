@@ -43,11 +43,11 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
     }
 
     String normalizedCliVersion = normalizeCliVersion(currentCliVersion);
-    if (!normalizedCliVersion.equals(metadata.compatibilityCli())) {
+    if (compareVersions(normalizedCliVersion, metadata.compatibilityCli()) < 0) {
       throw new InvalidRuntimeConfigurationException(
-        "Invalid compatibility.cli, expected "
+        "Invalid compatibility.cli, expected minimum "
           + metadata.compatibilityCli()
-          + " to match current CLI version "
+          + " to be compatible with current CLI version "
           + currentCliVersion
           + " (normalized as "
           + normalizedCliVersion
@@ -65,5 +65,30 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
     }
 
     return currentCliVersion.substring(0, qualifierIndex);
+  }
+
+  private static int compareVersions(String leftVersion, String rightVersion) {
+    String[] leftSegments = leftVersion.split("\\.");
+    String[] rightSegments = rightVersion.split("\\.");
+    int segmentCount = Math.max(leftSegments.length, rightSegments.length);
+
+    for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+      int leftSegment = versionSegment(leftSegments, segmentIndex);
+      int rightSegment = versionSegment(rightSegments, segmentIndex);
+
+      if (leftSegment != rightSegment) {
+        return Integer.compare(leftSegment, rightSegment);
+      }
+    }
+
+    return 0;
+  }
+
+  private static int versionSegment(String[] segments, int index) {
+    if (index >= segments.length) {
+      return 0;
+    }
+
+    return Integer.parseInt(segments[index]);
   }
 }

@@ -244,4 +244,21 @@ class RuntimeSelectionTest {
       .hasMessageContaining("999.0.0")
       .hasMessageContaining(CURRENT_CLI_VERSION);
   }
+
+  @Test
+  void shouldAcceptWhenCurrentCliVersionIsHigherThanMinimumCompatibility() throws IOException {
+    String currentCliVersion = "0.0.2-SNAPSHOT";
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(configuredJarPath);
+  }
 }
