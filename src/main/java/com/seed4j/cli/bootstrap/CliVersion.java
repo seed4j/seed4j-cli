@@ -1,5 +1,8 @@
 package com.seed4j.cli.bootstrap;
 
+import java.util.Arrays;
+import org.jspecify.annotations.NonNull;
+
 record CliVersion(String value) implements Comparable<CliVersion> {
   static CliVersion from(String value) {
     validate(value);
@@ -42,15 +45,12 @@ record CliVersion(String value) implements Comparable<CliVersion> {
       return 0;
     }
 
-    return Integer.parseInt(segments[index]);
+    return parsedSegment(segments[index]);
   }
 
   private static void validate(String value) {
     String[] segments = normalized(value).split("\\.");
-
-    for (String segment : segments) {
-      Integer.parseInt(segment);
-    }
+    Arrays.stream(segments).forEach(CliVersion::parsedSegment);
   }
 
   private static String normalized(String value) {
@@ -63,7 +63,11 @@ record CliVersion(String value) implements Comparable<CliVersion> {
   }
 
   @Override
-  public String toString() {
+  public @NonNull String toString() {
     return value;
+  }
+
+  private static int parsedSegment(String segment) {
+    return Integer.parseInt(segment);
   }
 }
