@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
-record RuntimeMetadata(String distributionKind, String artifactFilename, String compatibilityCli) {
+record RuntimeMetadata(String distributionId, String distributionKind, String artifactFilename, String compatibilityCli) {
   static RuntimeMetadata read(Path metadataPath) {
     try {
       Object loadedMetadata = new Yaml().load(Files.newInputStream(metadataPath));
@@ -19,6 +19,7 @@ record RuntimeMetadata(String distributionKind, String artifactFilename, String 
       Map<?, ?> compatibility = mapValue(metadata, "compatibility", "compatibility.cli", metadataPath);
 
       return new RuntimeMetadata(
+        stringValue(distribution, "id", "distribution.id", metadataPath),
         stringValue(distribution, "kind", "distribution.kind", metadataPath),
         stringValue(artifact, "filename", "artifact.filename", metadataPath),
         stringValue(compatibility, "cli", "compatibility.cli", metadataPath)
