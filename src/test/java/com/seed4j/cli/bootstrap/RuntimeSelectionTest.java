@@ -321,4 +321,21 @@ class RuntimeSelectionTest {
       .hasMessageContaining("compatibility.cli")
       .hasMessageContaining("not-a-version");
   }
+
+  @Test
+  void shouldFailWhenCurrentCliVersionIsMalformed() throws IOException {
+    String currentCliVersion = "not-a-version";
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("current CLI version")
+      .hasMessageContaining(currentCliVersion);
+  }
 }
