@@ -419,4 +419,19 @@ class RuntimeSelectionTest {
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("distribution.vendor");
   }
+
+  @Test
+  void shouldExposeDistributionIdWhenExtensionRuntimeIsSelected() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.distributionId()).contains("company-extension");
+  }
 }
