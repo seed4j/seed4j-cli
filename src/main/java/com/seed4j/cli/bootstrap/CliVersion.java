@@ -1,36 +1,28 @@
 package com.seed4j.cli.bootstrap;
 
 import java.util.Arrays;
+import java.util.List;
 import org.jspecify.annotations.NonNull;
 
-record CliVersion(String value) implements Comparable<CliVersion> {
+record CliVersion(String value, String normalizedValue, List<Integer> segments) implements Comparable<CliVersion> {
   static CliVersion from(String value) {
-    validate(value);
-    return new CliVersion(value);
+    String normalizedValue = normalized(value);
+    List<Integer> segments = Arrays.stream(normalizedValue.split("\\.")).map(CliVersion::parsedSegment).toList();
+
+    return new CliVersion(value, normalizedValue, segments);
   }
 
   boolean atLeast(CliVersion other) {
     return compareTo(other) >= 0;
   }
 
-  String normalizedValue() {
-    int qualifierIndex = value.indexOf('-');
-    if (qualifierIndex < 0) {
-      return value;
-    }
-
-    return value.substring(0, qualifierIndex);
-  }
-
   @Override
   public int compareTo(CliVersion other) {
-    String[] currentSegments = normalizedValue().split("\\.");
-    String[] otherSegments = other.normalizedValue().split("\\.");
-    int segmentCount = Math.max(currentSegments.length, otherSegments.length);
+    int segmentCount = Math.max(segments.size(), other.segments.size());
 
     for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-      int currentSegment = versionSegment(currentSegments, segmentIndex);
-      int otherSegment = versionSegment(otherSegments, segmentIndex);
+      int currentSegment = versionSegment(segments, segmentIndex);
+      int otherSegment = versionSegment(other.segments, segmentIndex);
 
       if (currentSegment != otherSegment) {
         return Integer.compare(currentSegment, otherSegment);
@@ -40,17 +32,12 @@ record CliVersion(String value) implements Comparable<CliVersion> {
     return 0;
   }
 
-  private static int versionSegment(String[] segments, int index) {
-    if (index >= segments.length) {
+  private static int versionSegment(List<Integer> segments, int index) {
+    if (index >= segments.size()) {
       return 0;
     }
 
-    return parsedSegment(segments[index]);
-  }
-
-  private static void validate(String value) {
-    String[] segments = normalized(value).split("\\.");
-    Arrays.stream(segments).forEach(CliVersion::parsedSegment);
+    return segments.get(index);
   }
 
   private static String normalized(String value) {
@@ -67,7 +54,7 @@ record CliVersion(String value) implements Comparable<CliVersion> {
     return value;
   }
 
-  private static int parsedSegment(String segment) {
-    return Integer.parseInt(segment);
+  private static Integer parsedSegment(String segment) {
+    return Integer.valueOf(segment);
   }
 }
