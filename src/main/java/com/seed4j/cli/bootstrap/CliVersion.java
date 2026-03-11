@@ -2,6 +2,7 @@ package com.seed4j.cli.bootstrap;
 
 record CliVersion(String value) implements Comparable<CliVersion> {
   static CliVersion from(String value) {
+    validate(value);
     return new CliVersion(value);
   }
 
@@ -42,6 +43,23 @@ record CliVersion(String value) implements Comparable<CliVersion> {
     }
 
     return Integer.parseInt(segments[index]);
+  }
+
+  private static void validate(String value) {
+    String[] segments = normalized(value).split("\\.");
+
+    for (String segment : segments) {
+      Integer.parseInt(segment);
+    }
+  }
+
+  private static String normalized(String value) {
+    int qualifierIndex = value.indexOf('-');
+    if (qualifierIndex < 0) {
+      return value;
+    }
+
+    return value.substring(0, qualifierIndex);
   }
 
   @Override

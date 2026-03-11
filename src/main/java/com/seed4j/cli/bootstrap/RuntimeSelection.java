@@ -42,8 +42,8 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       );
     }
 
-    CliVersion currentVersion = CliVersion.from(currentCliVersion);
-    CliVersion minimumCompatibleVersion = CliVersion.from(metadata.compatibilityCli());
+    CliVersion currentVersion = cliVersion(currentCliVersion);
+    CliVersion minimumCompatibleVersion = compatibilityCliVersion(metadata.compatibilityCli());
     if (!currentVersion.atLeast(minimumCompatibleVersion)) {
       throw new InvalidRuntimeConfigurationException(
         "Invalid compatibility.cli, expected minimum "
@@ -57,5 +57,21 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
     }
 
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
+  }
+
+  private static CliVersion cliVersion(String currentCliVersion) {
+    try {
+      return CliVersion.from(currentCliVersion);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidRuntimeConfigurationException("Invalid current CLI version: " + currentCliVersion);
+    }
+  }
+
+  private static CliVersion compatibilityCliVersion(String compatibilityCli) {
+    try {
+      return CliVersion.from(compatibilityCli);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidRuntimeConfigurationException("Invalid compatibility.cli: " + compatibilityCli);
+    }
   }
 }
