@@ -42,53 +42,20 @@ public record RuntimeSelection(RuntimeMode mode, Optional<Path> extensionJarPath
       );
     }
 
-    String normalizedCliVersion = normalizeCliVersion(currentCliVersion);
-    if (compareVersions(normalizedCliVersion, metadata.compatibilityCli()) < 0) {
+    CliVersion currentVersion = CliVersion.from(currentCliVersion);
+    CliVersion minimumCompatibleVersion = CliVersion.from(metadata.compatibilityCli());
+    if (!currentVersion.atLeast(minimumCompatibleVersion)) {
       throw new InvalidRuntimeConfigurationException(
         "Invalid compatibility.cli, expected minimum "
-          + metadata.compatibilityCli()
+          + minimumCompatibleVersion
           + " to be compatible with current CLI version "
-          + currentCliVersion
+          + currentVersion
           + " (normalized as "
-          + normalizedCliVersion
+          + currentVersion.normalizedValue()
           + ")"
       );
     }
 
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.of(runtimeConfiguration.extension().jarPath()));
-  }
-
-  private static String normalizeCliVersion(String currentCliVersion) {
-    int qualifierIndex = currentCliVersion.indexOf('-');
-    if (qualifierIndex < 0) {
-      return currentCliVersion;
-    }
-
-    return currentCliVersion.substring(0, qualifierIndex);
-  }
-
-  private static int compareVersions(String leftVersion, String rightVersion) {
-    String[] leftSegments = leftVersion.split("\\.");
-    String[] rightSegments = rightVersion.split("\\.");
-    int segmentCount = Math.max(leftSegments.length, rightSegments.length);
-
-    for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-      int leftSegment = versionSegment(leftSegments, segmentIndex);
-      int rightSegment = versionSegment(rightSegments, segmentIndex);
-
-      if (leftSegment != rightSegment) {
-        return Integer.compare(leftSegment, rightSegment);
-      }
-    }
-
-    return 0;
-  }
-
-  private static int versionSegment(String[] segments, int index) {
-    if (index >= segments.length) {
-      return 0;
-    }
-
-    return Integer.parseInt(segments[index]);
   }
 }
