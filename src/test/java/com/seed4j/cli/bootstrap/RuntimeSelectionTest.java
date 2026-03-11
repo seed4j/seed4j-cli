@@ -392,4 +392,31 @@ class RuntimeSelectionTest {
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("distribution.version");
   }
+
+  @Test
+  void shouldFailWhenDistributionVendorIsMissing() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(
+      tempDirectory.resolve("extension-metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: extension
+      artifact:
+        filename: company-extension.jar
+      compatibility:
+        cli: 0.0.1
+      """
+    );
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("distribution.vendor");
+  }
 }
