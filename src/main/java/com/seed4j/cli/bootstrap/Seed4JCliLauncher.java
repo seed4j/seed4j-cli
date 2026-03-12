@@ -67,7 +67,7 @@ class Seed4JCliLauncher {
     try {
       Object loadedConfiguration = new Yaml().load(Files.newInputStream(configPath));
       if (!(loadedConfiguration instanceof Map<?, ?> configuration)) {
-        return RuntimeMode.STANDARD;
+        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: YAML root must be an object.");
       }
       if (!(configuration.get("seed4j") instanceof Map<?, ?> seed4j)) {
         return RuntimeMode.STANDARD;
