@@ -69,11 +69,19 @@ class Seed4JCliLauncher {
       if (!(loadedConfiguration instanceof Map<?, ?> configuration)) {
         throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: YAML root must be an object.");
       }
+      if (configuration.containsKey("seed4j") && !(configuration.get("seed4j") instanceof Map<?, ?>)) {
+        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: seed4j must be an object.");
+      }
       if (!(configuration.get("seed4j") instanceof Map<?, ?> seed4j)) {
         return RuntimeMode.STANDARD;
       }
       if (!(seed4j.get("runtime") instanceof Map<?, ?> runtime)) {
         return RuntimeMode.STANDARD;
+      }
+      if (runtime.containsKey("mode") && !(runtime.get("mode") instanceof String)) {
+        throw new InvalidRuntimeConfigurationException(
+          "Invalid ~/.config/seed4j-cli.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
+        );
       }
       if (!(runtime.get("mode") instanceof String mode)) {
         return RuntimeMode.STANDARD;

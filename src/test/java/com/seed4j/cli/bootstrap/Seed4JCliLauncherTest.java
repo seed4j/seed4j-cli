@@ -252,6 +252,65 @@ class Seed4JCliLauncherTest {
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
+  @Test
+  void shouldFailBeforeLaunchingAChildProcessWhenSeed4jConfigHasAnInvalidType() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j: 123
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isNotZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNull();
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldFailBeforeLaunchingAChildProcessWhenRuntimeModeHasAnInvalidType() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode:
+            - standard
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isNotZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNull();
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
 
     private RuntimeSelection runtimeSelection;
