@@ -194,6 +194,68 @@ class Seed4JCliLauncherTest {
   }
 
   @Test
+  void shouldStartAStandardChildProcessWhenRuntimeConfigExistsButModeIsNotDeclared() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          extension:
+            fail-on-invalid: true
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldStartAStandardChildProcessWhenTheExternalConfigExistsButSeed4jIsNotDeclared() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      feature-flags:
+        experimental: true
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
   void shouldFailBeforeLaunchingAChildProcessWhenRuntimeModeHasAnInvalidValue() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path configPath = userHome.resolve(".config/seed4j-cli.yml");
@@ -294,6 +356,28 @@ class Seed4JCliLauncherTest {
             - standard
       """
     );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isNotZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNull();
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldFailBeforeLaunchingAChildProcessWhenExternalConfigCannotBeRead() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(

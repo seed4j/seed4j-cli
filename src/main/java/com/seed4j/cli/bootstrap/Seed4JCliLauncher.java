@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
 class Seed4JCliLauncher {
 
@@ -96,8 +97,8 @@ class Seed4JCliLauncher {
           "Invalid seed4j.runtime.mode '%s'. Valid values: standard, extension.".formatted(mode)
         );
       }
-    } catch (IOException e) {
-      return RuntimeMode.STANDARD;
+    } catch (IOException | YAMLException e) {
+      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli.yml.");
     }
   }
 }
