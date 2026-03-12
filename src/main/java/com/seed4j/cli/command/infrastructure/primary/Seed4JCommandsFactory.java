@@ -40,8 +40,8 @@ class Seed4JCommandsFactory {
     RuntimeSelection runtimeSelection = runtimeSelectionProvider.runtimeSelection();
 
     return """
-      Seed4J CLI v%s
-      Seed4J version: %s
+    Seed4J CLI v%s
+    Seed4J version: %s
     Runtime mode: %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
