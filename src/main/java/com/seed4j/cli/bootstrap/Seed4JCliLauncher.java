@@ -79,7 +79,15 @@ class Seed4JCliLauncher {
         return RuntimeMode.STANDARD;
       }
 
-      return RuntimeMode.valueOf(mode.trim().toUpperCase());
+      String normalizedMode = mode.trim().toUpperCase();
+
+      try {
+        return RuntimeMode.valueOf(normalizedMode);
+      } catch (IllegalArgumentException e) {
+        throw new InvalidRuntimeConfigurationException(
+          "Invalid seed4j.runtime.mode '%s'. Valid values: standard, extension.".formatted(mode)
+        );
+      }
     } catch (IOException e) {
       return RuntimeMode.STANDARD;
     }
