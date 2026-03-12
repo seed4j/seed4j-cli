@@ -15,7 +15,14 @@ class Seed4JCliLauncherTest {
   void shouldStartAStandardChildProcessWhenNoExternalRuntimeConfigExists() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, Path.of("/tmp/seed4j-cli.jar"), "0.0.1-SNAPSHOT", childProcessLauncher);
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -23,7 +30,26 @@ class Seed4JCliLauncherTest {
     assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
   }
 
-  // [TEST] Runs the Spring path directly when already executing as a child process
+  @Test
+  void shouldRunTheLocalCliPathWhenAlreadyExecutingAsAChildProcess() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" }, true);
+
+    assertThat(exitCode).isEqualTo(12);
+    assertThat(localCliRunner.wasCalled()).isTrue();
+    assertThat(childProcessLauncher.runtimeSelection()).isNull();
+  }
+
   // [TEST] Fails before Spring startup when extension runtime configuration is invalid
 
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
@@ -38,6 +64,21 @@ class Seed4JCliLauncherTest {
 
     RuntimeSelection runtimeSelection() {
       return runtimeSelection;
+    }
+  }
+
+  private static final class RecordingLocalCliRunner implements LocalCliRunner {
+
+    private boolean called;
+
+    @Override
+    public int run(String[] args) {
+      called = true;
+      return 12;
+    }
+
+    boolean wasCalled() {
+      return called;
     }
   }
 }
