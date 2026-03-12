@@ -17,7 +17,7 @@ Use Java 25 and Node.js 22+ before running the toolchain.
 
 ## Coding Style & Naming Conventions
 
-Follow `.editorconfig`: 2-space indentation, LF line endings, UTF-8, and final newlines. Prettier is the formatter of record, including Java via `prettier-plugin-java`; run it instead of hand-formatting. Checkstyle enforces import hygiene, visibility, declaration order, and standard Java naming. Match current naming patterns: `*Command`, `*Configuration`, `*Exception`, and package names in lowercase. Prefer one public type per file. Avoid `is*` prefixes for domain operations and capability checks; prefer names that express the concept directly, such as `atLeast(...)`. Do not use `@Autowired`; prefer a single explicit constructor and direct wiring.
+Follow `.editorconfig`: 2-space indentation, LF line endings, UTF-8, and final newlines. Prettier is the formatter of record, including Java via `prettier-plugin-java`; run it instead of hand-formatting. Checkstyle enforces import hygiene, visibility, declaration order, and standard Java naming. Match current naming patterns: `*Command`, `*Configuration`, `*Exception`, and package names in lowercase. Prefer one public type per file. Avoid `is*` prefixes for domain operations and capability checks; prefer names that express the concept directly, such as `atLeast(...)`. Do not use `@Autowired`; prefer a single explicit constructor and direct wiring. Do not use `var` in Java; prefer explicit types.
 
 ## Testing Guidelines
 
