@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.RuntimeSelection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -36,7 +37,7 @@ class Seed4JCommandsFactory {
   }
 
   private String versionOutput() {
-    var runtimeSelection = runtimeSelectionProvider.runtimeSelection();
+    RuntimeSelection runtimeSelection = runtimeSelectionProvider.runtimeSelection();
 
     return """
       Seed4J CLI v%s
