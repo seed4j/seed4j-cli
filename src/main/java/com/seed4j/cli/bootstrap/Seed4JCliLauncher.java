@@ -48,10 +48,9 @@ class Seed4JCliLauncher {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
-    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
-      RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
+      RuntimeExtensionConfiguration.withDefaultPaths(userHome)
     );
 
     return RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);

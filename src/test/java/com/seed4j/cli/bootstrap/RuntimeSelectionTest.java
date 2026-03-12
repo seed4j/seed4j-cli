@@ -75,27 +75,21 @@ class RuntimeSelectionTest {
 
   @Test
   void shouldUseDefaultJarPathWhenModeIsExtensionAndConfiguredPathIsMissing() throws IOException {
-    String originalUserHome = System.getProperty("user.home");
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path defaultJarPath = tempDirectory.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = tempDirectory.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(defaultJarPath.getParent());
+    Files.createFile(defaultJarPath);
+    Files.writeString(metadataPath, VALID_DEFAULT_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      RuntimeExtensionConfiguration.withDefaultPaths(tempDirectory)
+    );
 
-    try {
-      System.setProperty("user.home", tempDirectory.toString());
-      Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_DEFAULT_EXTENSION_METADATA);
-      Path defaultJarPath = Path.of(tempDirectory.toString(), ".config", "seed4j-cli", "runtime", "active", "extension.jar");
-      Files.createDirectories(defaultJarPath.getParent());
-      Files.createFile(defaultJarPath);
-      RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-        RuntimeMode.EXTENSION,
-        RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
-      );
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
 
-      RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
-
-      assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-      assertThat(runtimeSelection.extensionJarPath()).contains(defaultJarPath);
-    } finally {
-      System.setProperty("user.home", originalUserHome);
-    }
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(defaultJarPath);
   }
 
   @Test

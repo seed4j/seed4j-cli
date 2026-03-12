@@ -80,6 +80,56 @@ class Seed4JCliLauncherTest {
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
+  @Test
+  void shouldStartAChildProcessWhenExtensionRuntimeConfigurationIsValid() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(
+      runtimeDirectory.resolve("metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: extension
+        vendor: acme
+      artifact:
+        filename: extension.jar
+      compatibility:
+        cli: 0.0.1
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(childProcessLauncher.runtimeSelection().distributionId()).contains("company-extension");
+    assertThat(childProcessLauncher.runtimeSelection().distributionVersion()).contains("1.0.0");
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
 
     private RuntimeSelection runtimeSelection;
