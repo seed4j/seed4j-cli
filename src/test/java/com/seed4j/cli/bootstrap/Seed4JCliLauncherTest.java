@@ -130,6 +130,71 @@ class Seed4JCliLauncherTest {
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
+  @Test
+  void shouldStartAStandardChildProcessWhenRuntimeModeIsExplicitlyStandardInTheExternalConfig() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: standard
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldStartAStandardChildProcessWhenTheExternalConfigExistsButRuntimeModeIsNotDeclared() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        hidden-resources:
+          slugs:
+            - gradle-java
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      Path.of("/tmp/seed4j-cli.jar"),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  // [TEST] Fails before launching a child process when runtime mode has an invalid value
+
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
 
     private RuntimeSelection runtimeSelection;
