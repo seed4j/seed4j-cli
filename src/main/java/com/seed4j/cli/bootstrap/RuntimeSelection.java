@@ -12,10 +12,6 @@ public record RuntimeSelection(
 ) {
   private static final String EXPECTED_DISTRIBUTION_KIND = "extension";
 
-  public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
-    return resolve(runtimeConfiguration, "");
-  }
-
   public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration, String currentCliVersion) {
     if (runtimeConfiguration == null) {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
