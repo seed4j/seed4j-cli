@@ -21,7 +21,7 @@ Follow `.editorconfig`: 2-space indentation, LF line endings, UTF-8, and final n
 
 ## Testing Guidelines
 
-This project uses JUnit 5 with Spring Boot test support. Name test classes `*Test.java` and keep them in the mirrored package for the class under test. Reuse the existing meta-annotations: `@UnitTest`, `@ComponentTest`, and `@IntegrationTest` to signal scope consistently. `./mvnw clean verify` fails on uncovered lines or branches, so add tests with every behavior change rather than relying on partial coverage.
+This project uses JUnit 5 with Spring Boot test support. Name test classes `*Test.java` and keep them in the mirrored package for the class under test. Reuse the existing meta-annotations: `@UnitTest`, `@ComponentTest`, and `@IntegrationTest` to signal scope consistently. `./mvnw clean verify` fails on uncovered lines or branches, so add tests with every behavior change rather than relying on partial coverage. Do not break the TDD loop by introducing several behaviors at once in a new test class; avoid mixing “closing coverage” with “discovering design”, because that creates steps large enough for real bugs to hide inside them.
 
 ## Commit & Pull Request Guidelines
 
