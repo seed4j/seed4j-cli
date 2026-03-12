@@ -10,8 +10,8 @@ Use Types Driven Development. The idea is pretty simple: create a dedicated type
 Use Java 25 and Node.js 22+ before running the toolchain.
 
 - `./mvnw clean package` builds the CLI JAR in `target/`.
-- `./mvnw test` runs the JUnit 5 test suite.
-- `./mvnw clean verify` runs unit/integration tests, JaCoCo aggregation, Checkstyle, and coverage gates; this is the closest local equivalent to CI.
+- `./mvnw clean verify` is the default validation command to use locally; it runs unit/integration tests, JaCoCo aggregation, Checkstyle, and coverage gates.
+- `./mvnw test` runs only the JUnit 5 test suite, but prefer `./mvnw clean verify` unless there is a specific reason to narrow the scope.
 - `npm run prettier:check` validates formatting for Java, XML, YAML, Markdown, and JSON.
 - `npm run prettier:format` rewrites supported files using the repository formatter configuration.
 
