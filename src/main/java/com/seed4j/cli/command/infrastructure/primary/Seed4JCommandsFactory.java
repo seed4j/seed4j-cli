@@ -1,9 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.RuntimeMode;
-import com.seed4j.cli.bootstrap.RuntimeSelection;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
@@ -14,22 +11,18 @@ class Seed4JCommandsFactory {
   private final List<Seed4JCommand> seed4JCommands;
   private final String version;
   private final String seed4JVersion;
-  private RuntimeSelection runtimeSelection;
+  private final RuntimeSelectionProvider runtimeSelectionProvider;
 
   public Seed4JCommandsFactory(
     List<Seed4JCommand> seed4JCommands,
     @Value("${project.version}") String version,
-    @Value("${project.seed4j-version}") String seed4JVersion
+    @Value("${project.seed4j-version}") String seed4JVersion,
+    RuntimeSelectionProvider runtimeSelectionProvider
   ) {
     this.seed4JCommands = seed4JCommands;
     this.version = version;
     this.seed4JVersion = seed4JVersion;
-    this.runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
-  }
-
-  Seed4JCommandsFactory withRuntimeSelection(RuntimeSelection runtimeSelection) {
-    this.runtimeSelection = runtimeSelection;
-    return this;
+    this.runtimeSelectionProvider = runtimeSelectionProvider;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -43,9 +36,11 @@ class Seed4JCommandsFactory {
   }
 
   private String versionOutput() {
+    var runtimeSelection = runtimeSelectionProvider.runtimeSelection();
+
     return """
-    Seed4J CLI v%s
-    Seed4J version: %s
+      Seed4J CLI v%s
+      Seed4J version: %s
     Runtime mode: %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
