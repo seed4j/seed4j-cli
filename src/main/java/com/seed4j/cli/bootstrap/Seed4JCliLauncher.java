@@ -1,10 +1,13 @@
 package com.seed4j.cli.bootstrap;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
 class Seed4JCliLauncher {
 
+  private final Path userHome;
+  private final String currentCliVersion;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
 
@@ -15,6 +18,8 @@ class Seed4JCliLauncher {
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
+    this.userHome = userHome;
+    this.currentCliVersion = currentCliVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
   }
@@ -28,8 +33,27 @@ class Seed4JCliLauncher {
       return localCliRunner.run(args);
     }
 
-    RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+    try {
+      RuntimeSelection runtimeSelection = runtimeSelection();
 
-    return childProcessLauncher.launch(runtimeSelection, args);
+      return childProcessLauncher.launch(runtimeSelection, args);
+    } catch (InvalidRuntimeConfigurationException e) {
+      return 1;
+    }
+  }
+
+  private RuntimeSelection runtimeSelection() {
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    if (!Files.exists(configPath)) {
+      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      RuntimeExtensionConfiguration.withDefaultJarPath(metadataPath)
+    );
+
+    return RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);
   }
 }
