@@ -23,6 +23,10 @@ public class Seed4JCliApp {
     int launch(String[] args);
   }
 
+  interface EntryPointLauncherFactory {
+    EntryPointLauncher create();
+  }
+
   interface ExitHandler {
     void exit(int exitCode);
   }
@@ -35,6 +39,10 @@ public class Seed4JCliApp {
 
   static void main(String[] args, EntryPointLauncher launcher, ExitHandler exitHandler) {
     exitHandler.exit(run(args, launcher));
+  }
+
+  static void main(String[] args, EntryPointLauncherFactory launcherFactory, ExitHandler exitHandler) {
+    main(args, launcherFactory.create(), exitHandler);
   }
 
   static int run(String[] args, EntryPointLauncher launcher) {

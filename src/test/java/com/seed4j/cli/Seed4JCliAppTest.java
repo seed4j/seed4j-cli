@@ -56,4 +56,37 @@ class Seed4JCliAppTest {
       return exitCode;
     }
   }
+
+  @Test
+  void shouldDelegateThePublicMainPathToTheLauncherFactory() {
+    RecordingLauncher launcher = new RecordingLauncher();
+    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.main(new String[] { "--version" }, launcherFactory, exitHandler);
+
+    assertThat(launcherFactory.wasCalled()).isTrue();
+    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(exitHandler.exitCode()).isEqualTo(23);
+  }
+
+  private static final class RecordingLauncherFactory implements Seed4JCliApp.EntryPointLauncherFactory {
+
+    private final Seed4JCliApp.EntryPointLauncher launcher;
+    private boolean called;
+
+    private RecordingLauncherFactory(Seed4JCliApp.EntryPointLauncher launcher) {
+      this.launcher = launcher;
+    }
+
+    @Override
+    public Seed4JCliApp.EntryPointLauncher create() {
+      called = true;
+      return launcher;
+    }
+
+    boolean wasCalled() {
+      return called;
+    }
+  }
 }
