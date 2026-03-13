@@ -1,19 +1,19 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.bootstrap.RuntimeSelection;
-import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
 class StandardRuntimeSelectionProvider implements RuntimeSelectionProvider {
 
+  private final RuntimeSystemProperties runtimeSystemProperties;
+
+  StandardRuntimeSelectionProvider(RuntimeSystemProperties runtimeSystemProperties) {
+    this.runtimeSystemProperties = runtimeSystemProperties;
+  }
+
   @Override
   public RuntimeSelection runtimeSelection() {
-    Map<String, String> systemProperties = System.getProperties()
-      .entrySet()
-      .stream()
-      .collect(java.util.stream.Collectors.toUnmodifiableMap(entry -> entry.getKey().toString(), entry -> entry.getValue().toString()));
-
-    return new SystemPropertyRuntimeSelectionProvider(systemProperties).runtimeSelection();
+    return new SystemPropertyRuntimeSelectionProvider(runtimeSystemProperties.values()).runtimeSelection();
   }
 }

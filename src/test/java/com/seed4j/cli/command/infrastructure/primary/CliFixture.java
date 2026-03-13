@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import picocli.CommandLine;
 
 class CliFixture {
@@ -41,7 +42,7 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, new StandardRuntimeSelectionProvider());
+    return commandLine(modules, projects, new StandardRuntimeSelectionProvider(Map::of));
   }
 
   static CommandLine commandLine(
