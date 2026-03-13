@@ -31,6 +31,12 @@ public class Seed4JCliApp {
     void exit(int exitCode);
   }
 
+  interface MainDependencies {
+    EntryPointLauncherFactory launcherFactory();
+
+    ExitHandler exitHandler();
+  }
+
   public static void main(String[] args) {
     ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
 
@@ -43,6 +49,10 @@ public class Seed4JCliApp {
 
   static void main(String[] args, EntryPointLauncherFactory launcherFactory, ExitHandler exitHandler) {
     main(args, launcherFactory.create(), exitHandler);
+  }
+
+  static void main(String[] args, MainDependencies dependencies) {
+    main(args, dependencies.launcherFactory(), dependencies.exitHandler());
   }
 
   static int run(String[] args, EntryPointLauncher launcher) {
