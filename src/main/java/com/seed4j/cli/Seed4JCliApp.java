@@ -19,10 +19,18 @@ public class Seed4JCliApp {
   private static final String CONFIG_FILE_NAME = "/.config/seed4j-cli.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
 
+  interface EntryPointLauncher {
+    int launch(String[] args);
+  }
+
   public static void main(String[] args) {
     ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
 
     System.exit(SpringApplication.exit(context));
+  }
+
+  static int run(String[] args, EntryPointLauncher launcher) {
+    return launcher.launch(args);
   }
 
   private static SpringApplicationBuilder createApplicationBuilder() {
