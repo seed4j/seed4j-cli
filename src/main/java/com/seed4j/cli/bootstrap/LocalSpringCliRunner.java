@@ -1,10 +1,14 @@
 package com.seed4j.cli.bootstrap;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 
 class LocalSpringCliRunner implements LocalCliRunner {
+
+  private static final String CONFIG_FILE_NAME = ".config/seed4j-cli.yml";
+  private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
 
   @FunctionalInterface
   interface ApplicationBuilderFactory {
@@ -52,6 +56,10 @@ class LocalSpringCliRunner implements LocalCliRunner {
   @Override
   public int run(String[] args) {
     ApplicationBuilder builder = applicationBuilderFactory.create();
+    Path configPath = userHomeProvider.userHome().resolve(CONFIG_FILE_NAME);
+    if (Files.exists(configPath)) {
+      builder.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath));
+    }
     builder.bannerMode(Banner.Mode.OFF);
     builder.web(WebApplicationType.NONE);
     ApplicationContext context = builder.run(args);

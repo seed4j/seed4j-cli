@@ -3,6 +3,8 @@ package com.seed4j.cli.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.Banner;
@@ -31,14 +33,28 @@ class LocalSpringCliRunnerTest {
     assertThat(builder.bannerMode()).isEqualTo(Banner.Mode.OFF);
   }
 
+  @Test
+  void shouldLoadTheExternalConfigFileWhenItExists() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configFile = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configFile.getParent());
+    Files.writeString(configFile, "seed4j:\n  runtime:\n    mode: standard\n");
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> userHome);
+
+    runner.run(new String[] { "--version" });
+
+    assertThat(builder.properties()).isEqualTo("spring.config.location=classpath:/config/,file:%s".formatted(configFile));
+  }
+
   /*
-  [TEST] The local runner loads ~/.config/seed4j-cli.yml when it exists
   [TEST] The local runner returns the Spring exit code
   */
 
   private static final class RecordingApplicationBuilder implements LocalSpringCliRunner.ApplicationBuilder {
 
     private Banner.Mode bannerMode;
+    private String properties;
     private WebApplicationType webApplicationType;
 
     @Override
@@ -60,6 +76,7 @@ class LocalSpringCliRunnerTest {
 
     @Override
     public LocalSpringCliRunner.ApplicationBuilder properties(String properties) {
+      this.properties = properties;
       return this;
     }
 
@@ -74,6 +91,10 @@ class LocalSpringCliRunnerTest {
 
     Banner.Mode bannerMode() {
       return bannerMode;
+    }
+
+    String properties() {
+      return properties;
     }
   }
 }
