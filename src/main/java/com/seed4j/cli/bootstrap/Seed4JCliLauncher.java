@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,10 +54,21 @@ class Seed4JCliLauncher {
   }
 
   private JavaChildProcessRequest javaChildProcessRequest(RuntimeSelection runtimeSelection, String[] args) {
+    Map<String, String> systemProperties = new LinkedHashMap<>();
+    systemProperties.put("seed4j.cli.runtime.child", "true");
+    systemProperties.put("seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase());
+    runtimeSelection
+      .distributionId()
+      .ifPresent(distributionId -> systemProperties.put("seed4j.cli.runtime.distribution.id", distributionId));
+    runtimeSelection
+      .distributionVersion()
+      .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion));
+    runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> systemProperties.put("loader.path", extensionJarPath.toString()));
+
     return new JavaChildProcessRequest(
       executableJar,
       PROPERTIES_LAUNCHER_MAIN_CLASS,
-      Map.of("seed4j.cli.runtime.child", "true", "seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase()),
+      Map.copyOf(systemProperties),
       List.copyOf(Arrays.asList(args)),
       runtimeSelection
     );
