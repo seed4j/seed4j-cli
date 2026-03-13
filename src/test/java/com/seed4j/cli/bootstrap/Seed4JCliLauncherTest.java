@@ -3,7 +3,9 @@ package com.seed4j.cli.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -12,13 +14,116 @@ import org.junit.jupiter.api.Test;
 class Seed4JCliLauncherTest {
 
   @Test
+  void shouldRunTheLocalCliPathWhenStandardModeIsSelectedOutsideARegularJar() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableLocation = Files.createTempDirectory("seed4j-cli-classes");
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableLocation,
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isEqualTo(12);
+    assertThat(localCliRunner.wasCalled()).isTrue();
+    assertThat(childProcessLauncher.request()).isNull();
+  }
+
+  @Test
+  void shouldFailBeforeSpringWhenExtensionModeIsSelectedOutsideARegularJar() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableLocation = Files.createTempDirectory("seed4j-cli-classes");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(
+      runtimeDirectory.resolve("metadata.yml"),
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+        kind: extension
+        vendor: acme
+      artifact:
+        filename: extension.jar
+      compatibility:
+        cli: 0.0.1
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableLocation,
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isNotZero();
+    assertThat(localCliRunner.wasCalled()).isFalse();
+    assertThat(childProcessLauncher.request()).isNull();
+  }
+
+  @Test
+  void shouldWarnToStandardErrorBeforeRunningTheLocalCliPathWhenStandardModeIsSelectedOutsideARegularJar() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableLocation = Files.createTempDirectory("seed4j-cli-classes");
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableLocation,
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream capturedStandardError = new ByteArrayOutputStream();
+
+    try {
+      System.setErr(new PrintStream(capturedStandardError));
+
+      int exitCode = launcher.launch(new String[] { "--version" });
+
+      assertThat(exitCode).isEqualTo(12);
+      assertThat(localCliRunner.wasCalled()).isTrue();
+      assertThat(childProcessLauncher.request()).isNull();
+      assertThat(capturedStandardError.toString()).contains("not running from a packaged CLI JAR");
+    } finally {
+      System.setErr(originalErr);
+    }
+  }
+
+  /*
+  [TEST] Standard mode emits the warning and runs the local CLI path when the executable location is a regular file that is not a JAR
+  */
+
+  @Test
   void shouldStartAStandardChildProcessWhenNoExternalRuntimeConfigExists() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -37,7 +142,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -67,7 +172,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -114,7 +219,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -147,7 +252,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -179,7 +284,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -211,7 +316,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -241,7 +346,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -272,7 +377,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -301,7 +406,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -329,7 +434,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -360,7 +465,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -382,7 +487,7 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
-      Path.of("/tmp/seed4j-cli.jar"),
+      createExecutableJar(),
       "0.0.1-SNAPSHOT",
       childProcessLauncher,
       localCliRunner
@@ -398,7 +503,7 @@ class Seed4JCliLauncherTest {
   @Test
   void shouldLaunchTheStandardChildProcessThroughJavaPropertiesLauncherWithChildModeSystemProperties() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path executableJar = Path.of("/tmp/seed4j-cli.jar");
+    Path executableJar = createExecutableJar();
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
@@ -419,7 +524,7 @@ class Seed4JCliLauncherTest {
   @Test
   void shouldLaunchTheExtensionChildProcessRequestWithLoaderPathAndActiveDistributionSystemProperties() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path executableJar = Path.of("/tmp/seed4j-cli.jar");
+    Path executableJar = createExecutableJar();
     Path configPath = userHome.resolve(".config/seed4j-cli.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
@@ -500,5 +605,9 @@ class Seed4JCliLauncherTest {
     boolean wasCalled() {
       return called;
     }
+  }
+
+  private static Path createExecutableJar() throws IOException {
+    return Files.createTempFile("seed4j-cli-", ".jar");
   }
 }

@@ -46,11 +46,30 @@ class Seed4JCliLauncher {
 
     try {
       RuntimeSelection runtimeSelection = runtimeSelection();
+      failWhenExtensionModeRunsOutsideARegularJar(runtimeSelection);
+      if (shouldRunLocally(runtimeSelection)) {
+        System.err.println("Standard mode is not running from a packaged CLI JAR. Falling back to local execution.");
+        return localCliRunner.run(args);
+      }
 
       return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
     } catch (InvalidRuntimeConfigurationException e) {
       return 1;
     }
+  }
+
+  private boolean shouldRunLocally(RuntimeSelection runtimeSelection) {
+    return runtimeSelection.mode() == RuntimeMode.STANDARD && notRunningFromARegularJar();
+  }
+
+  private void failWhenExtensionModeRunsOutsideARegularJar(RuntimeSelection runtimeSelection) {
+    if (runtimeSelection.mode() == RuntimeMode.EXTENSION && notRunningFromARegularJar()) {
+      throw new InvalidRuntimeConfigurationException("Extension mode requires running the packaged CLI JAR.");
+    }
+  }
+
+  private boolean notRunningFromARegularJar() {
+    return !Files.isRegularFile(executableJar) || !executableJar.getFileName().toString().endsWith(".jar");
   }
 
   private JavaChildProcessRequest javaChildProcessRequest(RuntimeSelection runtimeSelection, String[] args) {
