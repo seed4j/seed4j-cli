@@ -4,11 +4,11 @@ import com.seed4j.cli.bootstrap.RuntimeSelection;
 import org.springframework.stereotype.Component;
 
 @Component
-class StandardRuntimeSelectionProvider implements RuntimeSelectionProvider {
+class CurrentProcessRuntimeSelectionProvider implements RuntimeSelectionProvider {
 
   private final RuntimeSystemProperties runtimeSystemProperties;
 
-  StandardRuntimeSelectionProvider(RuntimeSystemProperties runtimeSystemProperties) {
+  CurrentProcessRuntimeSelectionProvider(RuntimeSystemProperties runtimeSystemProperties) {
     this.runtimeSystemProperties = runtimeSystemProperties;
   }
 

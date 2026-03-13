@@ -9,11 +9,11 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class StandardRuntimeSelectionProviderTest {
+class CurrentProcessRuntimeSelectionProviderTest {
 
   @Test
   void shouldReadTheActiveRuntimeFromChildProcessSystemProperties() {
-    RuntimeSelection runtimeSelection = new StandardRuntimeSelectionProvider(() ->
+    RuntimeSelection runtimeSelection = new CurrentProcessRuntimeSelectionProvider(() ->
       Map.of(
         "seed4j.cli.runtime.mode",
         "extension",

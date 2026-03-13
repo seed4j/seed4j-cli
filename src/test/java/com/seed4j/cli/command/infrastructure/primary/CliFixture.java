@@ -42,7 +42,7 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, new StandardRuntimeSelectionProvider(Map::of));
+    return commandLine(modules, projects, new CurrentProcessRuntimeSelectionProvider(Map::of));
   }
 
   static CommandLine commandLine(
