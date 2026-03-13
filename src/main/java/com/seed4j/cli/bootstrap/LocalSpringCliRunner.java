@@ -52,6 +52,7 @@ class LocalSpringCliRunner implements LocalCliRunner {
   @Override
   public int run(String[] args) {
     ApplicationBuilder builder = applicationBuilderFactory.create();
+    builder.bannerMode(Banner.Mode.OFF);
     builder.web(WebApplicationType.NONE);
     ApplicationContext context = builder.run(args);
     return exitCodeResolver.resolve(context);
