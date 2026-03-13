@@ -62,6 +62,7 @@ class LocalSpringCliRunner implements LocalCliRunner {
     }
     builder.bannerMode(Banner.Mode.OFF);
     builder.web(WebApplicationType.NONE);
+    builder.lazyInitialization(true);
     ApplicationContext context = builder.run(args);
     return exitCodeResolver.resolve(context);
   }

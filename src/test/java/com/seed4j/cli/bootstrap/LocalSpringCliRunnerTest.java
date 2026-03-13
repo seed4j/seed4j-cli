@@ -57,9 +57,20 @@ class LocalSpringCliRunnerTest {
     assertThat(exitCode).isEqualTo(37);
   }
 
+  @Test
+  void shouldEnableLazyInitialization() {
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> Path.of("/tmp"));
+
+    runner.run(new String[] { "--version" });
+
+    assertThat(builder.lazyInitialization()).isTrue();
+  }
+
   private static final class RecordingApplicationBuilder implements LocalSpringCliRunner.ApplicationBuilder {
 
     private Banner.Mode bannerMode;
+    private Boolean lazyInitialization;
     private String properties;
     private WebApplicationType webApplicationType;
 
@@ -77,6 +88,7 @@ class LocalSpringCliRunnerTest {
 
     @Override
     public LocalSpringCliRunner.ApplicationBuilder lazyInitialization(boolean lazyInitialization) {
+      this.lazyInitialization = lazyInitialization;
       return this;
     }
 
@@ -101,6 +113,10 @@ class LocalSpringCliRunnerTest {
 
     String properties() {
       return properties;
+    }
+
+    Boolean lazyInitialization() {
+      return lazyInitialization;
     }
   }
 }
