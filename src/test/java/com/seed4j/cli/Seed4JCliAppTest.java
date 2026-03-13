@@ -122,6 +122,27 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(23);
   }
 
+  @Test
+  void shouldDelegateThePublicMainDependenciesPathToTheDependenciesFactory() {
+    RecordingLauncher launcher = new RecordingLauncher();
+    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
+    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
+    RecordingPublicMainDependencies publicMainDependencies = new RecordingPublicMainDependencies(dependenciesFactory);
+
+    Seed4JCliApp.main(new String[] { "--version" }, publicMainDependencies);
+
+    assertThat(publicMainDependencies.wasDependenciesFactoryRequested()).isTrue();
+    assertThat(dependenciesFactory.wasCalled()).isTrue();
+    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
+    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
+    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(exitHandler.exitCode()).isEqualTo(23);
+  }
+
+  // [TEST] public main dependencies path delegates to the MainDependenciesFactory-backed path
+
   private static final class RecordingMainDependencies implements Seed4JCliApp.MainDependencies {
 
     private final Seed4JCliApp.EntryPointLauncherFactory launcherFactory;
@@ -172,6 +193,26 @@ class Seed4JCliAppTest {
 
     boolean wasCalled() {
       return called;
+    }
+  }
+
+  private static final class RecordingPublicMainDependencies implements Seed4JCliApp.PublicMainDependencies {
+
+    private final Seed4JCliApp.MainDependenciesFactory dependenciesFactory;
+    private boolean dependenciesFactoryRequested;
+
+    private RecordingPublicMainDependencies(Seed4JCliApp.MainDependenciesFactory dependenciesFactory) {
+      this.dependenciesFactory = dependenciesFactory;
+    }
+
+    @Override
+    public Seed4JCliApp.MainDependenciesFactory mainDependenciesFactory() {
+      dependenciesFactoryRequested = true;
+      return dependenciesFactory;
+    }
+
+    boolean wasDependenciesFactoryRequested() {
+      return dependenciesFactoryRequested;
     }
   }
 }
