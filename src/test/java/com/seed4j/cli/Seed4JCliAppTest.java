@@ -105,6 +105,23 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(23);
   }
 
+  @Test
+  void shouldDelegateThePublicMainEntryPointToTheDependenciesPath() {
+    RecordingLauncher launcher = new RecordingLauncher();
+    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
+    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
+
+    Seed4JCliApp.main(new String[] { "--version" }, dependenciesFactory);
+
+    assertThat(dependenciesFactory.wasCalled()).isTrue();
+    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
+    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
+    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(exitHandler.exitCode()).isEqualTo(23);
+  }
+
   private static final class RecordingMainDependencies implements Seed4JCliApp.MainDependencies {
 
     private final Seed4JCliApp.EntryPointLauncherFactory launcherFactory;
@@ -135,6 +152,26 @@ class Seed4JCliAppTest {
 
     boolean wasExitHandlerRequested() {
       return exitHandlerRequested;
+    }
+  }
+
+  private static final class RecordingMainDependenciesFactory implements Seed4JCliApp.MainDependenciesFactory {
+
+    private final Seed4JCliApp.MainDependencies dependencies;
+    private boolean called;
+
+    private RecordingMainDependenciesFactory(Seed4JCliApp.MainDependencies dependencies) {
+      this.dependencies = dependencies;
+    }
+
+    @Override
+    public Seed4JCliApp.MainDependencies create() {
+      called = true;
+      return dependencies;
+    }
+
+    boolean wasCalled() {
+      return called;
     }
   }
 }
