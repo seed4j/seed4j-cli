@@ -47,9 +47,15 @@ class LocalSpringCliRunnerTest {
     assertThat(builder.properties()).isEqualTo("spring.config.location=classpath:/config/,file:%s".formatted(configFile));
   }
 
-  /*
-  [TEST] The local runner returns the Spring exit code
-  */
+  @Test
+  void shouldReturnTheSpringExitCode() {
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 37, () -> Path.of("/tmp"));
+
+    int exitCode = runner.run(new String[] { "--version" });
+
+    assertThat(exitCode).isEqualTo(37);
+  }
 
   private static final class RecordingApplicationBuilder implements LocalSpringCliRunner.ApplicationBuilder {
 
