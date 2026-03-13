@@ -8,16 +8,21 @@ import org.junit.jupiter.api.Test;
 class Seed4JCliAppTest {
 
   @Test
-  void shouldDelegateStartupToTheLauncher() {
-    RecordingLauncher launcher = new RecordingLauncher();
+  void shouldForwardArgumentsToTheBootstrapEntryPoint() {
+    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    int exitCode = Seed4JCliApp.run(new String[] { "--version" }, launcher);
+    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
 
-    assertThat(exitCode).isEqualTo(23);
-    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
 
-  private static final class RecordingLauncher implements Seed4JCliApp.EntryPointLauncher {
+  /*
+  [TEST] Seed4JCliApp exits with the code returned by the bootstrap entrypoint
+  [TEST] Seed4JCliApp no longer exposes factory-backed main overload paths
+  */
+
+  private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private String[] arguments;
 
@@ -32,17 +37,6 @@ class Seed4JCliAppTest {
     }
   }
 
-  @Test
-  void shouldExitWithTheCodeReturnedByTheLauncherBackedRunPath() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-
-    Seed4JCliApp.main(new String[] { "--version" }, launcher, exitHandler);
-
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
   private static final class RecordingExitHandler implements Seed4JCliApp.ExitHandler {
 
     private Integer exitCode;
@@ -54,206 +48,6 @@ class Seed4JCliAppTest {
 
     Integer exitCode() {
       return exitCode;
-    }
-  }
-
-  @Test
-  void shouldDelegateThePublicMainPathToTheLauncherFactory() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-
-    Seed4JCliApp.main(new String[] { "--version" }, launcherFactory, exitHandler);
-
-    assertThat(launcherFactory.wasCalled()).isTrue();
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
-  private static final class RecordingLauncherFactory implements Seed4JCliApp.EntryPointLauncherFactory {
-
-    private final Seed4JCliApp.EntryPointLauncher launcher;
-    private boolean called;
-
-    private RecordingLauncherFactory(Seed4JCliApp.EntryPointLauncher launcher) {
-      this.launcher = launcher;
-    }
-
-    @Override
-    public Seed4JCliApp.EntryPointLauncher create() {
-      called = true;
-      return launcher;
-    }
-
-    boolean wasCalled() {
-      return called;
-    }
-  }
-
-  @Test
-  void shouldDelegateThePublicMainToTheLauncherBackedDependenciesPath() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
-
-    Seed4JCliApp.main(new String[] { "--version" }, dependencies);
-
-    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
-    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
-  @Test
-  void shouldDelegateThePublicMainEntryPointToTheDependenciesPath() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
-    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
-
-    Seed4JCliApp.main(new String[] { "--version" }, dependenciesFactory);
-
-    assertThat(dependenciesFactory.wasCalled()).isTrue();
-    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
-    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
-  @Test
-  void shouldDelegateThePublicMainDependenciesPathToTheDependenciesFactory() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
-    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
-    RecordingPublicMainDependencies publicMainDependencies = new RecordingPublicMainDependencies(dependenciesFactory);
-
-    Seed4JCliApp.main(new String[] { "--version" }, publicMainDependencies);
-
-    assertThat(publicMainDependencies.wasDependenciesFactoryRequested()).isTrue();
-    assertThat(dependenciesFactory.wasCalled()).isTrue();
-    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
-    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
-  @Test
-  void shouldDelegateThePublicMainDependenciesFactoryBackedPathToThePublicMainDependenciesPath() {
-    RecordingLauncher launcher = new RecordingLauncher();
-    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
-    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
-    RecordingPublicMainDependencies publicMainDependencies = new RecordingPublicMainDependencies(dependenciesFactory);
-    RecordingPublicMainDependenciesFactory publicMainDependenciesFactory = new RecordingPublicMainDependenciesFactory(
-      publicMainDependencies
-    );
-
-    Seed4JCliApp.main(new String[] { "--version" }, publicMainDependenciesFactory);
-
-    assertThat(publicMainDependenciesFactory.wasCalled()).isTrue();
-    assertThat(publicMainDependencies.wasDependenciesFactoryRequested()).isTrue();
-    assertThat(dependenciesFactory.wasCalled()).isTrue();
-    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
-    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
-    assertThat(launcher.arguments()).containsExactly("--version");
-    assertThat(exitHandler.exitCode()).isEqualTo(23);
-  }
-
-  private static final class RecordingMainDependencies implements Seed4JCliApp.MainDependencies {
-
-    private final Seed4JCliApp.EntryPointLauncherFactory launcherFactory;
-    private final Seed4JCliApp.ExitHandler exitHandler;
-    private boolean launcherFactoryRequested;
-    private boolean exitHandlerRequested;
-
-    private RecordingMainDependencies(Seed4JCliApp.EntryPointLauncherFactory launcherFactory, Seed4JCliApp.ExitHandler exitHandler) {
-      this.launcherFactory = launcherFactory;
-      this.exitHandler = exitHandler;
-    }
-
-    @Override
-    public Seed4JCliApp.EntryPointLauncherFactory launcherFactory() {
-      launcherFactoryRequested = true;
-      return launcherFactory;
-    }
-
-    @Override
-    public Seed4JCliApp.ExitHandler exitHandler() {
-      exitHandlerRequested = true;
-      return exitHandler;
-    }
-
-    boolean wasLauncherFactoryRequested() {
-      return launcherFactoryRequested;
-    }
-
-    boolean wasExitHandlerRequested() {
-      return exitHandlerRequested;
-    }
-  }
-
-  private static final class RecordingMainDependenciesFactory implements Seed4JCliApp.MainDependenciesFactory {
-
-    private final Seed4JCliApp.MainDependencies dependencies;
-    private boolean called;
-
-    private RecordingMainDependenciesFactory(Seed4JCliApp.MainDependencies dependencies) {
-      this.dependencies = dependencies;
-    }
-
-    @Override
-    public Seed4JCliApp.MainDependencies create() {
-      called = true;
-      return dependencies;
-    }
-
-    boolean wasCalled() {
-      return called;
-    }
-  }
-
-  private static final class RecordingPublicMainDependencies implements Seed4JCliApp.PublicMainDependencies {
-
-    private final Seed4JCliApp.MainDependenciesFactory dependenciesFactory;
-    private boolean dependenciesFactoryRequested;
-
-    private RecordingPublicMainDependencies(Seed4JCliApp.MainDependenciesFactory dependenciesFactory) {
-      this.dependenciesFactory = dependenciesFactory;
-    }
-
-    @Override
-    public Seed4JCliApp.MainDependenciesFactory mainDependenciesFactory() {
-      dependenciesFactoryRequested = true;
-      return dependenciesFactory;
-    }
-
-    boolean wasDependenciesFactoryRequested() {
-      return dependenciesFactoryRequested;
-    }
-  }
-
-  private static final class RecordingPublicMainDependenciesFactory implements Seed4JCliApp.PublicMainDependenciesFactory {
-
-    private final Seed4JCliApp.PublicMainDependencies dependencies;
-    private boolean called;
-
-    private RecordingPublicMainDependenciesFactory(Seed4JCliApp.PublicMainDependencies dependencies) {
-      this.dependencies = dependencies;
-    }
-
-    @Override
-    public Seed4JCliApp.PublicMainDependencies create() {
-      called = true;
-      return dependencies;
-    }
-
-    boolean wasCalled() {
-      return called;
     }
   }
 }
