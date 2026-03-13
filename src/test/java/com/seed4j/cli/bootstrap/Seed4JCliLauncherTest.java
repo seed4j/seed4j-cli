@@ -2,10 +2,9 @@ package com.seed4j.cli.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -95,20 +94,14 @@ class Seed4JCliLauncherTest {
       childProcessLauncher,
       localCliRunner
     );
-    PrintStream originalErr = System.err;
-    ByteArrayOutputStream capturedStandardError = new ByteArrayOutputStream();
 
-    try {
-      System.setErr(new PrintStream(capturedStandardError));
-
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
       int exitCode = launcher.launch(new String[] { "--version" });
 
       assertThat(exitCode).isEqualTo(12);
       assertThat(localCliRunner.wasCalled()).isTrue();
       assertThat(childProcessLauncher.request()).isNull();
-      assertThat(capturedStandardError.toString()).contains("not running from a packaged CLI JAR");
-    } finally {
-      System.setErr(originalErr);
+      assertThat(outputCaptor.getStandardError()).contains("not running from a packaged CLI JAR");
     }
   }
 
@@ -125,20 +118,14 @@ class Seed4JCliLauncherTest {
       childProcessLauncher,
       localCliRunner
     );
-    PrintStream originalErr = System.err;
-    ByteArrayOutputStream capturedStandardError = new ByteArrayOutputStream();
 
-    try {
-      System.setErr(new PrintStream(capturedStandardError));
-
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
       int exitCode = launcher.launch(new String[] { "--version" });
 
       assertThat(exitCode).isEqualTo(12);
       assertThat(localCliRunner.wasCalled()).isTrue();
       assertThat(childProcessLauncher.request()).isNull();
-      assertThat(capturedStandardError.toString()).contains("not running from a packaged CLI JAR");
-    } finally {
-      System.setErr(originalErr);
+      assertThat(outputCaptor.getStandardError()).contains("not running from a packaged CLI JAR");
     }
   }
 

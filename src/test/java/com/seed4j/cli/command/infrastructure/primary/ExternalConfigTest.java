@@ -5,6 +5,7 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.project.application.ProjectsApplicationService;
 import java.io.IOException;
