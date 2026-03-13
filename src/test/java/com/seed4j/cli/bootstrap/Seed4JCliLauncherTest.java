@@ -395,18 +395,47 @@ class Seed4JCliLauncherTest {
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
+  @Test
+  void shouldLaunchTheStandardChildProcessThroughJavaPropertiesLauncherWithChildModeSystemProperties() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = Path.of("/tmp/seed4j-cli.jar");
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().executableJar()).isEqualTo(executableJar);
+    assertThat(childProcessLauncher.request().mainClass()).isEqualTo("org.springframework.boot.loader.launch.PropertiesLauncher");
+    assertThat(childProcessLauncher.request().systemProperties())
+      .containsEntry("seed4j.cli.runtime.child", "true")
+      .containsEntry("seed4j.cli.runtime.mode", "standard");
+    assertThat(childProcessLauncher.request().arguments()).containsExactly("--version");
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
 
-    private RuntimeSelection runtimeSelection;
+    private JavaChildProcessRequest request;
 
     @Override
-    public int launch(RuntimeSelection runtimeSelection, String[] args) {
-      this.runtimeSelection = runtimeSelection;
+    public int launch(JavaChildProcessRequest request) {
+      this.request = request;
       return 0;
     }
 
     RuntimeSelection runtimeSelection() {
-      return runtimeSelection;
+      if (request == null) {
+        return null;
+      }
+
+      return request.runtimeSelection();
+    }
+
+    JavaChildProcessRequest request() {
+      return request;
     }
   }
 

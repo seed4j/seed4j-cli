@@ -3,6 +3,8 @@ package com.seed4j.cli.bootstrap;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
@@ -10,7 +12,10 @@ import org.yaml.snakeyaml.error.YAMLException;
 
 class Seed4JCliLauncher {
 
+  private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
+
   private final Path userHome;
+  private final Path executableJar;
   private final String currentCliVersion;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
@@ -23,6 +28,7 @@ class Seed4JCliLauncher {
     LocalCliRunner localCliRunner
   ) {
     this.userHome = userHome;
+    this.executableJar = executableJar;
     this.currentCliVersion = currentCliVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
@@ -40,10 +46,20 @@ class Seed4JCliLauncher {
     try {
       RuntimeSelection runtimeSelection = runtimeSelection();
 
-      return childProcessLauncher.launch(runtimeSelection, args);
+      return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
     } catch (InvalidRuntimeConfigurationException e) {
       return 1;
     }
+  }
+
+  private JavaChildProcessRequest javaChildProcessRequest(RuntimeSelection runtimeSelection, String[] args) {
+    return new JavaChildProcessRequest(
+      executableJar,
+      PROPERTIES_LAUNCHER_MAIN_CLASS,
+      Map.of("seed4j.cli.runtime.child", "true", "seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase()),
+      List.copyOf(Arrays.asList(args)),
+      runtimeSelection
+    );
   }
 
   private RuntimeSelection runtimeSelection() {
