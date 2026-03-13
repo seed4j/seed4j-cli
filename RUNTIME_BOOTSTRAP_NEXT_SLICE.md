@@ -1,81 +1,81 @@
 # Runtime Bootstrap Next Slice
 
-## Goal
+## Objective
 
-Finish the runtime-switching feature so production startup uses the real two-stage bootstrap, with `Seed4JCliApp` as a thin composition root.
+Concluir o bootstrap em dois estágios no caminho de produção, com `Seed4JCliApp` como composition root enxuto e `Seed4JCliLauncher` como orquestrador.
 
-## Current Status (2026-03-13)
+## Decisions Locked (2026-03-13)
+
+- Estratégia de testes: **alto nível primeiro**.
+- Fonte principal de confiança para regra de bootstrap: `src/test/java/com/seed4j/cli/bootstrap/Seed4JCliLauncherTest.java`.
+- Evitar testes por classe extraída quando o comportamento já está visível no teste de launcher.
+- Handoff do processo filho (`java -D... -cp ... PropertiesLauncher`) deve ser validado no teste de launcher, não com matriz detalhada por implementação.
+- Comando padrão de validação do ciclo: `./mvnw clean verify`.
+
+## Current Status
 
 ### Done
 
-- `Seed4JCliApp` no longer has factory/dependency indirection layers.
-- Local startup logic was extracted to `LocalSpringCliRunner`.
-- Child-process command assembly was extracted to `JavaProcessChildLauncher`.
-- Runtime mode parsing of `~/.config/seed4j-cli.yml` was extracted to `RuntimeModeConfigReader`.
-- `Seed4JCliLauncher` now delegates runtime mode parsing to `RuntimeModeConfigReader` (launcher no longer parses YAML directly).
-- Existing behavior tests for launcher policy are still green.
+- `Seed4JCliApp` já não usa camadas de fábrica/dependência intermediárias.
+- `LocalSpringCliRunner` foi extraído para o caminho local in-process.
+- `JavaProcessChildLauncher` foi extraído para montagem do comando de child process.
+- `RuntimeModeConfigReader` foi extraído e `Seed4JCliLauncher` deixou de fazer parsing YAML diretamente.
+- Cenários centrais de política de runtime seguem cobertos por `Seed4JCliLauncherTest`.
+- Estado atual validado com `./mvnw clean verify` verde.
 
 ### Missing
 
-- `Seed4JCliApp.main(String[] args)` still starts Spring directly and does not use `Seed4JCliLauncher`.
-- `JavaProcessChildLauncher` still does not execute real child processes with `ProcessBuilder`, `inheritIO`, and `${java.home}/bin/java` by default.
-- CLI version resolution is still a plain string input to the launcher; there is no dedicated resolver type yet.
-- Concrete child-launcher tests still need full coverage for extension-mode command expectations.
+- `Seed4JCliApp.main(String[] args)` ainda inicia Spring direto e não usa `Seed4JCliLauncher` no caminho de produção.
+- `JavaProcessChildLauncher` ainda não executa processo real com `ProcessBuilder`, `inheritIO` e `${java.home}/bin/java` por padrão.
+- Versão atual da CLI ainda entra no launcher como string; falta resolvedor dedicado.
 
-## Non-Negotiable Rules
+## Non-Negotiable Runtime Rules
 
-- Packaged JAR execution is the only supported path for real two-stage bootstrap.
-- Outside a regular JAR:
-  - `standard` runs local in-process startup.
-  - `extension` fails before Spring with a clear error.
-- Never downgrade `extension` to `standard` silently.
-- Child-process handoff contract remains system-properties based.
+- Execução empacotada em JAR é o caminho oficial do bootstrap em dois estágios.
+- Fora de JAR regular:
+  - `standard` executa local.
+  - `extension` falha antes do Spring com erro claro.
+- Nunca rebaixar `extension` para `standard` silenciosamente.
+- Contrato de handoff continua baseado em system properties.
 
-## Next Implementation Steps (Ordered)
+## Next Steps (Ordered)
 
-### 1. Wire production entrypoint to bootstrap launcher
+### 1) Wire do entrypoint de produção
 
-- Make `Seed4JCliApp.main(String[] args)` build bootstrap dependencies and delegate to launcher entrypoint.
-- Keep process exit centralized in one exit handler.
-- Preserve existing lightweight entrypoint tests.
+- Fazer `Seed4JCliApp.main(String[] args)` compor dependências de bootstrap e delegar ao launcher.
+- Centralizar saída de processo em um único `ExitHandler`.
+- Manter `Seed4JCliAppTest` enxuto: apenas forwarding de args e exit code.
 
-### 2. Finalize concrete child JVM execution
+### 2) Child process real
 
-- Make `JavaProcessChildLauncher` run `JavaChildProcessRequest` via `ProcessBuilder`.
-- Use `${java.home}/bin/java` as default executable.
-- Build command with:
-  - `-Dkey=value` properties from request
+- Finalizar `JavaProcessChildLauncher` com execução via `ProcessBuilder`.
+- Padrão de executável: `${java.home}/bin/java`.
+- Preservar contrato de comando:
+  - `-Dkey=value` da request
   - `-cp <current-boot-jar>`
   - `org.springframework.boot.loader.launch.PropertiesLauncher`
-  - original CLI arguments
-- Inherit stdio and return child exit code.
+  - args originais
+- Herdar stdio e retornar exit code do filho.
 
-### 3. Extract CLI version resolver
+### 3) Resolvedor de versão da CLI
 
-- Introduce a dedicated type responsible for obtaining current CLI version before Spring startup.
-- Move version-reading/parsing failures to that type.
-- Fail fast with a clear bootstrap error when version cannot be resolved.
+- Extrair tipo dedicado para resolver versão da CLI antes do Spring.
+- Mover para esse tipo a responsabilidade por leitura/parsing e falhas.
+- Falhar rápido com mensagem clara quando não for possível resolver a versão atual.
 
-### 4. Keep orchestration boundaries explicit
+### 4) Limites de orquestração
 
-- `Seed4JCliLauncher` should only decide:
-  - child or parent execution path
-  - local or relaunch strategy
-  - selected runtime mode
-  - collaborator invocation
-- Do not move Spring bootstrapping logic back into launcher.
+- `Seed4JCliLauncher` decide apenas:
+  - child vs parent
+  - local vs relaunch
+  - runtime selecionado
+  - próximo colaborador a invocar
+- Não recolocar boot de Spring dentro do launcher.
 
-## Test Backlog
+## Acceptance Criteria
 
-- Entry point:
-  - verify production `main(String[] args)` delegates to bootstrap launcher and exits with launcher code.
-- Child process launcher:
-  - standard mode command composition and execution path.
-  - extension mode command composition including `loader.path` and distribution properties.
-- CLI version resolver:
-  - success path for filtered version.
-  - clear failure when version is missing/invalid.
-
-## Slice Boundary
-
-This slice ends when production startup uses the launcher flow with real JVM handoff and extracted collaborators, without broadening support for extension execution outside packaged JAR.
+- `Seed4JCliApp.main(String[] args)` usa fluxo do launcher em produção.
+- `standard` fora de JAR executa local com aviso.
+- `extension` fora de JAR falha antes de Spring.
+- Execução empacotada dispara handoff para JVM filha com propriedades esperadas.
+- `./mvnw clean verify` permanece verde.
