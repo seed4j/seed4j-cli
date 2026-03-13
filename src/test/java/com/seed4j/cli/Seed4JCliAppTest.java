@@ -141,7 +141,28 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(23);
   }
 
-  // [TEST] public main dependencies path delegates to the MainDependenciesFactory-backed path
+  @Test
+  void shouldDelegateThePublicMainDependenciesFactoryBackedPathToThePublicMainDependenciesPath() {
+    RecordingLauncher launcher = new RecordingLauncher();
+    RecordingLauncherFactory launcherFactory = new RecordingLauncherFactory(launcher);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+    RecordingMainDependencies dependencies = new RecordingMainDependencies(launcherFactory, exitHandler);
+    RecordingMainDependenciesFactory dependenciesFactory = new RecordingMainDependenciesFactory(dependencies);
+    RecordingPublicMainDependencies publicMainDependencies = new RecordingPublicMainDependencies(dependenciesFactory);
+    RecordingPublicMainDependenciesFactory publicMainDependenciesFactory = new RecordingPublicMainDependenciesFactory(
+      publicMainDependencies
+    );
+
+    Seed4JCliApp.main(new String[] { "--version" }, publicMainDependenciesFactory);
+
+    assertThat(publicMainDependenciesFactory.wasCalled()).isTrue();
+    assertThat(publicMainDependencies.wasDependenciesFactoryRequested()).isTrue();
+    assertThat(dependenciesFactory.wasCalled()).isTrue();
+    assertThat(dependencies.wasLauncherFactoryRequested()).isTrue();
+    assertThat(dependencies.wasExitHandlerRequested()).isTrue();
+    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(exitHandler.exitCode()).isEqualTo(23);
+  }
 
   private static final class RecordingMainDependencies implements Seed4JCliApp.MainDependencies {
 
@@ -213,6 +234,26 @@ class Seed4JCliAppTest {
 
     boolean wasDependenciesFactoryRequested() {
       return dependenciesFactoryRequested;
+    }
+  }
+
+  private static final class RecordingPublicMainDependenciesFactory implements Seed4JCliApp.PublicMainDependenciesFactory {
+
+    private final Seed4JCliApp.PublicMainDependencies dependencies;
+    private boolean called;
+
+    private RecordingPublicMainDependenciesFactory(Seed4JCliApp.PublicMainDependencies dependencies) {
+      this.dependencies = dependencies;
+    }
+
+    @Override
+    public Seed4JCliApp.PublicMainDependencies create() {
+      called = true;
+      return dependencies;
+    }
+
+    boolean wasCalled() {
+      return called;
     }
   }
 }
