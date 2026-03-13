@@ -27,10 +27,6 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(41);
   }
 
-  /*
-  [TEST] Seed4JCliApp no longer exposes factory-backed main overload paths
-  */
-
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;

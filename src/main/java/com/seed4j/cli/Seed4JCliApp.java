@@ -19,38 +19,12 @@ public class Seed4JCliApp {
   private static final String CONFIG_FILE_NAME = "/.config/seed4j-cli.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
 
-  interface EntryPointLauncher {
-    int launch(String[] args);
-  }
-
   interface BootstrapEntryPoint {
     int launch(String[] args);
   }
 
-  interface EntryPointLauncherFactory {
-    EntryPointLauncher create();
-  }
-
   interface ExitHandler {
     void exit(int exitCode);
-  }
-
-  interface MainDependencies {
-    EntryPointLauncherFactory launcherFactory();
-
-    ExitHandler exitHandler();
-  }
-
-  interface MainDependenciesFactory {
-    MainDependencies create();
-  }
-
-  interface PublicMainDependencies {
-    MainDependenciesFactory mainDependenciesFactory();
-  }
-
-  interface PublicMainDependenciesFactory {
-    PublicMainDependencies create();
   }
 
   public static void main(String[] args) {
@@ -59,36 +33,8 @@ public class Seed4JCliApp {
     System.exit(SpringApplication.exit(context));
   }
 
-  static void main(String[] args, EntryPointLauncher launcher, ExitHandler exitHandler) {
-    exitHandler.exit(run(args, launcher));
-  }
-
   static void main(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
     exitHandler.exit(bootstrapEntryPoint.launch(args));
-  }
-
-  static void main(String[] args, EntryPointLauncherFactory launcherFactory, ExitHandler exitHandler) {
-    main(args, launcherFactory.create(), exitHandler);
-  }
-
-  static void main(String[] args, MainDependencies dependencies) {
-    main(args, dependencies.launcherFactory(), dependencies.exitHandler());
-  }
-
-  static void main(String[] args, MainDependenciesFactory dependenciesFactory) {
-    main(args, dependenciesFactory.create());
-  }
-
-  static void main(String[] args, PublicMainDependencies dependencies) {
-    main(args, dependencies.mainDependenciesFactory());
-  }
-
-  static void main(String[] args, PublicMainDependenciesFactory dependenciesFactory) {
-    main(args, dependenciesFactory.create());
-  }
-
-  static int run(String[] args, EntryPointLauncher launcher) {
-    return launcher.launch(args);
   }
 
   private static SpringApplicationBuilder createApplicationBuilder() {
