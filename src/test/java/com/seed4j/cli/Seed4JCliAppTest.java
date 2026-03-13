@@ -17,19 +17,37 @@ class Seed4JCliAppTest {
     assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
 
+  @Test
+  void shouldExitWithTheCodeReturnedByTheBootstrapEntrypoint() {
+    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint(41);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
+
+    assertThat(exitHandler.exitCode()).isEqualTo(41);
+  }
+
   /*
-  [TEST] Seed4JCliApp exits with the code returned by the bootstrap entrypoint
   [TEST] Seed4JCliApp no longer exposes factory-backed main overload paths
   */
 
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
+    private final int exitCode;
     private String[] arguments;
+
+    private RecordingBootstrapEntryPoint() {
+      this(23);
+    }
+
+    private RecordingBootstrapEntryPoint(int exitCode) {
+      this.exitCode = exitCode;
+    }
 
     @Override
     public int launch(String[] args) {
       this.arguments = args;
-      return 23;
+      return exitCode;
     }
 
     String[] arguments() {
