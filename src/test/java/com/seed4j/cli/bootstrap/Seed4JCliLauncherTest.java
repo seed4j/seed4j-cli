@@ -112,9 +112,35 @@ class Seed4JCliLauncherTest {
     }
   }
 
-  /*
-  [TEST] Standard mode emits the warning and runs the local CLI path when the executable location is a regular file that is not a JAR
-  */
+  @Test
+  void shouldWarnAndRunTheLocalCliPathWhenStandardModeIsSelectedWithARegularFileThatIsNotAJar() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableLocation = Files.createTempFile("seed4j-cli-", ".bin");
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableLocation,
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream capturedStandardError = new ByteArrayOutputStream();
+
+    try {
+      System.setErr(new PrintStream(capturedStandardError));
+
+      int exitCode = launcher.launch(new String[] { "--version" });
+
+      assertThat(exitCode).isEqualTo(12);
+      assertThat(localCliRunner.wasCalled()).isTrue();
+      assertThat(childProcessLauncher.request()).isNull();
+      assertThat(capturedStandardError.toString()).contains("not running from a packaged CLI JAR");
+    } finally {
+      System.setErr(originalErr);
+    }
+  }
 
   @Test
   void shouldStartAStandardChildProcessWhenNoExternalRuntimeConfigExists() throws IOException {
