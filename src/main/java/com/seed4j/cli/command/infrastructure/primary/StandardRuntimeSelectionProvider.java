@@ -1,8 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.RuntimeMode;
 import com.seed4j.cli.bootstrap.RuntimeSelection;
-import java.util.Optional;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -10,6 +9,11 @@ class StandardRuntimeSelectionProvider implements RuntimeSelectionProvider {
 
   @Override
   public RuntimeSelection runtimeSelection() {
-    return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+    Map<String, String> systemProperties = System.getProperties()
+      .entrySet()
+      .stream()
+      .collect(java.util.stream.Collectors.toUnmodifiableMap(entry -> entry.getKey().toString(), entry -> entry.getValue().toString()));
+
+    return new SystemPropertyRuntimeSelectionProvider(systemProperties).runtimeSelection();
   }
 }
