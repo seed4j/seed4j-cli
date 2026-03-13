@@ -23,10 +23,18 @@ public class Seed4JCliApp {
     int launch(String[] args);
   }
 
+  interface ExitHandler {
+    void exit(int exitCode);
+  }
+
   public static void main(String[] args) {
     ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
 
     System.exit(SpringApplication.exit(context));
+  }
+
+  static void main(String[] args, EntryPointLauncher launcher, ExitHandler exitHandler) {
+    exitHandler.exit(run(args, launcher));
   }
 
   static int run(String[] args, EntryPointLauncher launcher) {

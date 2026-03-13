@@ -32,7 +32,28 @@ class Seed4JCliAppTest {
     }
   }
 
-  /*
-  [TEST] Main exits with the code returned by the launcher-backed run path
-  */
+  @Test
+  void shouldExitWithTheCodeReturnedByTheLauncherBackedRunPath() {
+    RecordingLauncher launcher = new RecordingLauncher();
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.main(new String[] { "--version" }, launcher, exitHandler);
+
+    assertThat(launcher.arguments()).containsExactly("--version");
+    assertThat(exitHandler.exitCode()).isEqualTo(23);
+  }
+
+  private static final class RecordingExitHandler implements Seed4JCliApp.ExitHandler {
+
+    private Integer exitCode;
+
+    @Override
+    public void exit(int exitCode) {
+      this.exitCode = exitCode;
+    }
+
+    Integer exitCode() {
+      return exitCode;
+    }
+  }
 }
