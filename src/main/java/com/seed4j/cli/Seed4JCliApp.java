@@ -1,10 +1,15 @@
 package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
+import com.seed4j.cli.bootstrap.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.JavaProcessChildLauncher;
+import com.seed4j.cli.bootstrap.LocalSpringCliRunner;
+import com.seed4j.cli.bootstrap.Seed4JCliLauncher;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
-import java.nio.file.Files;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Optional;
+import java.util.List;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -16,8 +21,8 @@ import org.springframework.context.ConfigurableApplicationContext;
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class Seed4JCliApp {
 
-  private static final String CONFIG_FILE_NAME = "/.config/seed4j-cli.yml";
-  private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
+  private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
+  private static final String DEFAULT_CLI_VERSION = "0.0.0-SNAPSHOT";
 
   interface BootstrapEntryPoint {
     int launch(String[] args);
@@ -32,9 +37,7 @@ public class Seed4JCliApp {
   }
 
   public static void main(String[] args) {
-    ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
-
-    System.exit(SpringApplication.exit(context));
+    runPublicMain(args, Seed4JCliApp::productionBootstrapEntryPoint, System::exit);
   }
 
   static void runPublicMain(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
@@ -54,21 +57,108 @@ public class Seed4JCliApp {
     exitHandler.exit(exitCode);
   }
 
-  private static SpringApplicationBuilder createApplicationBuilder() {
-    return new SpringApplicationBuilder(Seed4JCliApp.class)
-      .bannerMode(Banner.Mode.OFF)
-      .web(WebApplicationType.NONE)
-      .lazyInitialization(true);
+  static BootstrapEntryPoint productionBootstrapEntryPoint() {
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHomePath(),
+      executablePath(),
+      currentCliVersion(),
+      new JavaProcessChildLauncher(defaultJavaExecutable(), Seed4JCliApp::executeCommand),
+      new LocalSpringCliRunner(Seed4JCliApp::applicationBuilder, Seed4JCliApp::resolveExitCode, Seed4JCliApp::userHomePath)
+    );
+
+    return args -> launcher.launch(args, childMode());
   }
 
-  private static SpringApplicationBuilder loadExternalConfigFile(SpringApplicationBuilder builder) {
-    return Optional.of(getConfigPath())
-      .filter(configPath -> Files.exists(Path.of(configPath)))
-      .map(configPath -> builder.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath)))
-      .orElse(builder);
+  private static Path userHomePath() {
+    return Path.of(System.getProperty("user.home"));
   }
 
-  private static String getConfigPath() {
-    return System.getProperty("user.home") + CONFIG_FILE_NAME;
+  private static Path executablePath() {
+    try {
+      return Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    } catch (URISyntaxException e) {
+      throw new InvalidRuntimeConfigurationException("Could not resolve executable path.");
+    }
+  }
+
+  private static String currentCliVersion() {
+    String implementationVersion = Seed4JCliApp.class.getPackage().getImplementationVersion();
+    if (implementationVersion == null || implementationVersion.isBlank()) {
+      return DEFAULT_CLI_VERSION;
+    }
+
+    return implementationVersion;
+  }
+
+  private static boolean childMode() {
+    return Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY));
+  }
+
+  private static Path defaultJavaExecutable() {
+    return Path.of(System.getProperty("java.home"), "bin", "java");
+  }
+
+  private static int executeCommand(List<String> command) {
+    try {
+      Process process = new ProcessBuilder(command).inheritIO().start();
+      return process.waitFor();
+    } catch (IOException e) {
+      throw new InvalidRuntimeConfigurationException("Could not launch child process.");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new InvalidRuntimeConfigurationException("Child process execution was interrupted.");
+    }
+  }
+
+  private static LocalSpringCliRunner.ApplicationBuilder applicationBuilder() {
+    return new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(Seed4JCliApp.class));
+  }
+
+  private static int resolveExitCode(LocalSpringCliRunner.ApplicationContext context) {
+    SpringApplicationContextAdapter springApplicationContext = (SpringApplicationContextAdapter) context;
+    return SpringApplication.exit(springApplicationContext.context());
+  }
+
+  private record SpringApplicationContextAdapter(
+    ConfigurableApplicationContext context
+  ) implements LocalSpringCliRunner.ApplicationContext {}
+
+  private static final class SpringApplicationBuilderAdapter implements LocalSpringCliRunner.ApplicationBuilder {
+
+    private final SpringApplicationBuilder springApplicationBuilder;
+
+    private SpringApplicationBuilderAdapter(SpringApplicationBuilder springApplicationBuilder) {
+      this.springApplicationBuilder = springApplicationBuilder;
+    }
+
+    @Override
+    public LocalSpringCliRunner.ApplicationBuilder bannerMode(Banner.Mode bannerMode) {
+      springApplicationBuilder.bannerMode(bannerMode);
+      return this;
+    }
+
+    @Override
+    public LocalSpringCliRunner.ApplicationBuilder web(WebApplicationType webApplicationType) {
+      springApplicationBuilder.web(webApplicationType);
+      return this;
+    }
+
+    @Override
+    public LocalSpringCliRunner.ApplicationBuilder lazyInitialization(boolean lazyInitialization) {
+      springApplicationBuilder.lazyInitialization(lazyInitialization);
+      return this;
+    }
+
+    @Override
+    public LocalSpringCliRunner.ApplicationBuilder properties(String properties) {
+      springApplicationBuilder.properties(properties);
+      return this;
+    }
+
+    @Override
+    public LocalSpringCliRunner.ApplicationContext run(String[] args) {
+      ConfigurableApplicationContext applicationContext = springApplicationBuilder.run(args);
+      return new SpringApplicationContextAdapter(applicationContext);
+    }
   }
 }

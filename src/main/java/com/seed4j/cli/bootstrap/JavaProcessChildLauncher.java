@@ -5,17 +5,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-class JavaProcessChildLauncher implements ChildProcessLauncher {
+public class JavaProcessChildLauncher implements ChildProcessLauncher {
 
   @FunctionalInterface
-  interface ProcessExecutor {
+  public interface ProcessExecutor {
     int execute(List<String> command);
   }
 
   private final Path javaExecutable;
   private final ProcessExecutor processExecutor;
 
-  JavaProcessChildLauncher(Path javaExecutable, ProcessExecutor processExecutor) {
+  public JavaProcessChildLauncher(Path javaExecutable, ProcessExecutor processExecutor) {
     this.javaExecutable = javaExecutable;
     this.processExecutor = processExecutor;
   }

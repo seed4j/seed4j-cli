@@ -5,29 +5,29 @@ import java.nio.file.Path;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 
-class LocalSpringCliRunner implements LocalCliRunner {
+public class LocalSpringCliRunner implements LocalCliRunner {
 
   private static final String CONFIG_FILE_NAME = ".config/seed4j-cli.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
 
   @FunctionalInterface
-  interface ApplicationBuilderFactory {
+  public interface ApplicationBuilderFactory {
     ApplicationBuilder create();
   }
 
   @FunctionalInterface
-  interface ExitCodeResolver {
+  public interface ExitCodeResolver {
     int resolve(ApplicationContext context);
   }
 
   @FunctionalInterface
-  interface UserHomeProvider {
+  public interface UserHomeProvider {
     Path userHome();
   }
 
-  interface ApplicationContext {}
+  public interface ApplicationContext {}
 
-  interface ApplicationBuilder {
+  public interface ApplicationBuilder {
     ApplicationBuilder bannerMode(Banner.Mode bannerMode);
 
     ApplicationBuilder web(WebApplicationType webApplicationType);
@@ -43,7 +43,7 @@ class LocalSpringCliRunner implements LocalCliRunner {
   private final ExitCodeResolver exitCodeResolver;
   private final UserHomeProvider userHomeProvider;
 
-  LocalSpringCliRunner(
+  public LocalSpringCliRunner(
     ApplicationBuilderFactory applicationBuilderFactory,
     ExitCodeResolver exitCodeResolver,
     UserHomeProvider userHomeProvider

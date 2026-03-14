@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-class Seed4JCliLauncher {
+public class Seed4JCliLauncher {
 
   private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
 
@@ -19,7 +19,7 @@ class Seed4JCliLauncher {
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
 
-  Seed4JCliLauncher(
+  public Seed4JCliLauncher(
     Path userHome,
     Path executableJar,
     String currentCliVersion,
@@ -45,11 +45,11 @@ class Seed4JCliLauncher {
     this.runtimeModeConfigReader = runtimeModeConfigReader;
   }
 
-  int launch(String[] args) {
+  public int launch(String[] args) {
     return launch(args, false);
   }
 
-  int launch(String[] args, boolean childMode) {
+  public int launch(String[] args, boolean childMode) {
     if (childMode) {
       return localCliRunner.run(args);
     }
