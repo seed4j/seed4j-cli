@@ -27,6 +27,17 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(41);
   }
 
+  @Test
+  void shouldForwardArgumentsWhenUsingProductionBootstrapComposition() {
+    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
+    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+
+    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
+  }
+
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;
@@ -48,6 +59,20 @@ class Seed4JCliAppTest {
 
     String[] arguments() {
       return arguments;
+    }
+  }
+
+  private static final class RecordingBootstrapEntryPointFactory implements Seed4JCliApp.ProductionBootstrapEntryPointFactory {
+
+    private final Seed4JCliApp.BootstrapEntryPoint bootstrapEntryPoint;
+
+    private RecordingBootstrapEntryPointFactory(Seed4JCliApp.BootstrapEntryPoint bootstrapEntryPoint) {
+      this.bootstrapEntryPoint = bootstrapEntryPoint;
+    }
+
+    @Override
+    public Seed4JCliApp.BootstrapEntryPoint create() {
+      return bootstrapEntryPoint;
     }
   }
 

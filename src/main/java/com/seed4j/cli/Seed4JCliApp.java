@@ -27,6 +27,10 @@ public class Seed4JCliApp {
     void exit(int exitCode);
   }
 
+  interface ProductionBootstrapEntryPointFactory {
+    BootstrapEntryPoint create();
+  }
+
   public static void main(String[] args) {
     ConfigurableApplicationContext context = loadExternalConfigFile(createApplicationBuilder()).run(args);
 
@@ -35,6 +39,10 @@ public class Seed4JCliApp {
 
   static void main(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
     exitHandler.exit(bootstrapEntryPoint.launch(args));
+  }
+
+  static void main(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
+    main(args, bootstrapEntryPointFactory.create(), exitHandler);
   }
 
   private static SpringApplicationBuilder createApplicationBuilder() {
