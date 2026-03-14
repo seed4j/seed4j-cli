@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap;
+package com.seed4j.cli.bootstrap.domain;
 
 import java.util.Arrays;
 import java.util.List;

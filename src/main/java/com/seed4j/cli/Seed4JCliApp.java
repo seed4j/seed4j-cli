@@ -1,10 +1,10 @@
 package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
-import com.seed4j.cli.bootstrap.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.JavaProcessChildLauncher;
-import com.seed4j.cli.bootstrap.LocalSpringCliRunner;
-import com.seed4j.cli.bootstrap.Seed4JCliLauncher;
+import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.JavaProcessChildLauncher;
+import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.net.URISyntaxException;

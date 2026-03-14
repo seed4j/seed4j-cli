@@ -3,8 +3,8 @@ package com.seed4j.cli.command.infrastructure.primary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.bootstrap.RuntimeMode;
-import com.seed4j.cli.bootstrap.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 

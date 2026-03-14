@@ -1,7 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.RuntimeMode;
-import com.seed4j.cli.bootstrap.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.Map;
 import java.util.Optional;
 

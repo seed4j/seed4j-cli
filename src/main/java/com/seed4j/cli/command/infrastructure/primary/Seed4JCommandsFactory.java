@@ -1,6 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

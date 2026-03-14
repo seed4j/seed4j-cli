@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap;
+package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

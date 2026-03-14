@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap;
+package com.seed4j.cli.bootstrap.domain;
 
 public class InvalidRuntimeConfigurationException extends RuntimeException {
 

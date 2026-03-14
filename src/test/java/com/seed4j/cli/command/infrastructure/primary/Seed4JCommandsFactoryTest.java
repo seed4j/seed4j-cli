@@ -5,8 +5,8 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
-import com.seed4j.cli.bootstrap.RuntimeMode;
-import com.seed4j.cli.bootstrap.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
