@@ -49,6 +49,17 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isEqualTo(79);
   }
 
+  @Test
+  void shouldForwardArgumentsWhenRunningPublicMainPath() {
+    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
+    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.runPublicMain(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+
+    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
+  }
+
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;

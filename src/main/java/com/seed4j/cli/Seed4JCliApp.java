@@ -37,6 +37,10 @@ public class Seed4JCliApp {
     System.exit(SpringApplication.exit(context));
   }
 
+  static void runPublicMain(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
+    runProductionPath(args, bootstrapEntryPointFactory, exitHandler);
+  }
+
   static void main(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
     exitHandler.exit(bootstrapEntryPoint.launch(args));
   }
