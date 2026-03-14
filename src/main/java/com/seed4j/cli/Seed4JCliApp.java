@@ -36,7 +36,7 @@ public class Seed4JCliApp {
     BootstrapEntryPoint create();
   }
 
-  public static void main(String[] args) {
+  static void main(String[] args) {
     runProductionPath(args, Seed4JCliApp::productionBootstrapEntryPoint, System::exit);
   }
 
