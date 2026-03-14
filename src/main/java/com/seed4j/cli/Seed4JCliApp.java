@@ -37,7 +37,7 @@ public class Seed4JCliApp {
   }
 
   static void main(String[] args) {
-    runProductionPath(args, Seed4JCliApp::productionBootstrapEntryPoint, System::exit);
+    runProductionPath(args, () -> productionBootstrapEntryPoint(userHomePath(), childMode()), System::exit);
   }
 
   static void runProductionPath(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
@@ -45,16 +45,16 @@ public class Seed4JCliApp {
     exitHandler.exit(exitCode);
   }
 
-  static BootstrapEntryPoint productionBootstrapEntryPoint() {
+  static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHomePath(),
+      userHomePath,
       executablePath(),
       currentCliVersion(),
       new JavaProcessChildLauncher(defaultJavaExecutable(), Seed4JCliApp::executeCommand),
-      new LocalSpringCliRunner(Seed4JCliApp::applicationBuilder, Seed4JCliApp::resolveExitCode, Seed4JCliApp::userHomePath)
+      new LocalSpringCliRunner(Seed4JCliApp::applicationBuilder, Seed4JCliApp::resolveExitCode, () -> userHomePath)
     );
 
-    return args -> launcher.launch(args, childMode());
+    return args -> launcher.launch(args, childMode);
   }
 
   private static Path userHomePath() {

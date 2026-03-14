@@ -45,30 +45,15 @@ class Seed4JCliAppTest {
           mode: standard
       """
     );
-    String previousUserHome = System.getProperty("user.home");
-    String previousChildMode = System.getProperty("seed4j.cli.runtime.child");
     RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    try {
-      System.setProperty("user.home", userHome.toString());
-      System.setProperty("seed4j.cli.runtime.child", "true");
-
-      Seed4JCliApp.runProductionPath(new String[] { "--version" }, Seed4JCliApp::productionBootstrapEntryPoint, exitHandler);
-    } finally {
-      restoreSystemProperty("user.home", previousUserHome);
-      restoreSystemProperty("seed4j.cli.runtime.child", previousChildMode);
-    }
+    Seed4JCliApp.runProductionPath(
+      new String[] { "--version" },
+      () -> Seed4JCliApp.productionBootstrapEntryPoint(userHome, true),
+      exitHandler
+    );
 
     assertThat(exitHandler.exitCode()).isZero();
-  }
-
-  private static void restoreSystemProperty(String key, String value) {
-    if (value == null) {
-      System.clearProperty(key);
-      return;
-    }
-
-    System.setProperty(key, value);
   }
 
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
