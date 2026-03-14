@@ -1,69 +1,126 @@
 # Runtime Bootstrap Next Slice
 
-## Foco deste slice
+## Baseline used by this spec
 
-Fechar a lacuna principal do caminho de produção: `Seed4JCliApp.main(String[] args)` ainda inicializa Spring diretamente, ignorando `Seed4JCliLauncher`.
+This slice specification is based on `LOCAL_IMPLEMENTED_SPEC.md` (updated on 2026-03-12).
 
-## Problema atual (observável)
+Implemented baseline:
 
-- Entrypoint de produção:
-  - `Seed4JCliApp.main(String[] args)` chama `loadExternalConfigFile(createApplicationBuilder()).run(args)`.
-  - Em seguida chama `System.exit(SpringApplication.exit(context))`.
-- Consequência:
-  - O fluxo principal não passa pela política de runtime já encapsulada em `Seed4JCliLauncher`.
-  - O overload `main(String[], BootstrapEntryPoint, ExitHandler)` existe e é testável, mas não é usado no caminho real.
+- Runtime selection domain exists (`standard` and `extension` modes).
+- Extension metadata validation and CLI compatibility checks exist.
+- Launcher pre-bootstrap decision logic exists and is tested.
+- `--version` output already supports runtime mode plus distribution id/version.
 
-## Objetivo de comportamento
+Current gap summary from that baseline:
 
-Quando o usuário executa a CLI pelo entrypoint público `Seed4JCliApp.main(String[] args)`, o processo deve sair com o código retornado por `Seed4JCliLauncher.launch(args)`.
+- Main entrypoint still not delegated to the launcher in the real production path.
+- Real Java child JVM bootstrap is still missing.
+- Runtime identity in the active Spring process is not sourced from launcher-provided values.
+- Extended metadata contract (`runtime-version`, `bootstrap-class`, `runtime-contract-version`) is not implemented.
 
-## Fora de escopo neste slice
+## Progress vs overall objective
 
-- Trocar implementação interna de `JavaProcessChildLauncher` para `ProcessBuilder`.
-- Introduzir resolvedor dedicado de versão da CLI.
-- Reabrir regras de seleção `standard`/`extension` já cobertas por `Seed4JCliLauncherTest`.
+Estimated progress from the baseline: around 60%.
 
-## Plano TDD (um comportamento por vez)
+- Completed: modeling, validation, launcher decision rules, and output shape.
+- Missing for full objective: production wiring and runtime handoff across JVM boundary.
 
-### Ciclo 1 - Entrypoint público delega ao bootstrap de produção
+## Goal of this next slice
 
-[TEST] `Seed4JCliApp.main(String[] args)` delega os mesmos argumentos para um `BootstrapEntryPoint` de produção.
+Deliver the first end-to-end production bootstrap flow so the public entrypoint effectively runs through runtime selection and launches a child JVM when needed.
 
-- 🔴 Primeiro red esperado:
-  - teste referencia um ponto de composição de produção ainda inexistente (falha de compilação).
-- 🌱 Green mínimo:
-  - introduzir ponto mínimo de composição para que o `main(String[] args)` use o mesmo caminho do overload testável.
-- 🔴 Segundo red esperado:
-  - compila, mas o teste falha porque os argumentos ainda não chegam ao bootstrap.
-- 🌱 Green mínimo:
-  - encaminhar `args` sem transformação.
-- 🌀 Refactor:
-  - remover duplicação entre os dois métodos `main(...)` sem criar camada nova.
+The outcome must make runtime mode and distribution identity observable inside the effective Spring runtime process.
 
-### Ciclo 2 - Código de saída do processo é controlado pelo launcher
+## In scope for this slice
 
-[TEST] `Seed4JCliApp.main(String[] args)` propaga para `System.exit(...)` o exit code retornado pelo bootstrap de produção.
+- Wire `Seed4JCliApp.main(String[] args)` to `Seed4JCliLauncher`.
+- Implement concrete Java child-process launching with `ProcessBuilder`.
+- Launch child JVM through `PropertiesLauncher`.
+- Propagate `seed4j.cli.runtime.child=true`.
+- Propagate runtime mode and active distribution id/version as JVM system properties.
+- Propagate `loader.path` for extension mode.
+- Propagate child stdio and child exit code back to parent process.
+- Source runtime identity from propagated system properties inside Spring.
 
-- 🔴 Primeiro red esperado:
-  - teste depende de seam explícito para `ExitHandler` no caminho de produção.
-- 🌱 Green mínimo:
-  - conectar caminho de produção ao mesmo `ExitHandler` já usado no overload de teste.
-- 🔴 Segundo red esperado:
-  - compila, mas o código de saída observado não corresponde ao retorno do bootstrap.
-- 🌱 Green mínimo:
-  - garantir `exitHandler.exit(bootstrapEntryPoint.launch(args))`.
-- 🌀 Refactor:
-  - consolidar wiring para manter `Seed4JCliApp` como composition root enxuto.
+## Out of scope for this slice
 
-### Checkpoint vertical obrigatório
+- New metadata fields: `distribution.runtime-version`, `distribution.bootstrap-class`, `distribution.runtime-contract-version`.
+- Runtime mode rename from `standard` to `base`.
+- `seed4j.runtime.fail-on-invalid-extension` behavior and fallback branching.
+- Runtime-contract handshake semantics beyond current id/version propagation.
 
-Após os ciclos 1 e 2, executar validação de ponta a ponta pelo caminho público:
+## Required behavior (acceptance criteria)
+
+- Public entrypoint:
+  - Calling `Seed4JCliApp.main(String[] args)` must delegate to launcher bootstrap and exit with launcher return code.
+- Standard mode:
+  - Without runtime mode override, launcher must start a Java child process in `standard` mode.
+- Extension mode:
+  - With valid extension metadata and jar, launcher must start child process with `loader.path`, runtime mode, and distribution id/version properties.
+- Invalid extension setup:
+  - Launcher must fail before child launch and return non-zero.
+- Child mode recursion guard:
+  - When `seed4j.cli.runtime.child=true`, process must run local Spring path without spawning another child.
+- Runtime identity observability:
+  - In the effective Spring runtime process, `--version` must reflect propagated runtime mode and distribution identity.
+
+## TDD execution plan
+
+### Cycle 1: Public entrypoint wiring
+
+Test first:
+
+- `Seed4JCliApp.main(String[] args)` forwards args to production bootstrap.
+- Exit handler receives exactly the bootstrap return code.
+
+Minimal green:
+
+- Add production composition seam and route public `main` through it.
+
+### Cycle 2: Real child JVM launcher
+
+Test first:
+
+- `JavaProcessChildLauncher` builds command with deterministic property ordering.
+- Command includes `-cp`, executable jar, `PropertiesLauncher`, and forwarded args.
+- Process execution result is returned as launcher exit code.
+
+Minimal green:
+
+- Implement `ProcessBuilder(...).inheritIO().start().waitFor()` integration path.
+
+### Cycle 3: Launcher handoff contract
+
+Test first:
+
+- Standard mode request includes `seed4j.cli.runtime.child=true` and runtime mode property.
+- Extension mode request additionally includes distribution id/version and `loader.path`.
+
+Minimal green:
+
+- Build child process request from resolved runtime selection and launch it.
+
+### Cycle 4: Runtime identity inside Spring
+
+Test first:
+
+- Runtime selection provider reads from runtime system properties.
+- `--version` output reflects values from propagated selection in child execution context.
+
+Minimal green:
+
+- Replace static standard-only provider behavior with system-property-backed selection.
+
+### Vertical checkpoint
+
+Run:
 
 - `./mvnw clean verify`
 
-## Definição de pronto deste slice
+## Definition of done
 
-- `Seed4JCliApp.main(String[] args)` não inicia Spring diretamente.
-- Caminho de produção usa `Seed4JCliLauncher` como bootstrap entrypoint.
-- `Seed4JCliAppTest` continua pequeno, cobrindo forwarding de `args` e propagação de exit code.
-- Suite completa permanece verde com `./mvnw clean verify`.
+- Public CLI entrypoint no longer boots Spring directly in parent for normal mode.
+- Launcher controls runtime selection and child-process bootstrap in production flow.
+- Runtime identity is visible in the effective Spring process via propagated properties.
+- All existing runtime-selection and launcher tests remain green.
+- Full repository validation passes with `./mvnw clean verify`.
