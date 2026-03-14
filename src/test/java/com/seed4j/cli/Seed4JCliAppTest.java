@@ -11,32 +11,12 @@ import org.junit.jupiter.api.Test;
 class Seed4JCliAppTest {
 
   @Test
-  void shouldForwardArgumentsToTheBootstrapEntryPoint() {
-    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-
-    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
-
-    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
-  }
-
-  @Test
-  void shouldExitWithTheCodeReturnedByTheBootstrapEntrypoint() {
-    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint(41);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-
-    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
-
-    assertThat(exitHandler.exitCode()).isEqualTo(41);
-  }
-
-  @Test
-  void shouldForwardArgumentsWhenUsingProductionBootstrapComposition() {
+  void shouldForwardArgumentsWhenRunningProductionPath() {
     RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
     RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
     RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    Seed4JCliApp.main(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
 
     assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
@@ -50,17 +30,6 @@ class Seed4JCliAppTest {
     Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
 
     assertThat(exitHandler.exitCode()).isEqualTo(79);
-  }
-
-  @Test
-  void shouldForwardArgumentsWhenRunningPublicMainPath() {
-    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
-    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
-
-    Seed4JCliApp.runPublicMain(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
-
-    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
 
   @Test

@@ -37,19 +37,7 @@ public class Seed4JCliApp {
   }
 
   public static void main(String[] args) {
-    runPublicMain(args, Seed4JCliApp::productionBootstrapEntryPoint, System::exit);
-  }
-
-  static void runPublicMain(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
-    runProductionPath(args, bootstrapEntryPointFactory, exitHandler);
-  }
-
-  static void main(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
-    exitHandler.exit(bootstrapEntryPoint.launch(args));
-  }
-
-  static void main(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
-    runProductionPath(args, bootstrapEntryPointFactory, exitHandler);
+    runProductionPath(args, Seed4JCliApp::productionBootstrapEntryPoint, System::exit);
   }
 
   static void runProductionPath(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
