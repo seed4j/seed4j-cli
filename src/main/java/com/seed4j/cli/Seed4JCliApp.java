@@ -42,7 +42,12 @@ public class Seed4JCliApp {
   }
 
   static void main(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
-    main(args, bootstrapEntryPointFactory.create(), exitHandler);
+    runProductionPath(args, bootstrapEntryPointFactory, exitHandler);
+  }
+
+  static void runProductionPath(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
+    int exitCode = bootstrapEntryPointFactory.create().launch(args);
+    exitHandler.exit(exitCode);
   }
 
   private static SpringApplicationBuilder createApplicationBuilder() {

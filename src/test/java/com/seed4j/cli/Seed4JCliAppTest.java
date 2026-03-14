@@ -38,6 +38,17 @@ class Seed4JCliAppTest {
     assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
 
+  @Test
+  void shouldExitWithCodeReturnedByProductionBootstrapWhenRunningProductionPath() {
+    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint(79);
+    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
+    RecordingExitHandler exitHandler = new RecordingExitHandler();
+
+    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+
+    assertThat(exitHandler.exitCode()).isEqualTo(79);
+  }
+
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;
