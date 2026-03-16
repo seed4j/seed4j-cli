@@ -2,9 +2,9 @@ package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.domain.JavaProcessChildLauncher;
 import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -46,12 +46,15 @@ public class Seed4JCliApp {
   }
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+    Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
+    Seed4JCliLauncher launcher = launcherFactory.create(
       userHomePath,
       executablePath(),
       currentCliVersion(),
-      new JavaProcessChildLauncher(defaultJavaExecutable(), Seed4JCliApp::executeCommand),
-      new LocalSpringCliRunner(Seed4JCliApp::applicationBuilder, Seed4JCliApp::resolveExitCode, () -> userHomePath)
+      defaultJavaExecutable(),
+      Seed4JCliApp::executeCommand,
+      Seed4JCliApp::applicationBuilder,
+      Seed4JCliApp::resolveExitCode
     );
 
     return args -> launcher.launch(args, childMode);

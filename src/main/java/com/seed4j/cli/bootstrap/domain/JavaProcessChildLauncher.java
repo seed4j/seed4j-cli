@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class JavaProcessChildLauncher implements ChildProcessLauncher {
+class JavaProcessChildLauncher implements ChildProcessLauncher {
 
   @FunctionalInterface
   public interface ProcessExecutor {
