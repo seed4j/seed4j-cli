@@ -30,3 +30,7 @@ Recent history follows Conventional Commits with scopes, for example `feat(boots
 ## Configuration & Architecture Notes
 
 The CLI loads external overrides from `~/.config/seed4j-cli.yml`; document any new configuration keys in both code and `README.md`. If you change command flow or boundaries, update the relevant files in `documentation/`, especially the hexagonal architecture and commands guides. `TECH_DEBT.md` is a local-only working file, must not be committed, and must not be treated as project documentation.
+
+## Execution Plans for Complex Tasks
+
+For complex features or significant refactors, use an Execution Plan (see `.agent/PLANS.md`) from design through implementation.
