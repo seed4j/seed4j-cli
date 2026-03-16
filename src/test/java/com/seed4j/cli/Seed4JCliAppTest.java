@@ -71,6 +71,23 @@ class Seed4JCliAppTest {
     assertThat(executablePath).isEqualTo(executableJarPath);
   }
 
+  @Test
+  void shouldResolveExecutableJarPathFromClasspathWhenJavaCommandDoesNotStartWithJar() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path codeSourcePath = tempDirectory.resolve("classes");
+    Files.createDirectories(codeSourcePath);
+    Path executableJarPath = tempDirectory.resolve("seed4j-cli.jar");
+    Files.writeString(executableJarPath, "jar");
+
+    Path executablePath = Seed4JCliApp.resolveExecutablePath(
+      codeSourcePath,
+      "org.springframework.boot.loader.launch.PropertiesLauncher --version",
+      executableJarPath.toString()
+    );
+
+    assertThat(executablePath).isEqualTo(executableJarPath);
+  }
+
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;

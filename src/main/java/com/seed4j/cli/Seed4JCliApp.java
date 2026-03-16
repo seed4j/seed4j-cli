@@ -70,7 +70,7 @@ public class Seed4JCliApp {
   private static Path executablePath() {
     try {
       Path codeSourcePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-      return resolveExecutablePath(codeSourcePath, System.getProperty("sun.java.command", ""));
+      return resolveExecutablePath(codeSourcePath, System.getProperty("sun.java.command", ""), System.getProperty("java.class.path", ""));
     } catch (URISyntaxException e) {
       throw new InvalidRuntimeConfigurationException("Could not resolve executable path.");
     }
@@ -86,14 +86,44 @@ public class Seed4JCliApp {
       return codeSourcePath;
     }
 
-    String firstToken = trimmedCommand.split("\\s+", 2)[0];
-    if (!firstToken.endsWith(".jar")) {
+    Path executableJarPath = regularJarPath(trimmedCommand.split("\\s+", 2)[0]);
+    if (executableJarPath == null) {
       return codeSourcePath;
     }
 
-    Path executableJarPath = Path.of(firstToken);
-    if (!Files.isRegularFile(executableJarPath)) {
+    return executableJarPath;
+  }
+
+  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath) {
+    Path executablePathFromCommand = resolveExecutablePath(codeSourcePath, javaCommand);
+    if (!executablePathFromCommand.equals(codeSourcePath)) {
+      return executablePathFromCommand;
+    }
+
+    if (javaClassPath == null || javaClassPath.isBlank()) {
       return codeSourcePath;
+    }
+
+    String pathSeparator = System.getProperty("path.separator");
+    String[] classpathEntries = javaClassPath.split(java.util.regex.Pattern.quote(pathSeparator));
+    for (String classpathEntry : classpathEntries) {
+      Path candidatePath = regularJarPath(classpathEntry.trim());
+      if (candidatePath != null) {
+        return candidatePath;
+      }
+    }
+
+    return codeSourcePath;
+  }
+
+  private static Path regularJarPath(String candidatePath) {
+    if (!candidatePath.endsWith(".jar")) {
+      return null;
+    }
+
+    Path executableJarPath = Path.of(candidatePath);
+    if (!Files.isRegularFile(executableJarPath)) {
+      return null;
     }
 
     return executableJarPath;
