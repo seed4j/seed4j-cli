@@ -19,7 +19,7 @@ public class Seed4JCliLauncher {
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
 
-  public Seed4JCliLauncher(
+  Seed4JCliLauncher(
     Path userHome,
     Path executableJar,
     String currentCliVersion,

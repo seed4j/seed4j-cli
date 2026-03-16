@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -11,6 +13,19 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class Seed4JCliLauncherFactoryTest {
+
+  @Test
+  void shouldKeepLauncherConstructionInternalToTheBootstrapPackage() throws NoSuchMethodException {
+    Constructor<Seed4JCliLauncher> constructor = Seed4JCliLauncher.class.getDeclaredConstructor(
+      Path.class,
+      Path.class,
+      String.class,
+      ChildProcessLauncher.class,
+      LocalCliRunner.class
+    );
+
+    assertThat(Modifier.isPublic(constructor.getModifiers())).isFalse();
+  }
 
   @Test
   void shouldCreateLauncherThatRunsStandardModeThroughTheProvidedCommandExecutor() throws IOException {
