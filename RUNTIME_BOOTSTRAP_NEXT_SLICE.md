@@ -1,126 +1,61 @@
 # Runtime Bootstrap Next Slice
 
-## Baseline used by this spec
+## Snapshot (2026-03-16)
 
-This slice specification is based on `LOCAL_IMPLEMENTED_SPEC.md` (updated on 2026-03-12).
+This file is now a slice execution status snapshot.
 
-Implemented baseline:
+Baseline reference: `LOCAL_IMPLEMENTED_SPEC.md` (2026-03-12).
 
-- Runtime selection domain exists (`standard` and `extension` modes).
-- Extension metadata validation and CLI compatibility checks exist.
-- Launcher pre-bootstrap decision logic exists and is tested.
-- `--version` output already supports runtime mode plus distribution id/version.
+## Completed in this slice
 
-Current gap summary from that baseline:
+- `Seed4JCliApp` production path delegates to `Seed4JCliLauncher` and exits with launcher return code.
+- Real Java child-process execution is implemented through `ProcessBuilder(...).inheritIO().start().waitFor()`.
+- Child JVM bootstrap uses `org.springframework.boot.loader.launch.PropertiesLauncher`.
+- Parent-to-child propagation is implemented for:
+  - `seed4j.cli.runtime.child=true`
+  - `seed4j.cli.runtime.mode`
+  - `seed4j.cli.runtime.distribution.id`
+  - `seed4j.cli.runtime.distribution.version`
+  - `loader.path` (extension mode)
+- Child stdio and child exit code are propagated to parent.
+- Runtime identity shown by `--version` is sourced from runtime system properties in the active process.
+- Executable JAR resolution for production bootstrap was hardened for supported startup variants:
+  - JAR path in `sun.java.command` (absolute)
+  - JAR path in `sun.java.command` (relative to `user.dir`)
+  - Fallback by `java.class.path` when command starts with `PropertiesLauncher`
 
-- Main entrypoint still not delegated to the launcher in the real production path.
-- Real Java child JVM bootstrap is still missing.
-- Runtime identity in the active Spring process is not sourced from launcher-provided values.
-- Extended metadata contract (`runtime-version`, `bootstrap-class`, `runtime-contract-version`) is not implemented.
+## Acceptance criteria status
 
-## Progress vs overall objective
+- Public entrypoint delegation: done.
+- Standard mode child launch: done (packaged JAR execution path).
+- Extension mode child launch with `loader.path` and active distribution properties: done.
+- Invalid extension fail-fast before child launch: done.
+- Child recursion guard (`seed4j.cli.runtime.child=true`): done.
+- Runtime identity observability in effective Spring process (`--version`): done.
 
-Estimated progress from the baseline: around 60%.
-
-- Completed: modeling, validation, launcher decision rules, and output shape.
-- Missing for full objective: production wiring and runtime handoff across JVM boundary.
-
-## Goal of this next slice
-
-Deliver the first end-to-end production bootstrap flow so the public entrypoint effectively runs through runtime selection and launches a child JVM when needed.
-
-The outcome must make runtime mode and distribution identity observable inside the effective Spring runtime process.
-
-## In scope for this slice
-
-- Wire `Seed4JCliApp.main(String[] args)` to `Seed4JCliLauncher`.
-- Implement concrete Java child-process launching with `ProcessBuilder`.
-- Launch child JVM through `PropertiesLauncher`.
-- Propagate `seed4j.cli.runtime.child=true`.
-- Propagate runtime mode and active distribution id/version as JVM system properties.
-- Propagate `loader.path` for extension mode.
-- Propagate child stdio and child exit code back to parent process.
-- Source runtime identity from propagated system properties inside Spring.
-
-## Out of scope for this slice
+## Explicitly out of scope for this slice
 
 - New metadata fields: `distribution.runtime-version`, `distribution.bootstrap-class`, `distribution.runtime-contract-version`.
 - Runtime mode rename from `standard` to `base`.
-- `seed4j.runtime.fail-on-invalid-extension` behavior and fallback branching.
+- `seed4j.runtime.fail-on-invalid-extension` behavior/fallback branching.
 - Runtime-contract handshake semantics beyond current id/version propagation.
+- Manual multi-jar classpath startup prioritization logic (for example: `java -cp a.jar:b.jar ...`).
+  - Supported contract remains `java -jar seed4j-cli-<version>.jar`.
 
-## Required behavior (acceptance criteria)
+## Verification checkpoints executed
 
-- Public entrypoint:
-  - Calling `Seed4JCliApp.main(String[] args)` must delegate to launcher bootstrap and exit with launcher return code.
-- Standard mode:
-  - Without runtime mode override, launcher must start a Java child process in `standard` mode.
-- Extension mode:
-  - With valid extension metadata and jar, launcher must start child process with `loader.path`, runtime mode, and distribution id/version properties.
-- Invalid extension setup:
-  - Launcher must fail before child launch and return non-zero.
-- Child mode recursion guard:
-  - When `seed4j.cli.runtime.child=true`, process must run local Spring path without spawning another child.
-- Runtime identity observability:
-  - In the effective Spring runtime process, `--version` must reflect propagated runtime mode and distribution identity.
+- Repeated vertical checkpoint:
+  - `./mvnw clean verify`
+  - Latest result on 2026-03-16: `BUILD SUCCESS` (`Tests run: 310, Failures: 0, Errors: 0`)
+- Public path checkpoints:
+  - `java -jar target/seed4j-cli-0.0.1-SNAPSHOT.jar --version`
+  - `java -cp target/seed4j-cli-0.0.1-SNAPSHOT.jar org.springframework.boot.loader.launch.PropertiesLauncher --version`
 
-## TDD execution plan
+## Primary tests that back this slice
 
-### Cycle 1: Public entrypoint wiring
-
-Test first:
-
-- `Seed4JCliApp.main(String[] args)` forwards args to production bootstrap.
-- Exit handler receives exactly the bootstrap return code.
-
-Minimal green:
-
-- Add production composition seam and route public `main` through it.
-
-### Cycle 2: Real child JVM launcher
-
-Test first:
-
-- `JavaProcessChildLauncher` builds command with deterministic property ordering.
-- Command includes `-cp`, executable jar, `PropertiesLauncher`, and forwarded args.
-- Process execution result is returned as launcher exit code.
-
-Minimal green:
-
-- Implement `ProcessBuilder(...).inheritIO().start().waitFor()` integration path.
-
-### Cycle 3: Launcher handoff contract
-
-Test first:
-
-- Standard mode request includes `seed4j.cli.runtime.child=true` and runtime mode property.
-- Extension mode request additionally includes distribution id/version and `loader.path`.
-
-Minimal green:
-
-- Build child process request from resolved runtime selection and launch it.
-
-### Cycle 4: Runtime identity inside Spring
-
-Test first:
-
-- Runtime selection provider reads from runtime system properties.
-- `--version` output reflects values from propagated selection in child execution context.
-
-Minimal green:
-
-- Replace static standard-only provider behavior with system-property-backed selection.
-
-### Vertical checkpoint
-
-Run:
-
-- `./mvnw clean verify`
-
-## Definition of done
-
-- Public CLI entrypoint no longer boots Spring directly in parent for normal mode.
-- Launcher controls runtime selection and child-process bootstrap in production flow.
-- Runtime identity is visible in the effective Spring process via propagated properties.
-- All existing runtime-selection and launcher tests remain green.
-- Full repository validation passes with `./mvnw clean verify`.
+- `src/test/java/com/seed4j/cli/Seed4JCliAppTest.java`
+- `src/test/java/com/seed4j/cli/bootstrap/domain/JavaProcessChildLauncherTest.java`
+- `src/test/java/com/seed4j/cli/bootstrap/domain/Seed4JCliLauncherTest.java`
+- `src/test/java/com/seed4j/cli/bootstrap/domain/Seed4JCliLauncherFactoryTest.java`
+- `src/test/java/com/seed4j/cli/command/infrastructure/primary/CurrentProcessRuntimeSelectionProviderTest.java`
+- `src/test/java/com/seed4j/cli/command/infrastructure/primary/SystemPropertyRuntimeSelectionProviderTest.java`
