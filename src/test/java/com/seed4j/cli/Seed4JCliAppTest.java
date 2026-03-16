@@ -58,6 +58,19 @@ class Seed4JCliAppTest {
     assertThat(exitHandler.exitCode()).isZero();
   }
 
+  @Test
+  void shouldResolveExecutableJarPathFromJavaCommandWhenCodeSourceIsNotAJar() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path codeSourcePath = tempDirectory.resolve("classes");
+    Files.createDirectories(codeSourcePath);
+    Path executableJarPath = tempDirectory.resolve("seed4j-cli.jar");
+    Files.writeString(executableJarPath, "jar");
+
+    Path executablePath = Seed4JCliApp.resolveExecutablePath(codeSourcePath, executableJarPath + " --version");
+
+    assertThat(executablePath).isEqualTo(executableJarPath);
+  }
+
   private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
 
     private final int exitCode;

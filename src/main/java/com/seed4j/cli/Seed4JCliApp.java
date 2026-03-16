@@ -10,6 +10,7 @@ import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.springframework.boot.Banner.Mode;
@@ -68,10 +69,34 @@ public class Seed4JCliApp {
 
   private static Path executablePath() {
     try {
-      return Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      Path codeSourcePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      return resolveExecutablePath(codeSourcePath, System.getProperty("sun.java.command", ""));
     } catch (URISyntaxException e) {
       throw new InvalidRuntimeConfigurationException("Could not resolve executable path.");
     }
+  }
+
+  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand) {
+    if (Files.isRegularFile(codeSourcePath) && codeSourcePath.getFileName().toString().endsWith(".jar")) {
+      return codeSourcePath;
+    }
+
+    String trimmedCommand = javaCommand.trim();
+    if (trimmedCommand.isEmpty()) {
+      return codeSourcePath;
+    }
+
+    String firstToken = trimmedCommand.split("\\s+", 2)[0];
+    if (!firstToken.endsWith(".jar")) {
+      return codeSourcePath;
+    }
+
+    Path executableJarPath = Path.of(firstToken);
+    if (!Files.isRegularFile(executableJarPath)) {
+      return codeSourcePath;
+    }
+
+    return executableJarPath;
   }
 
   private static String currentCliVersion() {
