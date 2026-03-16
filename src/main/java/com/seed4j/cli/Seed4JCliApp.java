@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -81,17 +83,11 @@ public class Seed4JCliApp {
       return codeSourcePath;
     }
 
-    String trimmedCommand = javaCommand.trim();
-    if (trimmedCommand.isEmpty()) {
-      return codeSourcePath;
-    }
-
-    Path executableJarPath = regularJarPath(trimmedCommand.split("\\s+", 2)[0]);
-    if (executableJarPath == null) {
-      return codeSourcePath;
-    }
-
-    return executableJarPath;
+    return Optional.of(javaCommand.trim())
+      .filter(command -> !command.isEmpty())
+      .map(command -> command.split("\\s+", 2)[0])
+      .flatMap(Seed4JCliApp::regularJarPath)
+      .orElse(codeSourcePath);
   }
 
   static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath) {
@@ -100,42 +96,29 @@ public class Seed4JCliApp {
       return executablePathFromCommand;
     }
 
-    if (javaClassPath == null || javaClassPath.isBlank()) {
-      return codeSourcePath;
-    }
-
     String pathSeparator = System.getProperty("path.separator");
-    String[] classpathEntries = javaClassPath.split(java.util.regex.Pattern.quote(pathSeparator));
-    for (String classpathEntry : classpathEntries) {
-      Path candidatePath = regularJarPath(classpathEntry.trim());
-      if (candidatePath != null) {
-        return candidatePath;
-      }
-    }
-
-    return codeSourcePath;
+    return Optional.ofNullable(javaClassPath)
+      .filter(classPath -> !classPath.isBlank())
+      .stream()
+      .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(pathSeparator))))
+      .map(String::trim)
+      .map(Seed4JCliApp::regularJarPath)
+      .flatMap(Optional::stream)
+      .findFirst()
+      .orElse(codeSourcePath);
   }
 
-  private static Path regularJarPath(String candidatePath) {
-    if (!candidatePath.endsWith(".jar")) {
-      return null;
-    }
-
-    Path executableJarPath = Path.of(candidatePath);
-    if (!Files.isRegularFile(executableJarPath)) {
-      return null;
-    }
-
-    return executableJarPath;
+  private static Optional<Path> regularJarPath(String candidatePath) {
+    return Optional.ofNullable(candidatePath)
+      .filter(path -> path.endsWith(".jar"))
+      .map(Path::of)
+      .filter(Files::isRegularFile);
   }
 
   private static String currentCliVersion() {
-    String implementationVersion = Seed4JCliApp.class.getPackage().getImplementationVersion();
-    if (implementationVersion == null || implementationVersion.isBlank()) {
-      return DEFAULT_CLI_VERSION;
-    }
-
-    return implementationVersion;
+    return Optional.ofNullable(Seed4JCliApp.class.getPackage().getImplementationVersion())
+      .filter(version -> !version.isBlank())
+      .orElse(DEFAULT_CLI_VERSION);
   }
 
   private static boolean childMode() {
