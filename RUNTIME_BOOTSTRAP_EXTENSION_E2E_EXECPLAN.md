@@ -58,19 +58,19 @@ Criar insumos padronizados para testar modo extension de forma repetivel.
 
 #### Changes
 
-- [ ] Adicionar metadata fixture versionada em `src/test/resources` (arquivo dedicado para runtime extension).
-- [ ] Definir helper de teste para criar `extension.jar` temporario minimo (jar valido).
-- [ ] Garantir que fixture contenha `artifact.filename: extension.jar`, `distribution.kind: extension` e `compatibility.cli` compativel.
+- [x] Adicionar metadata fixture versionada em `src/test/resources` (arquivo dedicado para runtime extension).
+- [x] Definir helper de teste para criar `extension.jar` temporario minimo (jar valido).
+- [x] Garantir que fixture contenha `artifact.filename: extension.jar`, `distribution.kind: extension` e `compatibility.cli` compativel.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*Runtime*' test`
-- [ ] Expected result: fixtures de runtime sao consumiveis por testes sem erro de parsing/validacao.
+- [x] Command: `./mvnw -Dtest='*Runtime*' test`
+- [x] Expected result: fixtures de runtime sao consumiveis por testes sem erro de parsing/validacao.
 
 #### Acceptance Criteria
 
-- [ ] Metadata da fixture representa um runtime extension valido.
-- [ ] JAR temporario minimo pode ser usado como `loader.path` sem falha estrutural.
+- [x] Metadata da fixture representa um runtime extension valido.
+- [x] JAR temporario minimo pode ser usado como `loader.path` sem falha estrutural.
 
 ### Milestone 2 - Integracao in-process com cobertura
 
@@ -80,24 +80,24 @@ Cobrir fluxo principal de extension no mesmo JVM do teste para ganho real de JaC
 
 #### Changes
 
-- [ ] Adicionar classe de integracao (ex.: `ExtensionRuntimeBootstrapIntegrationTest`) em `src/test/java`.
-- [ ] Instanciar `Seed4JCliLauncher` real com `user.home` temporario e `executableJar` valido.
-- [ ] Usar `ChildProcessLauncher` de teste que:
-  - [ ] recebe `JavaChildProcessRequest`,
-  - [ ] aplica `request.systemProperties()` temporariamente em `System`,
-  - [ ] executa caminho local do CLI (runner Spring/picocli) no mesmo JVM,
-  - [ ] restaura todas as propriedades apos execucao.
-- [ ] Capturar saida de `--version` para validar identidade de runtime extension.
+- [x] Adicionar classe de integracao (ex.: `ExtensionRuntimeBootstrapInProcessTest`) em `src/test/java`.
+- [x] Instanciar `Seed4JCliLauncher` real com `user.home` temporario e `executableJar` valido.
+- [x] Usar `ChildProcessLauncher` de teste que:
+  - [x] recebe `JavaChildProcessRequest`,
+  - [x] aplica `request.systemProperties()` temporariamente em `System`,
+  - [x] executa caminho local do CLI (runner Spring/picocli) no mesmo JVM,
+  - [x] restaura todas as propriedades apos execucao.
+- [x] Capturar saida de `--version` para validar identidade de runtime extension.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*ExtensionRuntimeBootstrapIntegrationTest' test`
-- [ ] Expected result: `exitCode=0` e saida contendo runtime/distribution da extension fixture.
+- [x] Command: `./mvnw -Dtest='*ExtensionRuntimeBootstrapInProcessTest' test`
+- [x] Expected result: `exitCode=0` e saida contendo runtime/distribution da extension fixture.
 
 #### Acceptance Criteria
 
-- [ ] Fluxo de extension e exercitado com componentes reais de bootstrap (launcher + resolucao + request).
-- [ ] Teste contribui para coverage de codigo de producao no caminho de runtime extension.
+- [x] Fluxo de extension e exercitado com componentes reais de bootstrap (launcher + resolucao + request).
+- [x] Teste contribui para coverage de codigo de producao no caminho de runtime extension.
 
 ### Milestone 3 - Smoke E2E externo automatizado
 
@@ -107,30 +107,30 @@ Validar contrato real de execucao empacotada sem passo manual.
 
 #### Changes
 
-- [ ] Adicionar classe `*IT*` (ex.: `ExtensionRuntimeBootstrapIT`) para Failsafe.
-- [ ] No teste, localizar jar empacotado em `target/` (`seed4j-cli-*.jar`, ignorando `.jar.original`).
-- [ ] Criar ambiente temporario (`user.home`) com config/metadata/jar de extension.
-- [ ] Executar `java -Duser.home=<tmpHome> -jar <cliJar> --version` via `ProcessBuilder`.
-- [ ] Validar `exitCode=0` e identidade de runtime extension na saida.
+- [x] Adicionar classe `*IT*` (ex.: `ExtensionRuntimeBootstrapPackagedJarIT`) para Failsafe.
+- [x] No teste, localizar jar empacotado em `target/` (`seed4j-cli-*.jar`, ignorando `.jar.original`).
+- [x] Criar ambiente temporario (`user.home`) com config/metadata/jar de extension.
+- [x] Executar `java -Duser.home=<tmpHome> -jar <cliJar> --version` via `ProcessBuilder`.
+- [x] Validar `exitCode=0` e identidade de runtime extension na saida.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*ExtensionRuntimeBootstrapIT*' -DfailIfNoTests=false verify`
-- [ ] Expected result: smoke E2E externo verde no ciclo Failsafe.
+- [x] Command: `./mvnw -Dtest='*ExtensionRuntimeBootstrapPackagedJarIT*' -DfailIfNoTests=false verify`
+- [x] Expected result: smoke E2E externo verde no ciclo Failsafe.
 
 #### Acceptance Criteria
 
-- [ ] Contrato real empacotado (`java -jar`) funciona em extension mode sem intervencao manual.
-- [ ] Falha de bootstrap extension aparece como falha automatica no pipeline local/CI.
+- [x] Contrato real empacotado (`java -jar`) funciona em extension mode sem intervencao manual.
+- [x] Falha de bootstrap extension aparece como falha automatica no pipeline local/CI.
 
 ## Progress
 
-- [ ] Milestone 1 started
-- [ ] Milestone 1 completed
-- [ ] Milestone 2 started
-- [ ] Milestone 2 completed
-- [ ] Milestone 3 started
-- [ ] Milestone 3 completed
+- [x] Milestone 1 started
+- [x] Milestone 1 completed
+- [x] Milestone 2 started
+- [x] Milestone 2 completed
+- [x] Milestone 3 started
+- [x] Milestone 3 completed
 
 ## Decisions
 
@@ -145,6 +145,10 @@ Validar contrato real de execucao empacotada sem passo manual.
 - Decision: classpath multiplo manual (`java -cp ...`) fica fora de escopo.
   Rationale: contrato operacional suportado e `java -jar`.
   Date/Author: 2026-03-16 / user+codex
+
+- Decision: `compatibility.cli` da fixture compartilhada ficou em `0.0.0`.
+  Rationale: no fluxo empacotado atual, quando `Implementation-Version` nao esta no manifest, o CLI cai no fallback `0.0.0-SNAPSHOT`; isso precisa continuar compativel no smoke E2E.
+  Date/Author: 2026-03-16 / codex
 
 ## Risks and Mitigations
 
@@ -175,3 +179,4 @@ Validar contrato real de execucao empacotada sem passo manual.
 
 - Cobertura JaCoCo em processo externo nao vem automaticamente; para ganho pratico de coverage, manter teste principal no mesmo JVM.
 - Smoke externo deve ser curto e focado em contrato, nao em fechar cobertura de todas as branches.
+- Em execucao empacotada, o valor efetivo de versao pode depender de `Implementation-Version` no manifest; fixtures de compatibilidade precisam considerar esse fallback.
