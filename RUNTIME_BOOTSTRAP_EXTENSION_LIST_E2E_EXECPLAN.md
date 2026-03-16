@@ -67,20 +67,20 @@ Criar um modulo de teste carregavel por Spring em extension mode, seguindo o mes
 
 #### Changes
 
-- [ ] Adicionar tipo de slug dedicado para `runtime-extension-list-only` (implementando `Seed4JModuleSlugFactory`) em pacote de teste.
-- [ ] Adicionar `ModuleFactory` de teste com `buildModule(Seed4JModuleProperties)` retornando modulo minimo (`moduleBuilder(properties).build()`).
-- [ ] Adicionar `ApplicationService` de teste delegando para factory.
-- [ ] Adicionar `@Configuration` de teste com `@Bean Seed4JModuleResource` usando `withoutProperties()`, `standalone()`, `tags(...)` e `factory(applicationService::buildModule)`.
+- [x] Adicionar tipo de slug dedicado para `runtime-extension-list-only` (implementando `Seed4JModuleSlugFactory`) em pacote de teste.
+- [x] Adicionar `ModuleFactory` de teste com `buildModule(Seed4JModuleProperties)` retornando modulo minimo (`moduleBuilder(properties).build()`).
+- [x] Adicionar `ApplicationService` de teste delegando para factory.
+- [x] Adicionar `@Configuration` de teste com `@Bean Seed4JModuleResource` usando `withoutProperties()`, `standalone()`, `tags(...)` e `factory(applicationService::buildModule)`.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*ExtensionRuntimeFixtureTest' test`
-- [ ] Expected result: compilacao e execucao verdes com classes de modulo de teste disponiveis no classpath de teste.
+- [x] Command: `./mvnw -Dtest='*ExtensionRuntimeFixtureTest' test`
+- [x] Expected result: compilacao e execucao verdes com classes de modulo de teste disponiveis no classpath de teste.
 
 #### Acceptance Criteria
 
-- [ ] O modulo extra de teste e definido por tipos separados (slug, factory, service, configuration).
-- [ ] A definicao segue o mesmo padrao estrutural do exemplo `hexagonaldocumentation`.
+- [x] O modulo extra de teste e definido por tipos separados (slug, factory, service, configuration).
+- [x] A definicao segue o mesmo padrao estrutural do exemplo `hexagonaldocumentation`.
 
 ### Milestone 2 - Evoluir fixture para gerar extension.jar com classes de modulo
 
@@ -90,20 +90,20 @@ Permitir que o fixture de extension gere um jar carregavel que realmente injete 
 
 #### Changes
 
-- [ ] Manter `ExtensionRuntimeFixture.install(Path userHome)` intacto para preservar comportamento atual.
-- [ ] Adicionar variante dedicada (ex.: `installWithListExtensionModule(Path userHome)`) retornando os mesmos paths de fixture.
-- [ ] Implementar criacao de jar que copia bytes de classes de teste do modulo extension para entradas `.class` no `extension.jar` (incluindo classes internas quando existirem).
-- [ ] Garantir que metadata e config extension atuais continuam sendo reutilizados (`distribution.kind: extension`, `artifact.filename: extension.jar`).
+- [x] Manter `ExtensionRuntimeFixture.install(Path userHome)` intacto para preservar comportamento atual.
+- [x] Adicionar variante dedicada (ex.: `installWithListExtensionModule(Path userHome)`) retornando os mesmos paths de fixture.
+- [x] Implementar criacao de jar que copia bytes de classes de teste do modulo extension para entradas `.class` no `extension.jar` (incluindo classes internas quando existirem).
+- [x] Garantir que metadata e config extension atuais continuam sendo reutilizados (`distribution.kind: extension`, `artifact.filename: extension.jar`).
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*ExtensionRuntimeFixtureTest' test`
-- [ ] Expected result: fixture extension segue valido e novo jar contem entradas de classe do modulo extra.
+- [x] Command: `./mvnw -Dtest='*ExtensionRuntimeFixtureTest' test`
+- [x] Expected result: fixture extension segue valido e novo jar contem entradas de classe do modulo extra.
 
 #### Acceptance Criteria
 
-- [ ] O `extension.jar` da variante nova e estruturalmente valido e contem classes do modulo extension de teste.
-- [ ] Nenhum teste existente dependente de `install(...)` antigo e quebrado.
+- [x] O `extension.jar` da variante nova e estruturalmente valido e contem classes do modulo extension de teste.
+- [x] Nenhum teste existente dependente de `install(...)` antigo e quebrado.
 
 ### Milestone 3 - Teste E2E empacotado dual-mode para list
 
@@ -113,31 +113,31 @@ Validar no fluxo real `java -jar` que `list` muda apenas pela ativacao do extens
 
 #### Changes
 
-- [ ] Adicionar novo IT Failsafe (ex.: `ExtensionRuntimeBootstrapListPackagedJarIT`) no pacote de bootstrap domain.
-- [ ] No teste, localizar deterministicamente o jar empacotado `target/seed4j-cli-*.jar` (ignorando `.jar.original`).
-- [ ] Preparar `user.home` para cenario `standard` (sem runtime extension configurado).
-- [ ] Preparar `user.home` para cenario `extension` usando fixture com modulo extra no `extension.jar`.
-- [ ] Executar `java -Duser.home=<tmpHome> -jar <cliJar> list` para ambos os cenarios.
-- [ ] Assert escolhido: slug `runtime-extension-list-only` ausente no output `standard` e presente no output `extension`.
+- [x] Adicionar novo IT Failsafe (ex.: `ExtensionRuntimeBootstrapListPackagedJarIT`) no pacote de bootstrap domain.
+- [x] No teste, localizar deterministicamente o jar empacotado `target/seed4j-cli-*.jar` (ignorando `.jar.original`).
+- [x] Preparar `user.home` para cenario `standard` (sem runtime extension configurado).
+- [x] Preparar `user.home` para cenario `extension` usando fixture com modulo extra no `extension.jar`.
+- [x] Executar `java -Duser.home=<tmpHome> -jar <cliJar> list` para ambos os cenarios.
+- [x] Assert escolhido: slug `runtime-extension-list-only` ausente no output `standard` e presente no output `extension`.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='*ExtensionRuntimeBootstrapListPackagedJarIT*' -DfailIfNoTests=false verify`
-- [ ] Expected result: IT verde, com diferenca observavel entre saidas de `list` por modo de runtime.
+- [x] Command: `./mvnw -Dtest='NoSuchTest' -Dsurefire.failIfNoSpecifiedTests=false -Dit.test='*ExtensionRuntimeBootstrapListPackagedJarIT*' -DfailIfNoTests=false verify`
+- [x] Expected result: IT verde, com diferenca observavel entre saidas de `list` por modo de runtime.
 
 #### Acceptance Criteria
 
-- [ ] O comportamento dual-mode e comprovado no contrato empacotado real (`java -jar`).
-- [ ] O modulo extra aparece somente no extension mode.
+- [x] O comportamento dual-mode e comprovado no contrato empacotado real (`java -jar`).
+- [x] O modulo extra aparece somente no extension mode.
 
 ## Progress
 
-- [ ] Milestone 1 started
-- [ ] Milestone 1 completed
-- [ ] Milestone 2 started
-- [ ] Milestone 2 completed
-- [ ] Milestone 3 started
-- [ ] Milestone 3 completed
+- [x] Milestone 1 started
+- [x] Milestone 1 completed
+- [x] Milestone 2 started
+- [x] Milestone 2 completed
+- [x] Milestone 3 started
+- [x] Milestone 3 completed
 
 ## Decisions
 
@@ -151,6 +151,10 @@ Validar no fluxo real `java -jar` que `list` muda apenas pela ativacao do extens
 
 - Decision: usar simulacao minima de modulo extension no proprio teste, sem acoplamento com `seed4j-sample-extension`.
   Rationale: mantem teste deterministico, rapido e autocontido, validando o mesmo mecanismo tecnico.
+  Date/Author: 2026-03-16 / user+codex
+
+- Decision: para o IT empacotado focado, filtrar Failsafe por `-Dit.test` e desabilitar falha de selecao no Surefire.
+  Rationale: o teste depende de jar empacotado e precisa rodar no ciclo `verify`, nao no ciclo `test`.
   Date/Author: 2026-03-16 / user+codex
 
 ## Risks and Mitigations
@@ -172,9 +176,9 @@ Validar no fluxo real `java -jar` que `list` muda apenas pela ativacao do extens
 1. Rodar validacao focada de fixture:
    - `./mvnw -Dtest='*ExtensionRuntimeFixtureTest' test`
 2. Rodar novo IT de dual-mode `list`:
-   - `./mvnw -Dtest='*ExtensionRuntimeBootstrapListPackagedJarIT*' -DfailIfNoTests=false verify`
+   - `./mvnw -Dtest='NoSuchTest' -Dsurefire.failIfNoSpecifiedTests=false -Dit.test='*ExtensionRuntimeBootstrapListPackagedJarIT*' -DfailIfNoTests=false verify`
 3. Rodar IT extension ja existente para regressao rapida:
-   - `./mvnw -Dtest='*ExtensionRuntimeBootstrapPackagedJarIT*' -DfailIfNoTests=false verify`
+   - `./mvnw -Dtest='NoSuchTest' -Dsurefire.failIfNoSpecifiedTests=false -Dit.test='*ExtensionRuntimeBootstrapPackagedJarIT*' -DfailIfNoTests=false verify`
 4. Rodar validacao completa do repositorio:
    - `./mvnw clean verify`
 5. Evidencia observavel esperada:
@@ -190,3 +194,4 @@ Validar no fluxo real `java -jar` que `list` muda apenas pela ativacao do extens
 
 - O teste in-process atual de bootstrap extension nao prova carregamento real de `loader.path`; o contrato real exige validacao empacotada.
 - Um modulo de extensao pode ser validado com implementacao minima se respeitar o padrao de definicao `Configuration -> ApplicationService -> ModuleFactory`.
+- Para exercitar IT empacotado isolado, o filtro deve priorizar Failsafe (`-Dit.test`) para evitar execucao antecipada no Surefire.
