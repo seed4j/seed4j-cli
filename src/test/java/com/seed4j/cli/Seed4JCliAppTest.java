@@ -2,6 +2,8 @@ package com.seed4j.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.cli.Seed4JCliApp.BootstrapEntryPoint;
+import com.seed4j.cli.Seed4JCliApp.ProductionBootstrapEntryPointFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,16 +82,11 @@ class Seed4JCliAppTest {
     }
   }
 
-  private static final class RecordingBootstrapEntryPointFactory implements Seed4JCliApp.ProductionBootstrapEntryPointFactory {
-
-    private final Seed4JCliApp.BootstrapEntryPoint bootstrapEntryPoint;
-
-    private RecordingBootstrapEntryPointFactory(Seed4JCliApp.BootstrapEntryPoint bootstrapEntryPoint) {
-      this.bootstrapEntryPoint = bootstrapEntryPoint;
-    }
-
+  private record RecordingBootstrapEntryPointFactory(
+    BootstrapEntryPoint bootstrapEntryPoint
+  ) implements ProductionBootstrapEntryPointFactory {
     @Override
-    public Seed4JCliApp.BootstrapEntryPoint create() {
+    public BootstrapEntryPoint create() {
       return bootstrapEntryPoint;
     }
   }

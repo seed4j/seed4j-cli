@@ -3,6 +3,8 @@ package com.seed4j.cli;
 import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner;
+import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner.ApplicationBuilder;
+import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner.ApplicationContext;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
@@ -10,7 +12,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
-import org.springframework.boot.Banner;
+import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -114,40 +116,33 @@ public class Seed4JCliApp {
     ConfigurableApplicationContext context
   ) implements LocalSpringCliRunner.ApplicationContext {}
 
-  private static final class SpringApplicationBuilderAdapter implements LocalSpringCliRunner.ApplicationBuilder {
-
-    private final SpringApplicationBuilder springApplicationBuilder;
-
-    private SpringApplicationBuilderAdapter(SpringApplicationBuilder springApplicationBuilder) {
-      this.springApplicationBuilder = springApplicationBuilder;
-    }
-
+  private record SpringApplicationBuilderAdapter(SpringApplicationBuilder springApplicationBuilder) implements ApplicationBuilder {
     @Override
-    public LocalSpringCliRunner.ApplicationBuilder bannerMode(Banner.Mode bannerMode) {
+    public ApplicationBuilder bannerMode(Mode bannerMode) {
       springApplicationBuilder.bannerMode(bannerMode);
       return this;
     }
 
     @Override
-    public LocalSpringCliRunner.ApplicationBuilder web(WebApplicationType webApplicationType) {
+    public ApplicationBuilder web(WebApplicationType webApplicationType) {
       springApplicationBuilder.web(webApplicationType);
       return this;
     }
 
     @Override
-    public LocalSpringCliRunner.ApplicationBuilder lazyInitialization(boolean lazyInitialization) {
+    public ApplicationBuilder lazyInitialization(boolean lazyInitialization) {
       springApplicationBuilder.lazyInitialization(lazyInitialization);
       return this;
     }
 
     @Override
-    public LocalSpringCliRunner.ApplicationBuilder properties(String properties) {
+    public ApplicationBuilder properties(String properties) {
       springApplicationBuilder.properties(properties);
       return this;
     }
 
     @Override
-    public LocalSpringCliRunner.ApplicationContext run(String[] args) {
+    public ApplicationContext run(String[] args) {
       ConfigurableApplicationContext applicationContext = springApplicationBuilder.run(args);
       return new SpringApplicationContextAdapter(applicationContext);
     }
