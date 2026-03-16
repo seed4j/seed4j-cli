@@ -83,14 +83,6 @@ public class Seed4JCliApp {
     }
   }
 
-  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand) {
-    return resolveExecutablePath(codeSourcePath, javaCommand, "", currentWorkingDirectory());
-  }
-
-  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath) {
-    return resolveExecutablePath(codeSourcePath, javaCommand, javaClassPath, currentWorkingDirectory());
-  }
-
   static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {
     if (Files.isRegularFile(codeSourcePath) && codeSourcePath.getFileName().toString().endsWith(".jar")) {
       return codeSourcePath;

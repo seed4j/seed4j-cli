@@ -66,7 +66,7 @@ class Seed4JCliAppTest {
     Path executableJarPath = tempDirectory.resolve("seed4j-cli.jar");
     Files.writeString(executableJarPath, "jar");
 
-    Path executablePath = Seed4JCliApp.resolveExecutablePath(codeSourcePath, executableJarPath + " --version");
+    Path executablePath = Seed4JCliApp.resolveExecutablePath(codeSourcePath, executableJarPath + " --version", "", tempDirectory);
 
     assertThat(executablePath).isEqualTo(executableJarPath);
   }
@@ -82,7 +82,8 @@ class Seed4JCliAppTest {
     Path executablePath = Seed4JCliApp.resolveExecutablePath(
       codeSourcePath,
       "org.springframework.boot.loader.launch.PropertiesLauncher --version",
-      executableJarPath.toString()
+      executableJarPath.toString(),
+      tempDirectory
     );
 
     assertThat(executablePath).isEqualTo(executableJarPath);
