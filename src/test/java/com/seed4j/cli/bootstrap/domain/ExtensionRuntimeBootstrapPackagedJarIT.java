@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class ExtensionRuntimeBootstrapIT {
+class ExtensionRuntimeBootstrapPackagedJarIT {
 
   @Test
   void shouldRunThePackagedJarInExtensionMode() throws IOException, InterruptedException {

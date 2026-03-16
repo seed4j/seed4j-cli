@@ -20,7 +20,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
 @UnitTest
-class ExtensionRuntimeBootstrapIntegrationTest {
+class ExtensionRuntimeBootstrapInProcessTest {
 
   private static final String RUNTIME_MODE_PROPERTY = "seed4j.cli.runtime.mode";
   private static final String DISTRIBUTION_ID_PROPERTY = "seed4j.cli.runtime.distribution.id";
@@ -69,7 +69,7 @@ class ExtensionRuntimeBootstrapIntegrationTest {
   private static LocalSpringCliRunner localCliRunner(Path userHome) {
     return new LocalSpringCliRunner(
       () -> new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(Seed4JCliApp.class)),
-      ExtensionRuntimeBootstrapIntegrationTest::resolveExitCode,
+      ExtensionRuntimeBootstrapInProcessTest::resolveExitCode,
       () -> userHome
     );
   }
