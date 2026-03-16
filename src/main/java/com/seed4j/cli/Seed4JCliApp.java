@@ -72,28 +72,33 @@ public class Seed4JCliApp {
   private static Path executablePath() {
     try {
       Path codeSourcePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-      return resolveExecutablePath(codeSourcePath, System.getProperty("sun.java.command", ""), System.getProperty("java.class.path", ""));
+      return resolveExecutablePath(
+        codeSourcePath,
+        System.getProperty("sun.java.command", ""),
+        System.getProperty("java.class.path", ""),
+        currentWorkingDirectory()
+      );
     } catch (URISyntaxException e) {
       throw new InvalidRuntimeConfigurationException("Could not resolve executable path.");
     }
   }
 
   static Path resolveExecutablePath(Path codeSourcePath, String javaCommand) {
+    return resolveExecutablePath(codeSourcePath, javaCommand, "", currentWorkingDirectory());
+  }
+
+  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath) {
+    return resolveExecutablePath(codeSourcePath, javaCommand, javaClassPath, currentWorkingDirectory());
+  }
+
+  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {
     if (Files.isRegularFile(codeSourcePath) && codeSourcePath.getFileName().toString().endsWith(".jar")) {
       return codeSourcePath;
     }
 
-    return Optional.of(javaCommand.trim())
-      .filter(command -> !command.isEmpty())
-      .map(command -> command.split("\\s+", 2)[0])
-      .flatMap(Seed4JCliApp::regularJarPath)
-      .orElse(codeSourcePath);
-  }
-
-  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath) {
-    Path executablePathFromCommand = resolveExecutablePath(codeSourcePath, javaCommand);
-    if (!executablePathFromCommand.equals(codeSourcePath)) {
-      return executablePathFromCommand;
+    Optional<Path> executablePathFromCommand = executablePathFromJavaCommand(javaCommand, workingDirectory);
+    if (executablePathFromCommand.isPresent()) {
+      return executablePathFromCommand.orElseThrow();
     }
 
     String pathSeparator = System.getProperty("path.separator");
@@ -108,11 +113,26 @@ public class Seed4JCliApp {
       .orElse(codeSourcePath);
   }
 
+  private static Optional<Path> executablePathFromJavaCommand(String javaCommand, Path workingDirectory) {
+    return Optional.ofNullable(javaCommand)
+      .map(String::trim)
+      .filter(command -> !command.isEmpty())
+      .map(command -> command.split("\\s+", 2)[0])
+      .map(Path::of)
+      .map(path -> path.isAbsolute() ? path : workingDirectory.resolve(path).normalize())
+      .map(Path::toString)
+      .flatMap(Seed4JCliApp::regularJarPath);
+  }
+
   private static Optional<Path> regularJarPath(String candidatePath) {
     return Optional.ofNullable(candidatePath)
       .filter(path -> path.endsWith(".jar"))
       .map(Path::of)
       .filter(Files::isRegularFile);
+  }
+
+  private static Path currentWorkingDirectory() {
+    return Path.of(System.getProperty("user.dir"));
   }
 
   private static String currentCliVersion() {
