@@ -19,18 +19,24 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
 
   @Test
-  void shouldListTheExtensionOnlySlugOnlyInExtensionMode() throws IOException, InterruptedException {
+  void shouldNotListTheExtensionOnlySlugInStandardMode() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-");
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-");
-    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
 
     PackagedRunResult standardResult = runList(packagedCliJar, standardUserHome);
-    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
 
     assertThat(standardResult.finished()).isTrue();
     assertThat(standardResult.exitCode()).isZero();
     assertThat(standardResult.output()).doesNotContain(EXTENSION_ONLY_SLUG);
+  }
+
+  @Test
+  void shouldListTheExtensionOnlySlugInExtensionMode() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-");
+    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
+
+    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
 
     assertThat(extensionResult.finished()).isTrue();
     assertThat(extensionResult.exitCode()).isZero();
