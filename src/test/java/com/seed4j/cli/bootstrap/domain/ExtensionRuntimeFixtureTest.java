@@ -19,34 +19,35 @@ import org.junit.jupiter.api.Test;
 class ExtensionRuntimeFixtureTest {
 
   @Test
-  void shouldInstallAValidExtensionRuntimeFixture() throws IOException {
+  void shouldInstallAValidExtensionRuntimeFixtureArtifacts() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
+
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.install(userHome);
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(fixturePaths.extensionJarPath(), fixturePaths.metadataPath())
-    );
 
     assertThat(fixturePaths.configFilePath()).exists();
     assertThat(fixturePaths.metadataPath()).exists();
     assertThat(fixturePaths.extensionJarPath()).exists();
-
-    try (JarFile ignored = new JarFile(fixturePaths.extensionJarPath().toFile())) {
-      RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, "0.0.1-SNAPSHOT");
-      assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-      assertThat(runtimeSelection.distributionId()).contains("company-extension");
-      assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
-    }
+    assertThat(jarEntries(fixturePaths.extensionJarPath())).contains("META-INF/MANIFEST.MF");
   }
 
   @Test
-  void shouldInstallAnExtensionRuntimeFixtureWithListExtensionModule() throws IOException {
+  void shouldResolveRuntimeSelectionFromAValidExtensionRuntimeFixture() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
+    ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.install(userHome);
+    RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, "0.0.1-SNAPSHOT");
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.distributionId()).contains("company-extension");
+    assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+  }
+
+  @Test
+  void shouldInstallAnExtensionRuntimeFixtureWithListExtensionModuleArtifacts() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(fixturePaths.extensionJarPath(), fixturePaths.metadataPath())
-    );
 
     assertThat(fixturePaths.configFilePath()).exists();
     assertThat(fixturePaths.metadataPath()).exists();
@@ -57,11 +58,26 @@ class ExtensionRuntimeFixtureTest {
       classEntryName(RuntimeExtensionListOnlyApplicationService.class),
       classEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
     );
+  }
+
+  @Test
+  void shouldResolveRuntimeSelectionFromAnExtensionRuntimeFixtureWithListExtensionModule() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
+    RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, "0.0.1-SNAPSHOT");
+
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.distributionId()).contains("company-extension");
     assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+  }
+
+  private static RuntimeConfiguration extensionRuntimeConfiguration(ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths) {
+    return new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(fixturePaths.extensionJarPath(), fixturePaths.metadataPath())
+    );
   }
 
   private static List<String> jarEntries(Path extensionJarPath) throws IOException {
