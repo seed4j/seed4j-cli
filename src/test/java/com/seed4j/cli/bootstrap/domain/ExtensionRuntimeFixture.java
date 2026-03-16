@@ -1,19 +1,24 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
@@ -27,6 +32,7 @@ final class ExtensionRuntimeFixture {
   private static final String CONFIG_FILE_LOCATION = ".config/seed4j-cli.yml";
   private static final String RUNTIME_DIRECTORY_LOCATION = ".config/seed4j-cli/runtime/active";
   private static final String METADATA_RESOURCE_LOCATION = "runtime/extension/metadata.yml";
+  private static final String BASE_JAR_APPLICATION_CONFIG_ENTRY = "config/application.yml";
   private static final List<Class<?>> LIST_EXTENSION_MODULE_CLASSES = List.of(
     RuntimeExtensionListOnlyModuleSlug.class,
     RuntimeExtensionListOnlyModuleFactory.class,
@@ -68,15 +74,79 @@ final class ExtensionRuntimeFixture {
   }
 
   static Path createListExtensionModuleJar(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    Path seed4jDependencyJarPath = resolveSeed4jDependencyJarPath();
+    Manifest manifest = manifestFrom(seed4jDependencyJarPath);
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      copyJarEntries(seed4jDependencyJarPath, jarOutputStream, addedEntries);
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, moduleClass, addedEntries);
       }
     }
     return jarPath;
+  }
+
+  private static Path resolveSeed4jDependencyJarPath() {
+    CodeSource seed4jCodeSource = Seed4JApp.class.getProtectionDomain().getCodeSource();
+    if (seed4jCodeSource == null || seed4jCodeSource.getLocation() == null) {
+      throw new IllegalStateException("Could not resolve seed4j dependency JAR location from com.seed4j.Seed4JApp code source.");
+    }
+
+    try {
+      Path codeSourcePath = Path.of(seed4jCodeSource.getLocation().toURI());
+      if (!Files.isRegularFile(codeSourcePath) || !codeSourcePath.getFileName().toString().endsWith(".jar")) {
+        throw new IllegalStateException("Resolved seed4j dependency location is not a JAR file: " + codeSourcePath);
+      }
+
+      return codeSourcePath;
+    } catch (URISyntaxException exception) {
+      throw new IllegalStateException("Could not resolve seed4j dependency JAR path from code source URI.", exception);
+    }
+  }
+
+  private static Manifest manifestFrom(Path sourceJarPath) throws IOException {
+    try (JarFile sourceJar = new JarFile(sourceJarPath.toFile())) {
+      Manifest sourceManifest = sourceJar.getManifest();
+      if (sourceManifest != null) {
+        return sourceManifest;
+      }
+    }
+
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    return manifest;
+  }
+
+  private static void copyJarEntries(Path sourceJarPath, JarOutputStream targetJarOutputStream, Set<String> addedEntries)
+    throws IOException {
+    try (JarFile sourceJar = new JarFile(sourceJarPath.toFile())) {
+      Enumeration<JarEntry> sourceEntries = sourceJar.entries();
+      while (sourceEntries.hasMoreElements()) {
+        JarEntry sourceEntry = sourceEntries.nextElement();
+        copyJarEntry(sourceJar, sourceEntry, targetJarOutputStream, addedEntries);
+      }
+    }
+  }
+
+  private static void copyJarEntry(JarFile sourceJar, JarEntry sourceEntry, JarOutputStream targetJarOutputStream, Set<String> addedEntries)
+    throws IOException {
+    String sourceEntryName = sourceEntry.getName();
+    if (BASE_JAR_APPLICATION_CONFIG_ENTRY.equals(sourceEntryName)) {
+      return;
+    }
+
+    if (!addedEntries.add(sourceEntryName)) {
+      return;
+    }
+
+    targetJarOutputStream.putNextEntry(new JarEntry(sourceEntryName));
+    if (!sourceEntry.isDirectory()) {
+      try (InputStream sourceEntryInputStream = sourceJar.getInputStream(sourceEntry)) {
+        sourceEntryInputStream.transferTo(targetJarOutputStream);
+      }
+    }
+    targetJarOutputStream.closeEntry();
   }
 
   private static void addClassAndNestedClasses(JarOutputStream jarOutputStream, Class<?> classToAdd, Set<String> addedEntries)

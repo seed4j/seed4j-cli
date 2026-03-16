@@ -2,6 +2,7 @@ package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.Seed4JApp;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
@@ -49,15 +50,19 @@ class ExtensionRuntimeFixtureTest {
 
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
 
+    List<String> extensionJarEntries = jarEntries(fixturePaths.extensionJarPath());
     assertThat(fixturePaths.configFilePath()).exists();
     assertThat(fixturePaths.metadataPath()).exists();
     assertThat(fixturePaths.extensionJarPath()).exists();
-    assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(
+    assertThat(extensionJarEntries).contains(
+      classEntryName(Seed4JApp.class),
       classEntryName(RuntimeExtensionListOnlyModuleSlug.class),
       classEntryName(RuntimeExtensionListOnlyModuleFactory.class),
       classEntryName(RuntimeExtensionListOnlyApplicationService.class),
       classEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
     );
+    assertThat(extensionJarEntries).doesNotContain("config/application.yml");
+    assertThat(extensionJarEntries).doesNotHaveDuplicates();
   }
 
   @Test

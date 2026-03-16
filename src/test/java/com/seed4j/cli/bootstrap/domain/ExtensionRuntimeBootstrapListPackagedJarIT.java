@@ -8,8 +8,13 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +22,7 @@ import org.junit.jupiter.api.Test;
 class ExtensionRuntimeBootstrapListPackagedJarIT {
 
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
+  private static final Pattern MODULE_LINE_PATTERN = Pattern.compile("^\\s{2}(\\S+)\\s{2,}.+$");
 
   @Test
   void shouldNotListTheExtensionOnlySlugInStandardMode() throws IOException, InterruptedException {
@@ -25,9 +31,11 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
 
     PackagedRunResult standardResult = runList(packagedCliJar, standardUserHome);
 
+    List<String> standardSlugs = moduleSlugs(standardResult.output());
     assertThat(standardResult.finished()).isTrue();
     assertThat(standardResult.exitCode()).isZero();
-    assertThat(standardResult.output()).doesNotContain(EXTENSION_ONLY_SLUG);
+    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG);
+    assertThat(standardSlugs).doesNotHaveDuplicates();
   }
 
   @Test
@@ -38,9 +46,37 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
 
     PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
 
+    List<String> extensionSlugs = moduleSlugs(extensionResult.output());
     assertThat(extensionResult.finished()).isTrue();
     assertThat(extensionResult.exitCode()).isZero();
-    assertThat(extensionResult.output()).contains(EXTENSION_ONLY_SLUG);
+    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG);
+    assertThat(extensionSlugs).doesNotHaveDuplicates();
+  }
+
+  @Test
+  void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlug() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-catalog-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-catalog-");
+    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
+
+    PackagedRunResult standardResult = runList(packagedCliJar, standardUserHome);
+    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
+
+    List<String> standardSlugs = moduleSlugs(standardResult.output());
+    List<String> extensionSlugs = moduleSlugs(extensionResult.output());
+    Set<String> addedSlugs = setDifference(Set.copyOf(extensionSlugs), Set.copyOf(standardSlugs));
+    Set<String> removedSlugs = setDifference(Set.copyOf(standardSlugs), Set.copyOf(extensionSlugs));
+    assertThat(standardResult.finished()).isTrue();
+    assertThat(standardResult.exitCode()).isZero();
+    assertThat(extensionResult.finished()).isTrue();
+    assertThat(extensionResult.exitCode()).isZero();
+    assertThat(standardSlugs).doesNotHaveDuplicates();
+    assertThat(extensionSlugs).doesNotHaveDuplicates();
+    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG);
+    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG);
+    assertThat(addedSlugs).containsExactly(EXTENSION_ONLY_SLUG);
+    assertThat(removedSlugs).isEmpty();
   }
 
   private static PackagedRunResult runList(Path packagedCliJar, Path userHome) throws IOException, InterruptedException {
@@ -92,6 +128,25 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
     try (InputStream inputStream = processOutput) {
       return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
     }
+  }
+
+  private static List<String> moduleSlugs(String output) {
+    return output.lines().map(ExtensionRuntimeBootstrapListPackagedJarIT::moduleSlugFromLine).flatMap(Optional::stream).toList();
+  }
+
+  private static Optional<String> moduleSlugFromLine(String line) {
+    Matcher moduleLineMatcher = MODULE_LINE_PATTERN.matcher(line);
+    if (!moduleLineMatcher.matches()) {
+      return Optional.empty();
+    }
+
+    return Optional.of(moduleLineMatcher.group(1));
+  }
+
+  private static Set<String> setDifference(Set<String> sourceSlugs, Set<String> slugsToExclude) {
+    Set<String> difference = new HashSet<>(sourceSlugs);
+    difference.removeAll(slugsToExclude);
+    return difference;
   }
 
   private record PackagedRunResult(boolean finished, int exitCode, String output) {}
