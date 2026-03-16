@@ -65,21 +65,21 @@ Trocar o mecanismo de geração do jar de extensão no fixture para copiar o jar
 
 #### Changes
 
-- [ ] Editar `src/test/java/com/seed4j/cli/bootstrap/domain/ExtensionRuntimeFixture.java` para resolver o path do `seed4j.jar` de dependência via `com.seed4j.Seed4JApp` (`CodeSource`).
-- [ ] Copiar entradas do `seed4j.jar` para o `extension.jar` novo (preservando jar válido) e depois adicionar classes de `LIST_EXTENSION_MODULE_CLASSES`.
-- [ ] Reusar `Set<String>` para impedir escrita duplicada de entradas no jar final.
-- [ ] Manter `install(Path userHome)` com comportamento atual de jar mínimo para não alterar cenários não relacionados.
+- [x] Editar `src/test/java/com/seed4j/cli/bootstrap/domain/ExtensionRuntimeFixture.java` para resolver o path do `seed4j.jar` de dependência via `com.seed4j.Seed4JApp` (`CodeSource`).
+- [x] Copiar entradas do `seed4j.jar` para o `extension.jar` novo (preservando jar válido) e depois adicionar classes de `LIST_EXTENSION_MODULE_CLASSES`.
+- [x] Reusar `Set<String>` para impedir escrita duplicada de entradas no jar final.
+- [x] Manter `install(Path userHome)` com comportamento atual de jar mínimo para não alterar cenários não relacionados.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest=ExtensionRuntimeFixtureTest test`
-- [ ] Expected result: testes de fixture passam, incluindo os cenários antigos e os novos de conteúdo do jar.
+- [x] Command: `./mvnw -Dtest=ExtensionRuntimeFixtureTest test`
+- [x] Expected result: testes de fixture passam, incluindo os cenários antigos e os novos de conteúdo do jar.
 
 #### Acceptance Criteria
 
-- [ ] `installWithListExtensionModule(...)` gera um `extension.jar` que contém entradas do `seed4j.jar` base.
-- [ ] O mesmo `extension.jar` contém classes do módulo `runtime-extension-list-only`.
-- [ ] O jar final não contém entradas de nome duplicado.
+- [x] `installWithListExtensionModule(...)` gera um `extension.jar` que contém entradas do `seed4j.jar` base.
+- [x] O mesmo `extension.jar` contém classes do módulo `runtime-extension-list-only`.
+- [x] O jar final não contém entradas de nome duplicado.
 
 ### Milestone 2 - Validar catálogo standard vs extension no teste empacotado
 
@@ -89,24 +89,24 @@ Fortalecer o teste de bootstrap empacotado para validar diferença de catálogo 
 
 #### Changes
 
-- [ ] Editar `src/test/java/com/seed4j/cli/bootstrap/domain/ExtensionRuntimeBootstrapListPackagedJarIT.java` para incluir teste de comparação de conjuntos de slugs.
-- [ ] Implementar helper local para extrair slugs de `output` de `seed4j list`.
-- [ ] Adicionar assertions de:
-- [ ] ausência de duplicatas em standard e extension.
-- [ ] `extension - standard == {runtime-extension-list-only}`.
-- [ ] `standard - extension == {}`.
+- [x] Editar `src/test/java/com/seed4j/cli/bootstrap/domain/ExtensionRuntimeBootstrapListPackagedJarIT.java` para incluir teste de comparação de conjuntos de slugs.
+- [x] Implementar helper local para extrair slugs de `output` de `seed4j list`.
+- [x] Adicionar assertions de:
+- [x] ausência de duplicatas em standard e extension.
+- [x] `extension - standard == {runtime-extension-list-only}`.
+- [x] `standard - extension == {}`.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dit.test=ExtensionRuntimeBootstrapListPackagedJarIT failsafe:integration-test failsafe:verify`
-- [ ] Expected result: teste empacotado passa com diferença de catálogo estritamente controlada.
+- [x] Command: `./mvnw -Dit.test=ExtensionRuntimeBootstrapListPackagedJarIT failsafe:integration-test failsafe:verify`
+- [x] Expected result: teste empacotado passa com diferença de catálogo estritamente controlada.
 
 #### Acceptance Criteria
 
-- [ ] Em modo standard, o slug `runtime-extension-list-only` não aparece.
-- [ ] Em modo extension, o slug `runtime-extension-list-only` aparece.
-- [ ] Somente esse slug é adicionado ao comparar os dois catálogos.
-- [ ] Nenhum slug duplicado aparece em qualquer modo.
+- [x] Em modo standard, o slug `runtime-extension-list-only` não aparece.
+- [x] Em modo extension, o slug `runtime-extension-list-only` aparece.
+- [x] Somente esse slug é adicionado ao comparar os dois catálogos.
+- [x] Nenhum slug duplicado aparece em qualquer modo.
 
 ### Milestone 3 - Consolidação de validação e estabilidade
 
@@ -116,27 +116,27 @@ Executar validação completa do repositório para confirmar que a mudança não
 
 #### Changes
 
-- [ ] Rodar validações focadas antes da suíte completa.
-- [ ] Rodar `clean verify` e registrar resultado no plano.
+- [x] Rodar validações focadas antes da suíte completa.
+- [x] Rodar `clean verify` e registrar resultado no plano.
 
 #### Validation
 
-- [ ] Command: `./mvnw clean verify`
-- [ ] Expected result: build verde com surefire/failsafe/checkstyle/jacoco.
+- [x] Command: `./mvnw clean verify`
+- [x] Expected result: build verde com surefire/failsafe/checkstyle/jacoco.
 
 #### Acceptance Criteria
 
-- [ ] Nenhuma regressão fora dos testes alterados.
-- [ ] Evidência observável de que o comportamento final está conforme objetivo.
+- [x] Nenhuma regressão fora dos testes alterados.
+- [x] Evidência observável de que o comportamento final está conforme objetivo.
 
 ## Progress
 
-- [ ] Milestone 1 started
-- [ ] Milestone 1 completed
-- [ ] Milestone 2 started
-- [ ] Milestone 2 completed
-- [ ] Milestone 3 started
-- [ ] Milestone 3 completed
+- [x] Milestone 1 started
+- [x] Milestone 1 completed
+- [x] Milestone 2 started
+- [x] Milestone 2 completed
+- [x] Milestone 3 started
+- [x] Milestone 3 completed
 
 ## Decisions
 
@@ -146,6 +146,10 @@ Executar validação completa do repositório para confirmar que a mudança não
 
 - Decision: resolver o `seed4j.jar` de dependência via `CodeSource` de `com.seed4j.Seed4JApp`, e não por path fixo de `~/.m2`.
   Rationale: reduz acoplamento ao layout local de repositório Maven e usa classpath real do teste.
+  Date/Author: 2026-03-16 / Codex
+
+- Decision: ao copiar entradas do `seed4j.jar`, ignorar `config/application.yml` no `extension.jar` do fixture.
+  Rationale: essa configuração do artefato base redefine `seed4j.hidden-resources.slugs` e escondia módulos no modo extension; sem essa entrada, o catálogo extension volta a ser aditivo em relação ao standard.
   Date/Author: 2026-03-16 / Codex
 
 ## Risks and Mitigations
@@ -176,4 +180,5 @@ Como a mudança é em testes/fixture, rollout é via merge normal de branch. Se 
 
 ## Lessons Learned
 
-- A preencher durante execução.
+- Rodar `failsafe:integration-test` isolado não recompila/empacota artefatos por si só; para mudanças em ITs empacotados, garantir compilação e existência do `target/seed4j-cli-*.jar` antes da execução focada.
+- Copiar um jar de dependência para `loader.path` pode impactar precedência de recursos de configuração além de classes; fixtures de runtime extension precisam controlar entradas de configuração para evitar alterações indiretas no catálogo.
