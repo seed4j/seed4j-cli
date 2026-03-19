@@ -4,16 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
 
-record RuntimeMetadata(
-  String distributionId,
-  String distributionVersion,
-  String distributionVendor,
-  String distributionKind,
-  String artifactFilename,
-  String compatibilityCli
-) {
+record RuntimeMetadata(String distributionId, String distributionVersion, Optional<String> compatibilityMinCliVersion) {
   static RuntimeMetadata read(Path metadataPath) {
     try {
       Object loadedMetadata = new Yaml().load(Files.newInputStream(metadataPath));
@@ -21,17 +15,13 @@ record RuntimeMetadata(
         throw invalidMetadata(metadataPath);
       }
 
-      Map<?, ?> distribution = mapValue(metadata, "distribution", "distribution.kind", metadataPath);
-      Map<?, ?> artifact = mapValue(metadata, "artifact", "artifact.filename", metadataPath);
-      Map<?, ?> compatibility = mapValue(metadata, "compatibility", "compatibility.cli", metadataPath);
+      Map<?, ?> distribution = mapValue(metadata, "distribution", "distribution", metadataPath);
+      Optional<Map<?, ?>> compatibility = optionalMapValue(metadata, "compatibility", "compatibility", metadataPath);
 
       return new RuntimeMetadata(
         stringValue(distribution, "id", "distribution.id", metadataPath),
         stringValue(distribution, "version", "distribution.version", metadataPath),
-        stringValue(distribution, "vendor", "distribution.vendor", metadataPath),
-        stringValue(distribution, "kind", "distribution.kind", metadataPath),
-        stringValue(artifact, "filename", "artifact.filename", metadataPath),
-        stringValue(compatibility, "cli", "compatibility.cli", metadataPath)
+        compatibility.flatMap(values -> optionalStringValue(values, "min-cli-version", "compatibility.min-cli-version", metadataPath))
       );
     } catch (IOException | RuntimeException e) {
       if (e instanceof InvalidRuntimeConfigurationException runtimeConfigurationException) {
@@ -51,6 +41,19 @@ record RuntimeMetadata(
     return mapValue;
   }
 
+  private static Optional<Map<?, ?>> optionalMapValue(Map<?, ?> source, String key, String fieldName, Path metadataPath) {
+    if (!source.containsKey(key)) {
+      return Optional.empty();
+    }
+
+    Object value = source.get(key);
+    if (!(value instanceof Map<?, ?> mapValue)) {
+      throw invalidMetadata(fieldName, metadataPath);
+    }
+
+    return Optional.of(mapValue);
+  }
+
   private static String stringValue(Map<?, ?> source, String key, String fieldName, Path metadataPath) {
     Object value = source.get(key);
     if (!(value instanceof String stringValue) || stringValue.isBlank()) {
@@ -58,6 +61,19 @@ record RuntimeMetadata(
     }
 
     return stringValue;
+  }
+
+  private static Optional<String> optionalStringValue(Map<?, ?> source, String key, String fieldName, Path metadataPath) {
+    if (!source.containsKey(key)) {
+      return Optional.empty();
+    }
+
+    Object value = source.get(key);
+    if (!(value instanceof String stringValue) || stringValue.isBlank()) {
+      throw invalidMetadata(fieldName, metadataPath);
+    }
+
+    return Optional.of(stringValue);
   }
 
   private static InvalidRuntimeConfigurationException invalidMetadata(Path metadataPath) {

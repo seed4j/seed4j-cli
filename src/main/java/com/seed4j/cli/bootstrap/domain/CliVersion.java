@@ -5,12 +5,14 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 
 record CliVersion(String value, String normalizedValue, List<Integer> segments) implements Comparable<CliVersion> {
+  private static final String COMPATIBILITY_FIELD_NAME = "compatibility.min-cli-version";
+
   static CliVersion current(String value) {
     return from(value, "Invalid current CLI version: " + value);
   }
 
   static CliVersion minimumCompatibility(String value) {
-    return from(value, "Invalid compatibility.cli: " + value);
+    return from(value, "Invalid " + COMPATIBILITY_FIELD_NAME + ": " + value);
   }
 
   void validateCompatibilityWith(CliVersion minimumCompatibleVersion) {
@@ -19,7 +21,9 @@ record CliVersion(String value, String normalizedValue, List<Integer> segments) 
     }
 
     throw new InvalidRuntimeConfigurationException(
-      "Invalid compatibility.cli, expected minimum "
+      "Invalid "
+        + COMPATIBILITY_FIELD_NAME
+        + ", expected minimum "
         + minimumCompatibleVersion
         + " to be compatible with current CLI version "
         + this

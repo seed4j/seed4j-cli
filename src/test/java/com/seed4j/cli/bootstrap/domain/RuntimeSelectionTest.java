@@ -14,27 +14,30 @@ class RuntimeSelectionTest {
 
   private static final String CURRENT_CLI_VERSION = "0.0.1-SNAPSHOT";
 
-  private static final String VALID_EXTENSION_METADATA = """
+  private static final String MINIMAL_EXTENSION_METADATA = """
     distribution:
       id: company-extension
       version: 1.0.0
-      kind: extension
-      vendor: acme
-    artifact:
-      filename: company-extension.jar
-    compatibility:
-      cli: 0.0.1
     """;
-  private static final String VALID_DEFAULT_EXTENSION_METADATA = """
+
+  private static final String METADATA_WITH_MINIMUM_COMPATIBILITY = """
     distribution:
       id: company-extension
       version: 1.0.0
-      kind: extension
+    compatibility:
+      min-cli-version: 0.0.1
+    """;
+
+  private static final String METADATA_WITH_LEGACY_EXTRAS = """
+    distribution:
+      id: company-extension
+      version: 1.0.0
+      kind: standard
       vendor: acme
     artifact:
-      filename: extension.jar
+      filename: different-name.jar
     compatibility:
-      cli: 0.0.1
+      cli: 999.0.0
     """;
 
   @Test
@@ -61,7 +64,7 @@ class RuntimeSelectionTest {
   void shouldUseConfiguredJarPathWhenModeIsExtension() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
@@ -80,7 +83,7 @@ class RuntimeSelectionTest {
     Path metadataPath = tempDirectory.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Files.createDirectories(defaultJarPath.getParent());
     Files.createFile(defaultJarPath);
-    Files.writeString(metadataPath, VALID_DEFAULT_EXTENSION_METADATA);
+    Files.writeString(metadataPath, MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       RuntimeExtensionConfiguration.withDefaultPaths(tempDirectory)
@@ -112,7 +115,7 @@ class RuntimeSelectionTest {
   void shouldFailWhenJarIsMissingInExtensionMode() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path missingJarPath = tempDirectory.resolve("missing-extension.jar");
-    Path metadataPath = Files.createFile(tempDirectory.resolve("extension-metadata.yml"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(missingJarPath, metadataPath)
@@ -125,7 +128,39 @@ class RuntimeSelectionTest {
   }
 
   @Test
-  void shouldFailWhenDistributionKindIsNotExtension() throws IOException {
+  void shouldIgnoreLegacyFieldsWhenSelectingExtensionRuntime() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), METADATA_WITH_LEGACY_EXTRAS);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(configuredJarPath);
+  }
+
+  @Test
+  void shouldAcceptWhenCompatibilitySectionIsMissing() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(existingJarPath);
+  }
+
+  @Test
+  void shouldAcceptWhenCompatibilitySectionIsEmpty() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
@@ -134,12 +169,7 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: standard
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
-      compatibility:
-        cli: 0.0.1
+      compatibility: {}
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -147,14 +177,13 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution.kind")
-      .hasMessageContaining("extension");
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
   }
 
   @Test
-  void shouldFailWhenArtifactFilenameDoesNotMatchSelectedJar() throws IOException {
+  void shouldIgnoreLegacyCompatibilityCliFieldWhenMinCliVersionIsMissing() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
@@ -163,66 +192,6 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: other-extension.jar
-      compatibility:
-        cli: 0.0.1
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("artifact.filename")
-      .hasMessageContaining("other-extension.jar")
-      .hasMessageContaining("company-extension.jar");
-  }
-
-  @Test
-  void shouldFailWhenCliCompatibilityIsMissing() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.cli");
-  }
-
-  @Test
-  void shouldFailWhenCliCompatibilityIsIncompatible() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
       compatibility:
         cli: 999.0.0
       """
@@ -232,11 +201,9 @@ class RuntimeSelectionTest {
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
     );
 
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.cli")
-      .hasMessageContaining("999.0.0")
-      .hasMessageContaining(CURRENT_CLI_VERSION);
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
   }
 
   @Test
@@ -244,7 +211,7 @@ class RuntimeSelectionTest {
     String currentCliVersion = "0.0.2-SNAPSHOT";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), METADATA_WITH_MINIMUM_COMPATIBILITY);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
@@ -267,12 +234,8 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
       compatibility:
-        cli: 1.2.0
+        min-cli-version: 1.2.0
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -297,12 +260,8 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
       compatibility:
-        cli: 0.0.2
+        min-cli-version: 0.0.2
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -312,13 +271,13 @@ class RuntimeSelectionTest {
 
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.cli")
+      .hasMessageContaining("compatibility.min-cli-version")
       .hasMessageContaining("0.0.2")
       .hasMessageContaining(currentCliVersion);
   }
 
   @Test
-  void shouldFailWhenCompatibilityCliVersionIsMalformed() throws IOException {
+  void shouldFailWhenCompatibilityMinCliVersionIsMalformed() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
@@ -327,12 +286,8 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
       compatibility:
-        cli: not-a-version
+        min-cli-version: not-a-version
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -342,16 +297,16 @@ class RuntimeSelectionTest {
 
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.cli")
+      .hasMessageContaining("compatibility.min-cli-version")
       .hasMessageContaining("not-a-version");
   }
 
   @Test
-  void shouldFailWhenCurrentCliVersionIsMalformed() throws IOException {
+  void shouldFailWhenCurrentCliVersionIsMalformedAndMinimumCompatibilityIsPresent() throws IOException {
     String currentCliVersion = "not-a-version";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), METADATA_WITH_MINIMUM_COMPATIBILITY);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
@@ -364,6 +319,23 @@ class RuntimeSelectionTest {
   }
 
   @Test
+  void shouldAcceptWhenCurrentCliVersionIsMalformedAndMinimumCompatibilityIsMissing() throws IOException {
+    String currentCliVersion = "not-a-version";
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(existingJarPath);
+  }
+
+  @Test
   void shouldFailWhenDistributionIdIsMissing() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
@@ -372,12 +344,6 @@ class RuntimeSelectionTest {
       """
       distribution:
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
-      compatibility:
-        cli: 0.0.1
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -400,12 +366,6 @@ class RuntimeSelectionTest {
       distribution:
         id: "   "
         version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
-      compatibility:
-        cli: 0.0.1
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -427,12 +387,6 @@ class RuntimeSelectionTest {
       """
       distribution:
         id: company-extension
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: company-extension.jar
-      compatibility:
-        cli: 0.0.1
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -446,7 +400,7 @@ class RuntimeSelectionTest {
   }
 
   @Test
-  void shouldFailWhenDistributionVendorIsMissing() throws IOException {
+  void shouldFailWhenCompatibilitySectionIsNotAMap() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
@@ -455,11 +409,7 @@ class RuntimeSelectionTest {
       distribution:
         id: company-extension
         version: 1.0.0
-        kind: extension
-      artifact:
-        filename: company-extension.jar
-      compatibility:
-        cli: 0.0.1
+      compatibility: invalid
       """
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
@@ -469,7 +419,7 @@ class RuntimeSelectionTest {
 
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution.vendor");
+      .hasMessageContaining("compatibility");
   }
 
   @Test
@@ -508,7 +458,7 @@ class RuntimeSelectionTest {
   void shouldExposeDistributionIdWhenExtensionRuntimeIsSelected() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
@@ -523,7 +473,7 @@ class RuntimeSelectionTest {
   void shouldExposeDistributionVersionWhenExtensionRuntimeIsSelected() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), VALID_EXTENSION_METADATA);
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(configuredJarPath, metadataPath)
