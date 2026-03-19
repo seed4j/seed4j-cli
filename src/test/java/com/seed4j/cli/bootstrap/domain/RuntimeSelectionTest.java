@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @UnitTest
 class RuntimeSelectionTest {
@@ -276,8 +278,9 @@ class RuntimeSelectionTest {
       .hasMessageContaining(currentCliVersion);
   }
 
-  @Test
-  void shouldFailWhenCompatibilityMinCliVersionIsMalformed() throws IOException {
+  @ParameterizedTest
+  @ValueSource(strings = { "1..2", "1.2.x", "not-a-version", "v1.2.3", "1,2,3" })
+  void shouldFailWhenCompatibilityMinCliVersionHasInvalidFormat(String invalidMinCliVersion) throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
@@ -287,8 +290,8 @@ class RuntimeSelectionTest {
         id: company-extension
         version: 1.0.0
       compatibility:
-        min-cli-version: not-a-version
-      """
+        min-cli-version: %s
+      """.formatted(invalidMinCliVersion)
     );
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -298,7 +301,7 @@ class RuntimeSelectionTest {
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("compatibility.min-cli-version")
-      .hasMessageContaining("not-a-version");
+      .hasMessageContaining(invalidMinCliVersion);
   }
 
   @Test
