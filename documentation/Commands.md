@@ -18,6 +18,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Extension Runtime Metadata](#extension-runtime-metadata)
   - [Extension Mode Behavior](#extension-mode-behavior)
   - [Runtime Validation and Failure Cases](#runtime-validation-and-failure-cases)
+  - [Creating a Seed4J Extension](#creating-a-seed4j-extension)
 
 ## Getting Started
 
@@ -283,3 +284,57 @@ Operational note:
 
 - `extension` mode requires executing the packaged CLI JAR
 - `standard` mode can still run locally outside a packaged JAR (with a fallback warning)
+
+#### Creating a Seed4J Extension
+
+You can use the official sample repository as a starting point:
+
+- <https://github.com/seed4j/seed4j-sample-extension>
+- <https://github.com/seed4j/seed4j-sample-extension/blob/main/documentation/module-creation.md>
+
+Recommended implementation flow for this CLI runtime mode:
+
+1. Create an extension project that exposes modules as Spring beans (`@Configuration` + `@Bean`).
+2. Define a slug enum implementing `Seed4JModuleSlugFactory`.
+3. Implement a factory that builds a `Seed4JModule`.
+4. Expose a `Seed4JModuleResource` bean wired to your application service.
+5. Build your extension JAR.
+6. Install runtime files:
+   - `~/.config/seed4j-cli/runtime/active/extension.jar`
+   - `~/.config/seed4j-cli/runtime/active/metadata.yml`
+7. Enable extension mode in `~/.config/seed4j-cli.yml` and run `seed4j --version` / `seed4j list` to validate.
+
+Minimal module resource example:
+
+```java
+@Configuration
+public class MyExtensionModuleConfiguration {
+
+  @Bean
+  Seed4JModuleResource myExtensionModule(MyExtensionApplicationService applicationService) {
+    return Seed4JModuleResource.builder()
+      .slug(MyExtensionModuleSlug.MY_EXTENSION_MODULE)
+      .withoutProperties()
+      .apiDoc("Runtime", "My extension module")
+      .standalone()
+      .tags("runtime", "extension")
+      .factory(applicationService::buildModule);
+  }
+}
+```
+
+Minimal metadata example:
+
+```yaml
+distribution:
+  id: my-company-extension
+  version: 1.0.0
+compatibility:
+  min-cli-version: 0.0.1
+```
+
+Important notes:
+
+- `distribution.id` and `distribution.version` are mandatory.
+- `compatibility.min-cli-version` is optional but recommended.
+- Avoid shipping unintended overrides (for example, `config/application.yml`) unless you intentionally want to change core behavior.
