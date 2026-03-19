@@ -12,6 +12,24 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class Seed4JCliLauncherTest {
 
+  private static final String MINIMAL_EXTENSION_METADATA = """
+    distribution:
+      id: company-extension
+      version: 1.0.0
+    """;
+
+  private static final String LEGACY_EXTENSION_METADATA_EXTRAS = """
+    distribution:
+      id: company-extension
+      version: 1.0.0
+      kind: standard
+      vendor: acme
+    artifact:
+      filename: different-name.jar
+    compatibility:
+      cli: 999.0.0
+    """;
+
   @Test
   void shouldRunTheLocalCliPathWhenStandardModeIsSelectedOutsideARegularJar() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
@@ -50,20 +68,7 @@ class Seed4JCliLauncherTest {
       """
     );
     Files.createFile(runtimeDirectory.resolve("extension.jar"));
-    Files.writeString(
-      runtimeDirectory.resolve("metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: extension.jar
-      compatibility:
-        cli: 0.0.1
-      """
-    );
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
@@ -214,20 +219,7 @@ class Seed4JCliLauncherTest {
       """
     );
     Files.createFile(runtimeDirectory.resolve("extension.jar"));
-    Files.writeString(
-      runtimeDirectory.resolve("metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: extension.jar
-      compatibility:
-        cli: 0.0.1
-      """
-    );
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
@@ -551,20 +543,42 @@ class Seed4JCliLauncherTest {
       """
     );
     Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().systemProperties())
+      .containsEntry("seed4j.cli.runtime.child", "true")
+      .containsEntry("seed4j.cli.runtime.mode", "extension")
+      .containsEntry("seed4j.cli.runtime.distribution.id", "company-extension")
+      .containsEntry("seed4j.cli.runtime.distribution.version", "1.0.0")
+      .containsEntry("loader.path", runtimeDirectory.resolve("extension.jar").toString());
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldIgnoreLegacyMetadataExtraFieldsWhenLaunchingTheExtensionChildProcess() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
     Files.writeString(
-      runtimeDirectory.resolve("metadata.yml"),
+      configPath,
       """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-        kind: extension
-        vendor: acme
-      artifact:
-        filename: extension.jar
-      compatibility:
-        cli: 0.0.1
+      seed4j:
+        runtime:
+          mode: extension
       """
     );
+    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), LEGACY_EXTENSION_METADATA_EXTRAS);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
