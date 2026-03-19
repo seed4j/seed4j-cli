@@ -152,22 +152,22 @@ Alinhar fixtures/tests de bootstrap ao novo contrato oficial sem regressões.
 
 #### Changes
 
-- [ ] Atualizar fixture compartilhada `src/test/resources/runtime/extension/metadata.yml` para formato novo.
-- [ ] Atualizar metadata inline em `Seed4JCliLauncherTest` e demais testes para novo formato.
-- [ ] Adicionar cenário explícito de "metadata com campos legados extras" garantindo efeito nulo.
-- [ ] Revisar testes in-process/packaged para manter observabilidade de distribuição.
+- [x] Atualizar fixture compartilhada `src/test/resources/runtime/extension/metadata.yml` para formato novo.
+- [x] Atualizar metadata inline em `Seed4JCliLauncherTest` e demais testes para novo formato.
+- [x] Adicionar cenário explícito de "metadata com campos legados extras" garantindo efeito nulo.
+- [x] Revisar testes in-process/packaged para manter observabilidade de distribuição.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='RuntimeSelectionTest,Seed4JCliLauncherTest,ExtensionRuntimeFixtureTest,ExtensionRuntimeBootstrapInProcessTest' test`
-- [ ] Expected result: cobertura de unidade/in-process verde.
-- [ ] Command: `./mvnw -Dit.test='ExtensionRuntimeBootstrapPackagedJarIT,ExtensionRuntimeBootstrapListPackagedJarIT' failsafe:integration-test failsafe:verify`
-- [ ] Expected result: bootstrap empacotado extension continua funcional.
+- [x] Command: `./mvnw -Dtest='RuntimeSelectionTest,Seed4JCliLauncherTest,ExtensionRuntimeFixtureTest,ExtensionRuntimeBootstrapInProcessTest' test`
+- [x] Expected result: cobertura de unidade/in-process verde.
+- [x] Command: `./mvnw -Dit.test='ExtensionRuntimeBootstrapPackagedJarIT,ExtensionRuntimeBootstrapListPackagedJarIT' failsafe:integration-test failsafe:verify`
+- [x] Expected result: bootstrap empacotado extension continua funcional.
 
 #### Acceptance Criteria
 
-- [ ] `--version` continua exibindo `Distribution ID` e `Distribution version` corretos.
-- [ ] Startup extension não depende de campos removidos.
+- [x] `--version` continua exibindo `Distribution ID` e `Distribution version` corretos.
+- [x] Startup extension não depende de campos removidos.
 
 ### Slice 5 - Fechamento de contrato e limpeza de dívida imediata
 
@@ -178,18 +178,18 @@ Fechar a transição com rastreabilidade de regra oficial e eliminar resíduos d
 #### Changes
 
 - [x] Revisar strings de erro e asserts para remover referência a `compatibility.cli`.
-- [ ] Atualizar documentos temporários que ainda registram contrato legado (quando usados como referência ativa).
-- [ ] Executar validação completa.
+- [x] Atualizar documentos temporários que ainda registram contrato legado (quando usados como referência ativa).
+- [x] Executar validação completa.
 
 #### Validation
 
-- [ ] Command: `./mvnw clean verify`
-- [ ] Expected result: build verde com surefire/failsafe/checkstyle/jacoco.
+- [x] Command: `./mvnw clean verify`
+- [x] Expected result: build verde com surefire/failsafe/checkstyle/jacoco.
 
 #### Acceptance Criteria
 
-- [ ] Nenhum teste novo depende de `distribution.kind`/`artifact.filename`.
-- [ ] Semântica opcional de compatibilidade está comprovada por teste.
+- [x] Nenhum teste novo depende de `distribution.kind`/`artifact.filename`.
+- [x] Semântica opcional de compatibilidade está comprovada por teste.
 
 ## Required Test Matrix (from spec)
 
@@ -240,10 +240,10 @@ Regression scenarios:
 - [x] Slice 2 completed
 - [x] Slice 3 started
 - [x] Slice 3 completed
-- [ ] Slice 4 started
-- [ ] Slice 4 completed
+- [x] Slice 4 started
+- [x] Slice 4 completed
 - [x] Slice 5 started
-- [ ] Slice 5 completed
+- [x] Slice 5 completed
 
 ## Decisions
 
@@ -266,6 +266,10 @@ Regression scenarios:
 - Decision: mensagens de erro de compatibilidade em `CliVersion` foram migradas para `compatibility.min-cli-version`.
   Rationale: alinhar diagnóstico de erro ao novo contrato oficial e evitar referências legadas em asserts.
   Date/Author: 2026-03-18 / Codex
+
+- Decision: testes packaged devem rodar com JAR repackaged atualizado no `target/`.
+  Rationale: os ITs packaged executam o artefato físico; sem `package` recente, validam comportamento obsoleto.
+  Date/Author: 2026-03-19 / Codex
 
 ## Risks and Mitigations
 
@@ -294,3 +298,5 @@ Regression scenarios:
 ## Lessons Learned
 
 - O código atual ainda acopla regras estruturais no parser/selection; a simplificação exige mudança simultânea de modelo, validação e fixture para manter coerência.
+- ITs packaged dependem do artefato em `target/`; sem rebuild (`package`), podem reportar falso negativo por executar JAR antigo.
+- A opcionalidade de `compatibility.min-cli-version` precisa de testes explícitos para valores blank/não-string, senão o gate de cobertura falha em `RuntimeMetadata`.

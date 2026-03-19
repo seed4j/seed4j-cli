@@ -2,7 +2,7 @@
 
 Local-only file. Ignored by Git on purpose.
 
-Updated on 2026-03-12.
+Updated on 2026-03-19.
 
 ## Goal of this file
 
@@ -44,16 +44,18 @@ When runtime mode is `EXTENSION`:
 
 - metadata file must exist
 - extension jar must exist
-- `distribution.kind` must be `extension`
 - `distribution.id` is mandatory
 - `distribution.version` is mandatory
-- `distribution.vendor` is mandatory
-- `artifact.filename` must match the selected jar filename
-- `compatibility.cli` is mandatory
-- `compatibility.cli` is treated as a minimum compatible CLI version
+- `compatibility.min-cli-version` is optional
+- when `compatibility.min-cli-version` is present, it is treated as a minimum compatible CLI version
 - malformed compatibility versions fail as `InvalidRuntimeConfigurationException`
-- malformed current CLI versions also fail as `InvalidRuntimeConfigurationException`
+- malformed current CLI versions fail as `InvalidRuntimeConfigurationException` only when `compatibility.min-cli-version` is present
 - `distributionId` and `distributionVersion` are exposed in the resolved selection
+- legacy metadata extras are ignored:
+  - `distribution.kind`
+  - `distribution.vendor`
+  - `artifact.filename`
+  - `compatibility.cli`
 
 ### Extension filesystem contract currently implemented
 
@@ -149,6 +151,10 @@ Currently implemented metadata fields are:
 
 - `distribution.id`
 - `distribution.version`
+- `compatibility.min-cli-version` (optional)
+
+Accepted as legacy extras with no runtime effect:
+
 - `distribution.vendor`
 - `distribution.kind`
 - `artifact.filename`
