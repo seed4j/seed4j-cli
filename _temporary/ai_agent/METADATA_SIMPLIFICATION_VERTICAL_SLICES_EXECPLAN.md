@@ -78,24 +78,24 @@ Reduzir o parser/modelo ao contrato oficial, mantendo tolerância a campos extra
 
 #### Changes
 
-- [ ] Atualizar `RuntimeMetadata` para carregar apenas:
-  - [ ] `distribution.id` (obrigatório)
-  - [ ] `distribution.version` (obrigatório)
-  - [ ] `compatibility.min-cli-version` (opcional)
-- [ ] Remover do modelo interno campos sem papel ativo (`vendor`, `kind`, `artifactFilename`, `compatibilityCli`).
-- [ ] Garantir que mapas extras no YAML sejam ignorados silenciosamente.
+- [x] Atualizar `RuntimeMetadata` para carregar apenas:
+  - [x] `distribution.id` (obrigatório)
+  - [x] `distribution.version` (obrigatório)
+  - [x] `compatibility.min-cli-version` (opcional)
+- [x] Remover do modelo interno campos sem papel ativo (`vendor`, `kind`, `artifactFilename`, `compatibilityCli`).
+- [x] Garantir que mapas extras no YAML sejam ignorados silenciosamente.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest=RuntimeSelectionTest test`
-- [ ] Expected result: testes de parser/contrato passam com novo esquema.
+- [x] Command: `./mvnw -Dtest=RuntimeSelectionTest test`
+- [x] Expected result: testes de parser/contrato passam com novo esquema.
 
 #### Acceptance Criteria
 
-- [ ] Metadata mínima (id + version) parseia com sucesso.
-- [ ] Ausência de `compatibility` ou de `min-cli-version` não gera erro.
-- [ ] Campos legados extras não alteram resultado.
-- [ ] `distribution.vendor` não é mais obrigatório e não participa do modelo.
+- [x] Metadata mínima (id + version) parseia com sucesso.
+- [x] Ausência de `compatibility` ou de `min-cli-version` não gera erro.
+- [x] Campos legados extras não alteram resultado.
+- [x] `distribution.vendor` não é mais obrigatório e não participa do modelo.
 
 ### Slice 2 - Runtime selection sem dependências estruturais
 
@@ -105,20 +105,20 @@ Eliminar validações estruturais redundantes e manter seleção extension funci
 
 #### Changes
 
-- [ ] Remover de `RuntimeSelection.resolve(...)` a validação de `distribution.kind`.
-- [ ] Remover de `RuntimeSelection.resolve(...)` a validação de `artifact.filename`.
-- [ ] Preservar validações de existência de `metadata.yml` e `extension.jar`.
-- [ ] Preservar exposição de `distributionId` e `distributionVersion` para observabilidade.
+- [x] Remover de `RuntimeSelection.resolve(...)` a validação de `distribution.kind`.
+- [x] Remover de `RuntimeSelection.resolve(...)` a validação de `artifact.filename`.
+- [x] Preservar validações de existência de `metadata.yml` e `extension.jar`.
+- [x] Preservar exposição de `distributionId` e `distributionVersion` para observabilidade.
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest='RuntimeSelectionTest,Seed4JCliLauncherTest' test`
-- [ ] Expected result: seleção extension continua funcionando sem depender dos campos removidos.
+- [x] Command: `./mvnw -Dtest='RuntimeSelectionTest,Seed4JCliLauncherTest' test`
+- [x] Expected result: seleção extension continua funcionando sem depender dos campos removidos.
 
 #### Acceptance Criteria
 
-- [ ] Runtime extension sobe sem `distribution.kind` e sem `artifact.filename`.
-- [ ] Erros não mencionam mais esses campos.
+- [x] Runtime extension sobe sem `distribution.kind` e sem `artifact.filename`.
+- [x] Erros não mencionam mais esses campos.
 
 ### Slice 3 - Compatibility gate opcional com `min-cli-version`
 
@@ -128,21 +128,21 @@ Aplicar compatibilidade somente quando declarada, com nome novo de campo.
 
 #### Changes
 
-- [ ] Ajustar leitura de compatibilidade para `compatibility.min-cli-version`.
-- [ ] Ajustar `RuntimeSelection` para validar versão somente quando esse campo existir.
-- [ ] Atualizar mensagens em `CliVersion` para o novo nome de campo.
-- [ ] Manter regra de comparação atual (versão mínima, não igualdade exata).
+- [x] Ajustar leitura de compatibilidade para `compatibility.min-cli-version`.
+- [x] Ajustar `RuntimeSelection` para validar versão somente quando esse campo existir.
+- [x] Atualizar mensagens em `CliVersion` para o novo nome de campo.
+- [x] Manter regra de comparação atual (versão mínima, não igualdade exata).
 
 #### Validation
 
-- [ ] Command: `./mvnw -Dtest=RuntimeSelectionTest test`
-- [ ] Expected result: cenários com e sem compatibilidade passam conforme regra condicional.
+- [x] Command: `./mvnw -Dtest=RuntimeSelectionTest test`
+- [x] Expected result: cenários com e sem compatibilidade passam conforme regra condicional.
 
 #### Acceptance Criteria
 
-- [ ] Com `min-cli-version`, incompatibilidade falha.
-- [ ] Sem `min-cli-version`, bootstrap não bloqueia por compatibilidade.
-- [ ] Formato inválido de `min-cli-version` falha com mensagem clara.
+- [x] Com `min-cli-version`, incompatibilidade falha.
+- [x] Sem `min-cli-version`, bootstrap não bloqueia por compatibilidade.
+- [x] Formato inválido de `min-cli-version` falha com mensagem clara.
 
 ### Slice 4 - Migração de fixtures e regressão E2E
 
@@ -177,7 +177,7 @@ Fechar a transição com rastreabilidade de regra oficial e eliminar resíduos d
 
 #### Changes
 
-- [ ] Revisar strings de erro e asserts para remover referência a `compatibility.cli`.
+- [x] Revisar strings de erro e asserts para remover referência a `compatibility.cli`.
 - [ ] Atualizar documentos temporários que ainda registram contrato legado (quando usados como referência ativa).
 - [ ] Executar validação completa.
 
@@ -195,27 +195,27 @@ Fechar a transição com rastreabilidade de regra oficial e eliminar resíduos d
 
 Valid scenarios:
 
-- [ ] metadata só com `distribution.id` + `distribution.version`
-- [ ] metadata com `distribution.*` + `compatibility.min-cli-version`
-- [ ] metadata com campos legados extras sem efeito
-- [ ] metadata sem `distribution.vendor` continua válida
-- [ ] CLI compatível quando campo de compatibilidade presente
-- [ ] sem campo de compatibilidade => sem validação
+- [x] metadata só com `distribution.id` + `distribution.version`
+- [x] metadata com `distribution.*` + `compatibility.min-cli-version`
+- [x] metadata com campos legados extras sem efeito
+- [x] metadata sem `distribution.vendor` continua válida
+- [x] CLI compatível quando campo de compatibilidade presente
+- [x] sem campo de compatibilidade => sem validação
 
 Invalid scenarios:
 
-- [ ] `metadata.yml` ausente
-- [ ] `distribution.id` ausente
-- [ ] `distribution.version` ausente
-- [ ] `compatibility.min-cli-version` malformado (quando presente)
-- [ ] versão CLI menor que mínimo
+- [x] `metadata.yml` ausente
+- [x] `distribution.id` ausente
+- [x] `distribution.version` ausente
+- [x] `compatibility.min-cli-version` malformado (quando presente)
+- [x] versão CLI menor que mínimo
 
 Regression scenarios:
 
-- [ ] runtime extension funciona sem `distribution.kind`
-- [ ] runtime extension funciona sem `artifact.filename`
-- [ ] `distribution.id` e `distribution.version` seguem disponíveis para diagnóstico
-- [ ] ausência de compatibilidade não bloqueia startup
+- [x] runtime extension funciona sem `distribution.kind`
+- [x] runtime extension funciona sem `artifact.filename`
+- [x] `distribution.id` e `distribution.version` seguem disponíveis para diagnóstico
+- [x] ausência de compatibilidade não bloqueia startup
 
 ## Open Points To Confirm Before Coding
 
@@ -234,15 +234,15 @@ Regression scenarios:
 ## Progress
 
 - [x] Levantamento de impacto no código e testes concluído
-- [ ] Slice 1 started
-- [ ] Slice 1 completed
-- [ ] Slice 2 started
-- [ ] Slice 2 completed
-- [ ] Slice 3 started
-- [ ] Slice 3 completed
+- [x] Slice 1 started
+- [x] Slice 1 completed
+- [x] Slice 2 started
+- [x] Slice 2 completed
+- [x] Slice 3 started
+- [x] Slice 3 completed
 - [ ] Slice 4 started
 - [ ] Slice 4 completed
-- [ ] Slice 5 started
+- [x] Slice 5 started
 - [ ] Slice 5 completed
 
 ## Decisions
@@ -257,6 +257,14 @@ Regression scenarios:
 
 - Decision: `distribution.vendor` será removido do contrato, do parser obrigatório e do modelo interno.
   Rationale: o contrato oficial contém apenas identidade (`distribution.id`, `distribution.version`) e compatibilidade opcional.
+  Date/Author: 2026-03-18 / Codex
+
+- Decision: a validação de compatibilidade passou a ser condicional no `RuntimeSelection` para viabilizar metadata mínima já no Slice 1.
+  Rationale: o critério de aceite do Slice 1 exige ausência de erro sem seção `compatibility`.
+  Date/Author: 2026-03-18 / Codex
+
+- Decision: mensagens de erro de compatibilidade em `CliVersion` foram migradas para `compatibility.min-cli-version`.
+  Rationale: alinhar diagnóstico de erro ao novo contrato oficial e evitar referências legadas em asserts.
   Date/Author: 2026-03-18 / Codex
 
 ## Risks and Mitigations
