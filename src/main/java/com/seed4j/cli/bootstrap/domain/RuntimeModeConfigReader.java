@@ -9,6 +9,8 @@ import org.yaml.snakeyaml.error.YAMLException;
 
 class RuntimeModeConfigReader {
 
+  private static final String SEED4J_KEY = "seed4j";
+
   RuntimeMode runtimeMode(Path userHome) {
     Path configPath = userHome.resolve(".config/seed4j-cli.yml");
     if (!Files.exists(configPath)) {
@@ -20,10 +22,10 @@ class RuntimeModeConfigReader {
       if (!(loadedConfiguration instanceof Map<?, ?> configuration)) {
         throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: YAML root must be an object.");
       }
-      if (configuration.containsKey("seed4j") && !(configuration.get("seed4j") instanceof Map<?, ?>)) {
+      if (configuration.containsKey(SEED4J_KEY) && !(configuration.get(SEED4J_KEY) instanceof Map<?, ?>)) {
         throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: seed4j must be an object.");
       }
-      if (!(configuration.get("seed4j") instanceof Map<?, ?> seed4j)) {
+      if (!(configuration.get(SEED4J_KEY) instanceof Map<?, ?> seed4j)) {
         return RuntimeMode.STANDARD;
       }
       if (!(seed4j.get("runtime") instanceof Map<?, ?> runtime)) {
@@ -39,16 +41,19 @@ class RuntimeModeConfigReader {
       }
 
       String normalizedMode = mode.trim().toUpperCase();
-
-      try {
-        return RuntimeMode.valueOf(normalizedMode);
-      } catch (IllegalArgumentException e) {
-        throw new InvalidRuntimeConfigurationException(
-          "Invalid seed4j.runtime.mode '%s'. Valid values: standard, extension.".formatted(mode)
-        );
-      }
-    } catch (IOException | YAMLException e) {
+      return runtimeMode(mode, normalizedMode);
+    } catch (IOException | YAMLException _) {
       throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli.yml.");
+    }
+  }
+
+  private RuntimeMode runtimeMode(String mode, String normalizedMode) {
+    try {
+      return RuntimeMode.valueOf(normalizedMode);
+    } catch (IllegalArgumentException _) {
+      throw new InvalidRuntimeConfigurationException(
+        "Invalid seed4j.runtime.mode '%s'. Valid values: standard, extension.".formatted(mode)
+      );
     }
   }
 }

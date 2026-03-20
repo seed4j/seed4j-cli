@@ -78,7 +78,7 @@ public class Seed4JCliApp {
         System.getProperty("java.class.path", ""),
         currentWorkingDirectory()
       );
-    } catch (URISyntaxException e) {
+    } catch (URISyntaxException _) {
       throw new InvalidRuntimeConfigurationException("Could not resolve executable path.");
     }
   }
@@ -145,9 +145,9 @@ public class Seed4JCliApp {
     try {
       Process process = new ProcessBuilder(command).inheritIO().start();
       return process.waitFor();
-    } catch (IOException e) {
+    } catch (IOException _) {
       throw new InvalidRuntimeConfigurationException("Could not launch child process.");
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       throw new InvalidRuntimeConfigurationException("Child process execution was interrupted.");
     }

@@ -7,8 +7,11 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @UnitTest
@@ -286,17 +289,16 @@ class RuntimeSelectionTest {
     assertThat(runtimeSelection.extensionJarPath()).contains(existingJarPath);
   }
 
-  @Test
-  void shouldFailWhenDistributionIdIsMissing() throws IOException {
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("invalidDistributionAndCompatibilityMetadata")
+  void shouldFailWhenDistributionOrCompatibilityMetadataIsInvalid(
+    String scenarioName,
+    String metadataContent,
+    String expectedMessageFragment
+  ) throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        version: 1.0.0
-      """
-    );
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), metadataContent);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
       new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
@@ -304,141 +306,7 @@ class RuntimeSelectionTest {
 
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution.id");
-  }
-
-  @Test
-  void shouldFailWhenDistributionIdIsBlank() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: "   "
-        version: 1.0.0
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution.id");
-  }
-
-  @Test
-  void shouldFailWhenDistributionVersionIsMissing() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution.version");
-  }
-
-  @Test
-  void shouldFailWhenDistributionSectionIsNotAMap() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution: invalid
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("distribution");
-  }
-
-  @Test
-  void shouldFailWhenCompatibilitySectionIsNotAMap() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-      compatibility: invalid
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility");
-  }
-
-  @Test
-  void shouldFailWhenCompatibilityMinCliVersionIsBlank() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-      compatibility:
-        min-cli-version: "   "
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.min-cli-version");
-  }
-
-  @Test
-  void shouldFailWhenCompatibilityMinCliVersionIsNotAString() throws IOException {
-    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
-    Path metadataPath = Files.writeString(
-      tempDirectory.resolve("extension-metadata.yml"),
-      """
-      distribution:
-        id: company-extension
-        version: 1.0.0
-      compatibility:
-        min-cli-version: 123
-      """
-    );
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
-    );
-
-    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
-      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("compatibility.min-cli-version");
+      .hasMessageContaining(expectedMessageFragment);
   }
 
   @Test
@@ -501,5 +369,74 @@ class RuntimeSelectionTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
 
     assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+  }
+
+  private static Stream<Arguments> invalidDistributionAndCompatibilityMetadata() {
+    return Stream.of(
+      Arguments.of(
+        "distribution.id missing",
+        """
+        distribution:
+          version: 1.0.0
+        """,
+        "distribution.id"
+      ),
+      Arguments.of(
+        "distribution.id blank",
+        """
+        distribution:
+          id: "   "
+          version: 1.0.0
+        """,
+        "distribution.id"
+      ),
+      Arguments.of(
+        "distribution.version missing",
+        """
+        distribution:
+          id: company-extension
+        """,
+        "distribution.version"
+      ),
+      Arguments.of(
+        "distribution is not a map",
+        """
+        distribution: invalid
+        """,
+        "distribution"
+      ),
+      Arguments.of(
+        "compatibility is not a map",
+        """
+        distribution:
+          id: company-extension
+          version: 1.0.0
+        compatibility: invalid
+        """,
+        "compatibility"
+      ),
+      Arguments.of(
+        "compatibility.min-cli-version blank",
+        """
+        distribution:
+          id: company-extension
+          version: 1.0.0
+        compatibility:
+          min-cli-version: "   "
+        """,
+        "compatibility.min-cli-version"
+      ),
+      Arguments.of(
+        "compatibility.min-cli-version is not a string",
+        """
+        distribution:
+          id: company-extension
+          version: 1.0.0
+        compatibility:
+          min-cli-version: 123
+        """,
+        "compatibility.min-cli-version"
+      )
+    );
   }
 }

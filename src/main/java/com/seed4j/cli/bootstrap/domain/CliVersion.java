@@ -39,7 +39,7 @@ record CliVersion(String value, String normalizedValue, List<Integer> segments) 
       List<Integer> segments = Arrays.stream(normalizedValue.split("\\.")).map(CliVersion::parsedSegment).toList();
 
       return new CliVersion(value, normalizedValue, segments);
-    } catch (NumberFormatException e) {
+    } catch (NumberFormatException _) {
       throw new InvalidRuntimeConfigurationException(invalidMessage);
     }
   }

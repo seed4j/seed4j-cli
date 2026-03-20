@@ -54,15 +54,16 @@ class ExtensionRuntimeFixtureTest {
     assertThat(fixturePaths.configFilePath()).exists();
     assertThat(fixturePaths.metadataPath()).exists();
     assertThat(fixturePaths.extensionJarPath()).exists();
-    assertThat(extensionJarEntries).contains(
-      classEntryName(Seed4JApp.class),
-      classEntryName(RuntimeExtensionListOnlyModuleSlug.class),
-      classEntryName(RuntimeExtensionListOnlyModuleFactory.class),
-      classEntryName(RuntimeExtensionListOnlyApplicationService.class),
-      classEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
-    );
-    assertThat(extensionJarEntries).doesNotContain("config/application.yml");
-    assertThat(extensionJarEntries).doesNotHaveDuplicates();
+    assertThat(extensionJarEntries)
+      .contains(
+        classEntryName(Seed4JApp.class),
+        classEntryName(RuntimeExtensionListOnlyModuleSlug.class),
+        classEntryName(RuntimeExtensionListOnlyModuleFactory.class),
+        classEntryName(RuntimeExtensionListOnlyApplicationService.class),
+        classEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
+      )
+      .doesNotContain("config/application.yml")
+      .doesNotHaveDuplicates();
   }
 
   @Test

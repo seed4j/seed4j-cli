@@ -34,8 +34,7 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
     List<String> standardSlugs = moduleSlugs(standardResult.output());
     assertThat(standardResult.finished()).isTrue();
     assertThat(standardResult.exitCode()).isZero();
-    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG);
-    assertThat(standardSlugs).doesNotHaveDuplicates();
+    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
   }
 
   @Test
@@ -49,8 +48,7 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
     List<String> extensionSlugs = moduleSlugs(extensionResult.output());
     assertThat(extensionResult.finished()).isTrue();
     assertThat(extensionResult.exitCode()).isZero();
-    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG);
-    assertThat(extensionSlugs).doesNotHaveDuplicates();
+    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
   }
 
   @Test
