@@ -12,7 +12,7 @@ class MissingMandatoryValueExceptionTest {
 
   @Test
   void shouldGetExceptionForBlankValue() {
-    var exception = MissingMandatoryValueException.forBlankValue(FIELD);
+    MissingMandatoryValueException exception = MissingMandatoryValueException.forBlankValue(FIELD);
 
     assertDefaultInformation(exception);
     assertThat(exception.getMessage()).isEqualTo("The field \"field\" is mandatory and wasn't set (blank)");
@@ -20,7 +20,7 @@ class MissingMandatoryValueExceptionTest {
 
   @Test
   void shouldGetExceptionForNullValue() {
-    var exception = MissingMandatoryValueException.forNullValue(FIELD);
+    MissingMandatoryValueException exception = MissingMandatoryValueException.forNullValue(FIELD);
 
     assertDefaultInformation(exception);
     assertThat(exception.getMessage()).isEqualTo("The field \"field\" is mandatory and wasn't set (null)");
@@ -28,7 +28,7 @@ class MissingMandatoryValueExceptionTest {
 
   @Test
   void shouldGetExceptionForEmptyCollection() {
-    var exception = MissingMandatoryValueException.forEmptyValue(FIELD);
+    MissingMandatoryValueException exception = MissingMandatoryValueException.forEmptyValue(FIELD);
 
     assertDefaultInformation(exception);
     assertThat(exception.getMessage()).isEqualTo("The field \"field\" is mandatory and wasn't set (empty)");

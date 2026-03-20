@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -7,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import picocli.CommandLine;
 
 class CliFixture {
@@ -40,11 +42,32 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
+    return commandLine(modules, projects, new CurrentProcessRuntimeSelectionProvider(Map::of));
+  }
+
+  static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    RuntimeSelection runtimeSelection
+  ) {
+    return commandLine(modules, projects, () -> runtimeSelection);
+  }
+
+  static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    RuntimeSelectionProvider runtimeSelectionProvider
+  ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
-    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(List.of(listModulesCommand, applyModuleCommand), "1", "2");
+    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
+      List.of(listModulesCommand, applyModuleCommand),
+      "1",
+      "2",
+      runtimeSelectionProvider
+    );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
   }

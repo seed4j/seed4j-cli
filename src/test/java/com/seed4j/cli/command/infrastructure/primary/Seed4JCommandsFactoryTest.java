@@ -5,6 +5,8 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -12,6 +14,7 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -359,6 +362,25 @@ class Seed4JCommandsFactoryTest {
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
+    }
+
+    @Test
+    void shouldShowRuntimeModeAndDistributionInVersionOutput(CapturedOutput output) {
+      String[] args = { "--version" };
+      RuntimeSelection runtimeSelection = new RuntimeSelection(
+        RuntimeMode.EXTENSION,
+        Optional.of(Path.of("company-extension.jar")),
+        Optional.of("company-extension"),
+        Optional.of("1.0.0")
+      );
+
+      int exitCode = commandLine(modules, projects, runtimeSelection).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("Runtime mode: extension")
+        .contains("Distribution ID: company-extension")
+        .contains("Distribution version: 1.0.0");
     }
   }
 }

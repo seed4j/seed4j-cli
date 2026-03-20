@@ -13,6 +13,12 @@ This document provides an overview of the Seed4J CLI commands available in this 
 - [Options and Parameters](#options-and-parameters)
   - [Parameters Reuse](#parameter-reuse)
 - [External Configuration](#external-configuration)
+  - [Hidden Resources](#hidden-resources)
+  - [Runtime Mode](#runtime-mode)
+  - [Extension Runtime Metadata](#extension-runtime-metadata)
+  - [Extension Mode Behavior](#extension-mode-behavior)
+  - [Runtime Validation and Failure Cases](#runtime-validation-and-failure-cases)
+  - [Creating a Seed4J Extension](#creating-a-seed4j-extension)
 
 ## Getting Started
 
@@ -32,7 +38,33 @@ To check the Seed4J CLI version:
 seed4j --version
 ```
 
-This will display the Seed4J CLI version and the Seed4J version.
+This command displays:
+
+- Seed4J CLI version
+- Seed4J version
+- Active runtime mode (`standard` or `extension`)
+- Active distribution ID
+- Active distribution version
+
+Example output in `standard` mode:
+
+```text
+Seed4J CLI v0.0.1-SNAPSHOT
+Seed4J version: 2.2.0
+Runtime mode: standard
+Distribution ID: standard
+Distribution version: 0.0.1-SNAPSHOT
+```
+
+Example output in `extension` mode:
+
+```text
+Seed4J CLI v0.0.1-SNAPSHOT
+Seed4J version: 2.2.0
+Runtime mode: extension
+Distribution ID: company-extension
+Distribution version: 1.0.0
+```
 
 ### List Available Modules
 
@@ -43,6 +75,7 @@ seed4j list
 ```
 
 This command displays a list of all available modules with their names and descriptions.
+In `extension` mode, extension-provided modules are added to the standard catalog.
 
 ### Apply a Module
 
@@ -187,3 +220,121 @@ These values are exposed through the `seed4j.hidden-resources.*` configuration n
 
 **Example:**
 If you hide the `gradle-java` module, running `seed4j list` will not show it in the available modules, and running `seed4j apply gradle-java` will fail with an error.
+
+#### Runtime Mode
+
+Use runtime mode to control how the CLI bootstraps:
+
+- `standard` (default): uses the standard runtime
+- `extension`: loads an additional runtime extension JAR and metadata
+
+Configure it in `~/.config/seed4j-cli.yml`:
+
+```yaml
+seed4j:
+  runtime:
+    mode: extension
+```
+
+If `seed4j.runtime.mode` is not declared, Seed4J CLI falls back to `standard`.
+
+#### Extension Runtime Metadata
+
+When `seed4j.runtime.mode: extension` is enabled, Seed4J CLI expects:
+
+- `~/.config/seed4j-cli/runtime/active/extension.jar`
+- `~/.config/seed4j-cli/runtime/active/metadata.yml`
+
+`metadata.yml` contract:
+
+```yaml
+distribution:
+  id: company-extension
+  version: 1.0.0
+compatibility:
+  min-cli-version: 0.0.1
+```
+
+Rules:
+
+- `distribution.id` is required
+- `distribution.version` is required
+- `compatibility.min-cli-version` is optional
+
+#### Extension Mode Behavior
+
+`extension` mode is additive for module discovery:
+
+- `seed4j list` keeps standard modules
+- extension modules can be added on top of the standard catalog
+- module slugs remain unique (no duplicated entries in `list`)
+
+#### Runtime Validation and Failure Cases
+
+Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors:
+
+- Invalid `seed4j.runtime.mode` value or type
+- Invalid YAML structure in `~/.config/seed4j-cli.yml`
+- Missing `extension.jar` or `metadata.yml` in extension mode
+- Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
+- Invalid `compatibility.min-cli-version` format
+- Current CLI version lower than `compatibility.min-cli-version`
+
+Operational note:
+
+- `extension` mode requires executing the packaged CLI JAR
+- `standard` mode can still run locally outside a packaged JAR (with a fallback warning)
+
+#### Creating a Seed4J Extension
+
+You can use the official sample repository as a starting point:
+
+- <https://github.com/seed4j/seed4j-sample-extension>
+- <https://github.com/seed4j/seed4j-sample-extension/blob/main/documentation/module-creation.md>
+
+Recommended implementation flow for this CLI runtime mode:
+
+1. Create an extension project that exposes modules as Spring beans (`@Configuration` + `@Bean`).
+2. Define a slug enum implementing `Seed4JModuleSlugFactory`.
+3. Implement a factory that builds a `Seed4JModule`.
+4. Expose a `Seed4JModuleResource` bean wired to your application service.
+5. Build your extension JAR.
+6. Install runtime files:
+   - `~/.config/seed4j-cli/runtime/active/extension.jar`
+   - `~/.config/seed4j-cli/runtime/active/metadata.yml`
+7. Enable extension mode in `~/.config/seed4j-cli.yml` and run `seed4j --version` / `seed4j list` to validate.
+
+Minimal module resource example:
+
+```java
+@Configuration
+public class MyExtensionModuleConfiguration {
+
+  @Bean
+  Seed4JModuleResource myExtensionModule(MyExtensionApplicationService applicationService) {
+    return Seed4JModuleResource.builder()
+      .slug(MyExtensionModuleSlug.MY_EXTENSION_MODULE)
+      .withoutProperties()
+      .apiDoc("Runtime", "My extension module")
+      .standalone()
+      .tags("runtime", "extension")
+      .factory(applicationService::buildModule);
+  }
+}
+```
+
+Minimal metadata example:
+
+```yaml
+distribution:
+  id: my-company-extension
+  version: 1.0.0
+compatibility:
+  min-cli-version: 0.0.1
+```
+
+Important notes:
+
+- `distribution.id` and `distribution.version` are mandatory.
+- `compatibility.min-cli-version` is optional but recommended.
+- Avoid shipping unintended overrides (for example, `config/application.yml`) unless you intentionally want to change core behavior.
