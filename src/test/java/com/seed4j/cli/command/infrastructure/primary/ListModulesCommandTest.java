@@ -24,6 +24,16 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class ListModulesCommandTest {
 
   @Test
+  void shouldDescribeListCommandAsListingDependencies() {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    ListModulesCommand command = new ListModulesCommand(modules);
+
+    String[] description = command.spec().usageMessage().description();
+
+    assertThat(description).containsExactly("List available seed4j modules and their dependencies");
+  }
+
+  @Test
   void shouldWrapDependenciesColumnAtSixtyCharactersWithoutRepeatingDescription(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     when(modules.resources()).thenReturn(resourcesWithLongDependenciesForWrap());

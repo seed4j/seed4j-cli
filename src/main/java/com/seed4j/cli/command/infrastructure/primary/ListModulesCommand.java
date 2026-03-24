@@ -29,7 +29,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   @Override
   public CommandSpec spec() {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("list");
-    spec.usageMessage().description("List available seed4j modules");
+    spec.usageMessage().description("List available seed4j modules and their dependencies");
 
     return spec;
   }
