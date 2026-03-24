@@ -186,6 +186,18 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       }
     }
 
+    private List<String> hardWrapToken(String token, int width) {
+      List<String> chunks = new ArrayList<>();
+      int start = 0;
+      while (start < token.length()) {
+        int end = Math.min(start + width, token.length());
+        chunks.add(token.substring(start, end));
+        start = end;
+      }
+
+      return chunks;
+    }
+
     @ExcludeFromGeneratedCodeCoverage(reason = "Collector combiner is unreachable because wrapDependencies uses sequential stream")
     private WrapDependenciesAccumulator mergeUnsupported(WrapDependenciesAccumulator other) {
       throw new UnsupportedOperationException("Parallel stream is not supported");
@@ -195,18 +207,6 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       lines.add(currentLine);
       return lines;
     }
-  }
-
-  private static List<String> hardWrapToken(String token, int width) {
-    List<String> chunks = new ArrayList<>();
-    int start = 0;
-    while (start < token.length()) {
-      int end = Math.min(start + width, token.length());
-      chunks.add(token.substring(start, end));
-      start = end;
-    }
-
-    return chunks;
   }
 
   private static String columnSeparator() {
