@@ -43,9 +43,10 @@ class ListModulesCommandTest {
     int exitCode = command.call();
 
     assertThat(exitCode).isZero();
-    assertThat(output).containsPattern("(?m)^\\s{2}module-a\\s{2,}module:first-dependency, module:second-dependency\\s{2,}Module A\\s*$");
-    assertThat(output).containsPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}$");
-    assertThat(output).doesNotContainPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}Module A\\s*$");
+    assertThat(output)
+      .containsPattern("(?m)^\\s{2}module-a\\s{2,}module:first-dependency, module:second-dependency\\s{2,}Module A\\s*$")
+      .containsPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}$")
+      .doesNotContainPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}Module A\\s*$");
   }
 
   @Test
