@@ -67,6 +67,21 @@ class ListModulesCommandTest {
   }
 
   @Test
+  void shouldHardWrapConsecutiveLongDependencyTokensWithoutBlankContinuationLine(CapturedOutput output) {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    when(modules.resources()).thenReturn(resourcesWithConsecutiveLongDependencyTokensForHardWrap());
+    ListModulesCommand command = new ListModulesCommand(modules);
+
+    int exitCode = command.call();
+
+    assertThat(exitCode).isZero();
+    assertThat(output)
+      .containsPattern("(?m)^\\s{2}double-hard-wrap-module\\s{2,}.+\\s{2,}Double hard wrap module\\s*$")
+      .containsPattern("(?m)^\\s{2}\\s+.+\\s{2,}$")
+      .doesNotContainPattern("(?m)^\\s{2}\\s+\\s{2,}$");
+  }
+
+  @Test
   void shouldAppendHiddenMarkerToModuleDependencyNotVisibleInResources(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     when(modules.resources()).thenReturn(resourcesWithHiddenModuleDependency());
@@ -120,6 +135,30 @@ class ListModulesCommandTest {
     return new Seed4JModulesResources(List.of(hardWrapModule, longDependency, shortDependency), hiddenModules);
   }
 
+  private static Seed4JModulesResources resourcesWithConsecutiveLongDependencyTokensForHardWrap() {
+    Seed4JModuleResource hardWrapModule = module(
+      WrapModuleSlug.DOUBLE_HARD_WRAP_MODULE,
+      "Double hard wrap module",
+      Seed4JModuleOrganization.builder()
+        .addDependency(WrapModuleSlug.EXTREMELY_LONG_DEPENDENCY)
+        .addDependency(WrapModuleSlug.SECOND_EXTREMELY_LONG_DEPENDENCY)
+        .build()
+    );
+    Seed4JModuleResource firstLongDependency = module(
+      WrapModuleSlug.EXTREMELY_LONG_DEPENDENCY,
+      "First very long dependency",
+      Seed4JModuleOrganization.STANDALONE
+    );
+    Seed4JModuleResource secondLongDependency = module(
+      WrapModuleSlug.SECOND_EXTREMELY_LONG_DEPENDENCY,
+      "Second very long dependency",
+      Seed4JModuleOrganization.STANDALONE
+    );
+    Seed4JHiddenModules hiddenModules = new Seed4JHiddenModules(List.of(), List.of());
+
+    return new Seed4JModulesResources(List.of(hardWrapModule, firstLongDependency, secondLongDependency), hiddenModules);
+  }
+
   private static Seed4JModulesResources resourcesWithHiddenModuleDependency() {
     Seed4JModuleResource visibleModule = module(
       TestModuleSlug.VISIBLE_MODULE,
@@ -166,7 +205,9 @@ class ListModulesCommandTest {
   private enum WrapModuleSlug implements Seed4JModuleSlugFactory {
     MODULE_A("module-a"),
     HARD_WRAP_MODULE("hard-wrap-module"),
+    DOUBLE_HARD_WRAP_MODULE("double-hard-wrap-module"),
     EXTREMELY_LONG_DEPENDENCY("dependency-token-with-a-very-long-slug-that-is-longer-than-sixty-characters"),
+    SECOND_EXTREMELY_LONG_DEPENDENCY("another-dependency-token-with-a-very-long-slug-that-is-over-sixty-characters"),
     SHORT_DEPENDENCY("short-dependency"),
     FIRST_DEPENDENCY("first-dependency"),
     SECOND_DEPENDENCY("second-dependency"),
