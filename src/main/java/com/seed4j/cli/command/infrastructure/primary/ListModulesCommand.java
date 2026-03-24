@@ -5,10 +5,12 @@ import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -138,34 +140,59 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       return List.of(dependencies);
     }
 
-    List<String> lines = new ArrayList<>();
-    String currentLine = "";
-    for (String token : dependencies.split(", ")) {
+    return Arrays.stream(dependencies.split(", "))
+      .sequential()
+      .collect(
+        Collector.of(
+          () -> new WrapDependenciesAccumulator(width),
+          WrapDependenciesAccumulator::accept,
+          WrapDependenciesAccumulator::mergeUnsupported,
+          WrapDependenciesAccumulator::finish
+        )
+      );
+  }
+
+  private static final class WrapDependenciesAccumulator {
+
+    private final int width;
+    private final List<String> lines;
+    private String currentLine;
+
+    private WrapDependenciesAccumulator(int width) {
+      this.width = width;
+      this.lines = new ArrayList<>();
+      this.currentLine = "";
+    }
+
+    private void accept(String token) {
       String candidateLine = currentLine.isEmpty() ? token : currentLine + ", " + token;
       if (candidateLine.length() <= width) {
         currentLine = candidateLine;
-        continue;
-      }
+      } else {
+        if (!currentLine.isEmpty()) {
+          lines.add(currentLine);
+        }
 
-      if (!currentLine.isEmpty()) {
-        lines.add(currentLine);
+        if (token.length() <= width) {
+          currentLine = token;
+        } else {
+          List<String> tokenChunks = hardWrapToken(token, width);
+          for (int index = 0; index < tokenChunks.size() - 1; index++) {
+            lines.add(tokenChunks.get(index));
+          }
+          currentLine = tokenChunks.getLast();
+        }
       }
-
-      if (token.length() <= width) {
-        currentLine = token;
-        continue;
-      }
-
-      List<String> tokenChunks = hardWrapToken(token, width);
-      for (int index = 0; index < tokenChunks.size() - 1; index++) {
-        lines.add(tokenChunks.get(index));
-      }
-      currentLine = tokenChunks.getLast();
     }
 
-    lines.add(currentLine);
+    private WrapDependenciesAccumulator mergeUnsupported(WrapDependenciesAccumulator other) {
+      throw new UnsupportedOperationException("Parallel stream is not supported");
+    }
 
-    return lines;
+    private List<String> finish() {
+      lines.add(currentLine);
+      return lines;
+    }
   }
 
   private static List<String> hardWrapToken(String token, int width) {
