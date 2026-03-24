@@ -163,9 +163,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       currentLine = tokenChunks.getLast();
     }
 
-    if (!currentLine.isEmpty()) {
-      lines.add(currentLine);
-    }
+    lines.add(currentLine);
 
     return lines;
   }
