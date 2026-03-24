@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.module.application.Seed4JModulesApplicationService;
+import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.Comparator;
@@ -51,7 +52,23 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   }
 
   private static ListModuleRow toRow(Seed4JModuleResource moduleResource) {
-    return new ListModuleRow(moduleResource.slug().get(), "-", moduleResource.apiDoc().operation().get());
+    return new ListModuleRow(moduleResource.slug().get(), dependenciesText(moduleResource), moduleResource.apiDoc().operation().get());
+  }
+
+  private static String dependenciesText(Seed4JModuleResource moduleResource) {
+    List<String> dependencies = moduleResource.organization().dependencies().stream().map(ListModulesCommand::dependencyToken).toList();
+    if (dependencies.isEmpty()) {
+      return "-";
+    }
+
+    return String.join(", ", dependencies);
+  }
+
+  private static String dependencyToken(Seed4JLandscapeDependency dependency) {
+    return switch (dependency.type()) {
+      case MODULE -> "module:" + dependency.slug().get();
+      case FEATURE -> "feature:" + dependency.slug().get();
+    };
   }
 
   private static void printHeader(ListColumnsLayout columnsLayout) {
