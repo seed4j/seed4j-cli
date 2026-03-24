@@ -6,7 +6,9 @@ import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
@@ -38,7 +40,15 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   @Override
   public Integer call() {
     Seed4JModulesResources modulesResources = modules.resources();
-    List<ListModuleRow> rows = modulesResources.stream().sorted(byModuleSlug()).map(ListModulesCommand::toRow).toList();
+    List<Seed4JModuleResource> sortedModules = modulesResources.stream().sorted(byModuleSlug()).toList();
+    Set<String> visibleModuleSlugs = sortedModules
+      .stream()
+      .map(moduleResource -> moduleResource.slug().get())
+      .collect(Collectors.toUnmodifiableSet());
+    List<ListModuleRow> rows = sortedModules
+      .stream()
+      .map(moduleResource -> toRow(moduleResource, visibleModuleSlugs))
+      .toList();
     System.out.printf("Available seed4j modules (%s):%n", rows.size());
     ListColumnsLayout columnsLayout = ListColumnsLayout.from(rows);
     printHeader(columnsLayout);
@@ -51,12 +61,21 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
     return Comparator.comparing(moduleResource -> moduleResource.slug().get());
   }
 
-  private static ListModuleRow toRow(Seed4JModuleResource moduleResource) {
-    return new ListModuleRow(moduleResource.slug().get(), dependenciesText(moduleResource), moduleResource.apiDoc().operation().get());
+  private static ListModuleRow toRow(Seed4JModuleResource moduleResource, Set<String> visibleModuleSlugs) {
+    return new ListModuleRow(
+      moduleResource.slug().get(),
+      dependenciesText(moduleResource, visibleModuleSlugs),
+      moduleResource.apiDoc().operation().get()
+    );
   }
 
-  private static String dependenciesText(Seed4JModuleResource moduleResource) {
-    List<String> dependencies = moduleResource.organization().dependencies().stream().map(ListModulesCommand::dependencyToken).toList();
+  private static String dependenciesText(Seed4JModuleResource moduleResource, Set<String> visibleModuleSlugs) {
+    List<String> dependencies = moduleResource
+      .organization()
+      .dependencies()
+      .stream()
+      .map(dependency -> dependencyToken(dependency, visibleModuleSlugs))
+      .toList();
     if (dependencies.isEmpty()) {
       return "-";
     }
@@ -64,11 +83,19 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
     return String.join(", ", dependencies);
   }
 
-  private static String dependencyToken(Seed4JLandscapeDependency dependency) {
+  private static String dependencyToken(Seed4JLandscapeDependency dependency, Set<String> visibleModuleSlugs) {
     return switch (dependency.type()) {
-      case MODULE -> "module:" + dependency.slug().get();
+      case MODULE -> moduleDependencyToken(dependency.slug().get(), visibleModuleSlugs);
       case FEATURE -> "feature:" + dependency.slug().get();
     };
+  }
+
+  private static String moduleDependencyToken(String moduleSlug, Set<String> visibleModuleSlugs) {
+    if (!visibleModuleSlugs.contains(moduleSlug)) {
+      return "module:" + moduleSlug + " (hidden)";
+    }
+
+    return "module:" + moduleSlug;
   }
 
   private static void printHeader(ListColumnsLayout columnsLayout) {
