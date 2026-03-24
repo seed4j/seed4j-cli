@@ -23,6 +23,7 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
 
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
   private static final Pattern MODULE_LINE_PATTERN = Pattern.compile("^\\s{2}(\\S+)\\s{2,}.+$");
+  private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
   @Test
   void shouldNotListTheExtensionOnlySlugInStandardMode() throws IOException, InterruptedException {
@@ -34,7 +35,7 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
     List<String> standardSlugs = moduleSlugs(standardResult.output());
     assertThat(standardResult.finished()).isTrue();
     assertThat(standardResult.exitCode()).isZero();
-    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
+    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotContain("Module").doesNotHaveDuplicates();
   }
 
   @Test
@@ -138,7 +139,12 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
       return Optional.empty();
     }
 
-    return Optional.of(moduleLineMatcher.group(1));
+    String candidateSlug = moduleLineMatcher.group(1);
+    if (!MODULE_SLUG_PATTERN.matcher(candidateSlug).matches()) {
+      return Optional.empty();
+    }
+
+    return Optional.of(candidateSlug);
   }
 
   private static Set<String> setDifference(Set<String> sourceSlugs, Set<String> slugsToExclude) {

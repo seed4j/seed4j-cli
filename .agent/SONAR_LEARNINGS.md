@@ -40,3 +40,39 @@ Capture practical decisions and pitfalls observed while fixing Sonar issues in t
 
 - Maven Enforcer dependency-convergence warnings appear in this project but did not fail the build in this workflow.
 - Sonar may warn about missing SCM blame on local uncommitted files; this warning did not block analysis.
+
+## Lessons learned from ISSUE-SONAR-EXEC-PLAN-LIST-MODULES (2026-03-24)
+
+## Code and coverage decisions
+
+- For Sonar loop-flow findings (`break/continue` count), a direct `if/else` rewrite can satisfy the rule without changing observable output.
+- Add or keep behavioral tests that protect hard-wrap edge cases before/while refactoring:
+  - single dependency token longer than 60 chars
+  - consecutive dependency tokens longer than 60 chars
+  - no repeated description on continuation lines
+- If a method exists only as a defensive/unreachable branch by design (for example, a `Collector` combiner when the stream is explicitly sequential), prefer method-scoped exclusion instead of widening test complexity:
+  - `@ExcludeFromGeneratedCodeCoverage(reason = "...")` on the exact method only.
+- Keep the `reason` explicit and tied to runtime behavior (for example, "sequential stream makes combiner unreachable").
+
+## Validation workflow adjustments
+
+- Do not run Maven commands that include `clean` in parallel with other test commands.
+- Running `./mvnw clean verify` concurrently with `./mvnw -Dtest=... test` can remove `target/` during surefire startup and produce false failures such as:
+  - `Unable to create test class ...`
+- After any suspicious parallel-run failure, rerun validation sequentially before concluding regression.
+- For this issue, the reliable final gate was:
+  - `./mvnw clean verify` (sequential, isolated)
+
+## Sonar local infra constraints in Codex environment
+
+- In this sandbox, `docker compose ... up -d` may fail with:
+  - `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`
+- When that happens during an essential Sonar step, request escalated execution explicitly.
+- If the elevated request is aborted, record Sonar closure as pending and do not claim issue closure without API confirmation.
+
+## Execution hygiene
+
+- If repository state appears inconsistent during active work, verify with:
+  - `git status --short`
+  - targeted `git diff` / `git blame` on touched lines
+- This prevents mixing local in-progress edits with already-committed changes and avoids incorrect rollback decisions.

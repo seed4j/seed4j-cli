@@ -62,6 +62,27 @@ class Seed4JCommandsFactoryTest {
   class ListModules {
 
     @Test
+    void shouldRenderTypedDependenciesWhenModuleHasDependencies(CapturedOutput output) {
+      String[] args = { "list" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).containsPattern("(?m)^\\s{2}\\S+\\s{2,}(?:module|feature):\\S+.*\\s{2,}.+$");
+    }
+
+    void shouldShowDependenciesColumnWithFallbackForListOutput(CapturedOutput output) {
+      String[] args = { "list" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .containsPattern("(?m)^\\s{2}Module\\s{2,}Dependencies\\s{2,}Description\\s*$")
+        .containsPattern("(?m)^\\s{2}init\\s{2,}-\\s{2,}Init project\\s*$");
+    }
+
+    @Test
     void shouldListModules(CapturedOutput output) {
       String[] args = { "list" };
 
