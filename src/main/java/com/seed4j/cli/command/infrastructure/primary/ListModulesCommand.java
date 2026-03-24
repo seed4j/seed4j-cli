@@ -4,6 +4,7 @@ import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +17,7 @@ import picocli.CommandLine.Model.CommandSpec;
 @Component
 class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
+  private static final int MAX_DEPENDENCIES_COLUMN_WIDTH = 60;
   private static final int MINIMAL_SPACES_BETWEEN_COLUMNS = 2;
 
   private final Seed4JModulesApplicationService modules;
@@ -110,14 +112,74 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   }
 
   private static void printRow(ListModuleRow row, ListColumnsLayout columnsLayout) {
+    List<String> wrappedDependencies = wrapDependencies(row.dependencies(), columnsLayout.dependenciesWidth());
     System.out.printf(
       "  %s%s%s%s%s%n",
       padRight(row.module(), columnsLayout.moduleWidth()),
       columnSeparator(),
-      padRight(row.dependencies(), columnsLayout.dependenciesWidth()),
+      padRight(wrappedDependencies.getFirst(), columnsLayout.dependenciesWidth()),
       columnSeparator(),
       row.description()
     );
+
+    for (int index = 1; index < wrappedDependencies.size(); index++) {
+      System.out.printf(
+        "  %s%s%s%s%n",
+        padRight("", columnsLayout.moduleWidth()),
+        columnSeparator(),
+        padRight(wrappedDependencies.get(index), columnsLayout.dependenciesWidth()),
+        columnSeparator()
+      );
+    }
+  }
+
+  private static List<String> wrapDependencies(String dependencies, int width) {
+    if (dependencies.length() <= width) {
+      return List.of(dependencies);
+    }
+
+    List<String> lines = new ArrayList<>();
+    String currentLine = "";
+    for (String token : dependencies.split(", ")) {
+      String candidateLine = currentLine.isEmpty() ? token : currentLine + ", " + token;
+      if (candidateLine.length() <= width) {
+        currentLine = candidateLine;
+        continue;
+      }
+
+      if (!currentLine.isEmpty()) {
+        lines.add(currentLine);
+      }
+
+      if (token.length() <= width) {
+        currentLine = token;
+        continue;
+      }
+
+      List<String> tokenChunks = hardWrapToken(token, width);
+      for (int index = 0; index < tokenChunks.size() - 1; index++) {
+        lines.add(tokenChunks.get(index));
+      }
+      currentLine = tokenChunks.getLast();
+    }
+
+    if (!currentLine.isEmpty()) {
+      lines.add(currentLine);
+    }
+
+    return lines;
+  }
+
+  private static List<String> hardWrapToken(String token, int width) {
+    List<String> chunks = new ArrayList<>();
+    int start = 0;
+    while (start < token.length()) {
+      int end = Math.min(start + width, token.length());
+      chunks.add(token.substring(start, end));
+      start = end;
+    }
+
+    return chunks;
   }
 
   private static String columnSeparator() {
@@ -134,7 +196,8 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   private record ListColumnsLayout(int moduleWidth, int dependenciesWidth) {
     private static ListColumnsLayout from(List<ListModuleRow> rows) {
       int moduleWidth = Math.max("Module".length(), maxModuleWidth(rows));
-      int dependenciesWidth = Math.max("Dependencies".length(), maxDependenciesWidth(rows));
+      int dependenciesNaturalWidth = Math.max("Dependencies".length(), maxDependenciesWidth(rows));
+      int dependenciesWidth = Math.min(dependenciesNaturalWidth, MAX_DEPENDENCIES_COLUMN_WIDTH);
 
       return new ListColumnsLayout(moduleWidth, dependenciesWidth);
     }

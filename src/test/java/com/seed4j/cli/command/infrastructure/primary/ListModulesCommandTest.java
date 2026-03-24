@@ -24,6 +24,20 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class ListModulesCommandTest {
 
   @Test
+  void shouldWrapDependenciesColumnAtSixtyCharactersWithoutRepeatingDescription(CapturedOutput output) {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    when(modules.resources()).thenReturn(resourcesWithLongDependenciesForWrap());
+    ListModulesCommand command = new ListModulesCommand(modules);
+
+    int exitCode = command.call();
+
+    assertThat(exitCode).isZero();
+    assertThat(output).containsPattern("(?m)^\\s{2}module-a\\s{2,}module:first-dependency, module:second-dependency\\s{2,}Module A\\s*$");
+    assertThat(output).containsPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}$");
+    assertThat(output).doesNotContainPattern("(?m)^\\s{2}\\s+module:third-dependency\\s{2,}Module A\\s*$");
+  }
+
+  @Test
   void shouldAppendHiddenMarkerToModuleDependencyNotVisibleInResources(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     when(modules.resources()).thenReturn(resourcesWithHiddenModuleDependency());
@@ -33,6 +47,28 @@ class ListModulesCommandTest {
 
     assertThat(exitCode).isZero();
     assertThat(output).containsPattern("(?m)^\\s{2}visible-module\\s{2,}module:missing-module \\(hidden\\)\\s{2,}Visible module\\s*$");
+  }
+
+  private static Seed4JModulesResources resourcesWithLongDependenciesForWrap() {
+    Seed4JModuleResource moduleA = module(
+      WrapModuleSlug.MODULE_A,
+      "Module A",
+      Seed4JModuleOrganization.builder()
+        .addDependency(WrapModuleSlug.FIRST_DEPENDENCY)
+        .addDependency(WrapModuleSlug.SECOND_DEPENDENCY)
+        .addDependency(WrapModuleSlug.THIRD_DEPENDENCY)
+        .build()
+    );
+    Seed4JModuleResource firstDependency = module(WrapModuleSlug.FIRST_DEPENDENCY, "First dependency", Seed4JModuleOrganization.STANDALONE);
+    Seed4JModuleResource secondDependency = module(
+      WrapModuleSlug.SECOND_DEPENDENCY,
+      "Second dependency",
+      Seed4JModuleOrganization.STANDALONE
+    );
+    Seed4JModuleResource thirdDependency = module(WrapModuleSlug.THIRD_DEPENDENCY, "Third dependency", Seed4JModuleOrganization.STANDALONE);
+    Seed4JHiddenModules hiddenModules = new Seed4JHiddenModules(List.of(), List.of());
+
+    return new Seed4JModulesResources(List.of(moduleA, firstDependency, secondDependency, thirdDependency), hiddenModules);
   }
 
   private static Seed4JModulesResources resourcesWithHiddenModuleDependency() {
@@ -64,6 +100,29 @@ class ListModulesCommandTest {
     private final String slug;
 
     TestModuleSlug(String slug) {
+      this.slug = slug;
+    }
+
+    @Override
+    public String get() {
+      return slug;
+    }
+
+    @Override
+    public Seed4JModuleRank rank() {
+      return Seed4JModuleRank.RANK_D;
+    }
+  }
+
+  private enum WrapModuleSlug implements Seed4JModuleSlugFactory {
+    MODULE_A("module-a"),
+    FIRST_DEPENDENCY("first-dependency"),
+    SECOND_DEPENDENCY("second-dependency"),
+    THIRD_DEPENDENCY("third-dependency");
+
+    private final String slug;
+
+    WrapModuleSlug(String slug) {
       this.slug = slug;
     }
 
