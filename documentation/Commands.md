@@ -74,7 +74,23 @@ To see all available modules that can be applied to your project:
 seed4j list
 ```
 
-This command displays a list of all available modules with their names and descriptions.
+This command displays all available modules using three columns:
+
+- `Module`: module slug
+- `Dependencies`: typed dependencies from the visible catalog (`module:<slug>` and `feature:<slug>`)
+- `Description`: module operation description
+
+When a module has no dependencies, `Dependencies` displays `-`.
+
+When a `module:<slug>` dependency target is not visible in the current catalog, the token is marked with ` (hidden)`.
+
+`Dependencies` column rendering rules:
+
+- natural width is the largest dependencies cell (or the header width)
+- effective width is `min(naturalWidth, 60)`
+- wrapping is deterministic with no truncation
+- continuation lines do not repeat `Module` or `Description`
+
 In `extension` mode, extension-provided modules are added to the standard catalog.
 
 ### Apply a Module
