@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
@@ -185,6 +186,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       }
     }
 
+    @ExcludeFromGeneratedCodeCoverage(reason = "Collector combiner is unreachable because wrapDependencies uses sequential stream")
     private WrapDependenciesAccumulator mergeUnsupported(WrapDependenciesAccumulator other) {
       throw new UnsupportedOperationException("Parallel stream is not supported");
     }
