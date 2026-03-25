@@ -81,6 +81,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(output).containsPattern("(?m)^\\s{2}\\S+\\s{2,}(?:module|feature):\\S+.*\\s{2,}.+$");
     }
 
+    @Test
     void shouldShowDependenciesColumnWithFallbackForListOutput(CapturedOutput output) {
       String[] args = { "list" };
 
