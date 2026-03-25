@@ -1,10 +1,12 @@
 package com.seed4j.cli.bootstrap.domain.runtimeextension.list;
 
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@ConditionalOnProperty(name = "seed4j.cli.runtime.mode", havingValue = "extension")
 public class RuntimeExtensionListOnlyModuleConfiguration {
 
   @Bean
