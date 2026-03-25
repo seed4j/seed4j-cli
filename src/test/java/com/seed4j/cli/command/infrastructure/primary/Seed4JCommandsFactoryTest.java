@@ -62,6 +62,16 @@ class Seed4JCommandsFactoryTest {
   class ListModules {
 
     @Test
+    void shouldNotLeakTheExtensionOnlySlugWhenListingModulesInStandardRuntimeMode(CapturedOutput output) {
+      String[] args = { "list" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).doesNotContain("runtime-extension-list-only");
+    }
+
+    @Test
     void shouldRenderTypedDependenciesWhenModuleHasDependencies(CapturedOutput output) {
       String[] args = { "list" };
 
@@ -71,6 +81,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(output).containsPattern("(?m)^\\s{2}\\S+\\s{2,}(?:module|feature):\\S+.*\\s{2,}.+$");
     }
 
+    @Test
     void shouldShowDependenciesColumnWithFallbackForListOutput(CapturedOutput output) {
       String[] args = { "list" };
 

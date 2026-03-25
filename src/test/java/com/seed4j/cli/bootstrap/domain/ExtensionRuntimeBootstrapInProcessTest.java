@@ -28,6 +28,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
   private static final String LOADER_PATH_PROPERTY = "loader.path";
   private static final String BASELINE_RUNTIME_MODE = "baseline-mode";
   private static final String CURRENT_CLI_VERSION = "0.0.1-SNAPSHOT";
+  private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
 
   @Test
   void shouldExecuteVersionCommandInExtensionModeUsingInProcessChildLauncher() throws IOException {
@@ -55,6 +56,40 @@ class ExtensionRuntimeBootstrapInProcessTest {
           .contains("Runtime mode: extension")
           .contains("Distribution ID: company-extension")
           .contains("Distribution version: 1.0.0");
+      }
+
+      assertThat(System.getProperty(RUNTIME_MODE_PROPERTY)).isEqualTo(BASELINE_RUNTIME_MODE);
+      assertThat(System.getProperty(DISTRIBUTION_ID_PROPERTY)).isNull();
+      assertThat(System.getProperty(DISTRIBUTION_VERSION_PROPERTY)).isNull();
+      assertThat(System.getProperty(LOADER_PATH_PROPERTY)).isNull();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldListExtensionOnlyModuleWhenRunningInExtensionModeUsingInProcessChildLauncher() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-list-");
+    ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
+    Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
+    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
+      Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
+    );
+
+    try {
+      System.setProperty(RUNTIME_MODE_PROPERTY, BASELINE_RUNTIME_MODE);
+      System.clearProperty(DISTRIBUTION_ID_PROPERTY);
+      System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
+      System.clearProperty(LOADER_PATH_PROPERTY);
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        int exitCode = launcher.launch(new String[] { "list" });
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getOutput()).contains(EXTENSION_ONLY_SLUG);
       }
 
       assertThat(System.getProperty(RUNTIME_MODE_PROPERTY)).isEqualTo(BASELINE_RUNTIME_MODE);
