@@ -10,6 +10,11 @@ import org.springframework.context.annotation.Configuration;
 public class RuntimeExtensionListOnlyModuleConfiguration {
 
   @Bean
+  RuntimeExtensionListOnlyApplicationService runtimeExtensionListOnlyApplicationService() {
+    return new RuntimeExtensionListOnlyApplicationService();
+  }
+
+  @Bean
   Seed4JModuleResource runtimeExtensionListOnlyModule(RuntimeExtensionListOnlyApplicationService applicationService) {
     return Seed4JModuleResource.builder()
       .slug(RuntimeExtensionListOnlyModuleSlug.RUNTIME_EXTENSION_LIST_ONLY)
