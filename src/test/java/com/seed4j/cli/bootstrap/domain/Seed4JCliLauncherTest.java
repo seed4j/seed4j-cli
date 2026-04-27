@@ -7,6 +7,10 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -59,7 +63,7 @@ class Seed4JCliLauncherTest {
           mode: extension
       """
     );
-    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    createFatJar(runtimeDirectory.resolve("extension.jar"));
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
@@ -205,7 +209,7 @@ class Seed4JCliLauncherTest {
           mode: extension
       """
     );
-    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    createFatJar(runtimeDirectory.resolve("extension.jar"));
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
@@ -225,6 +229,43 @@ class Seed4JCliLauncherTest {
     assertThat(childProcessLauncher.runtimeSelection().distributionId()).contains("company-extension");
     assertThat(childProcessLauncher.runtimeSelection().distributionVersion()).contains("1.0.0");
     assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldFailBeforeChildProcessAndPrintRuntimeErrorWhenExtensionJarLayoutIsInvalid() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    createFlatJar(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      createExecutableJar(),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = launcher.launch(new String[] { "--version" });
+
+      assertThat(exitCode).isNotZero();
+      assertThat(childProcessLauncher.request()).isNull();
+      assertThat(localCliRunner.wasCalled()).isFalse();
+      assertThat(outputCaptor.getStandardError()).contains("BOOT-INF/classes");
+    }
   }
 
   @ParameterizedTest(name = "[{index}] {0}")
@@ -312,7 +353,7 @@ class Seed4JCliLauncherTest {
           mode: extension
       """
     );
-    Files.createFile(runtimeDirectory.resolve("extension.jar"));
+    createFatJar(runtimeDirectory.resolve("extension.jar"));
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
@@ -456,5 +497,32 @@ class Seed4JCliLauncherTest {
 
   private static Path createExecutableJar() throws IOException {
     return Files.createTempFile("seed4j-cli-", ".jar");
+  }
+
+  private static Path createFatJar(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFlatJar(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("com/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("com/company/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("com/company/Extension.class"));
+      jarOutputStream.write(new byte[] { 0 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
   }
 }

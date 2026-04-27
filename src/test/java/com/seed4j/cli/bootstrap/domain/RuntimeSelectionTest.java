@@ -7,6 +7,10 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,7 +60,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldUseConfiguredJarPathWhenModeIsExtension() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path configuredJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -75,7 +79,7 @@ class RuntimeSelectionTest {
     Path defaultJarPath = tempDirectory.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = tempDirectory.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Files.createDirectories(defaultJarPath.getParent());
-    Files.createFile(defaultJarPath);
+    createFatJar(defaultJarPath);
     Files.writeString(metadataPath, MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -91,7 +95,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldFailWhenMetadataIsMissingInExtensionMode() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path missingMetadataPath = tempDirectory.resolve("missing-metadata.yml");
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -121,9 +125,25 @@ class RuntimeSelectionTest {
   }
 
   @Test
+  void shouldFailWhenExtensionJarDoesNotContainBootInfClasses() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = createFlatJar(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("BOOT-INF/classes")
+      .hasMessageContaining(existingJarPath.toString());
+  }
+
+  @Test
   void shouldAcceptWhenCompatibilitySectionIsMissing() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -139,7 +159,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldAcceptWhenCompatibilitySectionIsEmpty() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
       tempDirectory.resolve("extension-metadata.yml"),
       """
@@ -163,7 +183,7 @@ class RuntimeSelectionTest {
   void shouldAcceptWhenCurrentCliVersionIsHigherThanMinimumCompatibility() throws IOException {
     String currentCliVersion = "0.0.2-SNAPSHOT";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path configuredJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), METADATA_WITH_MINIMUM_COMPATIBILITY);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -180,7 +200,7 @@ class RuntimeSelectionTest {
   void shouldAcceptWhenCurrentCliVersionDiffersOnlyByTrailingZeroSegment() throws IOException {
     String currentCliVersion = "1.2";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path configuredJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
       tempDirectory.resolve("extension-metadata.yml"),
       """
@@ -206,7 +226,7 @@ class RuntimeSelectionTest {
   void shouldFailWhenCurrentCliVersionIsLowerThanMinimumCompatibility() throws IOException {
     String currentCliVersion = "0.0.1-SNAPSHOT";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
       tempDirectory.resolve("extension-metadata.yml"),
       """
@@ -233,7 +253,7 @@ class RuntimeSelectionTest {
   @ValueSource(strings = { "1..2", "1.2.x", "not-a-version", "v1.2.3", "1,2,3" })
   void shouldFailWhenCompatibilityMinCliVersionHasInvalidFormat(String invalidMinCliVersion) throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(
       tempDirectory.resolve("extension-metadata.yml"),
       """
@@ -259,7 +279,7 @@ class RuntimeSelectionTest {
   void shouldFailWhenCurrentCliVersionIsMalformedAndMinimumCompatibilityIsPresent() throws IOException {
     String currentCliVersion = "not-a-version";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), METADATA_WITH_MINIMUM_COMPATIBILITY);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -276,7 +296,7 @@ class RuntimeSelectionTest {
   void shouldAcceptWhenCurrentCliVersionIsMalformedAndMinimumCompatibilityIsMissing() throws IOException {
     String currentCliVersion = "not-a-version";
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -297,7 +317,7 @@ class RuntimeSelectionTest {
     String expectedMessageFragment
   ) throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), metadataContent);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -312,7 +332,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldFailWhenMetadataRootIsNotAMap() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), "invalid-root");
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -328,7 +348,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldFailWhenMetadataCannotBeParsed() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path existingJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), "distribution: [broken");
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -344,7 +364,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldExposeDistributionIdWhenExtensionRuntimeIsSelected() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path configuredJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -359,7 +379,7 @@ class RuntimeSelectionTest {
   @Test
   void shouldExposeDistributionVersionWhenExtensionRuntimeIsSelected() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path configuredJarPath = Files.createFile(tempDirectory.resolve("company-extension.jar"));
+    Path configuredJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
     Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
@@ -438,5 +458,32 @@ class RuntimeSelectionTest {
         "compatibility.min-cli-version"
       )
     );
+  }
+
+  private static Path createFatJar(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFlatJar(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("com/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("com/company/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("com/company/Extension.class"));
+      jarOutputStream.write(new byte[] { 0 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
   }
 }

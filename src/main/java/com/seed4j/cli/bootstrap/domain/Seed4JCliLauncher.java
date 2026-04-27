@@ -54,7 +54,8 @@ public class Seed4JCliLauncher {
       }
 
       return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
-    } catch (InvalidRuntimeConfigurationException _) {
+    } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
+      System.err.println(runtimeConfigurationException.getMessage());
       return 1;
     }
   }
