@@ -27,52 +27,13 @@ public class Seed4JCliLauncher {
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
-    this(
-      userHome,
-      executableJar,
-      currentCliVersion,
-      childProcessLauncher,
-      localCliRunner,
-      new RuntimeModeConfigReader(),
-      new RuntimeExtensionLoaderPathResolver()
-    );
-  }
-
-  Seed4JCliLauncher(
-    Path userHome,
-    Path executableJar,
-    String currentCliVersion,
-    ChildProcessLauncher childProcessLauncher,
-    LocalCliRunner localCliRunner,
-    RuntimeModeConfigReader runtimeModeConfigReader
-  ) {
-    this(
-      userHome,
-      executableJar,
-      currentCliVersion,
-      childProcessLauncher,
-      localCliRunner,
-      runtimeModeConfigReader,
-      new RuntimeExtensionLoaderPathResolver()
-    );
-  }
-
-  Seed4JCliLauncher(
-    Path userHome,
-    Path executableJar,
-    String currentCliVersion,
-    ChildProcessLauncher childProcessLauncher,
-    LocalCliRunner localCliRunner,
-    RuntimeModeConfigReader runtimeModeConfigReader,
-    RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver
-  ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.currentCliVersion = currentCliVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
-    this.runtimeModeConfigReader = runtimeModeConfigReader;
-    this.runtimeExtensionLoaderPathResolver = runtimeExtensionLoaderPathResolver;
+    this.runtimeModeConfigReader = new RuntimeModeConfigReader();
+    this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
   }
 
   public int launch(String[] args) {
