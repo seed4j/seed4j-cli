@@ -320,6 +320,10 @@ class Seed4JCliLauncherTest {
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
+    Path extensionJarPath = runtimeDirectory.resolve("extension.jar");
+    String extensionJarUri = extensionJarPath.toUri().toString();
+    String expectedLoaderPath = "jar:" + extensionJarUri + "!/BOOT-INF/classes,jar:" + extensionJarUri + "!/BOOT-INF/lib/";
+
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
     assertThat(childProcessLauncher.request().systemProperties())
@@ -327,7 +331,7 @@ class Seed4JCliLauncherTest {
       .containsEntry("seed4j.cli.runtime.mode", "extension")
       .containsEntry("seed4j.cli.runtime.distribution.id", "company-extension")
       .containsEntry("seed4j.cli.runtime.distribution.version", "1.0.0")
-      .containsEntry("loader.path", runtimeDirectory.resolve("extension.jar").toString());
+      .containsEntry("loader.path", expectedLoaderPath);
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 

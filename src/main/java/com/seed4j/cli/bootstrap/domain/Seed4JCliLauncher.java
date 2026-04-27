@@ -18,6 +18,7 @@ public class Seed4JCliLauncher {
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
+  private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
 
   Seed4JCliLauncher(
     Path userHome,
@@ -26,7 +27,15 @@ public class Seed4JCliLauncher {
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
-    this(userHome, executableJar, currentCliVersion, childProcessLauncher, localCliRunner, new RuntimeModeConfigReader());
+    this(
+      userHome,
+      executableJar,
+      currentCliVersion,
+      childProcessLauncher,
+      localCliRunner,
+      new RuntimeModeConfigReader(),
+      new RuntimeExtensionLoaderPathResolver()
+    );
   }
 
   Seed4JCliLauncher(
@@ -37,12 +46,33 @@ public class Seed4JCliLauncher {
     LocalCliRunner localCliRunner,
     RuntimeModeConfigReader runtimeModeConfigReader
   ) {
+    this(
+      userHome,
+      executableJar,
+      currentCliVersion,
+      childProcessLauncher,
+      localCliRunner,
+      runtimeModeConfigReader,
+      new RuntimeExtensionLoaderPathResolver()
+    );
+  }
+
+  Seed4JCliLauncher(
+    Path userHome,
+    Path executableJar,
+    String currentCliVersion,
+    ChildProcessLauncher childProcessLauncher,
+    LocalCliRunner localCliRunner,
+    RuntimeModeConfigReader runtimeModeConfigReader,
+    RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver
+  ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.currentCliVersion = currentCliVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
     this.runtimeModeConfigReader = runtimeModeConfigReader;
+    this.runtimeExtensionLoaderPathResolver = runtimeExtensionLoaderPathResolver;
   }
 
   public int launch(String[] args) {
@@ -92,7 +122,9 @@ public class Seed4JCliLauncher {
     runtimeSelection
       .distributionVersion()
       .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion));
-    runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> systemProperties.put("loader.path", extensionJarPath.toString()));
+    runtimeSelection
+      .extensionJarPath()
+      .ifPresent(extensionJarPath -> systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath)));
 
     return new JavaChildProcessRequest(
       executableJar,
