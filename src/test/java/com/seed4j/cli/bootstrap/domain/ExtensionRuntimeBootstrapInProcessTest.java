@@ -9,9 +9,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
@@ -29,6 +32,12 @@ class ExtensionRuntimeBootstrapInProcessTest {
   private static final String BASELINE_RUNTIME_MODE = "baseline-mode";
   private static final String CURRENT_CLI_VERSION = "0.0.1-SNAPSHOT";
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
+  private static final String SPRING_BOOT_BANNER_MARKER = " :: Spring Boot :: ";
+  private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
+  private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
+  private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
+  private static final String EXTENSION_APPLICATION_YML_ENTRY = "BOOT-INF/classes/config/application.yml";
+  private static final String EXTENSION_LOGBACK_ENTRY = "BOOT-INF/classes/logback-spring.xml";
 
   @Test
   void shouldExecuteVersionCommandInExtensionModeUsingInProcessChildLauncher() throws IOException {
@@ -98,6 +107,62 @@ class ExtensionRuntimeBootstrapInProcessTest {
       assertThat(System.getProperty(LOADER_PATH_PROPERTY)).isNull();
     } finally {
       baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldKeepOperationalOutputCleanWhenExtensionJarPublishesLoggingOverrides() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-logging-");
+    ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths =
+      ExtensionRuntimeFixture.installWithListExtensionModuleAndLoggingOverrides(userHome);
+    Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
+    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);
+    ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
+      Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
+    );
+
+    try {
+      System.setProperty(RUNTIME_MODE_PROPERTY, BASELINE_RUNTIME_MODE);
+      System.clearProperty(DISTRIBUTION_ID_PROPERTY);
+      System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
+      System.clearProperty(LOADER_PATH_PROPERTY);
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        int versionExitCode = launcher.launch(new String[] { "--version" });
+
+        assertThat(versionExitCode).isZero();
+        assertThat(outputCaptor.getOutput())
+          .contains("Runtime mode: extension")
+          .contains("Distribution ID: company-extension")
+          .contains("Distribution version: 1.0.0")
+          .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+          .doesNotContain(STARTUP_INFO_MARKER)
+          .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+          .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
+      }
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        int listExitCode = launcher.launch(new String[] { "list" });
+
+        assertThat(listExitCode).isZero();
+        assertThat(outputCaptor.getOutput())
+          .contains(EXTENSION_ONLY_SLUG)
+          .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+          .doesNotContain(STARTUP_INFO_MARKER)
+          .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+          .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
+      }
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  private static List<String> jarEntries(Path extensionJarPath) throws IOException {
+    try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
+      return extensionJarFile.stream().map(JarEntry::getName).toList();
     }
   }
 

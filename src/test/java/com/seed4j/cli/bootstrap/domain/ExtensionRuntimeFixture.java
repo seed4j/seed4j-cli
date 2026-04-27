@@ -6,6 +6,7 @@ import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionLis
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -30,6 +31,34 @@ final class ExtensionRuntimeFixture {
   private static final String METADATA_RESOURCE_LOCATION = "runtime/extension/metadata.yml";
   private static final String BOOT_INF_DIRECTORY = "BOOT-INF/";
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
+  private static final String BOOT_INF_CONFIG_DIRECTORY = "BOOT-INF/classes/config/";
+  private static final String EXTENSION_APPLICATION_YML_ENTRY = "BOOT-INF/classes/config/application.yml";
+  private static final String EXTENSION_LOGBACK_ENTRY = "BOOT-INF/classes/logback-spring.xml";
+  private static final String EXTENSION_APPLICATION_YML = """
+    logging:
+      level:
+        root: INFO
+      pattern:
+        console: "[EXT-APPLICATION-OVERRIDE] %msg%n"
+    spring:
+      main:
+        log-startup-info: true
+    """;
+  private static final String EXTENSION_LOGBACK_CONFIGURATION = """
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <!DOCTYPE configuration>
+    <configuration scan="false">
+      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
+        </encoder>
+      </appender>
+
+      <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+      </root>
+    </configuration>
+    """;
   private static final String FLAT_CLASS_ENTRY = "com/seed4j/cli/runtime/FlatExtensionMarker.class";
   private static final List<Class<?>> LIST_EXTENSION_MODULE_CLASSES = List.of(
     RuntimeExtensionListOnlyModuleSlug.class,
@@ -46,6 +75,10 @@ final class ExtensionRuntimeFixture {
 
   static ExtensionRuntimeFixturePaths installWithListExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
   }
 
   static ExtensionRuntimeFixturePaths installWithFlatJar(Path userHome) throws IOException {
@@ -89,6 +122,27 @@ final class ExtensionRuntimeFixture {
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
+    }
+    return jarPath;
+  }
+
+  static Path createListExtensionModuleJarWithLoggingOverrides(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CONFIG_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      addTextEntry(jarOutputStream, EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_APPLICATION_YML);
+      addTextEntry(jarOutputStream, EXTENSION_LOGBACK_ENTRY, EXTENSION_LOGBACK_CONFIGURATION);
     }
     return jarPath;
   }
@@ -152,6 +206,12 @@ final class ExtensionRuntimeFixture {
 
   private static void addDirectoryEntry(JarOutputStream jarOutputStream, String directoryEntry) throws IOException {
     jarOutputStream.putNextEntry(new JarEntry(directoryEntry));
+    jarOutputStream.closeEntry();
+  }
+
+  private static void addTextEntry(JarOutputStream jarOutputStream, String entryName, String content) throws IOException {
+    jarOutputStream.putNextEntry(new JarEntry(entryName));
+    jarOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
     jarOutputStream.closeEntry();
   }
 
