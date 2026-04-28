@@ -261,6 +261,29 @@ When `seed4j.runtime.mode: extension` is enabled, Seed4J CLI expects:
 - `~/.config/seed4j-cli/runtime/active/extension.jar`
 - `~/.config/seed4j-cli/runtime/active/metadata.yml`
 
+`extension.jar` requirements:
+
+- `extension.jar` must be generated from a project built as a Seed4J extension.
+- Follow [Creating a Seed4J Extension](#creating-a-seed4j-extension) to create and package the artifact correctly.
+- Use `seed4j-sample-extension` as the practical reference implementation for structure and packaging.
+
+Example setup for extension mode:
+
+```bash
+# 1) build your Seed4J extension project
+./mvnw clean package
+
+# 2) install the generated runtime artifact with the expected filename
+cp target/<your-extension-artifact>.jar ~/.config/seed4j-cli/runtime/active/extension.jar
+
+# 3) keep metadata.yml in the same runtime folder
+ls ~/.config/seed4j-cli/runtime/active/metadata.yml
+
+# 4) validate extension runtime loading
+seed4j --version
+seed4j list
+```
+
 `metadata.yml` contract:
 
 ```yaml
@@ -295,6 +318,14 @@ Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors
 - Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
 - Invalid `compatibility.min-cli-version` format
 - Current CLI version lower than `compatibility.min-cli-version`
+
+If the extension artifact is invalid, Seed4J CLI reports:
+
+```text
+Invalid runtime jar file: /home/user/.config/seed4j-cli/runtime/active/extension.jar. Expected a Spring Boot fat jar containing BOOT-INF/classes.
+```
+
+In this case, follow [Creating a Seed4J Extension](#creating-a-seed4j-extension), rebuild the artifact, and replace `~/.config/seed4j-cli/runtime/active/extension.jar`.
 
 Operational note:
 

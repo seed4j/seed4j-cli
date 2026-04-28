@@ -2,7 +2,6 @@ package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.seed4j.Seed4JApp;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
@@ -19,6 +18,8 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class ExtensionRuntimeFixtureTest {
 
+  private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
+
   @Test
   void shouldInstallAValidExtensionRuntimeFixtureArtifacts() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
@@ -28,7 +29,7 @@ class ExtensionRuntimeFixtureTest {
     assertThat(fixturePaths.configFilePath()).exists();
     assertThat(fixturePaths.metadataPath()).exists();
     assertThat(fixturePaths.extensionJarPath()).exists();
-    assertThat(jarEntries(fixturePaths.extensionJarPath())).contains("META-INF/MANIFEST.MF");
+    assertThat(jarEntries(fixturePaths.extensionJarPath())).contains("META-INF/MANIFEST.MF", BOOT_INF_CLASSES_DIRECTORY);
   }
 
   @Test
@@ -56,12 +57,12 @@ class ExtensionRuntimeFixtureTest {
     assertThat(fixturePaths.extensionJarPath()).exists();
     assertThat(extensionJarEntries)
       .contains(
-        classEntryName(Seed4JApp.class),
-        classEntryName(RuntimeExtensionListOnlyModuleSlug.class),
-        classEntryName(RuntimeExtensionListOnlyModuleFactory.class),
-        classEntryName(RuntimeExtensionListOnlyApplicationService.class),
-        classEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
+        bootInfClassEntryName(RuntimeExtensionListOnlyModuleSlug.class),
+        bootInfClassEntryName(RuntimeExtensionListOnlyModuleFactory.class),
+        bootInfClassEntryName(RuntimeExtensionListOnlyApplicationService.class),
+        bootInfClassEntryName(RuntimeExtensionListOnlyModuleConfiguration.class)
       )
+      .doesNotContain(classEntryName(RuntimeExtensionListOnlyModuleSlug.class))
       .doesNotContain("config/application.yml")
       .doesNotHaveDuplicates();
   }
@@ -94,5 +95,9 @@ class ExtensionRuntimeFixtureTest {
 
   private static String classEntryName(Class<?> classType) {
     return classType.getName().replace('.', '/') + ".class";
+  }
+
+  private static String bootInfClassEntryName(Class<?> classType) {
+    return BOOT_INF_CLASSES_DIRECTORY + classEntryName(classType);
   }
 }

@@ -41,6 +41,28 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
       .contains("Distribution version: 1.0.0");
   }
 
+  @Test
+  void shouldFailBeforeRunningThePackagedJarWhenExtensionRuntimeJarIsFlat() throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-invalid-extension-");
+    ExtensionRuntimeFixture.installWithFlatJar(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isNotZero();
+    assertThat(output).contains("BOOT-INF/classes");
+  }
+
   private static Path packagedCliJar() throws IOException {
     Path targetDirectory = Path.of("target");
     List<Path> candidateJars;

@@ -1,17 +1,14 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.CodeSource;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -32,7 +29,37 @@ final class ExtensionRuntimeFixture {
   private static final String CONFIG_FILE_LOCATION = ".config/seed4j-cli.yml";
   private static final String RUNTIME_DIRECTORY_LOCATION = ".config/seed4j-cli/runtime/active";
   private static final String METADATA_RESOURCE_LOCATION = "runtime/extension/metadata.yml";
-  private static final String BASE_JAR_APPLICATION_CONFIG_ENTRY = "config/application.yml";
+  private static final String BOOT_INF_DIRECTORY = "BOOT-INF/";
+  private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
+  private static final String BOOT_INF_CONFIG_DIRECTORY = "BOOT-INF/classes/config/";
+  private static final String EXTENSION_APPLICATION_YML_ENTRY = "BOOT-INF/classes/config/application.yml";
+  private static final String EXTENSION_LOGBACK_ENTRY = "BOOT-INF/classes/logback-spring.xml";
+  private static final String EXTENSION_APPLICATION_YML = """
+    logging:
+      level:
+        root: INFO
+      pattern:
+        console: "[EXT-APPLICATION-OVERRIDE] %msg%n"
+    spring:
+      main:
+        log-startup-info: true
+    """;
+  private static final String EXTENSION_LOGBACK_CONFIGURATION = """
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <!DOCTYPE configuration>
+    <configuration scan="false">
+      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
+        </encoder>
+      </appender>
+
+      <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+      </root>
+    </configuration>
+    """;
+  private static final String FLAT_CLASS_ENTRY = "com/seed4j/cli/runtime/FlatExtensionMarker.class";
   private static final List<Class<?>> LIST_EXTENSION_MODULE_CLASSES = List.of(
     RuntimeExtensionListOnlyModuleSlug.class,
     RuntimeExtensionListOnlyModuleFactory.class,
@@ -48,6 +75,14 @@ final class ExtensionRuntimeFixture {
 
   static ExtensionRuntimeFixturePaths installWithListExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithFlatJar(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createFlatJar);
   }
 
   private static ExtensionRuntimeFixturePaths install(Path userHome, ExtensionJarFactory extensionJarFactory) throws IOException {
@@ -67,102 +102,85 @@ final class ExtensionRuntimeFixture {
   static Path createMinimalJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    new JarOutputStream(Files.newOutputStream(jarPath), manifest).close();
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+    }
     return jarPath;
   }
 
   static Path createListExtensionModuleJar(Path jarPath) throws IOException {
-    Path seed4jDependencyJarPath = resolveSeed4jDependencyJarPath();
-    Manifest manifest = manifestFrom(seed4jDependencyJarPath);
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
       addedEntries.add(JarFile.MANIFEST_NAME);
-      copyJarEntries(seed4jDependencyJarPath, jarOutputStream, addedEntries);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
-        addClassAndNestedClasses(jarOutputStream, moduleClass, addedEntries);
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
     }
     return jarPath;
   }
 
-  private static Path resolveSeed4jDependencyJarPath() {
-    CodeSource seed4jCodeSource = Seed4JApp.class.getProtectionDomain().getCodeSource();
-    if (seed4jCodeSource == null || seed4jCodeSource.getLocation() == null) {
-      throw new IllegalStateException("Could not resolve seed4j dependency JAR location from com.seed4j.Seed4JApp code source.");
-    }
-
-    try {
-      Path codeSourcePath = Path.of(seed4jCodeSource.getLocation().toURI());
-      if (!Files.isRegularFile(codeSourcePath) || !codeSourcePath.getFileName().toString().endsWith(".jar")) {
-        throw new IllegalStateException("Resolved seed4j dependency location is not a JAR file: " + codeSourcePath);
-      }
-
-      return codeSourcePath;
-    } catch (URISyntaxException exception) {
-      throw new IllegalStateException("Could not resolve seed4j dependency JAR path from code source URI.", exception);
-    }
-  }
-
-  private static Manifest manifestFrom(Path sourceJarPath) throws IOException {
-    try (JarFile sourceJar = new JarFile(sourceJarPath.toFile())) {
-      Manifest sourceManifest = sourceJar.getManifest();
-      if (sourceManifest != null) {
-        return sourceManifest;
-      }
-    }
-
+  static Path createListExtensionModuleJarWithLoggingOverrides(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    return manifest;
-  }
-
-  private static void copyJarEntries(Path sourceJarPath, JarOutputStream targetJarOutputStream, Set<String> addedEntries)
-    throws IOException {
-    try (JarFile sourceJar = new JarFile(sourceJarPath.toFile())) {
-      Enumeration<JarEntry> sourceEntries = sourceJar.entries();
-      while (sourceEntries.hasMoreElements()) {
-        JarEntry sourceEntry = sourceEntries.nextElement();
-        copyJarEntry(sourceJar, sourceEntry, targetJarOutputStream, addedEntries);
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CONFIG_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
+      addTextEntry(jarOutputStream, EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_APPLICATION_YML);
+      addTextEntry(jarOutputStream, EXTENSION_LOGBACK_ENTRY, EXTENSION_LOGBACK_CONFIGURATION);
     }
+    return jarPath;
   }
 
-  private static void copyJarEntry(JarFile sourceJar, JarEntry sourceEntry, JarOutputStream targetJarOutputStream, Set<String> addedEntries)
-    throws IOException {
-    String sourceEntryName = sourceEntry.getName();
-    if (BASE_JAR_APPLICATION_CONFIG_ENTRY.equals(sourceEntryName)) {
-      return;
+  static Path createFlatJar(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      addPackageDirectories(jarOutputStream, FLAT_CLASS_ENTRY, new HashSet<>());
+      jarOutputStream.putNextEntry(new JarEntry(FLAT_CLASS_ENTRY));
+      jarOutputStream.write(new byte[] { 0 });
+      jarOutputStream.closeEntry();
     }
-
-    if (!addedEntries.add(sourceEntryName)) {
-      return;
-    }
-
-    targetJarOutputStream.putNextEntry(new JarEntry(sourceEntryName));
-    if (!sourceEntry.isDirectory()) {
-      try (InputStream sourceEntryInputStream = sourceJar.getInputStream(sourceEntry)) {
-        sourceEntryInputStream.transferTo(targetJarOutputStream);
-      }
-    }
-    targetJarOutputStream.closeEntry();
+    return jarPath;
   }
 
-  private static void addClassAndNestedClasses(JarOutputStream jarOutputStream, Class<?> classToAdd, Set<String> addedEntries)
-    throws IOException {
-    addClassEntry(jarOutputStream, classToAdd, addedEntries);
+  private static void addClassAndNestedClasses(
+    JarOutputStream jarOutputStream,
+    String classEntryPrefix,
+    Class<?> classToAdd,
+    Set<String> addedEntries
+  ) throws IOException {
+    addClassEntry(jarOutputStream, classEntryPrefix, classToAdd, addedEntries);
     for (Class<?> nestedClass : classToAdd.getDeclaredClasses()) {
-      addClassAndNestedClasses(jarOutputStream, nestedClass, addedEntries);
+      addClassAndNestedClasses(jarOutputStream, classEntryPrefix, nestedClass, addedEntries);
     }
   }
 
-  private static void addClassEntry(JarOutputStream jarOutputStream, Class<?> classToAdd, Set<String> addedEntries) throws IOException {
-    String classEntryName = classToAdd.getName().replace('.', '/') + ".class";
+  private static void addClassEntry(JarOutputStream jarOutputStream, String classEntryPrefix, Class<?> classToAdd, Set<String> addedEntries)
+    throws IOException {
+    String classFileEntryName = classToAdd.getName().replace('.', '/') + ".class";
+    String classEntryName = classEntryPrefix + classFileEntryName;
     addPackageDirectories(jarOutputStream, classEntryName, addedEntries);
     if (!addedEntries.add(classEntryName)) {
       return;
     }
 
-    try (InputStream classInputStream = classInputStream(classToAdd, classEntryName)) {
+    try (InputStream classInputStream = classInputStream(classToAdd, classFileEntryName)) {
       if (classInputStream == null) {
         throw new IllegalStateException("Could not find class bytes for fixture module class: " + classToAdd.getName());
       }
@@ -184,6 +202,17 @@ final class ExtensionRuntimeFixture {
         jarOutputStream.closeEntry();
       }
     }
+  }
+
+  private static void addDirectoryEntry(JarOutputStream jarOutputStream, String directoryEntry) throws IOException {
+    jarOutputStream.putNextEntry(new JarEntry(directoryEntry));
+    jarOutputStream.closeEntry();
+  }
+
+  private static void addTextEntry(JarOutputStream jarOutputStream, String entryName, String content) throws IOException {
+    jarOutputStream.putNextEntry(new JarEntry(entryName));
+    jarOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
+    jarOutputStream.closeEntry();
   }
 
   private static InputStream classInputStream(Class<?> classToAdd, String classEntryName) {

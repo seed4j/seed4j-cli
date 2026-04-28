@@ -18,6 +18,7 @@ public class Seed4JCliLauncher {
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
+  private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
 
   Seed4JCliLauncher(
     Path userHome,
@@ -26,23 +27,13 @@ public class Seed4JCliLauncher {
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
-    this(userHome, executableJar, currentCliVersion, childProcessLauncher, localCliRunner, new RuntimeModeConfigReader());
-  }
-
-  Seed4JCliLauncher(
-    Path userHome,
-    Path executableJar,
-    String currentCliVersion,
-    ChildProcessLauncher childProcessLauncher,
-    LocalCliRunner localCliRunner,
-    RuntimeModeConfigReader runtimeModeConfigReader
-  ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.currentCliVersion = currentCliVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
-    this.runtimeModeConfigReader = runtimeModeConfigReader;
+    this.runtimeModeConfigReader = new RuntimeModeConfigReader();
+    this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
   }
 
   public int launch(String[] args) {
@@ -63,7 +54,8 @@ public class Seed4JCliLauncher {
       }
 
       return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
-    } catch (InvalidRuntimeConfigurationException _) {
+    } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
+      System.err.println(runtimeConfigurationException.getMessage());
       return 1;
     }
   }
@@ -92,7 +84,14 @@ public class Seed4JCliLauncher {
     runtimeSelection
       .distributionVersion()
       .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion));
-    runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> systemProperties.put("loader.path", extensionJarPath.toString()));
+    runtimeSelection
+      .extensionJarPath()
+      .ifPresent(extensionJarPath -> systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath)));
+    if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
+      systemProperties.put("logging.config", "classpath:logback-spring.xml");
+      systemProperties.put("logging.level.root", "ERROR");
+      systemProperties.put("spring.main.log-startup-info", "false");
+    }
 
     return new JavaChildProcessRequest(
       executableJar,
