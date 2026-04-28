@@ -141,6 +141,55 @@ class RuntimeSelectionTest {
   }
 
   @Test
+  void shouldFailWhenExtensionJarCannotBeReadAsAJarFile() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path unreadableJarPath = createUnreadableJarPath(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(unreadableJarPath, metadataPath)
+    );
+
+    assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Invalid runtime jar file")
+      .hasMessageContaining("BOOT-INF/classes")
+      .hasMessageContaining(unreadableJarPath.toString());
+  }
+
+  @Test
+  void shouldAcceptExtensionJarWhenBootInfClassesEntryHasNoTrailingSlash() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = createFatJarWithBootInfClassesEntryWithoutTrailingSlash(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(existingJarPath);
+  }
+
+  @Test
+  void shouldAcceptExtensionJarWhenBootInfClassesHasOnlyChildEntries() throws IOException {
+    Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path existingJarPath = createFatJarWithBootInfClassesChildrenOnly(tempDirectory.resolve("company-extension.jar"));
+    Path metadataPath = Files.writeString(tempDirectory.resolve("extension-metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
+      RuntimeMode.EXTENSION,
+      new RuntimeExtensionConfiguration(existingJarPath, metadataPath)
+    );
+
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, CURRENT_CLI_VERSION);
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(existingJarPath);
+  }
+
+  @Test
   void shouldAcceptWhenCompatibilitySectionIsMissing() throws IOException {
     Path tempDirectory = Files.createTempDirectory("seed4j-cli-");
     Path existingJarPath = createFatJar(tempDirectory.resolve("company-extension.jar"));
@@ -484,6 +533,33 @@ class RuntimeSelectionTest {
       jarOutputStream.write(new byte[] { 0 });
       jarOutputStream.closeEntry();
     }
+    return jarPath;
+  }
+
+  private static Path createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes"));
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFatJarWithBootInfClassesChildrenOnly(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/com/company/Extension.class"));
+      jarOutputStream.write(new byte[] { 0 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createUnreadableJarPath(Path jarPath) throws IOException {
+    Files.createDirectories(jarPath);
+
     return jarPath;
   }
 }
