@@ -17,6 +17,53 @@ import org.junit.jupiter.api.Test;
 class ExtensionRuntimeBootstrapPackagedJarIT {
 
   @Test
+  void shouldKeepVersionOutputStableWhenExtensionPublishesApplicationAndLogbackOverrides() throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-stability-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isZero();
+    assertThat(output).containsPattern("Seed4J CLI v(?!null)\\S+").containsPattern("Seed4J version: (?!null)\\S+");
+  }
+
+  @Test
+  void shouldKeepVersionOutputFreeFromLogbackScanWarningsWhenExtensionPublishesScanEnabledLogback()
+    throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-logback-scan-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isZero();
+    assertThat(output)
+      .doesNotContain("Missing watchable .xml or .properties files")
+      .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL");
+  }
+
+  @Test
   void shouldRunThePackagedJarInExtensionMode() throws IOException, InterruptedException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     ExtensionRuntimeFixture.install(userHome);
