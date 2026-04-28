@@ -59,6 +59,21 @@ final class ExtensionRuntimeFixture {
       </root>
     </configuration>
     """;
+  private static final String EXTENSION_LOGBACK_CONFIGURATION_WITH_SCAN = """
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <!DOCTYPE configuration>
+    <configuration scan="true">
+      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
+        </encoder>
+      </appender>
+
+      <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+      </root>
+    </configuration>
+    """;
   private static final String FLAT_CLASS_ENTRY = "com/seed4j/cli/runtime/FlatExtensionMarker.class";
   private static final List<Class<?>> LIST_EXTENSION_MODULE_CLASSES = List.of(
     RuntimeExtensionListOnlyModuleSlug.class,
@@ -79,6 +94,10 @@ final class ExtensionRuntimeFixture {
 
   static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndRegressionOverrides(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithRegressionOverrides);
   }
 
   static ExtensionRuntimeFixturePaths installWithFlatJar(Path userHome) throws IOException {
@@ -143,6 +162,27 @@ final class ExtensionRuntimeFixture {
       }
       addTextEntry(jarOutputStream, EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_APPLICATION_YML);
       addTextEntry(jarOutputStream, EXTENSION_LOGBACK_ENTRY, EXTENSION_LOGBACK_CONFIGURATION);
+    }
+    return jarPath;
+  }
+
+  static Path createListExtensionModuleJarWithRegressionOverrides(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CONFIG_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      addTextEntry(jarOutputStream, EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_APPLICATION_YML);
+      addTextEntry(jarOutputStream, EXTENSION_LOGBACK_ENTRY, EXTENSION_LOGBACK_CONFIGURATION_WITH_SCAN);
     }
     return jarPath;
   }

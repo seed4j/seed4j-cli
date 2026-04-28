@@ -11,10 +11,13 @@ import java.util.Optional;
 public class Seed4JCliLauncher {
 
   private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
+  private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
+  private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
 
   private final Path userHome;
   private final Path executableJar;
   private final String currentCliVersion;
+  private final String currentSeed4JVersion;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
@@ -27,9 +30,21 @@ public class Seed4JCliLauncher {
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
+    this(userHome, executableJar, currentCliVersion, currentCliVersion, childProcessLauncher, localCliRunner);
+  }
+
+  Seed4JCliLauncher(
+    Path userHome,
+    Path executableJar,
+    String currentCliVersion,
+    String currentSeed4JVersion,
+    ChildProcessLauncher childProcessLauncher,
+    LocalCliRunner localCliRunner
+  ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.currentCliVersion = currentCliVersion;
+    this.currentSeed4JVersion = currentSeed4JVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
     this.runtimeModeConfigReader = new RuntimeModeConfigReader();
@@ -78,6 +93,8 @@ public class Seed4JCliLauncher {
     Map<String, String> systemProperties = new LinkedHashMap<>();
     systemProperties.put("seed4j.cli.runtime.child", "true");
     systemProperties.put("seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase());
+    systemProperties.put(CLI_VERSION_PROPERTY, currentCliVersion);
+    systemProperties.put(SEED4J_VERSION_PROPERTY, currentSeed4JVersion);
     runtimeSelection
       .distributionId()
       .ifPresent(distributionId -> systemProperties.put("seed4j.cli.runtime.distribution.id", distributionId));
@@ -88,7 +105,7 @@ public class Seed4JCliLauncher {
       .extensionJarPath()
       .ifPresent(extensionJarPath -> systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath)));
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
-      systemProperties.put("logging.config", "classpath:logback-spring.xml");
+      systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");
       systemProperties.put("spring.main.log-startup-info", "false");
     }

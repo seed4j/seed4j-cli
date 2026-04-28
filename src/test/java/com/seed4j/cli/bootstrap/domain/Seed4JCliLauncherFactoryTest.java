@@ -33,11 +33,7 @@ class Seed4JCliLauncherFactoryTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     RecordingCommandExecutor commandExecutor = new RecordingCommandExecutor();
     Seed4JCliLauncherFactory factory = new Seed4JCliLauncherFactory();
-
-    Seed4JCliLauncher launcher = factory.create(
-      userHome,
-      executableJar,
-      "0.0.1-SNAPSHOT",
+    Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       Path.of("/opt/jdk/bin/java"),
       commandExecutor,
       () -> {
@@ -48,6 +44,8 @@ class Seed4JCliLauncherFactoryTest {
       }
     );
 
+    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "0.0.1-SNAPSHOT", "2.2.0", dependencies);
+
     int exitCode = launcher.launch(new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(37);
@@ -55,6 +53,8 @@ class Seed4JCliLauncherFactoryTest {
       "/opt/jdk/bin/java",
       "-Dseed4j.cli.runtime.child=true",
       "-Dseed4j.cli.runtime.mode=standard",
+      "-Dseed4j.cli.seed4j.version=2.2.0",
+      "-Dseed4j.cli.version=0.0.1-SNAPSHOT",
       "-cp",
       executableJar.toString(),
       "org.springframework.boot.loader.launch.PropertiesLauncher",

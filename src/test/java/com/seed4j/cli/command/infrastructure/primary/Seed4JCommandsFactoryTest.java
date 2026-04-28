@@ -14,6 +14,7 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -384,6 +385,45 @@ class Seed4JCommandsFactoryTest {
       assertThat(projectPropertyValue(projectPath, PROJECT_NAME)).isEqualTo("Seed4J Sample Application");
       assertThat(projectPropertyValue(projectPath, BASE_NAME)).isEqualTo("seed4jSampleApplication");
       assertThat(projectPropertyValue(projectPath, PACKAGE_NAME)).isEqualTo("com.my.company");
+    }
+
+    @Test
+    void shouldPreferDedicatedRuntimeVersionSystemPropertiesWhenRenderingVersionOutput(CapturedOutput output) {
+      String[] args = { "--version" };
+      RuntimeSelection runtimeSelection = new RuntimeSelection(
+        RuntimeMode.EXTENSION,
+        Optional.of(Path.of("company-extension.jar")),
+        Optional.of("company-extension"),
+        Optional.of("1.0.0")
+      );
+
+      int exitCode = commandLine(
+        modules,
+        projects,
+        runtimeSelection,
+        Map.of("seed4j.cli.version", "9.9.9", "seed4j.cli.seed4j.version", "8.8.8"),
+        "fallback-cli-version",
+        "fallback-seed4j-version"
+      ).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("Seed4J CLI v9.9.9").contains("Seed4J version: 8.8.8");
+    }
+
+    @Test
+    void shouldUseSafeFallbackWhenNoVersionMetadataIsAvailable(CapturedOutput output) {
+      String[] args = { "--version" };
+      RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+
+      int exitCode = commandLine(modules, projects, runtimeSelection, Map.of(), "", "").execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("Seed4J CLI vunknown")
+        .contains("Seed4J version: unknown")
+        .contains("Distribution version: unknown")
+        .doesNotContain("vnull")
+        .doesNotContain("version: null");
     }
 
     @Test

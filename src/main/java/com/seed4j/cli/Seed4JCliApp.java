@@ -52,14 +52,18 @@ public class Seed4JCliApp {
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
-    Seed4JCliLauncher launcher = launcherFactory.create(
-      userHomePath,
-      executablePath(),
-      currentCliVersion(),
+    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       defaultJavaExecutable(),
       Seed4JCliApp::executeCommand,
       Seed4JCliApp::applicationBuilder,
       Seed4JCliApp::resolveExitCode
+    );
+    Seed4JCliLauncher launcher = launcherFactory.create(
+      userHomePath,
+      executablePath(),
+      currentCliVersion(),
+      currentSeed4JVersion(),
+      launcherDependencies
     );
 
     return args -> launcher.launch(args, childMode);
@@ -131,6 +135,12 @@ public class Seed4JCliApp {
     return Optional.ofNullable(Seed4JCliApp.class.getPackage().getImplementationVersion())
       .filter(version -> !version.isBlank())
       .orElse(DEFAULT_CLI_VERSION);
+  }
+
+  private static String currentSeed4JVersion() {
+    return Optional.ofNullable(Seed4JApp.class.getPackage().getImplementationVersion())
+      .filter(version -> !version.isBlank())
+      .orElse(currentCliVersion());
   }
 
   private static boolean childMode() {
