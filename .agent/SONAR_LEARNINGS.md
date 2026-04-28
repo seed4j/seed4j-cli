@@ -76,3 +76,15 @@ Capture practical decisions and pitfalls observed while fixing Sonar issues in t
   - `git status --short`
   - targeted `git diff` / `git blame` on touched lines
 - This prevents mixing local in-progress edits with already-committed changes and avoids incorrect rollback decisions.
+
+## Lessons learned from Sonar fixes (2026-04-28)
+
+## API shape and XML hygiene
+
+- For `java:S107` in factory methods, group infrastructure collaborators into a dedicated value type (for example, a `record`) instead of passing many loosely related parameters.
+- Keep business inputs and wiring inputs separated:
+  - business inputs remain explicit method parameters
+  - wiring concerns move into the grouped dependency type
+- After reducing parameter count, update production call sites and at least one behavior-focused test that verifies the public effect of the created object.
+- For `xml:S125`, remove commented-out configuration blocks from runtime XML files instead of keeping "example" appenders inline.
+- If examples are still needed, move them to documentation files rather than leaving dead/commented configuration in executable resources.
