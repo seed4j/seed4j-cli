@@ -261,6 +261,21 @@ When `seed4j.runtime.mode: extension` is enabled, Seed4J CLI expects:
 - `~/.config/seed4j-cli/runtime/active/extension.jar`
 - `~/.config/seed4j-cli/runtime/active/metadata.yml`
 
+`extension.jar` contract:
+
+- must be a Spring Boot fat jar
+- must contain `BOOT-INF/classes`
+- must contain dependencies in `BOOT-INF/lib`
+- Legacy flat jar extensions are no longer supported
+
+Example setup for a valid fat jar extension:
+
+```bash
+jar tf ~/.config/seed4j-cli/runtime/active/extension.jar | rg 'BOOT-INF/(classes|lib)'
+seed4j --version
+seed4j list
+```
+
 `metadata.yml` contract:
 
 ```yaml
@@ -300,6 +315,12 @@ Operational note:
 
 - `extension` mode requires executing the packaged CLI JAR
 - `standard` mode can still run locally outside a packaged JAR (with a fallback warning)
+
+Example failure output for an invalid extension.jar layout:
+
+```text
+Invalid runtime jar file: /home/user/.config/seed4j-cli/runtime/active/extension.jar. Expected Spring Boot fat jar layout containing BOOT-INF/classes.
+```
 
 #### Creating a Seed4J Extension
 
