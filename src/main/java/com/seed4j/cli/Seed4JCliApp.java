@@ -56,6 +56,7 @@ public class Seed4JCliApp {
       userHomePath,
       executablePath(),
       currentCliVersion(),
+      currentSeed4JVersion(),
       defaultJavaExecutable(),
       Seed4JCliApp::executeCommand,
       Seed4JCliApp::applicationBuilder,
@@ -131,6 +132,12 @@ public class Seed4JCliApp {
     return Optional.ofNullable(Seed4JCliApp.class.getPackage().getImplementationVersion())
       .filter(version -> !version.isBlank())
       .orElse(DEFAULT_CLI_VERSION);
+  }
+
+  private static String currentSeed4JVersion() {
+    return Optional.ofNullable(Seed4JApp.class.getPackage().getImplementationVersion())
+      .filter(version -> !version.isBlank())
+      .orElse(currentCliVersion());
   }
 
   private static boolean childMode() {

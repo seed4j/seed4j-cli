@@ -14,6 +14,7 @@ public class Seed4JCliLauncherFactory {
     Path userHome,
     Path executableJar,
     String currentCliVersion,
+    String currentSeed4JVersion,
     Path javaExecutable,
     CommandExecutor commandExecutor,
     LocalSpringCliRunner.ApplicationBuilderFactory applicationBuilderFactory,
@@ -21,6 +22,6 @@ public class Seed4JCliLauncherFactory {
   ) {
     LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(applicationBuilderFactory, exitCodeResolver, () -> userHome);
     ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(javaExecutable, commandExecutor::execute);
-    return new Seed4JCliLauncher(userHome, executableJar, currentCliVersion, childProcessLauncher, localCliRunner);
+    return new Seed4JCliLauncher(userHome, executableJar, currentCliVersion, currentSeed4JVersion, childProcessLauncher, localCliRunner);
   }
 }

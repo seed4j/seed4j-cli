@@ -38,6 +38,7 @@ class Seed4JCliLauncherFactoryTest {
       userHome,
       executableJar,
       "0.0.1-SNAPSHOT",
+      "2.2.0",
       Path.of("/opt/jdk/bin/java"),
       commandExecutor,
       () -> {
@@ -55,6 +56,8 @@ class Seed4JCliLauncherFactoryTest {
       "/opt/jdk/bin/java",
       "-Dseed4j.cli.runtime.child=true",
       "-Dseed4j.cli.runtime.mode=standard",
+      "-Dseed4j.cli.seed4j.version=2.2.0",
+      "-Dseed4j.cli.version=0.0.1-SNAPSHOT",
       "-cp",
       executableJar.toString(),
       "org.springframework.boot.loader.launch.PropertiesLauncher",

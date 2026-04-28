@@ -42,7 +42,7 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, new CurrentProcessRuntimeSelectionProvider(Map::of));
+    return commandLine(modules, projects, new CurrentProcessRuntimeSelectionProvider(Map::of), Map::of, "1", "2");
   }
 
   static CommandLine commandLine(
@@ -50,7 +50,18 @@ class CliFixture {
     ProjectsApplicationService projects,
     RuntimeSelection runtimeSelection
   ) {
-    return commandLine(modules, projects, () -> runtimeSelection);
+    return commandLine(modules, projects, () -> runtimeSelection, Map::of, "1", "2");
+  }
+
+  static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    RuntimeSelection runtimeSelection,
+    Map<String, String> runtimeSystemProperties,
+    String cliVersion,
+    String seed4JVersion
+  ) {
+    return commandLine(modules, projects, () -> runtimeSelection, () -> runtimeSystemProperties, cliVersion, seed4JVersion);
   }
 
   static CommandLine commandLine(
@@ -58,15 +69,27 @@ class CliFixture {
     ProjectsApplicationService projects,
     RuntimeSelectionProvider runtimeSelectionProvider
   ) {
+    return commandLine(modules, projects, runtimeSelectionProvider, Map::of, "1", "2");
+  }
+
+  static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    RuntimeSelectionProvider runtimeSelectionProvider,
+    RuntimeSystemProperties runtimeSystemProperties,
+    String cliVersion,
+    String seed4JVersion
+  ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
       List.of(listModulesCommand, applyModuleCommand),
-      "1",
-      "2",
-      runtimeSelectionProvider
+      cliVersion,
+      seed4JVersion,
+      runtimeSelectionProvider,
+      runtimeSystemProperties
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());

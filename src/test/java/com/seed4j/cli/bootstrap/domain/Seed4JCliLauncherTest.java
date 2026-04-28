@@ -338,6 +338,36 @@ class Seed4JCliLauncherTest {
   }
 
   @Test
+  void shouldPublishCliVersionSystemPropertyWhenBuildingTheChildProcessRequest() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "1.2.3", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().systemProperties()).containsEntry("seed4j.cli.version", "1.2.3");
+  }
+
+  @Test
+  void shouldPublishSeed4jVersionSystemPropertyWhenBuildingTheChildProcessRequest() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "1.2.3", "9.8.7", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().systemProperties()).containsEntry("seed4j.cli.seed4j.version", "9.8.7");
+  }
+
+  @Test
   void shouldLaunchTheExtensionChildProcessRequestWithLoaderPathAndActiveDistributionSystemProperties() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
