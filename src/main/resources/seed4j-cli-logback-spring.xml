@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration>
+<configuration scan="false">
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+  <springProperty name="log.level" source="logging.level.root" defaultValue="ERROR" />
+  <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
+
+  <logger name="com.seed4j.cli" level="ERROR" />
+
+  <logger name="ch.qos.logback" level="WARN" />
+  <logger name="com.sun" level="WARN" />
+  <logger name="org.springframework" level="WARN" />
+  <!-- seed4j-needle-logback-add-log -->
+
+  <root level="${log.level}">
+    <appender-ref ref="CONSOLE" />
+
+    <!-- The FILE and ASYNC appenders are here as examples for a production configuration -->
+    <!--
+    <appender-ref ref="FILE" />
+    <appender-ref ref="ASYNC"/>
+    -->
+  </root>
+
+  <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+    <resetJUL>true</resetJUL>
+  </contextListener>
+</configuration>

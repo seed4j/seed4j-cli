@@ -433,7 +433,7 @@ class Seed4JCliLauncherTest {
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
     assertThat(childProcessLauncher.request().systemProperties())
-      .containsEntry("logging.config", "classpath:logback-spring.xml")
+      .containsEntry("logging.config", "classpath:seed4j-cli-logback-spring.xml")
       .containsEntry("logging.level.root", "ERROR")
       .containsEntry("spring.main.log-startup-info", "false");
     assertThat(localCliRunner.wasCalled()).isFalse();

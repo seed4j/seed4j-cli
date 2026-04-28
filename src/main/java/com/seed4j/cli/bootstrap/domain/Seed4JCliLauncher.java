@@ -105,7 +105,7 @@ public class Seed4JCliLauncher {
       .extensionJarPath()
       .ifPresent(extensionJarPath -> systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath)));
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
-      systemProperties.put("logging.config", "classpath:logback-spring.xml");
+      systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");
       systemProperties.put("spring.main.log-startup-info", "false");
     }
