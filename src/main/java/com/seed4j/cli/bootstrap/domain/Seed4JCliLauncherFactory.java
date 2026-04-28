@@ -10,18 +10,29 @@ public class Seed4JCliLauncherFactory {
     int execute(List<String> command);
   }
 
+  public record LauncherDependencies(
+    Path javaExecutable,
+    CommandExecutor commandExecutor,
+    LocalSpringCliRunner.ApplicationBuilderFactory applicationBuilderFactory,
+    LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
+  ) {}
+
   public Seed4JCliLauncher create(
     Path userHome,
     Path executableJar,
     String currentCliVersion,
     String currentSeed4JVersion,
-    Path javaExecutable,
-    CommandExecutor commandExecutor,
-    LocalSpringCliRunner.ApplicationBuilderFactory applicationBuilderFactory,
-    LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
+    LauncherDependencies dependencies
   ) {
-    LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(applicationBuilderFactory, exitCodeResolver, () -> userHome);
-    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(javaExecutable, commandExecutor::execute);
+    LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(
+      dependencies.applicationBuilderFactory(),
+      dependencies.exitCodeResolver(),
+      () -> userHome
+    );
+    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(
+      dependencies.javaExecutable(),
+      dependencies.commandExecutor()::execute
+    );
     return new Seed4JCliLauncher(userHome, executableJar, currentCliVersion, currentSeed4JVersion, childProcessLauncher, localCliRunner);
   }
 }

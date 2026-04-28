@@ -52,15 +52,18 @@ public class Seed4JCliApp {
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
+    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+      defaultJavaExecutable(),
+      Seed4JCliApp::executeCommand,
+      Seed4JCliApp::applicationBuilder,
+      Seed4JCliApp::resolveExitCode
+    );
     Seed4JCliLauncher launcher = launcherFactory.create(
       userHomePath,
       executablePath(),
       currentCliVersion(),
       currentSeed4JVersion(),
-      defaultJavaExecutable(),
-      Seed4JCliApp::executeCommand,
-      Seed4JCliApp::applicationBuilder,
-      Seed4JCliApp::resolveExitCode
+      launcherDependencies
     );
 
     return args -> launcher.launch(args, childMode);
