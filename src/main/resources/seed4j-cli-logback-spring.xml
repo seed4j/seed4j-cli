@@ -15,12 +15,6 @@
 
   <root level="${log.level}">
     <appender-ref ref="CONSOLE" />
-
-    <!-- The FILE and ASYNC appenders are here as examples for a production configuration -->
-    <!--
-    <appender-ref ref="FILE" />
-    <appender-ref ref="ASYNC"/>
-    -->
   </root>
 
   <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
