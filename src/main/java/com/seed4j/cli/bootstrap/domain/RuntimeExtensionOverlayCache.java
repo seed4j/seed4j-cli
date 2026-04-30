@@ -3,11 +3,14 @@ package com.seed4j.cli.bootstrap.domain;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -92,46 +95,84 @@ final class RuntimeExtensionOverlayCache {
   }
 
   private void extractBootInfClasses(Path extensionJarPath, Path classesDirectoryPath) throws IOException {
-    boolean bootInfClassesFound = false;
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
-      for (JarEntry jarEntry : extensionJarFile.stream().toList()) {
-        String jarEntryName = jarEntry.getName();
-        if (BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(jarEntryName) || BOOT_INF_CLASSES_DIRECTORY.equals(jarEntryName)) {
-          bootInfClassesFound = true;
-          continue;
-        }
+      List<JarEntry> bootInfClassesEntries = extensionJarFile
+        .stream()
+        .filter(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry)
+        .toList();
+      validateBootInfClassesPresence(extensionJarPath, bootInfClassesEntries);
+      materializeBootInfClassesEntries(extensionJarFile, bootInfClassesEntries, classesDirectoryPath);
+    } catch (UncheckedIOException uncheckedIOException) {
+      throw uncheckedIOException.getCause();
+    }
+  }
 
-        if (!jarEntryName.startsWith(BOOT_INF_CLASSES_DIRECTORY)) {
-          continue;
-        }
+  private static void validateBootInfClassesPresence(Path extensionJarPath, List<JarEntry> bootInfClassesEntries) {
+    if (!bootInfClassesEntries.isEmpty()) {
+      return;
+    }
 
-        bootInfClassesFound = true;
-        String relativeEntryPath = jarEntryName.substring(BOOT_INF_CLASSES_DIRECTORY.length());
-        if (relativeEntryPath.isBlank()) {
-          continue;
-        }
+    throw new InvalidRuntimeConfigurationException(
+      "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes."
+    );
+  }
 
-        Path overlayEntryPath = classesDirectoryPath.resolve(relativeEntryPath).normalize();
-        if (!overlayEntryPath.startsWith(classesDirectoryPath)) {
-          throw new InvalidRuntimeConfigurationException("Invalid runtime extension entry path: " + jarEntryName);
-        }
+  private void materializeBootInfClassesEntries(JarFile extensionJarFile, List<JarEntry> bootInfClassesEntries, Path classesDirectoryPath) {
+    bootInfClassesEntries
+      .stream()
+      .map(jarEntry -> resolveExtractionTarget(jarEntry, classesDirectoryPath))
+      .flatMap(Optional::stream)
+      .forEachOrdered(entryExtractionTarget -> copyEntryToOverlay(extensionJarFile, entryExtractionTarget));
+  }
 
-        if (jarEntry.isDirectory()) {
-          Files.createDirectories(overlayEntryPath);
-          continue;
-        }
+  private static Optional<EntryExtractionTarget> resolveExtractionTarget(JarEntry jarEntry, Path classesDirectoryPath) {
+    if (isBootInfClassesMarker(jarEntry)) {
+      return Optional.empty();
+    }
 
+    String jarEntryName = jarEntry.getName();
+    String relativeEntryPath = jarEntryName.substring(BOOT_INF_CLASSES_DIRECTORY.length());
+    if (relativeEntryPath.isBlank()) {
+      return Optional.empty();
+    }
+
+    Path overlayEntryPath = classesDirectoryPath.resolve(relativeEntryPath).normalize();
+    if (!overlayEntryPath.startsWith(classesDirectoryPath)) {
+      throw new InvalidRuntimeConfigurationException("Invalid runtime extension entry path: " + jarEntryName);
+    }
+
+    return Optional.of(new EntryExtractionTarget(jarEntry, overlayEntryPath));
+  }
+
+  private static void copyEntryToOverlay(JarFile extensionJarFile, EntryExtractionTarget entryExtractionTarget) {
+    JarEntry jarEntry = entryExtractionTarget.jarEntry();
+    Path overlayEntryPath = entryExtractionTarget.overlayEntryPath();
+    try {
+      if (jarEntry.isDirectory()) {
+        Files.createDirectories(overlayEntryPath);
+      } else {
         Files.createDirectories(overlayEntryPath.getParent());
         try (InputStream jarEntryInputStream = extensionJarFile.getInputStream(jarEntry)) {
           Files.copy(jarEntryInputStream, overlayEntryPath, StandardCopyOption.REPLACE_EXISTING);
         }
       }
-    }
-
-    if (!bootInfClassesFound) {
-      throw new InvalidRuntimeConfigurationException(
-        "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes."
-      );
+    } catch (IOException ioException) {
+      throw new UncheckedIOException(ioException);
     }
   }
+
+  private static boolean isBootInfClassesRelevantEntry(JarEntry jarEntry) {
+    return isBootInfClassesMarker(jarEntry) || isBootInfClassesEntry(jarEntry);
+  }
+
+  private static boolean isBootInfClassesMarker(JarEntry jarEntry) {
+    String jarEntryName = jarEntry.getName();
+    return BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(jarEntryName) || BOOT_INF_CLASSES_DIRECTORY.equals(jarEntryName);
+  }
+
+  private static boolean isBootInfClassesEntry(JarEntry jarEntry) {
+    return jarEntry.getName().startsWith(BOOT_INF_CLASSES_DIRECTORY);
+  }
+
+  private record EntryExtractionTarget(JarEntry jarEntry, Path overlayEntryPath) {}
 }
