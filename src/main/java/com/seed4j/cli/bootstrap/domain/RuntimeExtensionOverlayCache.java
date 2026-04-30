@@ -74,19 +74,19 @@ final class RuntimeExtensionOverlayCache {
   }
 
   private static boolean missingBootInfClasses(JarFile extensionJarFile) {
-    return extensionJarFile.stream().noneMatch(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry);
+    return extensionJarFile.stream().noneMatch(RuntimeExtensionOverlayCache::relevantBootInfClassesEntry);
   }
 
-  private static boolean isBootInfClassesRelevantEntry(JarEntry jarEntry) {
-    return isBootInfClassesMarker(jarEntry) || isBootInfClassesEntry(jarEntry);
+  private static boolean relevantBootInfClassesEntry(JarEntry jarEntry) {
+    return bootInfClassesMarker(jarEntry) || bootInfClassesEntry(jarEntry);
   }
 
-  private static boolean isBootInfClassesMarker(JarEntry jarEntry) {
+  private static boolean bootInfClassesMarker(JarEntry jarEntry) {
     String jarEntryName = jarEntry.getName();
     return BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(jarEntryName) || BOOT_INF_CLASSES_DIRECTORY.equals(jarEntryName);
   }
 
-  private static boolean isBootInfClassesEntry(JarEntry jarEntry) {
+  private static boolean bootInfClassesEntry(JarEntry jarEntry) {
     return jarEntry.getName().startsWith(BOOT_INF_CLASSES_DIRECTORY);
   }
 
@@ -98,11 +98,11 @@ final class RuntimeExtensionOverlayCache {
   }
 
   private static Stream<JarEntry> bootInfClassesEntries(JarFile extensionJarFile) {
-    return extensionJarFile.stream().filter(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry);
+    return extensionJarFile.stream().filter(RuntimeExtensionOverlayCache::relevantBootInfClassesEntry);
   }
 
   private static Optional<EntryExtractionTarget> resolveExtractionTarget(JarEntry jarEntry, Path classesDirectoryPath) {
-    if (isBootInfClassesMarker(jarEntry)) {
+    if (bootInfClassesMarker(jarEntry)) {
       return Optional.empty();
     }
 
