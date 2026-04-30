@@ -56,43 +56,6 @@ final class RuntimeExtensionOverlayCache {
     }
   }
 
-  @ExcludeFromGeneratedCodeCoverage(reason = "Cache publication race branch depends on filesystem concurrency timing")
-  private static void moveStagingDirectory(Path stagingDirectoryPath, Path cacheDirectoryPath) throws IOException {
-    try {
-      Files.move(stagingDirectoryPath, cacheDirectoryPath, StandardCopyOption.ATOMIC_MOVE);
-    } catch (FileAlreadyExistsException _) {
-      deleteDirectoryQuietly(stagingDirectoryPath);
-    }
-  }
-
-  private static void deleteDirectoryQuietly(Path directoryPath) {
-    if (Files.notExists(directoryPath)) {
-      return;
-    }
-
-    deleteDirectoryTreeQuietly(directoryPath);
-  }
-
-  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort directory walk failures are nondeterministic across file systems")
-  private static void deleteDirectoryTreeQuietly(Path directoryPath) {
-    try {
-      try (Stream<Path> walk = Files.walk(directoryPath)) {
-        walk.sorted(Comparator.reverseOrder()).forEach(RuntimeExtensionOverlayCache::deletePathQuietly);
-      }
-    } catch (IOException _) {
-      return;
-    }
-  }
-
-  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort file deletion failures are nondeterministic across operating systems")
-  private static void deletePathQuietly(Path path) {
-    try {
-      Files.deleteIfExists(path);
-    } catch (IOException _) {
-      return;
-    }
-  }
-
   private void extractBootInfClasses(Path extensionJarPath, Path classesDirectoryPath) throws IOException {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
       requireBootInfClassesPresence(extensionJarPath, extensionJarFile);
@@ -112,6 +75,19 @@ final class RuntimeExtensionOverlayCache {
 
   private static boolean missingBootInfClasses(JarFile extensionJarFile) {
     return extensionJarFile.stream().noneMatch(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry);
+  }
+
+  private static boolean isBootInfClassesRelevantEntry(JarEntry jarEntry) {
+    return isBootInfClassesMarker(jarEntry) || isBootInfClassesEntry(jarEntry);
+  }
+
+  private static boolean isBootInfClassesMarker(JarEntry jarEntry) {
+    String jarEntryName = jarEntry.getName();
+    return BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(jarEntryName) || BOOT_INF_CLASSES_DIRECTORY.equals(jarEntryName);
+  }
+
+  private static boolean isBootInfClassesEntry(JarEntry jarEntry) {
+    return jarEntry.getName().startsWith(BOOT_INF_CLASSES_DIRECTORY);
   }
 
   private void materializeBootInfClassesEntries(JarFile extensionJarFile, Path classesDirectoryPath) {
@@ -161,17 +137,41 @@ final class RuntimeExtensionOverlayCache {
     }
   }
 
-  private static boolean isBootInfClassesRelevantEntry(JarEntry jarEntry) {
-    return isBootInfClassesMarker(jarEntry) || isBootInfClassesEntry(jarEntry);
+  @ExcludeFromGeneratedCodeCoverage(reason = "Cache publication race branch depends on filesystem concurrency timing")
+  private static void moveStagingDirectory(Path stagingDirectoryPath, Path cacheDirectoryPath) throws IOException {
+    try {
+      Files.move(stagingDirectoryPath, cacheDirectoryPath, StandardCopyOption.ATOMIC_MOVE);
+    } catch (FileAlreadyExistsException _) {
+      deleteDirectoryQuietly(stagingDirectoryPath);
+    }
   }
 
-  private static boolean isBootInfClassesMarker(JarEntry jarEntry) {
-    String jarEntryName = jarEntry.getName();
-    return BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(jarEntryName) || BOOT_INF_CLASSES_DIRECTORY.equals(jarEntryName);
+  private static void deleteDirectoryQuietly(Path directoryPath) {
+    if (Files.notExists(directoryPath)) {
+      return;
+    }
+
+    deleteDirectoryTreeQuietly(directoryPath);
   }
 
-  private static boolean isBootInfClassesEntry(JarEntry jarEntry) {
-    return jarEntry.getName().startsWith(BOOT_INF_CLASSES_DIRECTORY);
+  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort directory walk failures are nondeterministic across file systems")
+  private static void deleteDirectoryTreeQuietly(Path directoryPath) {
+    try {
+      try (Stream<Path> walk = Files.walk(directoryPath)) {
+        walk.sorted(Comparator.reverseOrder()).forEach(RuntimeExtensionOverlayCache::deletePathQuietly);
+      }
+    } catch (IOException _) {
+      return;
+    }
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort file deletion failures are nondeterministic across operating systems")
+  private static void deletePathQuietly(Path path) {
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException _) {
+      return;
+    }
   }
 
   private record EntryExtractionTarget(JarEntry jarEntry, Path overlayEntryPath) {}
