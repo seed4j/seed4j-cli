@@ -22,6 +22,7 @@ public class Seed4JCliLauncher {
   private final LocalCliRunner localCliRunner;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
   private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
+  private final RuntimeExtensionOverlayCache runtimeExtensionOverlayCache;
 
   Seed4JCliLauncher(
     Path userHome,
@@ -49,6 +50,7 @@ public class Seed4JCliLauncher {
     this.localCliRunner = localCliRunner;
     this.runtimeModeConfigReader = new RuntimeModeConfigReader();
     this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
+    this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(userHome);
   }
 
   public int launch(String[] args) {
@@ -103,7 +105,10 @@ public class Seed4JCliLauncher {
       .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion));
     runtimeSelection
       .extensionJarPath()
-      .ifPresent(extensionJarPath -> systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath)));
+      .ifPresent(extensionJarPath -> {
+        runtimeExtensionOverlayCache.materialize(extensionJarPath);
+        systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(extensionJarPath));
+      });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");

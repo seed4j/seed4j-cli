@@ -439,6 +439,36 @@ class Seed4JCliLauncherTest {
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
+  @Test
+  void shouldMaterializeExtensionOverlayCacheWhenExtensionModeIsSelected() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    Path extensionJarPath = createFatJar(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
+    Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
+    assertThat(exitCode).isZero();
+    assertThat(overlayClassesPath).exists().isDirectory();
+  }
+
   private static Stream<Arguments> invalidRuntimeConfigurationContents() {
     return Stream.of(
       Arguments.of(
