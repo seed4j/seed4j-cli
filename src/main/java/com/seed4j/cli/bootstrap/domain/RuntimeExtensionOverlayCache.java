@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
@@ -53,6 +54,7 @@ final class RuntimeExtensionOverlayCache {
     }
   }
 
+  @ExcludeFromGeneratedCodeCoverage(reason = "Cache publication race branch depends on filesystem concurrency timing")
   private static void moveStagingDirectory(Path stagingDirectoryPath, Path cacheDirectoryPath) throws IOException {
     try {
       Files.move(stagingDirectoryPath, cacheDirectoryPath, StandardCopyOption.ATOMIC_MOVE);
