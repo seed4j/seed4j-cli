@@ -97,6 +97,28 @@ class RuntimeExtensionOverlayCacheTest {
       .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ":");
   }
 
+  @Test
+  void shouldMaterializeJarWhenBootInfClassesEntryDoesNotHaveTrailingSlash() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path extensionJarPath = createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Files.createTempFile("company-extension-", ".jar"));
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+
+    Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
+
+    assertThat(overlayClassesPath.resolve("com/example/Demo.class")).exists();
+  }
+
+  @Test
+  void shouldRejectPathTraversalEntryInsideBootInfClasses() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path extensionJarPath = createFatJarWithPathTraversalEntryInsideClasses(Files.createTempFile("company-extension-", ".jar"));
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+
+    assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Invalid runtime extension entry path: BOOT-INF/classes/../../outside.class");
+  }
+
   private static Path createFatJarWithConflictingClassEntryPaths(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -109,6 +131,38 @@ class RuntimeExtensionOverlayCacheTest {
       jarOutputStream.write(new byte[] { 1 });
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/conflict/child.class"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/ "));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/com/example/Demo.class"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFatJarWithPathTraversalEntryInsideClasses(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/../../outside.class"));
       jarOutputStream.write(new byte[] { 1 });
       jarOutputStream.closeEntry();
     }
