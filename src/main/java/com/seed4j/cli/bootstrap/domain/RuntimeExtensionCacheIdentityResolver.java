@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -15,6 +16,7 @@ final class RuntimeExtensionCacheIdentityResolver {
     return new RuntimeExtensionCacheIdentity(CACHE_LAYOUT_VERSION + "-" + sha256(extensionJarPath));
   }
 
+  @ExcludeFromGeneratedCodeCoverage(reason = "I/O and algorithm fallback paths are environment-dependent")
   private String sha256(Path extensionJarPath) {
     try {
       MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
