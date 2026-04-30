@@ -38,3 +38,7 @@ For complex features or significant refactors, use an Execution Plan (see `.agen
 ## Sonar and Cleanup Learnings
 
 For Sonar-specific cleanup patterns and the validated local Sonar workflow used in this repository, see `.agent/SONAR_LEARNINGS.md`.
+
+## Agent Terminal Behavior
+
+When the user asks to "use seed4j in the terminal" (or equivalent wording in Portuguese/English), run the `seed4j` command directly in the shell and report the real terminal output and exit code. Do not answer only with documentation or examples unless the user explicitly asks for explanation instead of execution.
