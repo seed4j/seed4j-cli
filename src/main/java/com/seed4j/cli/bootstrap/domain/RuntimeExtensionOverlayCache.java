@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.jar.JarEntry;
@@ -96,33 +95,34 @@ final class RuntimeExtensionOverlayCache {
 
   private void extractBootInfClasses(Path extensionJarPath, Path classesDirectoryPath) throws IOException {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
-      List<JarEntry> bootInfClassesEntries = extensionJarFile
-        .stream()
-        .filter(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry)
-        .toList();
-      validateBootInfClassesPresence(extensionJarPath, bootInfClassesEntries);
-      materializeBootInfClassesEntries(extensionJarFile, bootInfClassesEntries, classesDirectoryPath);
+      requireBootInfClassesPresence(extensionJarPath, extensionJarFile);
+      materializeBootInfClassesEntries(extensionJarFile, classesDirectoryPath);
     } catch (UncheckedIOException uncheckedIOException) {
       throw uncheckedIOException.getCause();
     }
   }
 
-  private static void validateBootInfClassesPresence(Path extensionJarPath, List<JarEntry> bootInfClassesEntries) {
-    if (!bootInfClassesEntries.isEmpty()) {
-      return;
+  private static void requireBootInfClassesPresence(Path extensionJarPath, JarFile extensionJarFile) {
+    if (missingBootInfClasses(extensionJarFile)) {
+      throw new InvalidRuntimeConfigurationException(
+        "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes."
+      );
     }
-
-    throw new InvalidRuntimeConfigurationException(
-      "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes."
-    );
   }
 
-  private void materializeBootInfClassesEntries(JarFile extensionJarFile, List<JarEntry> bootInfClassesEntries, Path classesDirectoryPath) {
-    bootInfClassesEntries
-      .stream()
+  private static boolean missingBootInfClasses(JarFile extensionJarFile) {
+    return extensionJarFile.stream().noneMatch(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry);
+  }
+
+  private void materializeBootInfClassesEntries(JarFile extensionJarFile, Path classesDirectoryPath) {
+    bootInfClassesEntries(extensionJarFile)
       .map(jarEntry -> resolveExtractionTarget(jarEntry, classesDirectoryPath))
       .flatMap(Optional::stream)
       .forEachOrdered(entryExtractionTarget -> copyEntryToOverlay(extensionJarFile, entryExtractionTarget));
+  }
+
+  private static Stream<JarEntry> bootInfClassesEntries(JarFile extensionJarFile) {
+    return extensionJarFile.stream().filter(RuntimeExtensionOverlayCache::isBootInfClassesRelevantEntry);
   }
 
   private static Optional<EntryExtractionTarget> resolveExtractionTarget(JarEntry jarEntry, Path classesDirectoryPath) {
