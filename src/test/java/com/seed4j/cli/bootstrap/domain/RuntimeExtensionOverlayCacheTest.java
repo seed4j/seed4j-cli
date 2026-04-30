@@ -86,6 +86,17 @@ class RuntimeExtensionOverlayCacheTest {
     }
   }
 
+  @Test
+  void shouldFailGracefullyWhenRuntimeCacheRootCannotBeCreated() throws IOException {
+    Path userHomeFile = Files.createTempFile("seed4j-cli-user-home-", ".tmp");
+    Path extensionJarPath = ExtensionRuntimeFixture.createListExtensionModuleJar(Files.createTempFile("company-extension-", ".jar"));
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHomeFile);
+
+    assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ":");
+  }
+
   private static Path createFatJarWithConflictingClassEntryPaths(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");

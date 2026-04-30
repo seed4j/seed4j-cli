@@ -64,24 +64,30 @@ final class RuntimeExtensionOverlayCache {
   }
 
   private static void deleteDirectoryQuietly(Path directoryPath) {
-    try {
-      if (!Files.exists(directoryPath)) {
-        return;
-      }
+    if (Files.notExists(directoryPath)) {
+      return;
+    }
 
+    deleteDirectoryTreeQuietly(directoryPath);
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort directory walk failures are nondeterministic across file systems")
+  private static void deleteDirectoryTreeQuietly(Path directoryPath) {
+    try {
       try (Stream<Path> walk = Files.walk(directoryPath)) {
-        walk
-          .sorted(Comparator.reverseOrder())
-          .forEach(path -> {
-            try {
-              Files.deleteIfExists(path);
-            } catch (IOException _) {
-              // Best effort cleanup.
-            }
-          });
+        walk.sorted(Comparator.reverseOrder()).forEach(RuntimeExtensionOverlayCache::deletePathQuietly);
       }
     } catch (IOException _) {
-      // Best effort cleanup.
+      return;
+    }
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Best-effort file deletion failures are nondeterministic across operating systems")
+  private static void deletePathQuietly(Path path) {
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException _) {
+      return;
     }
   }
 
