@@ -7,6 +7,10 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -62,5 +66,41 @@ class RuntimeExtensionOverlayCacheTest {
         assertThat(cacheDirectoryEntries).isEmpty();
       }
     }
+  }
+
+  @Test
+  void shouldDeleteStagingDirectoryWhenOverlayMaterializationFailsWithIOException() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path extensionJarPath = createFatJarWithConflictingClassEntryPaths(Files.createTempFile("company-extension-", ".jar"));
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+
+    assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ":");
+
+    Path runtimeCacheDirectoryPath = userHome.resolve(".config/seed4j-cli/runtime/cache");
+    if (Files.exists(runtimeCacheDirectoryPath)) {
+      try (Stream<Path> cacheDirectoryEntries = Files.list(runtimeCacheDirectoryPath)) {
+        assertThat(cacheDirectoryEntries).isEmpty();
+      }
+    }
+  }
+
+  private static Path createFatJarWithConflictingClassEntryPaths(Path jarPath) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/conflict"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/conflict/child.class"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
   }
 }
