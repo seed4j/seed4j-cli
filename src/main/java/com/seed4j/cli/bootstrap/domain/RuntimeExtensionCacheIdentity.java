@@ -1,9 +1,9 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.error.domain.Assert;
+
 record RuntimeExtensionCacheIdentity(String value) {
   RuntimeExtensionCacheIdentity {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("Runtime extension cache identity cannot be null or blank.");
-    }
+    Assert.notBlank("value", value);
   }
 }
