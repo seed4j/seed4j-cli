@@ -19,15 +19,10 @@ final class RuntimeExtensionOverlayCache {
   private static final Path RUNTIME_CACHE_DIRECTORY = Path.of(".config", "seed4j-cli", "runtime", "cache");
 
   private final Path userHome;
-  private final RuntimeExtensionCacheIdentityResolver cacheIdentityResolver;
+  private final RuntimeExtensionCacheIdentityResolver cacheIdentityResolver = new RuntimeExtensionCacheIdentityResolver();
 
   RuntimeExtensionOverlayCache(Path userHome) {
-    this(userHome, new RuntimeExtensionCacheIdentityResolver());
-  }
-
-  RuntimeExtensionOverlayCache(Path userHome, RuntimeExtensionCacheIdentityResolver cacheIdentityResolver) {
     this.userHome = userHome;
-    this.cacheIdentityResolver = cacheIdentityResolver;
   }
 
   Path materialize(Path extensionJarPath) {
