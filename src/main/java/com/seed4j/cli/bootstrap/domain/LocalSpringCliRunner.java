@@ -2,6 +2,7 @@ package com.seed4j.cli.bootstrap.domain;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 
@@ -70,8 +71,8 @@ public class LocalSpringCliRunner implements LocalCliRunner {
     return exitCodeResolver.resolve(context);
   }
 
-  private static java.util.Optional<String> extensionStartClass() {
-    return java.util.Optional.ofNullable(System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY))
+  private static Optional<String> extensionStartClass() {
+    return Optional.ofNullable(System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY))
       .map(String::trim)
       .filter(startClass -> !startClass.isEmpty());
   }
