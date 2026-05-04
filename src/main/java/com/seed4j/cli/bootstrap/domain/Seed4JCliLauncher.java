@@ -13,6 +13,7 @@ public class Seed4JCliLauncher {
   private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
   private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
   private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
+  private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
 
   private final Path userHome;
   private final Path executableJar;
@@ -23,6 +24,7 @@ public class Seed4JCliLauncher {
   private final RuntimeModeConfigReader runtimeModeConfigReader;
   private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
   private final RuntimeExtensionOverlayCache runtimeExtensionOverlayCache;
+  private final RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver;
 
   Seed4JCliLauncher(
     Path userHome,
@@ -51,6 +53,7 @@ public class Seed4JCliLauncher {
     this.runtimeModeConfigReader = new RuntimeModeConfigReader();
     this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
     this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(userHome);
+    this.runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
   }
 
   public int launch(String[] args) {
@@ -106,6 +109,8 @@ public class Seed4JCliLauncher {
     runtimeSelection
       .extensionJarPath()
       .ifPresent(extensionJarPath -> {
+        String extensionStartClass = runtimeExtensionStartClassResolver.resolve(extensionJarPath);
+        systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
         Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(extensionJarPath);
         systemProperties.put("loader.path", runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, extensionJarPath));
       });

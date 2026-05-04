@@ -6,6 +6,8 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
@@ -67,11 +69,66 @@ class LocalSpringCliRunnerTest {
     assertThat(builder.lazyInitialization()).isTrue();
   }
 
+  @Test
+  void runtimeExtensionSpringSourcesPendingBehaviors() {
+    // [TEST] covered below: shouldPreserveExternalConfigLocationWhenAlsoAddingSpringMainSources
+  }
+
+  @Test
+  void shouldAddSpringMainSourcesWhenRuntimeExtensionStartClassPropertyIsPresent() {
+    String runtimeExtensionStartClassProperty = "seed4j.cli.runtime.extension.start-class";
+    String originalRuntimeExtensionStartClass = System.getProperty(runtimeExtensionStartClassProperty);
+    System.setProperty(runtimeExtensionStartClassProperty, "com.mycompany.extension.ExtensionRuntimeApplication");
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> Path.of("/tmp"));
+
+    try {
+      runner.run(new String[] { "--version" });
+
+      assertThat(builder.properties()).isEqualTo("spring.main.sources=com.mycompany.extension.ExtensionRuntimeApplication");
+    } finally {
+      if (originalRuntimeExtensionStartClass == null) {
+        System.clearProperty(runtimeExtensionStartClassProperty);
+      } else {
+        System.setProperty(runtimeExtensionStartClassProperty, originalRuntimeExtensionStartClass);
+      }
+    }
+  }
+
+  @Test
+  void shouldPreserveExternalConfigLocationWhenAlsoAddingSpringMainSources() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path configFile = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(configFile.getParent());
+    Files.writeString(configFile, "seed4j:\n  runtime:\n    mode: extension\n");
+    String runtimeExtensionStartClassProperty = "seed4j.cli.runtime.extension.start-class";
+    String originalRuntimeExtensionStartClass = System.getProperty(runtimeExtensionStartClassProperty);
+    System.setProperty(runtimeExtensionStartClassProperty, "com.mycompany.extension.ExtensionRuntimeApplication");
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> userHome);
+
+    try {
+      runner.run(new String[] { "--version" });
+
+      assertThat(builder.propertyEntries()).containsExactly(
+        "spring.config.location=classpath:/config/,file:%s".formatted(configFile),
+        "spring.main.sources=com.mycompany.extension.ExtensionRuntimeApplication"
+      );
+    } finally {
+      if (originalRuntimeExtensionStartClass == null) {
+        System.clearProperty(runtimeExtensionStartClassProperty);
+      } else {
+        System.setProperty(runtimeExtensionStartClassProperty, originalRuntimeExtensionStartClass);
+      }
+    }
+  }
+
   private static final class RecordingApplicationBuilder implements LocalSpringCliRunner.ApplicationBuilder {
 
     private Banner.Mode bannerMode;
     private Boolean lazyInitialization;
     private String properties;
+    private final List<String> propertyEntries = new ArrayList<>();
     private WebApplicationType webApplicationType;
 
     @Override
@@ -95,6 +152,7 @@ class LocalSpringCliRunnerTest {
     @Override
     public LocalSpringCliRunner.ApplicationBuilder properties(String properties) {
       this.properties = properties;
+      this.propertyEntries.add(properties);
       return this;
     }
 
@@ -113,6 +171,10 @@ class LocalSpringCliRunnerTest {
 
     String properties() {
       return properties;
+    }
+
+    List<String> propertyEntries() {
+      return List.copyOf(propertyEntries);
     }
 
     Boolean lazyInitialization() {
