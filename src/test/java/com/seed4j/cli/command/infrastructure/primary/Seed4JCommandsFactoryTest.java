@@ -207,8 +207,12 @@ class Seed4JCommandsFactoryTest {
         .contains("Missing required")
         .contains("'--base-name=<basename*>'")
         .contains("'--project-name=<projectname*>'")
-        .contains("Project short name (only letters and numbers) (required)")
-        .contains("Project full name (required)");
+        .contains("Project short name (only letters and numbers) e.g.")
+        .contains("seed4jSampleApplication (required)")
+        .contains("Project full name e.g.")
+        .contains("Seed4J Sample Application")
+        .contains("Node package manager e.g.")
+        .contains("npm (required)");
     }
 
     @Test
