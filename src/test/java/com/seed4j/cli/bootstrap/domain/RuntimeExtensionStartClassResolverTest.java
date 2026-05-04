@@ -22,8 +22,8 @@ class RuntimeExtensionStartClassResolverTest {
       Files.createTempFile("seed4j-cli-extension-", ".jar"),
       "com.seed4j.extension.ExtensionApplication"
     );
-
     RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
+
     String startClass = runtimeExtensionStartClassResolver.resolve(extensionJarPath);
 
     assertThat(startClass).isEqualTo("com.seed4j.extension.ExtensionApplication");
@@ -32,7 +32,6 @@ class RuntimeExtensionStartClassResolverTest {
   @Test
   void shouldFailWhenStartClassIsMissingFromManifest() throws IOException {
     Path extensionJarPath = createExtensionJarWithoutStartClass(Files.createTempFile("seed4j-cli-extension-", ".jar"));
-
     RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
 
     assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(extensionJarPath))
@@ -46,7 +45,6 @@ class RuntimeExtensionStartClassResolverTest {
       Files.createTempFile("seed4j-cli-extension-", ".jar"),
       "com.seed4j.extension.ExtensionApplication"
     );
-
     RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
 
     assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(extensionJarPath))

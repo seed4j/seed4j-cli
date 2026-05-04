@@ -70,11 +70,6 @@ class LocalSpringCliRunnerTest {
   }
 
   @Test
-  void runtimeExtensionSpringSourcesPendingBehaviors() {
-    // [TEST] covered below: shouldPreserveExternalConfigLocationWhenAlsoAddingSpringMainSources
-  }
-
-  @Test
   void shouldAddSpringMainSourcesWhenRuntimeExtensionStartClassPropertyIsPresent() {
     String runtimeExtensionStartClassProperty = "seed4j.cli.runtime.extension.start-class";
     String originalRuntimeExtensionStartClass = System.getProperty(runtimeExtensionStartClassProperty);

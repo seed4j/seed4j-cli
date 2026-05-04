@@ -472,11 +472,6 @@ class Seed4JCliLauncherTest {
   }
 
   @Test
-  void runtimeExtensionStartClassBootstrapPendingBehaviors() {
-    // [TEST] covered below: shouldFailBeforeChildProcessWhenExtensionStartClassIsMissingFromManifest
-  }
-
-  @Test
   void shouldPublishExtensionStartClassSystemPropertyWhenExtensionModeIsSelected() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
