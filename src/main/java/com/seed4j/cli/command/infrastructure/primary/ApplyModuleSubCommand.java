@@ -79,8 +79,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         spec.addOption(
           OptionSpec.builder(toDashedFormat(property.key()))
             .description(
-              "%s%s".formatted(
+              "%s%s%s".formatted(
                 property.description().map(Seed4JPropertyDescription::get).orElse(""),
+                property.defaultValue().map(d -> " e.g. " + d.get()).orElse(""),
                 property.isMandatory() ? " (required)" : ""
               )
             )
