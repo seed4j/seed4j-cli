@@ -17,6 +17,36 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionStartClassResolverTest {
 
   @Test
+  void shouldFailWhenStartClassIsBlankInManifest() throws IOException {
+    Path extensionJarPath = createExtensionJarWithStartClass(Files.createTempFile("seed4j-cli-extension-", ".jar"), "   ");
+    RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
+
+    assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(extensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Missing manifest Start-Class");
+  }
+
+  @Test
+  void shouldFailWhenExtensionJarCannotBeRead() throws IOException {
+    Path invalidExtensionJarPath = Files.createTempDirectory("seed4j-cli-extension-not-a-jar-");
+    RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
+
+    assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(invalidExtensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not read manifest Start-Class");
+  }
+
+  @Test
+  void shouldFailWhenManifestIsMissingFromExtensionJar() throws IOException {
+    Path extensionJarPath = createExtensionJarWithoutManifest(Files.createTempFile("seed4j-cli-extension-", ".jar"));
+    RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
+
+    assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(extensionJarPath))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Missing manifest Start-Class");
+  }
+
+  @Test
   void shouldResolveStartClassFromManifestWhenPresent() throws IOException {
     Path extensionJarPath = createExtensionJarWithStartClass(
       Files.createTempFile("seed4j-cli-extension-", ".jar"),
@@ -86,6 +116,16 @@ class RuntimeExtensionStartClassResolverTest {
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     manifest.getMainAttributes().putValue("Start-Class", startClass);
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(extensionJarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+    }
+    return extensionJarPath;
+  }
+
+  private static Path createExtensionJarWithoutManifest(Path extensionJarPath) throws IOException {
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(extensionJarPath))) {
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));

@@ -118,6 +118,27 @@ class LocalSpringCliRunnerTest {
     }
   }
 
+  @Test
+  void shouldIgnoreBlankRuntimeExtensionStartClassProperty() {
+    String runtimeExtensionStartClassProperty = "seed4j.cli.runtime.extension.start-class";
+    String originalRuntimeExtensionStartClass = System.getProperty(runtimeExtensionStartClassProperty);
+    System.setProperty(runtimeExtensionStartClassProperty, "   ");
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> Path.of("/tmp"));
+
+    try {
+      runner.run(new String[] { "--version" });
+
+      assertThat(builder.propertyEntries()).isEmpty();
+    } finally {
+      if (originalRuntimeExtensionStartClass == null) {
+        System.clearProperty(runtimeExtensionStartClassProperty);
+      } else {
+        System.setProperty(runtimeExtensionStartClassProperty, originalRuntimeExtensionStartClass);
+      }
+    }
+  }
+
   private static final class RecordingApplicationBuilder implements LocalSpringCliRunner.ApplicationBuilder {
 
     private Banner.Mode bannerMode;
