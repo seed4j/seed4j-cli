@@ -393,7 +393,9 @@ class Seed4JCliLauncherTest {
 
     Path extensionJarPath = runtimeDirectory.resolve("extension.jar");
     String extensionJarUri = extensionJarPath.toUri().toString();
-    String expectedLoaderPath = "jar:" + extensionJarUri + "!/BOOT-INF/classes,jar:" + extensionJarUri + "!/BOOT-INF/lib/";
+    RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
+    Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
+    String expectedLoaderPath = overlayClassesPath + ",jar:" + extensionJarUri + "!/BOOT-INF/lib/";
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();

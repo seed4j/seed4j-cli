@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.jar.JarEntry;
@@ -19,6 +20,8 @@ final class RuntimeExtensionOverlayCache {
 
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH = "BOOT-INF/classes";
+  private static final String APPLICATION_RESOURCE_PREFIX = "config/application";
+  private static final List<String> APPLICATION_RESOURCE_SUFFIXES = List.of(".yml", ".yaml", ".properties");
   private static final Path RUNTIME_CACHE_DIRECTORY = Path.of(".config", "seed4j-cli", "runtime", "cache");
 
   private final Path userHome;
@@ -111,6 +114,9 @@ final class RuntimeExtensionOverlayCache {
     if (relativeEntryPath.isBlank()) {
       return Optional.empty();
     }
+    if (globalRuntimeResource(relativeEntryPath)) {
+      return Optional.empty();
+    }
 
     Path overlayEntryPath = classesDirectoryPath.resolve(relativeEntryPath).normalize();
     if (!overlayEntryPath.startsWith(classesDirectoryPath)) {
@@ -118,6 +124,26 @@ final class RuntimeExtensionOverlayCache {
     }
 
     return Optional.of(new EntryExtractionTarget(jarEntry, overlayEntryPath));
+  }
+
+  private static boolean globalRuntimeResource(String relativeEntryPath) {
+    return applicationConfigurationResource(relativeEntryPath) || logbackConfigurationResource(relativeEntryPath);
+  }
+
+  private static boolean applicationConfigurationResource(String relativeEntryPath) {
+    if (!relativeEntryPath.startsWith(APPLICATION_RESOURCE_PREFIX)) {
+      return false;
+    }
+
+    return APPLICATION_RESOURCE_SUFFIXES.stream().anyMatch(relativeEntryPath::endsWith);
+  }
+
+  private static boolean logbackConfigurationResource(String relativeEntryPath) {
+    if (relativeEntryPath.contains("/")) {
+      return false;
+    }
+
+    return relativeEntryPath.startsWith("logback") && relativeEntryPath.endsWith(".xml");
   }
 
   private static void copyEntryToOverlay(JarFile extensionJarFile, EntryExtractionTarget entryExtractionTarget) {
