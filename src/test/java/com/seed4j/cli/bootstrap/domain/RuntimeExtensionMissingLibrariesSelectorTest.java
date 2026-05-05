@@ -19,6 +19,4 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
     assertThat(missingLibraries).containsExactly("missing-lib-2.0.0.jar", "another-missing-lib-3.1.0.jar");
   }
-
-  // [TEST] shouldReturnEmptyWhenExtensionLibrariesAreAlreadyProvidedByCli
 }
