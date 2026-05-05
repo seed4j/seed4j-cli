@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.util.List;
@@ -18,5 +19,15 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
     assertThat(missingLibraries).containsExactly("missing-lib-2.0.0.jar", "another-missing-lib-3.1.0.jar");
+  }
+
+  @Test
+  void shouldFailFastWhenExtensionLibraryCoordinateMatchesCliWithDifferentVersion() {
+    List<String> extensionLibraries = List.of("shared-lib-2.0.0.jar");
+    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar");
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("shared-lib");
   }
 }
