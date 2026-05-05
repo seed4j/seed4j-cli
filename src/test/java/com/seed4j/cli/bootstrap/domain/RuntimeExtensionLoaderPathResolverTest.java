@@ -31,7 +31,20 @@ class RuntimeExtensionLoaderPathResolverTest {
     assertThat(loaderPath).isEqualTo(expectedLoaderPath);
   }
 
-  // [TEST] shouldReturnOnlyOverlayClassesWhenNoExtensionLibraryIsMissingFromCli
+  @Test
+  void shouldReturnOnlyOverlayClassesWhenNoExtensionLibraryIsMissingFromCli() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar", "README.txt")
+    );
+    String expectedLoaderPath = overlayClassesPath.toString();
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
 
   private static Path createJarWithBootInfLibraries(Path jarPath, List<String> libraryFileNames) throws IOException {
     Manifest manifest = new Manifest();
