@@ -11,32 +11,42 @@ import java.util.stream.Collectors;
 final class RuntimeExtensionMissingLibrariesSelector {
 
   List<String> select(List<String> extensionLibraries, Set<String> cliLibraries) {
+    List<RuntimeLibraryEntry> extensionLibraryEntries = extensionLibraries.stream().map(RuntimeLibraryEntry::fromFileName).toList();
+    Set<RuntimeLibraryEntry> cliLibraryEntries = cliLibraries.stream().map(RuntimeLibraryEntry::fromFileName).collect(Collectors.toSet());
+    return selectFromLibraryEntries(extensionLibraryEntries, cliLibraryEntries);
+  }
+
+  List<String> selectFromLibraryEntries(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
+    Set<String> cliLibraryFileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
 
     return extensionLibraries
       .stream()
       .map(extensionLibrary -> ensureNoVersionConflict(extensionLibrary, cliLibraryVersionsByCoordinate))
-      .filter(missingFrom(cliLibraries))
+      .filter(missingFrom(cliLibraryFileNames))
       .toList();
   }
 
-  private static Map<String, String> libraryVersionsByCoordinate(Set<String> cliLibraries) {
+  private static Map<String, String> libraryVersionsByCoordinate(Set<RuntimeLibraryEntry> cliLibraries) {
     Map<String, Set<String>> cliLibraryVersionsByCoordinate = cliLibraries
       .stream()
-      .map(RuntimeLibraryIdentity::fromJarFileName)
+      .map(RuntimeLibraryEntry::identity)
       .flatMap(Optional::stream)
       .collect(groupVersionsByCoordinate());
     failWhenCliContainsConflictingVersions(cliLibraryVersionsByCoordinate);
     return firstCliVersionByCoordinate(cliLibraryVersionsByCoordinate);
   }
 
-  private static String ensureNoVersionConflict(String extensionLibrary, Map<String, String> cliLibraryVersionsByCoordinate) {
-    failWhenVersionConflict(extensionLibrary, cliLibraryVersionsByCoordinate);
-    return extensionLibrary;
+  private static String ensureNoVersionConflict(RuntimeLibraryEntry extensionLibrary, Map<String, String> cliLibraryVersionsByCoordinate) {
+    failWhenVersionConflict(extensionLibrary.identity(), cliLibraryVersionsByCoordinate);
+    return extensionLibrary.fileName();
   }
 
-  private static void failWhenVersionConflict(String extensionLibrary, Map<String, String> cliLibraryVersionsByCoordinate) {
-    RuntimeLibraryIdentity.fromJarFileName(extensionLibrary).ifPresent(libraryIdentity ->
+  private static void failWhenVersionConflict(
+    Optional<RuntimeLibraryIdentity> extensionLibraryIdentity,
+    Map<String, String> cliLibraryVersionsByCoordinate
+  ) {
+    extensionLibraryIdentity.ifPresent(libraryIdentity ->
       Optional.ofNullable(cliLibraryVersionsByCoordinate.get(libraryIdentity.coordinate()))
         .filter(cliVersion -> !cliVersion.equals(libraryIdentity.version()))
         .ifPresent(cliVersion -> {
@@ -87,6 +97,6 @@ final class RuntimeExtensionMissingLibrariesSelector {
   }
 
   private static Predicate<String> missingFrom(Set<String> cliLibraries) {
-    return extensionLibrary -> !cliLibraries.contains(extensionLibrary);
+    return extensionLibraryFileName -> !cliLibraries.contains(extensionLibraryFileName);
   }
 }
