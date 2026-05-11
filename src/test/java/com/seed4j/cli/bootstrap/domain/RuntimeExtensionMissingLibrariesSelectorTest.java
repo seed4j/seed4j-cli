@@ -12,6 +12,16 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldNotFailFastWhenExtensionLibraryUsesClassifierSuffixAndCliHasBaseVersion() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0-jdk17.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).containsExactly("shared-lib-1.0.0-jdk17.jar");
+  }
+
+  @Test
   void shouldFailFastWhenExtensionLibraryUsesReleaseVersionTokenAndCliHasDifferentVersion() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-RELEASE.jar"));
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));

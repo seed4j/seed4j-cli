@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 record RuntimeLibraryIdentity(String coordinate, String version) {
   private static final Pattern LIBRARY_COORDINATE_AND_VERSION_PATTERN = Pattern.compile(
-    "^(.+)-((?:[0-9].*)|(?:v[0-9].*)|(?:RELEASE))\\.jar$"
+    "^(.+)-((?:[0-9][0-9A-Za-z.]*)|(?:v[0-9][0-9A-Za-z.]*)|(?:RELEASE))\\.jar$"
   );
 
   static Optional<RuntimeLibraryIdentity> fromJarFileName(String libraryFileName) {
