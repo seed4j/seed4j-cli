@@ -127,11 +127,7 @@ class RuntimeExtensionLoaderPathResolver {
   }
 
   private static boolean pomPropertiesEntry(JarEntry jarEntry) {
-    return pomPropertiesEntry(jarEntry.getName());
-  }
-
-  private static boolean pomPropertiesEntry(String entryName) {
-    return entryName.startsWith(MAVEN_METADATA_DIRECTORY) && entryName.endsWith(POM_PROPERTIES_SUFFIX);
+    return jarEntry.getName().startsWith(MAVEN_METADATA_DIRECTORY) && jarEntry.getName().endsWith(POM_PROPERTIES_SUFFIX);
   }
 
   private static boolean bootInfLibraryFile(JarEntry jarEntry) {
