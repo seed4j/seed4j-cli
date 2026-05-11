@@ -66,12 +66,24 @@ class RuntimeExtensionLoaderPathResolver {
     }
   }
 
+  private static boolean bootInfLibraryFile(JarEntry jarEntry) {
+    return bootInfLibraryFile(jarEntry.getName());
+  }
+
+  private static boolean bootInfLibraryFile(String entryName) {
+    return entryName.startsWith(BOOT_INF_LIB_DIRECTORY) && !entryName.endsWith("/") && entryName.endsWith(".jar");
+  }
+
   private static RuntimeLibraryEntry runtimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
     String libraryFileName = libraryFileName(jarEntry.getName());
     Optional<RuntimeLibraryIdentity> libraryIdentity = runtimeLibraryIdentityFromNestedJar(jarFile, jarEntry).or(() ->
       RuntimeLibraryIdentity.fromJarFileName(libraryFileName)
     );
     return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
+  }
+
+  private static String libraryFileName(String entryName) {
+    return entryName.substring(BOOT_INF_LIB_DIRECTORY.length());
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
@@ -100,6 +112,10 @@ class RuntimeExtensionLoaderPathResolver {
     }
   }
 
+  private static boolean pomPropertiesEntry(JarEntry jarEntry) {
+    return jarEntry.getName().startsWith(MAVEN_METADATA_DIRECTORY) && jarEntry.getName().endsWith(POM_PROPERTIES_SUFFIX);
+  }
+
   private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromPomProperties(InputStream pomPropertiesInputStream)
     throws IOException {
     Properties properties = new Properties();
@@ -124,21 +140,5 @@ class RuntimeExtensionLoaderPathResolver {
 
   private static String mavenCoordinate(String groupId, String artifactId) {
     return groupId + ":" + artifactId;
-  }
-
-  private static boolean pomPropertiesEntry(JarEntry jarEntry) {
-    return jarEntry.getName().startsWith(MAVEN_METADATA_DIRECTORY) && jarEntry.getName().endsWith(POM_PROPERTIES_SUFFIX);
-  }
-
-  private static boolean bootInfLibraryFile(JarEntry jarEntry) {
-    return bootInfLibraryFile(jarEntry.getName());
-  }
-
-  private static boolean bootInfLibraryFile(String entryName) {
-    return entryName.startsWith(BOOT_INF_LIB_DIRECTORY) && !entryName.endsWith("/") && entryName.endsWith(".jar");
-  }
-
-  private static String libraryFileName(String entryName) {
-    return entryName.substring(BOOT_INF_LIB_DIRECTORY.length());
   }
 }
