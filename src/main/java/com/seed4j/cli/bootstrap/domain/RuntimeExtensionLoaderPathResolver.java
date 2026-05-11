@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -68,7 +69,9 @@ class RuntimeExtensionLoaderPathResolver {
 
   private static boolean bootInfLibraryFile(JarEntry jarEntry) {
     return (
-      jarEntry.getName().startsWith(BOOT_INF_LIB_DIRECTORY) && !jarEntry.getName().endsWith("/") && jarEntry.getName().endsWith(".jar")
+      jarEntry.getName().startsWith(BOOT_INF_LIB_DIRECTORY)
+      && !jarEntry.getName().endsWith("/")
+      && jarEntry.getName().toLowerCase(Locale.ROOT).endsWith(".jar")
     );
   }
 

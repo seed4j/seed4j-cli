@@ -23,6 +23,21 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionLoaderPathResolverTest {
 
   @Test
+  void shouldTreatUppercaseJarExtensionAsRuntimeLibraryEntryWhenComputingMissingLibraries() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.JAR")
+    );
+    String expectedLoaderPath = expectedLoaderPathFor(overlayClassesPath, extensionJarPath, "missing-lib-2.0.0.JAR");
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
   void shouldResolveUsingFileNamesWhenCliNestedLibraryMetadataIsUnreadable() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithUnreadableNestedBootInfLibraries(
