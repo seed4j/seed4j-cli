@@ -12,6 +12,16 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldFailFastWhenExtensionLibraryHasNoInferableIdentityAndSameFileNameAlreadyExistsInCli() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("bundle-all.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("bundle-all.jar"));
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("bundle-all.jar");
+  }
+
+  @Test
   void shouldNotFailFastWhenExtensionLibraryUsesClassifierSuffixAndCliHasBaseVersion() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0-jdk17.jar"));
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));

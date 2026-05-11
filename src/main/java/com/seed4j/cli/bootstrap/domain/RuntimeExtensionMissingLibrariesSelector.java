@@ -14,6 +14,7 @@ final class RuntimeExtensionMissingLibrariesSelector {
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
     Set<String> cliLibraryFileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
     Set<RuntimeLibraryIdentity> cliLibraryIdentities = cliLibraryIdentities(cliLibraries);
+    failWhenMissingIdentityShadowsCliLibrary(extensionLibraries, cliLibraryFileNames);
 
     return extensionLibraries
       .stream()
@@ -109,5 +110,22 @@ final class RuntimeExtensionMissingLibrariesSelector {
         .identity()
         .map(identity -> !cliLibraryIdentities.contains(identity))
         .orElse(true);
+  }
+
+  private static void failWhenMissingIdentityShadowsCliLibrary(
+    List<RuntimeLibraryEntry> extensionLibraries,
+    Set<String> cliLibraryFileNames
+  ) {
+    extensionLibraries
+      .stream()
+      .filter(extensionLibrary -> extensionLibrary.identity().isEmpty())
+      .map(RuntimeLibraryEntry::fileName)
+      .filter(cliLibraryFileNames::contains)
+      .findFirst()
+      .ifPresent(libraryFileName -> {
+        throw new InvalidRuntimeConfigurationException(
+          "Extension runtime library '" + libraryFileName + "' has no inferable identity and collides with a CLI runtime library file name."
+        );
+      });
   }
 }
