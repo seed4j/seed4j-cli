@@ -23,7 +23,7 @@ class RuntimeExtensionLoaderPathResolver {
   String resolve(Path overlayClassesPath, Path extensionJarPath, Path executableJarPath) {
     List<RuntimeLibraryEntry> extensionLibraries = extensionLibraries(extensionJarPath);
     Set<RuntimeLibraryEntry> cliLibraries = Set.copyOf(cliLibraries(executableJarPath));
-    List<String> missingExtensionLibraries = missingLibrariesSelector.selectFromLibraryEntries(extensionLibraries, cliLibraries);
+    List<String> missingExtensionLibraries = missingLibrariesSelector.select(extensionLibraries, cliLibraries);
     if (missingExtensionLibraries.isEmpty()) {
       return overlayClassesPath.toString();
     }

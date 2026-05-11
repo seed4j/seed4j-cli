@@ -10,13 +10,7 @@ import java.util.stream.Collectors;
 
 final class RuntimeExtensionMissingLibrariesSelector {
 
-  List<String> select(List<String> extensionLibraries, Set<String> cliLibraries) {
-    List<RuntimeLibraryEntry> extensionLibraryEntries = extensionLibraries.stream().map(RuntimeLibraryEntry::fromFileName).toList();
-    Set<RuntimeLibraryEntry> cliLibraryEntries = cliLibraries.stream().map(RuntimeLibraryEntry::fromFileName).collect(Collectors.toSet());
-    return selectFromLibraryEntries(extensionLibraryEntries, cliLibraryEntries);
-  }
-
-  List<String> selectFromLibraryEntries(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
+  List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
     Set<String> cliLibraryFileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
 

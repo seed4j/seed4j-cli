@@ -13,8 +13,15 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldReturnOnlyExtensionLibrariesThatAreMissingFromCliPreservingExtensionOrder() {
-    List<String> extensionLibraries = List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.jar", "another-missing-lib-3.1.0.jar");
-    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar", "seed4j-core-9.9.9.jar");
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("missing-lib-2.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("another-missing-lib-3.1.0.jar")
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("seed4j-core-9.9.9.jar")
+    );
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -23,8 +30,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldFailFastWhenExtensionLibraryCoordinateMatchesCliWithDifferentVersion() {
-    List<String> extensionLibraries = List.of("shared-lib-2.0.0.jar");
-    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar");
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
 
     assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -33,8 +40,11 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldFailFastWhenCliContainsSameCoordinateWithDifferentVersions() {
-    List<String> extensionLibraries = List.of("extension-only-lib-9.0.0.jar");
-    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar", "shared-lib-2.0.0.jar");
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("extension-only-lib-9.0.0.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar")
+    );
 
     assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -45,8 +55,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldTreatExtensionLibraryWithoutNumericVersionSuffixAsMissingWithoutVersionConflict() {
-    List<String> extensionLibraries = List.of("shared-lib-custom.jar");
-    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar");
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-custom.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
