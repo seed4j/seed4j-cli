@@ -20,6 +20,32 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionLoaderPathResolverTest {
 
   @Test
+  void shouldIgnoreNonPomPropertiesMetadataEntriesAndStillResolveCliCoordinatesFromPomProperties() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinatesAndPomXmlMetadata(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of(
+        new LibraryWithPomCoordinates("jackson-core-2.21.2.jar", "com.fasterxml.jackson.core", "jackson-core", "2.21.2"),
+        new LibraryWithPomCoordinates("jackson-core-3.1.2.jar", "tools.jackson.core", "jackson-core", "3.1.2")
+      )
+    );
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.jar")
+    );
+    String expectedLoaderPath = expectedLoaderPathFor(
+      overlayClassesPath,
+      extensionJarPath,
+      "shared-lib-1.0.0.jar",
+      "missing-lib-2.0.0.jar"
+    );
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
   void shouldAppendOnlyMissingExtensionLibrariesAsNestedJarEntriesInLoaderPath() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
@@ -150,6 +176,26 @@ class RuntimeExtensionLoaderPathResolverTest {
     return jarPath;
   }
 
+  private static Path createJarWithBootInfLibrariesAndPomCoordinatesAndPomXmlMetadata(
+    Path jarPath,
+    List<LibraryWithPomCoordinates> libraries
+  ) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/"));
+      jarOutputStream.closeEntry();
+      for (LibraryWithPomCoordinates library : libraries) {
+        jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + library.libraryFileName()));
+        jarOutputStream.write(nestedJarWithPomCoordinatesAndPomXmlMetadata(library));
+        jarOutputStream.closeEntry();
+      }
+    }
+    return jarPath;
+  }
+
   private static byte[] nestedJarWithPomCoordinates(LibraryWithPomCoordinates library) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -162,6 +208,36 @@ class RuntimeExtensionLoaderPathResolverTest {
       jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/"));
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/" + library.artifactId() + "/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/" + library.artifactId() + "/pom.properties"));
+      jarOutputStream.write(pomPropertiesBytes(library));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("placeholder.txt"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+      jarOutputStream.finish();
+      return outputStream.toByteArray();
+    }
+  }
+
+  private static byte[] nestedJarWithPomCoordinatesAndPomXmlMetadata(LibraryWithPomCoordinates library) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      JarOutputStream jarOutputStream = new JarOutputStream(outputStream, manifest)
+    ) {
+      jarOutputStream.putNextEntry(new JarEntry("about.txt"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/" + library.artifactId() + "/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/" + library.artifactId() + "/pom.xml"));
+      jarOutputStream.write("<project/>".getBytes());
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + library.groupId() + "/" + library.artifactId() + "/pom.properties"));
       jarOutputStream.write(pomPropertiesBytes(library));
