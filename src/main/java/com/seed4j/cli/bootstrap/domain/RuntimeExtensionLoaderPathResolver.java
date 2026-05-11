@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -69,6 +70,7 @@ class RuntimeExtensionLoaderPathResolver {
     return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
   }
 
+  @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
   private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromNestedJar(JarFile jarFile, JarEntry jarEntry) {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
       return runtimeLibraryIdentityFromNestedJar(jarInputStream);
