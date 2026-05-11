@@ -97,12 +97,14 @@ class RuntimeExtensionLoaderPathResolver {
 
   private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromNestedJar(InputStream nestedJarInputStream) {
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
-      JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
-      while (nestedJarEntry != null) {
+      for (
+        JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
+        nestedJarEntry != null;
+        nestedJarEntry = jarInputStream.getNextJarEntry()
+      ) {
         if (pomPropertiesEntry(nestedJarEntry)) {
           return runtimeLibraryIdentityFromPomProperties(jarInputStream);
         }
-        nestedJarEntry = jarInputStream.getNextJarEntry();
       }
       return Optional.empty();
     } catch (IOException _) {
