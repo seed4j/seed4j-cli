@@ -11,15 +11,14 @@ import java.util.stream.Collectors;
 final class RuntimeExtensionMissingLibrariesSelector {
 
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
+    CliRuntimeLibraries cliRuntimeLibraries = CliRuntimeLibraries.from(cliLibraries);
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
-    Set<String> cliLibraryFileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
-    Set<RuntimeLibraryIdentity> cliLibraryIdentities = cliLibraryIdentities(cliLibraries);
-    failWhenMissingIdentityShadowsCliLibrary(extensionLibraries, cliLibraryFileNames);
+    failWhenMissingIdentityShadowsCliLibrary(extensionLibraries, cliRuntimeLibraries.fileNames());
 
     return extensionLibraries
       .stream()
       .map(extensionLibrary -> ensureNoVersionConflict(extensionLibrary, cliLibraryVersionsByCoordinate))
-      .filter(missingFrom(cliLibraryFileNames, cliLibraryIdentities))
+      .filter(missingFrom(cliRuntimeLibraries))
       .map(RuntimeLibraryEntry::fileName)
       .toList();
   }
@@ -96,20 +95,20 @@ final class RuntimeExtensionMissingLibrariesSelector {
     );
   }
 
-  private static Set<RuntimeLibraryIdentity> cliLibraryIdentities(Set<RuntimeLibraryEntry> cliLibraries) {
-    return cliLibraries.stream().map(RuntimeLibraryEntry::identity).flatMap(Optional::stream).collect(Collectors.toSet());
+  private static Predicate<RuntimeLibraryEntry> missingFrom(CliRuntimeLibraries cliRuntimeLibraries) {
+    return extensionLibrary ->
+      missingByFileName(extensionLibrary, cliRuntimeLibraries) && missingByIdentity(extensionLibrary, cliRuntimeLibraries);
   }
 
-  private static Predicate<RuntimeLibraryEntry> missingFrom(
-    Set<String> cliLibraryFileNames,
-    Set<RuntimeLibraryIdentity> cliLibraryIdentities
-  ) {
-    return extensionLibrary ->
-      !cliLibraryFileNames.contains(extensionLibrary.fileName())
-      && extensionLibrary
-        .identity()
-        .map(identity -> !cliLibraryIdentities.contains(identity))
-        .orElse(true);
+  private static boolean missingByFileName(RuntimeLibraryEntry extensionLibrary, CliRuntimeLibraries cliRuntimeLibraries) {
+    return !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName());
+  }
+
+  private static boolean missingByIdentity(RuntimeLibraryEntry extensionLibrary, CliRuntimeLibraries cliRuntimeLibraries) {
+    return extensionLibrary
+      .identity()
+      .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
+      .orElse(true);
   }
 
   private static void failWhenMissingIdentityShadowsCliLibrary(
@@ -127,5 +126,25 @@ final class RuntimeExtensionMissingLibrariesSelector {
           "Extension runtime library '" + libraryFileName + "' has no inferable identity and collides with a CLI runtime library file name."
         );
       });
+  }
+
+  private record CliRuntimeLibraries(Set<String> fileNames, Set<RuntimeLibraryIdentity> identities) {
+    private static CliRuntimeLibraries from(Set<RuntimeLibraryEntry> cliLibraries) {
+      Set<String> fileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
+      Set<RuntimeLibraryIdentity> identities = cliLibraries
+        .stream()
+        .map(RuntimeLibraryEntry::identity)
+        .flatMap(Optional::stream)
+        .collect(Collectors.toSet());
+      return new CliRuntimeLibraries(fileNames, identities);
+    }
+
+    private boolean containsFileName(String fileName) {
+      return fileNames.contains(fileName);
+    }
+
+    private boolean containsIdentity(RuntimeLibraryIdentity identity) {
+      return identities.contains(identity);
+    }
   }
 }
