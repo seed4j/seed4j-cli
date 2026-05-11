@@ -12,6 +12,16 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldFailFastWhenExtensionLibraryUsesVPrefixedVersionAndCliHasDifferentVersion() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-v2.0.0.jar"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("shared-lib");
+  }
+
+  @Test
   void shouldReturnOnlyExtensionLibrariesThatAreMissingFromCliPreservingExtensionOrder() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"),

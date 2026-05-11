@@ -5,7 +5,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 record RuntimeLibraryIdentity(String coordinate, String version) {
-  private static final Pattern LIBRARY_COORDINATE_AND_VERSION_PATTERN = Pattern.compile("^(.+)-([0-9].*)\\.jar$");
+  private static final Pattern LIBRARY_COORDINATE_AND_VERSION_PATTERN = Pattern.compile("^(.+)-((?:[0-9].*)|(?:v[0-9].*))\\.jar$");
 
   static Optional<RuntimeLibraryIdentity> fromJarFileName(String libraryFileName) {
     Matcher matcher = LIBRARY_COORDINATE_AND_VERSION_PATTERN.matcher(libraryFileName);
