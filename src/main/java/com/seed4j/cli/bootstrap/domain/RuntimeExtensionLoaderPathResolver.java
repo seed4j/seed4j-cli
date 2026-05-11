@@ -17,7 +17,11 @@ import java.util.stream.Stream;
 class RuntimeExtensionLoaderPathResolver {
 
   private static final String BOOT_INF_LIB_DIRECTORY = "BOOT-INF/lib/";
+  private static final String MAVEN_METADATA_DIRECTORY = "META-INF/maven/";
   private static final String POM_PROPERTIES_SUFFIX = "/pom.properties";
+  private static final String GROUP_ID_PROPERTY = "groupId";
+  private static final String ARTIFACT_ID_PROPERTY = "artifactId";
+  private static final String VERSION_PROPERTY = "version";
   private final RuntimeExtensionMissingLibrariesSelector missingLibrariesSelector = new RuntimeExtensionMissingLibrariesSelector();
 
   String resolve(Path overlayClassesPath, Path extensionJarPath, Path executableJarPath) {
@@ -85,7 +89,7 @@ class RuntimeExtensionLoaderPathResolver {
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
       while (nestedJarEntry != null) {
-        if (nestedJarEntry.getName().startsWith("META-INF/maven/") && nestedJarEntry.getName().endsWith(POM_PROPERTIES_SUFFIX)) {
+        if (pomPropertiesEntry(nestedJarEntry)) {
           return runtimeLibraryIdentityFromPomProperties(jarInputStream);
         }
         nestedJarEntry = jarInputStream.getNextJarEntry();
@@ -100,15 +104,34 @@ class RuntimeExtensionLoaderPathResolver {
     throws IOException {
     Properties properties = new Properties();
     properties.load(pomPropertiesInputStream);
+    return runtimeLibraryIdentityFromPomProperties(properties);
+  }
 
-    String groupId = properties.getProperty("groupId");
-    String artifactId = properties.getProperty("artifactId");
-    String version = properties.getProperty("version");
-    if (groupId == null || artifactId == null || version == null) {
-      return Optional.empty();
-    }
+  private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromPomProperties(Properties properties) {
+    Optional<String> groupId = propertyValue(properties, GROUP_ID_PROPERTY);
+    Optional<String> artifactId = propertyValue(properties, ARTIFACT_ID_PROPERTY);
+    Optional<String> version = propertyValue(properties, VERSION_PROPERTY);
+    return groupId.flatMap(mavenGroup ->
+      artifactId.flatMap(artifact ->
+        version.map(libraryVersion -> new RuntimeLibraryIdentity(mavenCoordinate(mavenGroup, artifact), libraryVersion))
+      )
+    );
+  }
 
-    return Optional.of(new RuntimeLibraryIdentity(groupId + ":" + artifactId, version));
+  private static Optional<String> propertyValue(Properties properties, String propertyName) {
+    return Optional.ofNullable(properties.getProperty(propertyName));
+  }
+
+  private static String mavenCoordinate(String groupId, String artifactId) {
+    return groupId + ":" + artifactId;
+  }
+
+  private static boolean pomPropertiesEntry(JarEntry jarEntry) {
+    return pomPropertiesEntry(jarEntry.getName());
+  }
+
+  private static boolean pomPropertiesEntry(String entryName) {
+    return entryName.startsWith(MAVEN_METADATA_DIRECTORY) && entryName.endsWith(POM_PROPERTIES_SUFFIX);
   }
 
   private static boolean bootInfLibraryFile(JarEntry jarEntry) {
