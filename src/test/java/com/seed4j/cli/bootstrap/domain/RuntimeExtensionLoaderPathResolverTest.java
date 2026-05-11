@@ -23,6 +23,24 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionLoaderPathResolverTest {
 
   @Test
+  void shouldNotAppendExtensionLibraryWhenFileNameDiffersButPomIdentityMatchesCli() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("cli-renamed.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    Path extensionJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("extension-shaded.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    String expectedLoaderPath = overlayClassesPath.toString();
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
   void shouldTreatUppercaseJarExtensionAsRuntimeLibraryEntryWhenComputingMissingLibraries() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));

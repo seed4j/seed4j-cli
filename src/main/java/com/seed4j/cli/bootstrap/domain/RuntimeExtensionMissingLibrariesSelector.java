@@ -13,11 +13,13 @@ final class RuntimeExtensionMissingLibrariesSelector {
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
     Set<String> cliLibraryFileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
+    Set<RuntimeLibraryIdentity> cliLibraryIdentities = cliLibraryIdentities(cliLibraries);
 
     return extensionLibraries
       .stream()
       .map(extensionLibrary -> ensureNoVersionConflict(extensionLibrary, cliLibraryVersionsByCoordinate))
-      .filter(missingFrom(cliLibraryFileNames))
+      .filter(missingFrom(cliLibraryFileNames, cliLibraryIdentities))
+      .map(RuntimeLibraryEntry::fileName)
       .toList();
   }
 
@@ -31,9 +33,12 @@ final class RuntimeExtensionMissingLibrariesSelector {
     return firstCliVersionByCoordinate(cliLibraryVersionsByCoordinate);
   }
 
-  private static String ensureNoVersionConflict(RuntimeLibraryEntry extensionLibrary, Map<String, String> cliLibraryVersionsByCoordinate) {
+  private static RuntimeLibraryEntry ensureNoVersionConflict(
+    RuntimeLibraryEntry extensionLibrary,
+    Map<String, String> cliLibraryVersionsByCoordinate
+  ) {
     failWhenVersionConflict(extensionLibrary.identity(), cliLibraryVersionsByCoordinate);
-    return extensionLibrary.fileName();
+    return extensionLibrary;
   }
 
   private static void failWhenVersionConflict(
@@ -90,7 +95,19 @@ final class RuntimeExtensionMissingLibrariesSelector {
     );
   }
 
-  private static Predicate<String> missingFrom(Set<String> cliLibraries) {
-    return extensionLibraryFileName -> !cliLibraries.contains(extensionLibraryFileName);
+  private static Set<RuntimeLibraryIdentity> cliLibraryIdentities(Set<RuntimeLibraryEntry> cliLibraries) {
+    return cliLibraries.stream().map(RuntimeLibraryEntry::identity).flatMap(Optional::stream).collect(Collectors.toSet());
+  }
+
+  private static Predicate<RuntimeLibraryEntry> missingFrom(
+    Set<String> cliLibraryFileNames,
+    Set<RuntimeLibraryIdentity> cliLibraryIdentities
+  ) {
+    return extensionLibrary ->
+      !cliLibraryFileNames.contains(extensionLibrary.fileName())
+      && extensionLibrary
+        .identity()
+        .map(identity -> !cliLibraryIdentities.contains(identity))
+        .orElse(true);
   }
 }
