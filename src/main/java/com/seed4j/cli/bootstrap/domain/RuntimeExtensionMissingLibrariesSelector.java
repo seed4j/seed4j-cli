@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BinaryOperator;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 final class RuntimeExtensionMissingLibrariesSelector {
@@ -21,15 +21,13 @@ final class RuntimeExtensionMissingLibrariesSelector {
   }
 
   private static Map<String, String> libraryVersionsByCoordinate(Set<String> cliLibraries) {
-    return cliLibraries
+    Map<String, Set<String>> cliLibraryVersionsByCoordinate = cliLibraries
       .stream()
       .map(RuntimeLibraryIdentity::fromJarFileName)
       .flatMap(Optional::stream)
-      .collect(Collectors.toMap(RuntimeLibraryIdentity::coordinate, RuntimeLibraryIdentity::version, keepFirstVersion()));
-  }
-
-  private static BinaryOperator<String> keepFirstVersion() {
-    return (first, _) -> first;
+      .collect(groupVersionsByCoordinate());
+    failWhenCliContainsConflictingVersions(cliLibraryVersionsByCoordinate);
+    return firstCliVersionByCoordinate(cliLibraryVersionsByCoordinate);
   }
 
   private static String ensureNoVersionConflict(String extensionLibrary, Map<String, String> cliLibraryVersionsByCoordinate) {
@@ -52,6 +50,39 @@ final class RuntimeExtensionMissingLibrariesSelector {
               + "."
           );
         })
+    );
+  }
+
+  private static void failWhenCliContainsConflictingVersions(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
+    cliLibraryVersionsByCoordinate
+      .entrySet()
+      .stream()
+      .sorted(Map.Entry.comparingByKey())
+      .filter(entry -> entry.getValue().size() > 1)
+      .findFirst()
+      .ifPresent(conflictEntry -> {
+        String versions = conflictEntry.getValue().stream().sorted().collect(Collectors.joining(", "));
+        throw new InvalidRuntimeConfigurationException(
+          "CLI runtime library conflict detected for coordinate '"
+            + conflictEntry.getKey()
+            + "': multiple versions found ["
+            + versions
+            + "]."
+        );
+      });
+  }
+
+  private static Map<String, String> firstCliVersionByCoordinate(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
+    return cliLibraryVersionsByCoordinate
+      .entrySet()
+      .stream()
+      .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().iterator().next()));
+  }
+
+  private static Collector<RuntimeLibraryIdentity, ?, Map<String, Set<String>>> groupVersionsByCoordinate() {
+    return Collectors.groupingBy(
+      RuntimeLibraryIdentity::coordinate,
+      Collectors.mapping(RuntimeLibraryIdentity::version, Collectors.toSet())
     );
   }
 

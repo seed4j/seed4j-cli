@@ -30,4 +30,16 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("shared-lib");
   }
+
+  @Test
+  void shouldFailFastWhenCliContainsSameCoordinateWithDifferentVersions() {
+    List<String> extensionLibraries = List.of("extension-only-lib-9.0.0.jar");
+    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar", "shared-lib-2.0.0.jar");
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("shared-lib")
+      .hasMessageContaining("1.0.0")
+      .hasMessageContaining("2.0.0");
+  }
 }
