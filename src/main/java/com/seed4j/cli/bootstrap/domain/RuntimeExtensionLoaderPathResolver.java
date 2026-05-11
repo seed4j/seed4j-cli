@@ -67,11 +67,9 @@ class RuntimeExtensionLoaderPathResolver {
   }
 
   private static boolean bootInfLibraryFile(JarEntry jarEntry) {
-    return bootInfLibraryFile(jarEntry.getName());
-  }
-
-  private static boolean bootInfLibraryFile(String entryName) {
-    return entryName.startsWith(BOOT_INF_LIB_DIRECTORY) && !entryName.endsWith("/") && entryName.endsWith(".jar");
+    return (
+      jarEntry.getName().startsWith(BOOT_INF_LIB_DIRECTORY) && !jarEntry.getName().endsWith("/") && jarEntry.getName().endsWith(".jar")
+    );
   }
 
   private static RuntimeLibraryEntry runtimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
