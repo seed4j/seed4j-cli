@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.UnitTest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -14,10 +15,30 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
 class RuntimeExtensionLoaderPathResolverTest {
+
+  @Test
+  void shouldResolveUsingFileNamesWhenCliNestedLibraryMetadataIsUnreadable() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithUnreadableNestedBootInfLibraries(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of("shared-lib-1.0.0.jar")
+    );
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar")
+    );
+    String expectedLoaderPath = overlayClassesPath.toString();
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
 
   @Test
   void shouldIgnoreNonPomPropertiesMetadataEntriesAndStillResolveCliCoordinatesFromPomProperties() throws IOException {
@@ -132,6 +153,23 @@ class RuntimeExtensionLoaderPathResolverTest {
       for (String libraryFileName : libraryFileNames) {
         jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
         jarOutputStream.write(new byte[] { 1 });
+        jarOutputStream.closeEntry();
+      }
+    }
+    return jarPath;
+  }
+
+  private static Path createJarWithUnreadableNestedBootInfLibraries(Path jarPath, List<String> libraryFileNames) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/"));
+      jarOutputStream.closeEntry();
+      for (String libraryFileName : libraryFileNames) {
+        jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
+        jarOutputStream.write(invalidNestedJarBytes());
         jarOutputStream.closeEntry();
       }
     }
@@ -259,6 +297,66 @@ class RuntimeExtensionLoaderPathResolverTest {
       properties.store(outputStream, null);
       return outputStream.toByteArray();
     }
+  }
+
+  private static byte[] invalidNestedJarBytes() throws IOException {
+    byte[] nestedJarBytes = nestedJarWithStoredEntries();
+    byte[] firstEntryBytes = "SEED4J-INVALID-CRC-PAYLOAD".getBytes(StandardCharsets.UTF_8);
+    int firstEntryBytesIndex = indexOfBytes(nestedJarBytes, firstEntryBytes);
+    nestedJarBytes[firstEntryBytesIndex + firstEntryBytes.length / 2] = 0;
+    return nestedJarBytes;
+  }
+
+  private static byte[] nestedJarWithStoredEntries() throws IOException {
+    byte[] firstEntryBytes = "SEED4J-INVALID-CRC-PAYLOAD".getBytes(StandardCharsets.UTF_8);
+    byte[] secondEntryBytes = "SEED4J-STORED-ENTRY".getBytes(StandardCharsets.UTF_8);
+
+    try (
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      JarOutputStream jarOutputStream = new JarOutputStream(outputStream)
+    ) {
+      JarEntry firstEntry = storedJarEntry("about.txt", firstEntryBytes);
+      jarOutputStream.putNextEntry(firstEntry);
+      jarOutputStream.write(firstEntryBytes);
+      jarOutputStream.closeEntry();
+
+      JarEntry secondEntry = storedJarEntry("placeholder.txt", secondEntryBytes);
+      jarOutputStream.putNextEntry(secondEntry);
+      jarOutputStream.write(secondEntryBytes);
+      jarOutputStream.closeEntry();
+
+      jarOutputStream.finish();
+      return outputStream.toByteArray();
+    }
+  }
+
+  private static JarEntry storedJarEntry(String entryName, byte[] entryBytes) {
+    CRC32 crc32 = new CRC32();
+    crc32.update(entryBytes);
+
+    JarEntry jarEntry = new JarEntry(entryName);
+    jarEntry.setMethod(ZipEntry.STORED);
+    jarEntry.setSize(entryBytes.length);
+    jarEntry.setCompressedSize(entryBytes.length);
+    jarEntry.setCrc(crc32.getValue());
+    return jarEntry;
+  }
+
+  private static int indexOfBytes(byte[] input, byte[] sequence) {
+    for (int index = 0; index <= input.length - sequence.length; index++) {
+      boolean sequenceMatches = true;
+      for (int offset = 0; offset < sequence.length; offset++) {
+        if (input[index + offset] != sequence[offset]) {
+          sequenceMatches = false;
+          break;
+        }
+      }
+
+      if (sequenceMatches) {
+        return index;
+      }
+    }
+    throw new IllegalStateException("Could not locate nested entry bytes in fixture");
   }
 
   private record LibraryWithPomCoordinates(String libraryFileName, String groupId, String artifactId, String version) {}
