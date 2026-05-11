@@ -42,4 +42,14 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
       .hasMessageContaining("1.0.0")
       .hasMessageContaining("2.0.0");
   }
+
+  @Test
+  void shouldTreatExtensionLibraryWithoutNumericVersionSuffixAsMissingWithoutVersionConflict() {
+    List<String> extensionLibraries = List.of("shared-lib-custom.jar");
+    Set<String> cliLibraries = Set.of("shared-lib-1.0.0.jar");
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).containsExactly("shared-lib-custom.jar");
+  }
 }
