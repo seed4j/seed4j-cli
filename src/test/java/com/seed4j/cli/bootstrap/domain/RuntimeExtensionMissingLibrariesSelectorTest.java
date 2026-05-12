@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
-  void shouldFailUsingFirstConflictingLibraryDecisionWithoutTemporalCouplingFromSeparatePreValidation() {
+  void shouldFailUsingFirstConflictingExtensionLibraryWhenMultipleConflictsExist() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"),
       RuntimeLibraryEntry.fromFileName("bundle-all.jar")
@@ -31,7 +31,21 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldTreatExtensionLibraryAsMissingWhenIdentityDiffersEvenIfFileNameMatchesCli() {
+  void shouldClassifyLibraryAsPresentWhenIdentityMatchesCliEvenWithDifferentFileName() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry("extension-shaded.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("cli-renamed.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
+  }
+
+  @Test
+  void shouldClassifyLibraryAsMissingWhenIdentityDiffersWithoutCoordinateVersionConflict() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.extension:bundle", "2.0.0")))
     );
@@ -45,7 +59,7 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldFailFastWhenExtensionLibraryHasNoInferableIdentityAndSameFileNameAlreadyExistsInCli() {
+  void shouldClassifyLibraryAsConflictWhenIdentityIsMissingAndFileNameCollidesWithCli() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("bundle-all.jar"));
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("bundle-all.jar"));
 
@@ -102,7 +116,7 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldFailFastWhenExtensionLibraryCoordinateMatchesCliWithDifferentVersion() {
+  void shouldClassifyLibraryAsConflictWhenCoordinateMatchesCliWithDifferentVersion() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"));
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
 
@@ -127,7 +141,7 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldTreatExtensionLibraryWithoutNumericVersionSuffixAsMissingWithoutVersionConflict() {
+  void shouldClassifyLibraryAsMissingWhenIdentityIsMissingAndFileNameDoesNotCollideWithCli() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(RuntimeLibraryEntry.fromFileName("shared-lib-custom.jar"));
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"));
 

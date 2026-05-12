@@ -76,12 +76,13 @@ final class RuntimeExtensionMissingLibrariesSelector {
       return RuntimeExtensionLibraryDecision.conflict(conflictMessage.get());
     }
 
-    return extensionLibrary
-        .identity()
-        .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
-        .orElseGet(() -> !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName()))
-      ? RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName())
-      : RuntimeExtensionLibraryDecision.present();
+    if (extensionLibrary.identity().isEmpty()) {
+      return RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
+    }
+
+    return extensionLibrary.identity().filter(cliRuntimeLibraries::containsIdentity).isPresent()
+      ? RuntimeExtensionLibraryDecision.present()
+      : RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
   }
 
   private static Optional<String> versionConflictMessage(
@@ -168,10 +169,6 @@ final class RuntimeExtensionMissingLibrariesSelector {
         .flatMap(Optional::stream)
         .collect(Collectors.toSet());
       return new CliRuntimeLibraries(fileNames, identities);
-    }
-
-    private boolean containsFileName(String fileName) {
-      return fileNames.contains(fileName);
     }
 
     private boolean containsIdentity(RuntimeLibraryIdentity identity) {
