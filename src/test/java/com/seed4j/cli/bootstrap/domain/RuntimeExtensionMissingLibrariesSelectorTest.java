@@ -5,11 +5,26 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
 class RuntimeExtensionMissingLibrariesSelectorTest {
+
+  @Test
+  void shouldTreatExtensionLibraryAsMissingWhenIdentityDiffersEvenIfFileNameMatchesCli() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.extension:bundle", "2.0.0")))
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.cli:bundle", "1.0.0")))
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).containsExactly("bundle-all.jar");
+  }
 
   @Test
   void shouldFailFastWhenExtensionLibraryHasNoInferableIdentityAndSameFileNameAlreadyExistsInCli() {

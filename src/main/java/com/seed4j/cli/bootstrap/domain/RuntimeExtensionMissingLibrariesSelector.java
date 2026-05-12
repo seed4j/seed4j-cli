@@ -114,18 +114,10 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
   private static Predicate<RuntimeLibraryEntry> missingFrom(CliRuntimeLibraries cliRuntimeLibraries) {
     return extensionLibrary ->
-      missingByFileName(extensionLibrary, cliRuntimeLibraries) && missingByIdentity(extensionLibrary, cliRuntimeLibraries);
-  }
-
-  private static boolean missingByFileName(RuntimeLibraryEntry extensionLibrary, CliRuntimeLibraries cliRuntimeLibraries) {
-    return !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName());
-  }
-
-  private static boolean missingByIdentity(RuntimeLibraryEntry extensionLibrary, CliRuntimeLibraries cliRuntimeLibraries) {
-    return extensionLibrary
-      .identity()
-      .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
-      .orElse(true);
+      extensionLibrary
+        .identity()
+        .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
+        .orElseGet(() -> !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName()));
   }
 
   private record CliRuntimeLibraries(Set<String> fileNames, Set<RuntimeLibraryIdentity> identities) {
