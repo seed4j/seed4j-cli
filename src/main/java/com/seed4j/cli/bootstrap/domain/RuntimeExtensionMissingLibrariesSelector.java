@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -13,13 +12,12 @@ final class RuntimeExtensionMissingLibrariesSelector {
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
     CliRuntimeLibraries cliRuntimeLibraries = CliRuntimeLibraries.from(cliLibraries);
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
-    failWhenMissingIdentityShadowsCliLibrary(extensionLibraries, cliRuntimeLibraries.fileNames());
 
     return extensionLibraries
       .stream()
-      .map(extensionLibrary -> ensureNoVersionConflict(extensionLibrary, cliLibraryVersionsByCoordinate))
-      .filter(missingFrom(cliRuntimeLibraries))
-      .map(RuntimeLibraryEntry::fileName)
+      .map(extensionLibrary -> decisionFor(extensionLibrary, cliRuntimeLibraries, cliLibraryVersionsByCoordinate))
+      .map(RuntimeExtensionLibraryDecision::missingLibraryFileNameOrThrowConflict)
+      .flatMap(Optional::stream)
       .toList();
   }
 
@@ -66,58 +64,99 @@ final class RuntimeExtensionMissingLibrariesSelector {
       .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().iterator().next()));
   }
 
-  private static void failWhenMissingIdentityShadowsCliLibrary(
-    List<RuntimeLibraryEntry> extensionLibraries,
-    Set<String> cliLibraryFileNames
-  ) {
-    extensionLibraries
-      .stream()
-      .filter(extensionLibrary -> extensionLibrary.identity().isEmpty())
-      .map(RuntimeLibraryEntry::fileName)
-      .filter(cliLibraryFileNames::contains)
-      .findFirst()
-      .ifPresent(libraryFileName -> {
-        throw new InvalidRuntimeConfigurationException(
-          "Extension runtime library '" + libraryFileName + "' has no inferable identity and collides with a CLI runtime library file name."
-        );
-      });
-  }
-
-  private static RuntimeLibraryEntry ensureNoVersionConflict(
+  private static RuntimeExtensionLibraryDecision decisionFor(
     RuntimeLibraryEntry extensionLibrary,
+    CliRuntimeLibraries cliRuntimeLibraries,
     Map<String, String> cliLibraryVersionsByCoordinate
   ) {
-    failWhenVersionConflict(extensionLibrary.identity(), cliLibraryVersionsByCoordinate);
-    return extensionLibrary;
+    Optional<String> conflictMessage = versionConflictMessage(extensionLibrary.identity(), cliLibraryVersionsByCoordinate).or(() ->
+      missingIdentityShadowConflictMessage(extensionLibrary, cliRuntimeLibraries.fileNames())
+    );
+    if (conflictMessage.isPresent()) {
+      return RuntimeExtensionLibraryDecision.conflict(conflictMessage.get());
+    }
+
+    return extensionLibrary
+        .identity()
+        .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
+        .orElseGet(() -> !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName()))
+      ? RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName())
+      : RuntimeExtensionLibraryDecision.present();
   }
 
-  private static void failWhenVersionConflict(
+  private static Optional<String> versionConflictMessage(
     Optional<RuntimeLibraryIdentity> extensionLibraryIdentity,
     Map<String, String> cliLibraryVersionsByCoordinate
   ) {
-    extensionLibraryIdentity.ifPresent(libraryIdentity ->
+    return extensionLibraryIdentity.flatMap(libraryIdentity ->
       Optional.ofNullable(cliLibraryVersionsByCoordinate.get(libraryIdentity.coordinate()))
         .filter(cliVersion -> !cliVersion.equals(libraryIdentity.version()))
-        .ifPresent(cliVersion -> {
-          throw new InvalidRuntimeConfigurationException(
+        .map(
+          cliVersion ->
             "Extension runtime library conflict detected for coordinate '"
-              + libraryIdentity.coordinate()
-              + "': CLI uses version "
-              + cliVersion
-              + " while extension requires "
-              + libraryIdentity.version()
-              + "."
-          );
-        })
+            + libraryIdentity.coordinate()
+            + "': CLI uses version "
+            + cliVersion
+            + " while extension requires "
+            + libraryIdentity.version()
+            + "."
+        )
     );
   }
 
-  private static Predicate<RuntimeLibraryEntry> missingFrom(CliRuntimeLibraries cliRuntimeLibraries) {
-    return extensionLibrary ->
-      extensionLibrary
-        .identity()
-        .map(identity -> !cliRuntimeLibraries.containsIdentity(identity))
-        .orElseGet(() -> !cliRuntimeLibraries.containsFileName(extensionLibrary.fileName()));
+  private static Optional<String> missingIdentityShadowConflictMessage(
+    RuntimeLibraryEntry extensionLibrary,
+    Set<String> cliLibraryFileNames
+  ) {
+    return extensionLibrary.identity().isEmpty()
+      ? Optional.of(extensionLibrary.fileName())
+          .filter(cliLibraryFileNames::contains)
+          .map(
+            libraryFileName ->
+              "Extension runtime library '"
+              + libraryFileName
+              + "' has no inferable identity and collides with a CLI runtime library file name."
+          )
+      : Optional.empty();
+  }
+
+  private enum RuntimeExtensionLibraryDecisionKind {
+    MISSING,
+    PRESENT,
+    CONFLICT,
+  }
+
+  private record RuntimeExtensionLibraryDecision(
+    RuntimeExtensionLibraryDecisionKind kind,
+    Optional<String> missingLibraryFileName,
+    Optional<String> conflictMessage
+  ) {
+    private static RuntimeExtensionLibraryDecision missing(String missingLibraryFileName) {
+      return new RuntimeExtensionLibraryDecision(
+        RuntimeExtensionLibraryDecisionKind.MISSING,
+        Optional.of(missingLibraryFileName),
+        Optional.empty()
+      );
+    }
+
+    private static RuntimeExtensionLibraryDecision present() {
+      return new RuntimeExtensionLibraryDecision(RuntimeExtensionLibraryDecisionKind.PRESENT, Optional.empty(), Optional.empty());
+    }
+
+    private static RuntimeExtensionLibraryDecision conflict(String conflictMessage) {
+      return new RuntimeExtensionLibraryDecision(
+        RuntimeExtensionLibraryDecisionKind.CONFLICT,
+        Optional.empty(),
+        Optional.of(conflictMessage)
+      );
+    }
+
+    private Optional<String> missingLibraryFileNameOrThrowConflict() {
+      if (kind == RuntimeExtensionLibraryDecisionKind.CONFLICT) {
+        throw new InvalidRuntimeConfigurationException(conflictMessage.orElseThrow());
+      }
+      return missingLibraryFileName;
+    }
   }
 
   private record CliRuntimeLibraries(Set<String> fileNames, Set<RuntimeLibraryIdentity> identities) {

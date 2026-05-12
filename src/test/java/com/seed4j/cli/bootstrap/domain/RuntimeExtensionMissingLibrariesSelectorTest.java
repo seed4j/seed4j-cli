@@ -13,6 +13,24 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldFailUsingFirstConflictingLibraryDecisionWithoutTemporalCouplingFromSeparatePreValidation() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("bundle-all.jar")
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      RuntimeLibraryEntry.fromFileName("shared-lib-1.0.0.jar"),
+      RuntimeLibraryEntry.fromFileName("bundle-all.jar")
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("shared-lib")
+      .hasMessageContaining("1.0.0")
+      .hasMessageContaining("2.0.0");
+  }
+
+  @Test
   void shouldTreatExtensionLibraryAsMissingWhenIdentityDiffersEvenIfFileNameMatchesCli() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.extension:bundle", "2.0.0")))
