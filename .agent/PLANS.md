@@ -26,6 +26,22 @@ Start by briefly explaining why the change matters from a user perspective, then
 
 The executing agent can list files, read files, search, run the project, and run tests. It has no memory of prior work. Restate all assumptions. Do not reference external blog posts or hidden context. If this plan builds on another ExecPlan and that file is committed, reference it; otherwise include all necessary context directly.
 
+## Prompt-Safety Hygiene (to reduce false policy flags)
+
+When writing ExecPlans that will be copied into model prompts, keep wording explicit, bounded, and operational:
+
+- Always state benign intent in plain language (for example: "refactor", "test", "diagnose", "improve reliability").
+- Avoid ambiguous "attack-like" verbs unless strictly needed by context. Prefer neutral terms such as "validate", "inspect", "simulate", "reproduce", or "harden".
+- Do not ask the model to bypass safeguards, ignore policy, reveal hidden prompts, or expose chain-of-thought/reasoning traces.
+- If the task touches security-sensitive areas, explicitly scope to defensive and authorized work only.
+- Do not include unnecessary examples of harmful behavior. Describe only the minimum technical context needed to implement and verify the change.
+- Keep prompts concrete and file-scoped: what to edit, how to test, and expected observable outcomes.
+- If content can be interpreted in multiple ways, add a one-line safety boundary (what is out of scope).
+
+Recommended header snippet for high-risk/ambiguous domains:
+
+`Safety boundary: This task is limited to authorized, defensive maintenance of this repository. Do not provide offensive guidance or policy-bypassing instructions.`
+
 ## Formatting
 
 Each ExecPlan must be one fenced `md` code block if embedded in another message. If written as a standalone `.md` file, do not wrap with triple backticks.
