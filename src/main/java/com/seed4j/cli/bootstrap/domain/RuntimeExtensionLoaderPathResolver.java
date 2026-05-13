@@ -162,6 +162,25 @@ class RuntimeExtensionLoaderPathResolver {
     InputStream nestedJarInputStream,
     String libraryFileName
   ) {
+    return strictRuntimeLibraryIdentityFromNestedJarWithFallback(nestedJarInputStream, libraryFileName);
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
+  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJarWithFallback(
+    InputStream nestedJarInputStream,
+    String libraryFileName
+  ) {
+    try {
+      return strictRuntimeLibraryIdentityFromNestedJarInternal(nestedJarInputStream, libraryFileName);
+    } catch (IOException _) {
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJarInternal(
+    InputStream nestedJarInputStream,
+    String libraryFileName
+  ) throws IOException {
     Set<RuntimeLibraryIdentity> resolvedLibraryIdentities = new LinkedHashSet<>();
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
@@ -169,16 +188,16 @@ class RuntimeExtensionLoaderPathResolver {
         nestedJarEntry != null;
         nestedJarEntry = jarInputStream.getNextJarEntry()
       ) {
-        if (pomPropertiesEntry(nestedJarEntry)) {
-          RuntimeLibraryIdentity runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream).orElseThrow(() ->
-            incompleteRuntimeLibraryMetadata(libraryFileName)
-          );
-          resolvedLibraryIdentities.add(runtimeLibraryIdentity);
+        if (!pomPropertiesEntry(nestedJarEntry)) {
+          continue;
         }
+
+        RuntimeLibraryIdentity runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream).orElseThrow(() ->
+          incompleteRuntimeLibraryMetadata(libraryFileName)
+        );
+        resolvedLibraryIdentities.add(runtimeLibraryIdentity);
       }
       return strictSingleIdentityOrThrowConflict(resolvedLibraryIdentities, libraryFileName);
-    } catch (IOException _) {
-      return Optional.empty();
     }
   }
 

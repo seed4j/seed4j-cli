@@ -144,6 +144,57 @@ class RuntimeExtensionLoaderPathResolverTest {
   }
 
   @Test
+  void shouldTreatCliLibrariesAsEmptyWhenExecutableJarCannotBeInspected() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = Files.createTempDirectory("seed4j-cli-missing-executable-").resolve("missing-cli.jar");
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.jar")
+    );
+    String expectedLoaderPath = expectedLoaderPathFor(
+      overlayClassesPath,
+      extensionJarPath,
+      "shared-lib-1.0.0.jar",
+      "missing-lib-2.0.0.jar"
+    );
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
+  void shouldResolveUsingFileNamesWhenExtensionNestedLibraryMetadataIsUnreadable() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = createJarWithUnreadableNestedBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar")
+    );
+    String expectedLoaderPath = overlayClassesPath.toString();
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
+  void shouldResolveUsingFileNamesWhenExtensionNestedLibraryIsNotAJarStream() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = createJarWithBootInfLibrariesAndRawBytes(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar"),
+      new byte[] { 1, 2, 3, 4, 5 }
+    );
+    String expectedLoaderPath = overlayClassesPath.toString();
+
+    String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+
+    assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
   void shouldIgnoreNonPomPropertiesMetadataEntriesAndStillResolveCliCoordinatesFromPomProperties() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinatesAndPomXmlMetadata(
@@ -273,6 +324,24 @@ class RuntimeExtensionLoaderPathResolverTest {
       for (String libraryFileName : libraryFileNames) {
         jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
         jarOutputStream.write(invalidNestedJarBytes());
+        jarOutputStream.closeEntry();
+      }
+    }
+    return jarPath;
+  }
+
+  private static Path createJarWithBootInfLibrariesAndRawBytes(Path jarPath, List<String> libraryFileNames, byte[] nestedLibraryBytes)
+    throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/"));
+      jarOutputStream.closeEntry();
+      for (String libraryFileName : libraryFileNames) {
+        jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
+        jarOutputStream.write(nestedLibraryBytes);
         jarOutputStream.closeEntry();
       }
     }
