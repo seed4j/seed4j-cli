@@ -42,23 +42,37 @@ class RuntimeExtensionLoaderPathResolver {
   }
 
   private static List<RuntimeLibraryEntry> extensionLibraries(Path extensionJarPath) {
-    return libraries(extensionJarPath, true);
+    return strictLibraries(extensionJarPath);
   }
 
   private static List<RuntimeLibraryEntry> cliLibraries(Path executableJarPath) {
     try {
-      return libraries(executableJarPath, false);
+      return lenientLibraries(executableJarPath);
     } catch (InvalidRuntimeConfigurationException _) {
       return List.of();
     }
   }
 
-  private static List<RuntimeLibraryEntry> libraries(Path jarPath, boolean strictPomMetadata) {
+  private static List<RuntimeLibraryEntry> strictLibraries(Path jarPath) {
     try (JarFile jarFile = new JarFile(jarPath.toFile())) {
       return jarFile
         .stream()
         .filter(RuntimeExtensionLoaderPathResolver::bootInfLibraryFile)
-        .map(jarEntry -> runtimeLibraryEntry(jarFile, jarEntry, strictPomMetadata))
+        .map(jarEntry -> strictRuntimeLibraryEntry(jarFile, jarEntry))
+        .toList();
+    } catch (IOException ioException) {
+      throw new InvalidRuntimeConfigurationException(
+        "Could not inspect runtime library entries from " + jarPath + ": " + ioException.getMessage()
+      );
+    }
+  }
+
+  private static List<RuntimeLibraryEntry> lenientLibraries(Path jarPath) {
+    try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+      return jarFile
+        .stream()
+        .filter(RuntimeExtensionLoaderPathResolver::bootInfLibraryFile)
+        .map(jarEntry -> lenientRuntimeLibraryEntry(jarFile, jarEntry))
         .toList();
     } catch (IOException ioException) {
       throw new InvalidRuntimeConfigurationException(
@@ -75,14 +89,19 @@ class RuntimeExtensionLoaderPathResolver {
     );
   }
 
-  private static RuntimeLibraryEntry runtimeLibraryEntry(JarFile jarFile, JarEntry jarEntry, boolean strictPomMetadata) {
+  private static RuntimeLibraryEntry strictRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
     String libraryFileName = libraryFileName(jarEntry.getName());
-    Optional<RuntimeLibraryIdentity> libraryIdentity = runtimeLibraryIdentityFromNestedJar(
-      jarFile,
-      jarEntry,
-      libraryFileName,
-      strictPomMetadata
-    ).or(() -> RuntimeLibraryIdentity.fromJarFileName(libraryFileName));
+    Optional<RuntimeLibraryIdentity> libraryIdentity = strictRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry, libraryFileName).or(
+      () -> RuntimeLibraryIdentity.fromJarFileName(libraryFileName)
+    );
+    return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
+  }
+
+  private static RuntimeLibraryEntry lenientRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
+    String libraryFileName = libraryFileName(jarEntry.getName());
+    Optional<RuntimeLibraryIdentity> libraryIdentity = lenientRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry).or(() ->
+      RuntimeLibraryIdentity.fromJarFileName(libraryFileName)
+    );
     return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
   }
 
@@ -91,14 +110,13 @@ class RuntimeExtensionLoaderPathResolver {
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
-  private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromNestedJar(
+  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJar(
     JarFile jarFile,
     JarEntry jarEntry,
-    String libraryFileName,
-    boolean strictPomMetadata
+    String libraryFileName
   ) {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
-      return runtimeLibraryIdentityFromNestedJar(jarInputStream, libraryFileName, strictPomMetadata);
+      return strictRuntimeLibraryIdentityFromNestedJar(jarInputStream, libraryFileName);
     } catch (IOException ioException) {
       throw new InvalidRuntimeConfigurationException(
         "Could not inspect nested library metadata from " + jarEntry.getName() + ": " + ioException.getMessage()
@@ -106,10 +124,20 @@ class RuntimeExtensionLoaderPathResolver {
     }
   }
 
-  private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromNestedJar(
+  @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
+  private static Optional<RuntimeLibraryIdentity> lenientRuntimeLibraryIdentityFromNestedJar(JarFile jarFile, JarEntry jarEntry) {
+    try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
+      return lenientRuntimeLibraryIdentityFromNestedJar(jarInputStream);
+    } catch (IOException ioException) {
+      throw new InvalidRuntimeConfigurationException(
+        "Could not inspect nested library metadata from " + jarEntry.getName() + ": " + ioException.getMessage()
+      );
+    }
+  }
+
+  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJar(
     InputStream nestedJarInputStream,
-    String libraryFileName,
-    boolean strictPomMetadata
+    String libraryFileName
   ) {
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
@@ -122,10 +150,24 @@ class RuntimeExtensionLoaderPathResolver {
           if (runtimeLibraryIdentity.isPresent()) {
             return runtimeLibraryIdentity;
           }
-          if (strictPomMetadata) {
-            throw incompleteRuntimeLibraryMetadata(libraryFileName);
-          }
-          return Optional.empty();
+          throw incompleteRuntimeLibraryMetadata(libraryFileName);
+        }
+      }
+      return Optional.empty();
+    } catch (IOException _) {
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<RuntimeLibraryIdentity> lenientRuntimeLibraryIdentityFromNestedJar(InputStream nestedJarInputStream) {
+    try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
+      for (
+        JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
+        nestedJarEntry != null;
+        nestedJarEntry = jarInputStream.getNextJarEntry()
+      ) {
+        if (pomPropertiesEntry(nestedJarEntry)) {
+          return runtimeLibraryIdentityFromPomProperties(jarInputStream);
         }
       }
       return Optional.empty();
