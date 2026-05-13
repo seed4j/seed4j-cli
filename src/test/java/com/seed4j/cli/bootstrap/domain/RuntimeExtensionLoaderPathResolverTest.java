@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.io.ByteArrayOutputStream;
@@ -21,6 +22,28 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class RuntimeExtensionLoaderPathResolverTest {
+
+  @Test
+  void shouldFailFastWhenExtensionNestedPomPropertiesIsIncompleteForRenamedLibrary() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("cli-renamed.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    Path extensionJarPath = createJarWithBootInfLibrariesAndIncompletePomCoordinates(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      "extension-shaded.jar",
+      "com.acme",
+      "shared-lib"
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("extension-shaded.jar")
+      .hasMessageContaining("groupId")
+      .hasMessageContaining("artifactId")
+      .hasMessageContaining("version");
+  }
 
   @Test
   void shouldNotAppendExtensionLibraryWhenFileNameDiffersButPomIdentityMatchesCli() throws IOException {
@@ -247,6 +270,26 @@ class RuntimeExtensionLoaderPathResolverTest {
     return jarPath;
   }
 
+  private static Path createJarWithBootInfLibrariesAndIncompletePomCoordinates(
+    Path jarPath,
+    String libraryFileName,
+    String groupId,
+    String artifactId
+  ) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
+      jarOutputStream.write(nestedJarWithIncompletePomCoordinates(groupId, artifactId));
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
   private static Path createJarWithBootInfLibrariesAndPomCoordinatesAndPomXmlMetadata(
     Path jarPath,
     List<LibraryWithPomCoordinates> libraries
@@ -321,11 +364,45 @@ class RuntimeExtensionLoaderPathResolverTest {
     }
   }
 
+  private static byte[] nestedJarWithIncompletePomCoordinates(String groupId, String artifactId) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      JarOutputStream jarOutputStream = new JarOutputStream(outputStream, manifest)
+    ) {
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + groupId + "/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + groupId + "/" + artifactId + "/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + groupId + "/" + artifactId + "/pom.properties"));
+      jarOutputStream.write(incompletePomPropertiesBytes(groupId, artifactId));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("placeholder.txt"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+      jarOutputStream.finish();
+      return outputStream.toByteArray();
+    }
+  }
+
   private static byte[] pomPropertiesBytes(LibraryWithPomCoordinates library) throws IOException {
     Properties properties = new Properties();
     properties.setProperty("groupId", library.groupId());
     properties.setProperty("artifactId", library.artifactId());
     properties.setProperty("version", library.version());
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      properties.store(outputStream, null);
+      return outputStream.toByteArray();
+    }
+  }
+
+  private static byte[] incompletePomPropertiesBytes(String groupId, String artifactId) throws IOException {
+    Properties properties = new Properties();
+    properties.setProperty("groupId", groupId);
+    properties.setProperty("artifactId", artifactId);
     try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
       properties.store(outputStream, null);
       return outputStream.toByteArray();
