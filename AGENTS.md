@@ -31,10 +31,6 @@ Recent history follows Conventional Commits with scopes, for example `feat(boots
 
 The CLI loads external overrides from `~/.config/seed4j-cli.yml`; document any new configuration keys in both code and `README.md`. If you change command flow or boundaries, update the relevant files in `documentation/`, especially the hexagonal architecture and commands guides.
 
-## Execution Plans for Complex Tasks
-
-For complex features or significant refactors, use an Execution Plan (see `.agent/PLANS.md`) from design through implementation.
-
 ## Sonar and Cleanup Learnings
 
 For Sonar-specific cleanup patterns and the validated local Sonar workflow used in this repository, see `.agent/SONAR_LEARNINGS.md`.
