@@ -4,6 +4,7 @@ import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -139,7 +140,7 @@ class RuntimeExtensionLoaderPathResolver {
     InputStream nestedJarInputStream,
     String libraryFileName
   ) {
-    Optional<RuntimeLibraryIdentity> resolvedLibraryIdentity = Optional.empty();
+    Set<RuntimeLibraryIdentity> resolvedLibraryIdentities = new LinkedHashSet<>();
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
         JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
@@ -147,20 +148,27 @@ class RuntimeExtensionLoaderPathResolver {
         nestedJarEntry = jarInputStream.getNextJarEntry()
       ) {
         if (pomPropertiesEntry(nestedJarEntry)) {
-          Optional<RuntimeLibraryIdentity> runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream);
-          if (runtimeLibraryIdentity.isEmpty()) {
-            throw incompleteRuntimeLibraryMetadata(libraryFileName);
-          }
-          if (resolvedLibraryIdentity.isPresent() && !resolvedLibraryIdentity.equals(runtimeLibraryIdentity)) {
-            throw conflictingRuntimeLibraryMetadata(libraryFileName, resolvedLibraryIdentity.get(), runtimeLibraryIdentity.get());
-          }
-          resolvedLibraryIdentity = resolvedLibraryIdentity.or(() -> runtimeLibraryIdentity);
+          RuntimeLibraryIdentity runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream).orElseThrow(() ->
+            incompleteRuntimeLibraryMetadata(libraryFileName)
+          );
+          resolvedLibraryIdentities.add(runtimeLibraryIdentity);
         }
       }
-      return resolvedLibraryIdentity;
+      return strictSingleIdentityOrThrowConflict(resolvedLibraryIdentities, libraryFileName);
     } catch (IOException _) {
       return Optional.empty();
     }
+  }
+
+  private static Optional<RuntimeLibraryIdentity> strictSingleIdentityOrThrowConflict(
+    Set<RuntimeLibraryIdentity> resolvedLibraryIdentities,
+    String libraryFileName
+  ) {
+    if (resolvedLibraryIdentities.size() > 1) {
+      throw conflictingRuntimeLibraryMetadata(libraryFileName, resolvedLibraryIdentities);
+    }
+
+    return resolvedLibraryIdentities.stream().findFirst();
   }
 
   private static Optional<RuntimeLibraryIdentity> lenientRuntimeLibraryIdentityFromNestedJar(InputStream nestedJarInputStream) {
@@ -214,10 +222,10 @@ class RuntimeExtensionLoaderPathResolver {
 
   private static InvalidRuntimeConfigurationException conflictingRuntimeLibraryMetadata(
     String libraryFileName,
-    RuntimeLibraryIdentity firstIdentity,
-    RuntimeLibraryIdentity secondIdentity
+    Set<RuntimeLibraryIdentity> runtimeLibraryIdentities
   ) {
-    String identities = Stream.of(firstIdentity, secondIdentity)
+    String identities = runtimeLibraryIdentities
+      .stream()
       .map(runtimeLibraryIdentity -> runtimeLibraryIdentity.coordinate() + ":" + runtimeLibraryIdentity.version())
       .sorted()
       .collect(Collectors.joining(", "));

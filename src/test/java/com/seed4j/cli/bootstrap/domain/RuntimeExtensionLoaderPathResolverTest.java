@@ -24,6 +24,31 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionLoaderPathResolverTest {
 
   @Test
+  void shouldReportAllDistinctConflictingPomIdentitiesFromExtensionNestedJar() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("shared-lib-1.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    Path extensionJarPath = createJarWithBootInfLibraryContainingMultiplePomCoordinates(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      "extension-shaded.jar",
+      List.of(
+        new LibraryWithPomCoordinates("ignored-1.jar", "com.acme", "shared-lib", "1.0.0"),
+        new LibraryWithPomCoordinates("ignored-2.jar", "org.other", "other-lib", "2.0.0"),
+        new LibraryWithPomCoordinates("ignored-3.jar", "io.third", "third-lib", "3.0.0")
+      )
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("extension-shaded.jar")
+      .hasMessageContaining("com.acme:shared-lib:1.0.0")
+      .hasMessageContaining("org.other:other-lib:2.0.0")
+      .hasMessageContaining("io.third:third-lib:3.0.0");
+  }
+
+  @Test
   void shouldFailFastWhenExtensionNestedJarContainsConflictingPomIdentities() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
@@ -332,6 +357,25 @@ class RuntimeExtensionLoaderPathResolverTest {
     return jarPath;
   }
 
+  private static Path createJarWithBootInfLibraryContainingMultiplePomCoordinates(
+    Path jarPath,
+    String libraryFileName,
+    List<LibraryWithPomCoordinates> pomCoordinates
+  ) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/lib/" + libraryFileName));
+      jarOutputStream.write(nestedJarWithMultiplePomCoordinates(pomCoordinates));
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
   private static Path createJarWithBootInfLibrariesAndPomCoordinatesAndPomXmlMetadata(
     Path jarPath,
     List<LibraryWithPomCoordinates> libraries
@@ -464,6 +508,36 @@ class RuntimeExtensionLoaderPathResolverTest {
       );
       jarOutputStream.write(pomPropertiesBytes(secondPomCoordinates));
       jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("placeholder.txt"));
+      jarOutputStream.write(new byte[] { 1 });
+      jarOutputStream.closeEntry();
+      jarOutputStream.finish();
+      return outputStream.toByteArray();
+    }
+  }
+
+  private static byte[] nestedJarWithMultiplePomCoordinates(List<LibraryWithPomCoordinates> pomCoordinatesList) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      JarOutputStream jarOutputStream = new JarOutputStream(outputStream, manifest)
+    ) {
+      jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/"));
+      jarOutputStream.closeEntry();
+
+      for (LibraryWithPomCoordinates pomCoordinates : pomCoordinatesList) {
+        jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + pomCoordinates.groupId() + "/"));
+        jarOutputStream.closeEntry();
+        jarOutputStream.putNextEntry(new JarEntry("META-INF/maven/" + pomCoordinates.groupId() + "/" + pomCoordinates.artifactId() + "/"));
+        jarOutputStream.closeEntry();
+        jarOutputStream.putNextEntry(
+          new JarEntry("META-INF/maven/" + pomCoordinates.groupId() + "/" + pomCoordinates.artifactId() + "/pom.properties")
+        );
+        jarOutputStream.write(pomPropertiesBytes(pomCoordinates));
+        jarOutputStream.closeEntry();
+      }
+
       jarOutputStream.putNextEntry(new JarEntry("placeholder.txt"));
       jarOutputStream.write(new byte[] { 1 });
       jarOutputStream.closeEntry();
