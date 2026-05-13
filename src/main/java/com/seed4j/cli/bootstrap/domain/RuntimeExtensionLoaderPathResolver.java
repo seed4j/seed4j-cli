@@ -139,6 +139,7 @@ class RuntimeExtensionLoaderPathResolver {
     InputStream nestedJarInputStream,
     String libraryFileName
   ) {
+    Optional<RuntimeLibraryIdentity> resolvedLibraryIdentity = Optional.empty();
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
         JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
@@ -147,13 +148,16 @@ class RuntimeExtensionLoaderPathResolver {
       ) {
         if (pomPropertiesEntry(nestedJarEntry)) {
           Optional<RuntimeLibraryIdentity> runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream);
-          if (runtimeLibraryIdentity.isPresent()) {
-            return runtimeLibraryIdentity;
+          if (runtimeLibraryIdentity.isEmpty()) {
+            throw incompleteRuntimeLibraryMetadata(libraryFileName);
           }
-          throw incompleteRuntimeLibraryMetadata(libraryFileName);
+          if (resolvedLibraryIdentity.isPresent() && !resolvedLibraryIdentity.equals(runtimeLibraryIdentity)) {
+            throw conflictingRuntimeLibraryMetadata(libraryFileName, resolvedLibraryIdentity.get(), runtimeLibraryIdentity.get());
+          }
+          resolvedLibraryIdentity = resolvedLibraryIdentity.or(() -> runtimeLibraryIdentity);
         }
       }
-      return Optional.empty();
+      return resolvedLibraryIdentity;
     } catch (IOException _) {
       return Optional.empty();
     }
@@ -205,6 +209,20 @@ class RuntimeExtensionLoaderPathResolver {
   private static InvalidRuntimeConfigurationException incompleteRuntimeLibraryMetadata(String libraryFileName) {
     return new InvalidRuntimeConfigurationException(
       "Runtime library metadata for '" + libraryFileName + "' is incomplete: pom.properties must define groupId, artifactId and version."
+    );
+  }
+
+  private static InvalidRuntimeConfigurationException conflictingRuntimeLibraryMetadata(
+    String libraryFileName,
+    RuntimeLibraryIdentity firstIdentity,
+    RuntimeLibraryIdentity secondIdentity
+  ) {
+    String identities = Stream.of(firstIdentity, secondIdentity)
+      .map(runtimeLibraryIdentity -> runtimeLibraryIdentity.coordinate() + ":" + runtimeLibraryIdentity.version())
+      .sorted()
+      .collect(Collectors.joining(", "));
+    return new InvalidRuntimeConfigurationException(
+      "Runtime library metadata for '" + libraryFileName + "' is conflicting: multiple identities found [" + identities + "]."
     );
   }
 
