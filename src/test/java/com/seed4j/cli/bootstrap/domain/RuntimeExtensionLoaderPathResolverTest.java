@@ -3,6 +3,10 @@ package com.seed4j.cli.bootstrap.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.seed4j.cli.UnitTest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,6 +23,7 @@ import java.util.jar.Manifest;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 @UnitTest
 class RuntimeExtensionLoaderPathResolverTest {
@@ -192,6 +197,33 @@ class RuntimeExtensionLoaderPathResolverTest {
     String loaderPath = new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
 
     assertThat(loaderPath).isEqualTo(expectedLoaderPath);
+  }
+
+  @Test
+  void shouldLogDebugWithTheExactExtensionLibrariesAddedToLoaderPath() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = createJarWithBootInfLibraries(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.jar")
+    );
+    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+
+    try {
+      new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    assertThat(appender.list)
+      .extracting(ILoggingEvent::getFormattedMessage)
+      .anyMatch(message -> message.contains("missing-lib-2.0.0.jar"));
   }
 
   @Test

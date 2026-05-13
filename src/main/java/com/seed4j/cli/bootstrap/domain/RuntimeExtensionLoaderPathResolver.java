@@ -15,9 +15,12 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class RuntimeExtensionLoaderPathResolver {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
   private static final String BOOT_INF_LIB_DIRECTORY = "BOOT-INF/lib/";
   private static final String MAVEN_METADATA_DIRECTORY = "META-INF/maven/";
   private static final String POM_PROPERTIES_SUFFIX = "/pom.properties";
@@ -31,8 +34,11 @@ class RuntimeExtensionLoaderPathResolver {
     Set<RuntimeLibraryEntry> cliLibraries = Set.copyOf(cliLibraries(executableJarPath));
     List<String> missingExtensionLibraries = missingLibrariesSelector.select(extensionLibraries, cliLibraries);
     if (missingExtensionLibraries.isEmpty()) {
+      LOGGER.debug("No extension runtime libraries were added to loader.path from {}", extensionJarPath);
       return overlayClassesPath.toString();
     }
+
+    LOGGER.debug("Extension runtime libraries added to loader.path from {}: {}", extensionJarPath, missingExtensionLibraries);
 
     return Stream.concat(
       Stream.of(overlayClassesPath.toString()),
