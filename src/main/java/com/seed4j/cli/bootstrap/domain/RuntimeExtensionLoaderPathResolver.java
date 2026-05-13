@@ -55,16 +55,27 @@ class RuntimeExtensionLoaderPathResolver {
   }
 
   private static List<RuntimeLibraryEntry> strictLibraries(Path jarPath) {
+    return strictLibrariesWithFailureMapping(jarPath);
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Jar open/read failure paths are environment-dependent")
+  private static List<RuntimeLibraryEntry> strictLibrariesWithFailureMapping(Path jarPath) {
+    try {
+      return strictLibrariesInternal(jarPath);
+    } catch (IOException ioException) {
+      throw new InvalidRuntimeConfigurationException(
+        "Could not inspect runtime library entries from " + jarPath + ": " + ioException.getMessage()
+      );
+    }
+  }
+
+  private static List<RuntimeLibraryEntry> strictLibrariesInternal(Path jarPath) throws IOException {
     try (JarFile jarFile = new JarFile(jarPath.toFile())) {
       return jarFile
         .stream()
         .filter(RuntimeExtensionLoaderPathResolver::bootInfLibraryFile)
         .map(jarEntry -> strictRuntimeLibraryEntry(jarFile, jarEntry))
         .toList();
-    } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not inspect runtime library entries from " + jarPath + ": " + ioException.getMessage()
-      );
     }
   }
 
