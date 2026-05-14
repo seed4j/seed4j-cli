@@ -4,42 +4,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 final class RuntimeExtensionMissingLibrariesSelector {
 
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
-    Set<String> cliLibraryFileNames = cliLibraryFileNames(cliLibraries);
-    Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex = CliRuntimeLibraryIndex.from(cliLibraries);
+    Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliRuntimeLibraryIndex.versionsByCoordinate());
 
     return extensionLibraries
       .stream()
-      .map(extensionLibrary -> decisionFor(extensionLibrary, cliLibraryFileNames, cliLibraryVersionsByCoordinate))
+      .map(extensionLibrary -> decisionFor(extensionLibrary, cliRuntimeLibraryIndex.fileNames(), cliLibraryVersionsByCoordinate))
       .map(RuntimeExtensionLibraryDecision::missingLibraryFileNameOrThrowConflict)
       .flatMap(Optional::stream)
       .toList();
   }
 
-  private static Set<String> cliLibraryFileNames(Set<RuntimeLibraryEntry> cliLibraries) {
-    return cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
-  }
-
-  private static Map<String, String> libraryVersionsByCoordinate(Set<RuntimeLibraryEntry> cliLibraries) {
-    Map<String, Set<String>> cliLibraryVersionsByCoordinate = cliLibraries
-      .stream()
-      .map(RuntimeLibraryEntry::identity)
-      .flatMap(Optional::stream)
-      .collect(groupVersionsByCoordinate());
+  private static Map<String, String> libraryVersionsByCoordinate(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
     failWhenCliContainsConflictingVersions(cliLibraryVersionsByCoordinate);
     return firstCliVersionByCoordinate(cliLibraryVersionsByCoordinate);
-  }
-
-  private static Collector<RuntimeLibraryIdentity, ?, Map<String, Set<String>>> groupVersionsByCoordinate() {
-    return Collectors.groupingBy(
-      RuntimeLibraryIdentity::coordinate,
-      Collectors.mapping(RuntimeLibraryIdentity::version, Collectors.toSet())
-    );
   }
 
   private static void failWhenCliContainsConflictingVersions(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
