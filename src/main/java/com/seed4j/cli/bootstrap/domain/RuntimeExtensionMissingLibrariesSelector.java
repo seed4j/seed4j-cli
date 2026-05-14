@@ -30,12 +30,21 @@ final class RuntimeExtensionMissingLibrariesSelector {
       return RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
     }
 
-    return extensionLibrary
-        .identity()
-        .filter(libraryIdentity -> cliRuntimeLibraryIndex.versionForCoordinate(libraryIdentity.coordinate()).isPresent())
-        .isPresent()
-      ? RuntimeExtensionLibraryDecision.present()
-      : RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
+    if (matchesCliLibraryCoordinate(extensionLibrary.identity(), cliRuntimeLibraryIndex)) {
+      return RuntimeExtensionLibraryDecision.present();
+    }
+
+    return RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
+  }
+
+  private static boolean matchesCliLibraryCoordinate(
+    Optional<RuntimeLibraryIdentity> extensionLibraryIdentity,
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex
+  ) {
+    return extensionLibraryIdentity
+      .map(RuntimeLibraryIdentity::coordinate)
+      .flatMap(cliRuntimeLibraryIndex::versionForCoordinate)
+      .isPresent();
   }
 
   private static Optional<String> versionConflictMessage(
