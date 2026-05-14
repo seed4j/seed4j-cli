@@ -42,7 +42,24 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
       .hasMessageContaining("2.0.0");
   }
 
-  // [TEST] should fail fast when extension version contains numeric overflow segments
+  @Test
+  void shouldFailFastWhenExtensionVersionTokenIsUppercaseVAndNonComparable() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "shared-lib-V999999999999999999999999999999.jar",
+        Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "V999999999999999999999999999999"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("shared-lib-1.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("com.acme:shared-lib")
+      .hasMessageContaining("1.0.0")
+      .hasMessageContaining("V999999999999999999999999999999");
+  }
 
   @Test
   void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderVersionForSameCoordinate() {
