@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.util.Optional;
@@ -27,5 +28,19 @@ class CliRuntimeLibraryIndexTest {
     assertThat(libraryIndex.versionsByCoordinate())
       .containsEntry("ch.qos.logback:logback-classic", Set.of("1.5.32"))
       .containsEntry("com.acme:shared-lib", Set.of("2.1.0"));
+  }
+
+  @Test
+  void shouldFailFastWhenCliContainsMultipleVersionsForSameCoordinate() {
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("shared-lib-1.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0"))),
+      new RuntimeLibraryEntry("shared-lib-2.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "2.0.0")))
+    );
+
+    assertThatThrownBy(() -> CliRuntimeLibraryIndex.from(cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("com.acme:shared-lib")
+      .hasMessageContaining("1.0.0")
+      .hasMessageContaining("2.0.0");
   }
 }

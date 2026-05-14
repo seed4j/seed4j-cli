@@ -14,6 +14,7 @@ record CliRuntimeLibraryIndex(Set<String> fileNames, Map<String, Set<String>> ve
       .map(RuntimeLibraryEntry::identity)
       .flatMap(Optional::stream)
       .collect(groupVersionsByCoordinate());
+    failWhenContainsConflictingVersions(versionsByCoordinate);
     return new CliRuntimeLibraryIndex(fileNames, versionsByCoordinate);
   }
 
@@ -22,5 +23,32 @@ record CliRuntimeLibraryIndex(Set<String> fileNames, Map<String, Set<String>> ve
       RuntimeLibraryIdentity::coordinate,
       Collectors.mapping(RuntimeLibraryIdentity::version, Collectors.toSet())
     );
+  }
+
+  private static void failWhenContainsConflictingVersions(Map<String, Set<String>> versionsByCoordinate) {
+    versionsByCoordinate
+      .entrySet()
+      .stream()
+      .sorted(Map.Entry.comparingByKey())
+      .filter(entry -> entry.getValue().size() > 1)
+      .findFirst()
+      .ifPresent(conflictEntry -> {
+        String versions = conflictEntry.getValue().stream().sorted().collect(Collectors.joining(", "));
+        throw new InvalidRuntimeConfigurationException(
+          "CLI runtime library conflict detected for coordinate '"
+            + conflictEntry.getKey()
+            + "': multiple versions found ["
+            + versions
+            + "]."
+        );
+      });
+  }
+
+  boolean containsFileName(String libraryFileName) {
+    return fileNames.contains(libraryFileName);
+  }
+
+  Optional<String> versionForCoordinate(String coordinate) {
+    return Optional.ofNullable(versionsByCoordinate.get(coordinate)).flatMap(versions -> versions.stream().findFirst());
   }
 }

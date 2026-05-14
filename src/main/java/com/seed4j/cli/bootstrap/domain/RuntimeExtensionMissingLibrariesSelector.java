@@ -1,63 +1,26 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 final class RuntimeExtensionMissingLibrariesSelector {
 
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
-    CliRuntimeLibraryIndex cliRuntimeLibraryIndex = CliRuntimeLibraryIndex.from(cliLibraries);
-    Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliRuntimeLibraryIndex.versionsByCoordinate());
-
     return extensionLibraries
       .stream()
-      .map(extensionLibrary -> decisionFor(extensionLibrary, cliRuntimeLibraryIndex.fileNames(), cliLibraryVersionsByCoordinate))
+      .map(extensionLibrary -> decisionFor(extensionLibrary, CliRuntimeLibraryIndex.from(cliLibraries)))
       .map(RuntimeExtensionLibraryDecision::missingLibraryFileNameOrThrowConflict)
       .flatMap(Optional::stream)
       .toList();
   }
 
-  private static Map<String, String> libraryVersionsByCoordinate(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
-    failWhenCliContainsConflictingVersions(cliLibraryVersionsByCoordinate);
-    return firstCliVersionByCoordinate(cliLibraryVersionsByCoordinate);
-  }
-
-  private static void failWhenCliContainsConflictingVersions(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
-    cliLibraryVersionsByCoordinate
-      .entrySet()
-      .stream()
-      .sorted(Map.Entry.comparingByKey())
-      .filter(entry -> entry.getValue().size() > 1)
-      .findFirst()
-      .ifPresent(conflictEntry -> {
-        String versions = conflictEntry.getValue().stream().sorted().collect(Collectors.joining(", "));
-        throw new InvalidRuntimeConfigurationException(
-          "CLI runtime library conflict detected for coordinate '"
-            + conflictEntry.getKey()
-            + "': multiple versions found ["
-            + versions
-            + "]."
-        );
-      });
-  }
-
-  private static Map<String, String> firstCliVersionByCoordinate(Map<String, Set<String>> cliLibraryVersionsByCoordinate) {
-    return cliLibraryVersionsByCoordinate
-      .entrySet()
-      .stream()
-      .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().iterator().next()));
-  }
-
   private static RuntimeExtensionLibraryDecision decisionFor(
     RuntimeLibraryEntry extensionLibrary,
-    Set<String> cliLibraryFileNames,
-    Map<String, String> cliLibraryVersionsByCoordinate
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex
   ) {
-    Optional<String> conflictMessage = versionConflictMessage(extensionLibrary.identity(), cliLibraryVersionsByCoordinate).or(() ->
-      missingIdentityShadowConflictMessage(extensionLibrary, cliLibraryFileNames)
+    Optional<String> conflictMessage = versionConflictMessage(extensionLibrary.identity(), cliRuntimeLibraryIndex).or(() ->
+      missingIdentityShadowConflictMessage(extensionLibrary, cliRuntimeLibraryIndex)
     );
     if (conflictMessage.isPresent()) {
       return RuntimeExtensionLibraryDecision.conflict(conflictMessage.get());
@@ -69,7 +32,7 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
     return extensionLibrary
         .identity()
-        .filter(libraryIdentity -> cliLibraryVersionsByCoordinate.containsKey(libraryIdentity.coordinate()))
+        .filter(libraryIdentity -> cliRuntimeLibraryIndex.versionForCoordinate(libraryIdentity.coordinate()).isPresent())
         .isPresent()
       ? RuntimeExtensionLibraryDecision.present()
       : RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
@@ -77,12 +40,12 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
   private static Optional<String> versionConflictMessage(
     Optional<RuntimeLibraryIdentity> extensionLibraryIdentity,
-    Map<String, String> cliLibraryVersionsByCoordinate
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex
   ) {
     return extensionLibraryIdentity.flatMap(libraryIdentity ->
-      Optional.ofNullable(cliLibraryVersionsByCoordinate.get(libraryIdentity.coordinate())).flatMap(cliVersion ->
-        conflictMessageWhenRequired(libraryIdentity, cliVersion)
-      )
+      cliRuntimeLibraryIndex
+        .versionForCoordinate(libraryIdentity.coordinate())
+        .flatMap(cliVersion -> conflictMessageWhenRequired(libraryIdentity, cliVersion))
     );
   }
 
@@ -177,11 +140,11 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
   private static Optional<String> missingIdentityShadowConflictMessage(
     RuntimeLibraryEntry extensionLibrary,
-    Set<String> cliLibraryFileNames
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex
   ) {
     return extensionLibrary.identity().isEmpty()
       ? Optional.of(extensionLibrary.fileName())
-          .filter(cliLibraryFileNames::contains)
+          .filter(cliRuntimeLibraryIndex::containsFileName)
           .map(
             libraryFileName ->
               "Extension runtime library '"
