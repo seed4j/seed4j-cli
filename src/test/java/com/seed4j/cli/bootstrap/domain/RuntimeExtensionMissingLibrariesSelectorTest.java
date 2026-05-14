@@ -13,6 +13,23 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldKeepCliRuntimeLibraryWhenVersionsDifferOnlyByTrailingZeroSegments() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry("shared-lib-1.2.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2")))
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("shared-lib-1.2.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2.0")))
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
+  }
+
+  // [TEST] should fail fast when extension version is numeric and CLI version token is non-comparable
+  // [TEST] should fail fast when extension version contains numeric overflow segments
+
+  @Test
   void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderVersionForSameCoordinate() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
