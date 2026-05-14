@@ -3,13 +3,19 @@ package com.seed4j.cli.bootstrap.domain;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class RuntimeExtensionMissingLibrariesSelector {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeExtensionMissingLibrariesSelector.class);
+
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
+    CliRuntimeLibraryIndex cliRuntimeLibraryIndex = CliRuntimeLibraryIndex.from(cliLibraries);
+
     return extensionLibraries
       .stream()
-      .map(extensionLibrary -> decisionFor(extensionLibrary, CliRuntimeLibraryIndex.from(cliLibraries)))
+      .map(extensionLibrary -> decisionFor(extensionLibrary, cliRuntimeLibraryIndex))
       .map(RuntimeExtensionLibraryDecision::missingLibraryFileNameOrThrowConflict)
       .flatMap(Optional::stream)
       .toList();
@@ -62,7 +68,16 @@ final class RuntimeExtensionMissingLibrariesSelector {
     RuntimeLibraryVersionComparison versionComparison = compareLibraryVersions(libraryIdentity.version(), cliVersion);
 
     return switch (versionComparison) {
-      case EXTENSION_OLDER, SAME_VERSION -> Optional.empty();
+      case EXTENSION_OLDER -> {
+        LOGGER.debug(
+          "Keeping CLI runtime library for coordinate '{}' because CLI version {} is newer than extension version {}",
+          libraryIdentity.coordinate(),
+          cliVersion,
+          libraryIdentity.version()
+        );
+        yield Optional.empty();
+      }
+      case SAME_VERSION -> Optional.empty();
       case EXTENSION_NEWER, UNCOMPARABLE -> Optional.of(
         "Extension runtime library conflict detected for coordinate '"
           + libraryIdentity.coordinate()
