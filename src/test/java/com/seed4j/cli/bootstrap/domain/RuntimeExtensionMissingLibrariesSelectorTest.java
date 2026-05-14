@@ -13,6 +13,26 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderVersionForSameCoordinate() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "logback-classic-1.5.22.jar",
+        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.22"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry(
+        "logback-classic-1.5.32.jar",
+        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.32"))
+      )
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
+  }
+
+  @Test
   void shouldFailUsingFirstConflictingExtensionLibraryWhenMultipleConflictsExist() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"),

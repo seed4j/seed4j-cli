@@ -10,15 +10,19 @@ import java.util.stream.Collectors;
 final class RuntimeExtensionMissingLibrariesSelector {
 
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
-    CliRuntimeLibraries cliRuntimeLibraries = CliRuntimeLibraries.from(cliLibraries);
+    Set<String> cliLibraryFileNames = cliLibraryFileNames(cliLibraries);
     Map<String, String> cliLibraryVersionsByCoordinate = libraryVersionsByCoordinate(cliLibraries);
 
     return extensionLibraries
       .stream()
-      .map(extensionLibrary -> decisionFor(extensionLibrary, cliRuntimeLibraries, cliLibraryVersionsByCoordinate))
+      .map(extensionLibrary -> decisionFor(extensionLibrary, cliLibraryFileNames, cliLibraryVersionsByCoordinate))
       .map(RuntimeExtensionLibraryDecision::missingLibraryFileNameOrThrowConflict)
       .flatMap(Optional::stream)
       .toList();
+  }
+
+  private static Set<String> cliLibraryFileNames(Set<RuntimeLibraryEntry> cliLibraries) {
+    return cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
   }
 
   private static Map<String, String> libraryVersionsByCoordinate(Set<RuntimeLibraryEntry> cliLibraries) {
@@ -66,11 +70,11 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
   private static RuntimeExtensionLibraryDecision decisionFor(
     RuntimeLibraryEntry extensionLibrary,
-    CliRuntimeLibraries cliRuntimeLibraries,
+    Set<String> cliLibraryFileNames,
     Map<String, String> cliLibraryVersionsByCoordinate
   ) {
     Optional<String> conflictMessage = versionConflictMessage(extensionLibrary.identity(), cliLibraryVersionsByCoordinate).or(() ->
-      missingIdentityShadowConflictMessage(extensionLibrary, cliRuntimeLibraries.fileNames())
+      missingIdentityShadowConflictMessage(extensionLibrary, cliLibraryFileNames)
     );
     if (conflictMessage.isPresent()) {
       return RuntimeExtensionLibraryDecision.conflict(conflictMessage.get());
@@ -80,7 +84,10 @@ final class RuntimeExtensionMissingLibrariesSelector {
       return RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
     }
 
-    return extensionLibrary.identity().filter(cliRuntimeLibraries::containsIdentity).isPresent()
+    return extensionLibrary
+        .identity()
+        .filter(libraryIdentity -> cliLibraryVersionsByCoordinate.containsKey(libraryIdentity.coordinate()))
+        .isPresent()
       ? RuntimeExtensionLibraryDecision.present()
       : RuntimeExtensionLibraryDecision.missing(extensionLibrary.fileName());
   }
@@ -90,19 +97,99 @@ final class RuntimeExtensionMissingLibrariesSelector {
     Map<String, String> cliLibraryVersionsByCoordinate
   ) {
     return extensionLibraryIdentity.flatMap(libraryIdentity ->
-      Optional.ofNullable(cliLibraryVersionsByCoordinate.get(libraryIdentity.coordinate()))
-        .filter(cliVersion -> !cliVersion.equals(libraryIdentity.version()))
-        .map(
-          cliVersion ->
-            "Extension runtime library conflict detected for coordinate '"
-            + libraryIdentity.coordinate()
-            + "': CLI uses version "
-            + cliVersion
-            + " while extension requires "
-            + libraryIdentity.version()
-            + "."
-        )
+      Optional.ofNullable(cliLibraryVersionsByCoordinate.get(libraryIdentity.coordinate())).flatMap(cliVersion ->
+        conflictMessageWhenRequired(libraryIdentity, cliVersion)
+      )
     );
+  }
+
+  private static Optional<String> conflictMessageWhenRequired(RuntimeLibraryIdentity libraryIdentity, String cliVersion) {
+    RuntimeLibraryVersionComparison versionComparison = compareLibraryVersions(libraryIdentity.version(), cliVersion);
+
+    return switch (versionComparison) {
+      case EXTENSION_OLDER, SAME_VERSION -> Optional.empty();
+      case EXTENSION_NEWER, UNCOMPARABLE -> Optional.of(
+        "Extension runtime library conflict detected for coordinate '"
+          + libraryIdentity.coordinate()
+          + "': CLI uses version "
+          + cliVersion
+          + " while extension requires "
+          + libraryIdentity.version()
+          + "."
+      );
+    };
+  }
+
+  private static RuntimeLibraryVersionComparison compareLibraryVersions(String extensionVersion, String cliVersion) {
+    Optional<List<Integer>> extensionVersionSegments = parsedVersionSegments(extensionVersion);
+    Optional<List<Integer>> cliVersionSegments = parsedVersionSegments(cliVersion);
+    if (extensionVersionSegments.isEmpty() || cliVersionSegments.isEmpty()) {
+      return RuntimeLibraryVersionComparison.UNCOMPARABLE;
+    }
+
+    int comparison = compareVersionSegments(extensionVersionSegments.get(), cliVersionSegments.get());
+    if (comparison < 0) {
+      return RuntimeLibraryVersionComparison.EXTENSION_OLDER;
+    }
+
+    if (comparison > 0) {
+      return RuntimeLibraryVersionComparison.EXTENSION_NEWER;
+    }
+
+    return RuntimeLibraryVersionComparison.SAME_VERSION;
+  }
+
+  private static int compareVersionSegments(List<Integer> leftSegments, List<Integer> rightSegments) {
+    int segmentCount = Math.max(leftSegments.size(), rightSegments.size());
+    for (int index = 0; index < segmentCount; index++) {
+      int leftSegment = versionSegment(leftSegments, index);
+      int rightSegment = versionSegment(rightSegments, index);
+      if (leftSegment != rightSegment) {
+        return Integer.compare(leftSegment, rightSegment);
+      }
+    }
+    return 0;
+  }
+
+  private static int versionSegment(List<Integer> segments, int index) {
+    if (index >= segments.size()) {
+      return 0;
+    }
+
+    return segments.get(index);
+  }
+
+  private static Optional<List<Integer>> parsedVersionSegments(String version) {
+    String normalizedVersion = normalizedVersion(version);
+    if (!numericVersion(normalizedVersion)) {
+      return Optional.empty();
+    }
+
+    try {
+      List<Integer> segments = List.of(normalizedVersion.split("\\.")).stream().map(Integer::parseInt).toList();
+      return Optional.of(segments);
+    } catch (NumberFormatException _) {
+      return Optional.empty();
+    }
+  }
+
+  private static String normalizedVersion(String version) {
+    if (version.startsWith("v") || version.startsWith("V")) {
+      return version.substring(1);
+    }
+
+    return version;
+  }
+
+  private static boolean numericVersion(String version) {
+    return version.matches("\\d+(\\.\\d+)*");
+  }
+
+  private enum RuntimeLibraryVersionComparison {
+    EXTENSION_OLDER,
+    EXTENSION_NEWER,
+    SAME_VERSION,
+    UNCOMPARABLE,
   }
 
   private static Optional<String> missingIdentityShadowConflictMessage(
@@ -157,22 +244,6 @@ final class RuntimeExtensionMissingLibrariesSelector {
         throw new InvalidRuntimeConfigurationException(conflictMessage.orElseThrow());
       }
       return missingLibraryFileName;
-    }
-  }
-
-  private record CliRuntimeLibraries(Set<String> fileNames, Set<RuntimeLibraryIdentity> identities) {
-    private static CliRuntimeLibraries from(Set<RuntimeLibraryEntry> cliLibraries) {
-      Set<String> fileNames = cliLibraries.stream().map(RuntimeLibraryEntry::fileName).collect(Collectors.toSet());
-      Set<RuntimeLibraryIdentity> identities = cliLibraries
-        .stream()
-        .map(RuntimeLibraryEntry::identity)
-        .flatMap(Optional::stream)
-        .collect(Collectors.toSet());
-      return new CliRuntimeLibraries(fileNames, identities);
-    }
-
-    private boolean containsIdentity(RuntimeLibraryIdentity identity) {
-      return identities.contains(identity);
     }
   }
 }
