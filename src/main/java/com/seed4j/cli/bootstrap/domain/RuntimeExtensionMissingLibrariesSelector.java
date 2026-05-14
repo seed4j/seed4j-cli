@@ -78,7 +78,7 @@ final class RuntimeExtensionMissingLibrariesSelector {
         yield Optional.empty();
       }
       case SAME_VERSION -> Optional.empty();
-      case EXTENSION_NEWER, UNCOMPARABLE -> Optional.of(
+      case EXTENSION_NEWER -> Optional.of(
         "Extension runtime library conflict detected for coordinate '"
           + libraryIdentity.coordinate()
           + "': CLI uses version "
@@ -86,6 +86,15 @@ final class RuntimeExtensionMissingLibrariesSelector {
           + " while extension requires "
           + libraryIdentity.version()
           + "."
+      );
+      case UNCOMPARABLE -> Optional.of(
+        "Extension runtime library conflict detected for coordinate '"
+          + libraryIdentity.coordinate()
+          + "': CLI version "
+          + cliVersion
+          + " and extension version "
+          + libraryIdentity.version()
+          + " are not safely comparable."
       );
     };
   }

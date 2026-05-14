@@ -18,6 +18,23 @@ import org.slf4j.LoggerFactory;
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
+  void shouldReportExplicitNonComparableVersionReasonWhenFailingFast() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry("shared-lib-2.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "2.0.0")))
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("shared-lib-RELEASE.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "RELEASE")))
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("com.acme:shared-lib")
+      .hasMessageContaining("RELEASE")
+      .hasMessageContaining("2.0.0")
+      .hasMessageContaining("not safely comparable");
+  }
+
+  @Test
   void shouldLogDebugDecisionWhenCliVersionWinsOverOlderExtensionVersion() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
