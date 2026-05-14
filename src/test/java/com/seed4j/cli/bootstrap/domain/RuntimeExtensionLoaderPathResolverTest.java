@@ -29,6 +29,36 @@ import org.slf4j.LoggerFactory;
 class RuntimeExtensionLoaderPathResolverTest {
 
   @Test
+  void shouldLogDebugWhenPomPropertiesIdentityOverridesFileNameInExtensionLibrary() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("shared-lib-1.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    Path extensionJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
+      Files.createTempFile("seed4j-extension-", ".jar"),
+      List.of(new LibraryWithPomCoordinates("shared-lib-2.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
+    );
+    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+
+    try {
+      new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    assertThat(appender.list)
+      .extracting(ILoggingEvent::getFormattedMessage)
+      .anyMatch(message -> message.contains("shared-lib-2.0.0.jar") && message.contains("com.acme:shared-lib:1.0.0"));
+  }
+
+  @Test
   void shouldReportAllDistinctConflictingPomIdentitiesFromExtensionNestedJar() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(
