@@ -119,7 +119,11 @@ public class Seed4JCliLauncher {
       });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
-      systemProperties.put("logging.level.root", "ERROR");
+      if (debugModeRequested(args)) {
+        systemProperties.put("logging.level.com.seed4j.cli.bootstrap.domain", "DEBUG");
+      } else {
+        systemProperties.put("logging.level.root", "ERROR");
+      }
       systemProperties.put("spring.main.log-startup-info", "false");
     }
 
@@ -143,5 +147,9 @@ public class Seed4JCliLauncher {
     );
 
     return RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);
+  }
+
+  private static boolean debugModeRequested(String[] args) {
+    return Arrays.stream(args).anyMatch("--debug"::equals);
   }
 }
