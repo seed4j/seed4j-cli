@@ -1,5 +1,9 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -7,10 +11,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.LoggerFactory;
 
 public class Seed4JCliLauncher {
 
   private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
+  private static final String BOOTSTRAP_LOGGER_NAME = "com.seed4j.cli.bootstrap.domain";
   private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
   private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
@@ -71,6 +77,10 @@ public class Seed4JCliLauncher {
       if (shouldRunLocally(runtimeSelection)) {
         System.err.println("Standard mode is not running from a packaged CLI JAR. Falling back to local execution.");
         return localCliRunner.run(args);
+      }
+
+      if (runtimeSelection.mode() == RuntimeMode.EXTENSION && debugModeRequested(args)) {
+        enableBootstrapDebugLoggingInParentProcess();
       }
 
       return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
@@ -151,5 +161,17 @@ public class Seed4JCliLauncher {
 
   private static boolean debugModeRequested(String[] args) {
     return Arrays.stream(args).anyMatch("--debug"::equals);
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(
+    reason = "Non-Logback guard branch depends on the runtime SLF4J binding and this method is best-effort diagnostics"
+  )
+  private static void enableBootstrapDebugLoggingInParentProcess() {
+    if (!(LoggerFactory.getILoggerFactory() instanceof LoggerContext loggerContext)) {
+      return;
+    }
+
+    Logger logger = loggerContext.getLogger(BOOTSTRAP_LOGGER_NAME);
+    logger.setLevel(Level.DEBUG);
   }
 }
