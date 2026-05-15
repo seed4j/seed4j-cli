@@ -1,14 +1,17 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class RuntimeExtensionMissingLibrariesSelector {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeExtensionMissingLibrariesSelector.class);
+  private static final Pattern QUALIFIED_NUMERIC_VERSION_PATTERN = Pattern.compile("^(\\d+(?:\\.\\d+)*)(?:[.-])([A-Za-z]+)$");
 
   List<String> select(List<RuntimeLibraryEntry> extensionLibraries, Set<RuntimeLibraryEntry> cliLibraries) {
     CliRuntimeLibraryIndex cliRuntimeLibraryIndex = CliRuntimeLibraryIndex.from(cliLibraries);
@@ -106,11 +109,28 @@ final class RuntimeExtensionMissingLibrariesSelector {
 
     Optional<List<Integer>> extensionVersionSegments = parsedVersionSegments(extensionVersion);
     Optional<List<Integer>> cliVersionSegments = parsedVersionSegments(cliVersion);
-    if (extensionVersionSegments.isEmpty() || cliVersionSegments.isEmpty()) {
-      return RuntimeLibraryVersionComparison.UNCOMPARABLE;
+    if (extensionVersionSegments.isPresent() && cliVersionSegments.isPresent()) {
+      return versionComparison(extensionVersionSegments.get(), cliVersionSegments.get());
     }
 
-    int comparison = compareVersionSegments(extensionVersionSegments.get(), cliVersionSegments.get());
+    Optional<QualifiedNumericVersion> extensionQualifiedVersion = qualifiedNumericVersion(extensionVersion);
+    Optional<QualifiedNumericVersion> cliQualifiedVersion = qualifiedNumericVersion(cliVersion);
+    if (
+      extensionQualifiedVersion.isPresent()
+      && cliQualifiedVersion.isPresent()
+      && extensionQualifiedVersion.get().qualifier().equals(cliQualifiedVersion.get().qualifier())
+    ) {
+      return versionComparison(extensionQualifiedVersion.get().numericSegments(), cliQualifiedVersion.get().numericSegments());
+    }
+
+    return RuntimeLibraryVersionComparison.UNCOMPARABLE;
+  }
+
+  private static RuntimeLibraryVersionComparison versionComparison(
+    List<Integer> extensionVersionSegments,
+    List<Integer> cliVersionSegments
+  ) {
+    int comparison = compareVersionSegments(extensionVersionSegments, cliVersionSegments);
     if (comparison < 0) {
       return RuntimeLibraryVersionComparison.EXTENSION_OLDER;
     }
@@ -120,6 +140,22 @@ final class RuntimeExtensionMissingLibrariesSelector {
     }
 
     return RuntimeLibraryVersionComparison.SAME_VERSION;
+  }
+
+  private static Optional<QualifiedNumericVersion> qualifiedNumericVersion(String version) {
+    String normalizedVersion = normalizedVersion(version);
+    java.util.regex.Matcher matcher = QUALIFIED_NUMERIC_VERSION_PATTERN.matcher(normalizedVersion);
+    if (!matcher.matches()) {
+      return Optional.empty();
+    }
+
+    Optional<List<Integer>> numericSegments = parsedVersionSegments(matcher.group(1));
+    if (numericSegments.isEmpty()) {
+      return Optional.empty();
+    }
+
+    String qualifier = matcher.group(2).toLowerCase(Locale.ROOT);
+    return Optional.of(new QualifiedNumericVersion(numericSegments.get(), qualifier));
   }
 
   private static int compareVersionSegments(List<Integer> leftSegments, List<Integer> rightSegments) {
@@ -174,6 +210,8 @@ final class RuntimeExtensionMissingLibrariesSelector {
     SAME_VERSION,
     UNCOMPARABLE,
   }
+
+  private record QualifiedNumericVersion(List<Integer> numericSegments, String qualifier) {}
 
   private static Optional<String> missingIdentityShadowConflictMessage(
     RuntimeLibraryEntry extensionLibrary,

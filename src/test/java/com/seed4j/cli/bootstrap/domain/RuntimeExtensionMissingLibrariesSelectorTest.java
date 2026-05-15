@@ -137,6 +137,20 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
+  void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderFinalQualifiedVersionForSameCoordinate() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry("hibernate-core-7.2.0.Final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.0.Final")))
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry("hibernate-core-7.2.12.Final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.12.Final")))
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
+  }
+
+  @Test
   void shouldNotFailWhenCoordinateHasSameNonNumericVersionInCliAndExtension() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
