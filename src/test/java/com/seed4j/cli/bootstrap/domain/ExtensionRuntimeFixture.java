@@ -112,6 +112,10 @@ final class ExtensionRuntimeFixture {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
   }
 
+  static ExtensionRuntimeFixturePaths installWithApplyControlExtensionModule(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
+  }
+
   static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
   }
