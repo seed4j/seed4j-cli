@@ -5,6 +5,7 @@ import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionList
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleConfiguration;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleFactory;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleSlug;
+import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionCommonSourceNodePackagesVersionsReader;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
@@ -101,6 +102,9 @@ final class ExtensionRuntimeFixture {
     MyCompanyRuntimeExtensionListOnlyApplicationService.class,
     MyCompanyRuntimeExtensionListOnlyModuleConfiguration.class
   );
+  private static final List<Class<?>> APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES = List.of(
+    RuntimeExtensionCommonSourceNodePackagesVersionsReader.class
+  );
 
   private ExtensionRuntimeFixture() {}
 
@@ -114,6 +118,10 @@ final class ExtensionRuntimeFixture {
 
   static ExtensionRuntimeFixturePaths installWithApplyControlExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithApplyCommonSourceOverrideExtensionModule(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithCommonSourceOverride);
   }
 
   static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
@@ -165,6 +173,25 @@ final class ExtensionRuntimeFixture {
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+    }
+    return jarPath;
+  }
+
+  static Path createListExtensionModuleJarWithCommonSourceOverride(Path jarPath) throws IOException {
+    Manifest manifest = manifestWithStartClass();
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
       }
     }
     return jarPath;

@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class ExtensionRuntimeBootstrapApplyPackagedJarIT {
 
+  private static final String OVERRIDDEN_PRETTIER_VERSION = "3.6.2";
+
   @Test
   void shouldKeepCorePrettierBaselineInExtensionModeWhenExtensionHasNoSourceOrTemplateCollision() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
@@ -47,7 +49,35 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     assertThat(extensionPrettierConfiguration).isEqualTo(standardPrettierConfiguration);
   }
 
-  // [TEST] should override core prettier dependency versions when extension collides on COMMON source
+  @Test
+  void shouldOverrideCorePrettierDependencyVersionsWhenExtensionCollidesOnCommonSource() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-common-standard-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-common-extension-");
+    ExtensionRuntimeFixture.installWithApplyCommonSourceOverrideExtensionModule(extensionUserHome);
+    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-standard-project-");
+    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-extension-project-");
+
+    PackagedRunResult standardInitResult = runApplyInit(packagedCliJar, standardUserHome, standardProjectPath);
+    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
+    PackagedRunResult standardPrettierResult = runApplyPrettier(packagedCliJar, standardUserHome, standardProjectPath);
+    PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
+
+    String standardPackageJson = Files.readString(standardProjectPath.resolve("package.json"));
+    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
+
+    assertThat(standardInitResult.finished()).isTrue();
+    assertThat(standardInitResult.exitCode()).isZero();
+    assertThat(extensionInitResult.finished()).isTrue();
+    assertThat(extensionInitResult.exitCode()).isZero();
+    assertThat(standardPrettierResult.finished()).isTrue();
+    assertThat(standardPrettierResult.exitCode()).isZero();
+    assertThat(extensionPrettierResult.finished()).isTrue();
+    assertThat(extensionPrettierResult.exitCode()).isZero();
+    assertThat(standardPackageJson).doesNotContain("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
+    assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
+  }
+
   // [TEST] should override core prettier template when extension collides on the same classpath resource path
   // [TEST] should apply extension module using the same global runtime readers and resources
 
