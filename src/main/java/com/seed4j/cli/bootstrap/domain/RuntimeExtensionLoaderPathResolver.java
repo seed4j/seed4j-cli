@@ -120,32 +120,11 @@ class RuntimeExtensionLoaderPathResolver {
 
   private static RuntimeLibraryEntry strictRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
     String libraryFileName = libraryFileName(jarEntry.getName());
-    Optional<RuntimeLibraryIdentity> pomPropertiesIdentity = strictRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry, libraryFileName);
+    Optional<RuntimeLibraryIdentity> metadataIdentity = strictRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry, libraryFileName);
     Optional<RuntimeLibraryIdentity> fileNameIdentity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
-    logWhenPomPropertiesIdentityOverridesFileNameIdentity(libraryFileName, pomPropertiesIdentity, fileNameIdentity);
-    Optional<RuntimeLibraryIdentity> libraryIdentity = pomPropertiesIdentity.or(() -> fileNameIdentity);
-    return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
-  }
-
-  private static void logWhenPomPropertiesIdentityOverridesFileNameIdentity(
-    String libraryFileName,
-    Optional<RuntimeLibraryIdentity> pomPropertiesIdentity,
-    Optional<RuntimeLibraryIdentity> fileNameIdentity
-  ) {
-    if (pomPropertiesIdentity.isEmpty() || fileNameIdentity.isEmpty() || pomPropertiesIdentity.get().equals(fileNameIdentity.get())) {
-      return;
-    }
-
-    RuntimeLibraryIdentity metadataIdentity = pomPropertiesIdentity.get();
-    RuntimeLibraryIdentity inferredIdentity = fileNameIdentity.get();
-    LOGGER.debug(
-      "Using pom.properties identity {}:{} for '{}' instead of file name inferred identity {}:{}",
-      metadataIdentity.coordinate(),
-      metadataIdentity.version(),
-      libraryFileName,
-      inferredIdentity.coordinate(),
-      inferredIdentity.version()
-    );
+    RuntimeLibraryIdentityResolution identityResolution = RuntimeLibraryIdentityResolution.from(metadataIdentity, fileNameIdentity);
+    identityResolution.logOverrideIfNeeded(LOGGER, libraryFileName);
+    return new RuntimeLibraryEntry(libraryFileName, identityResolution.effectiveIdentity());
   }
 
   private static RuntimeLibraryEntry lenientRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
