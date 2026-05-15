@@ -137,6 +137,26 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
+  void shouldNotFailWhenCoordinateHasSameNonNumericVersionInCliAndExtension() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "org.eclipse.jgit-7.5.0.202512021534-r.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry(
+        "org.eclipse.jgit-7.5.0.202512021534-r.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r"))
+      )
+    );
+
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
+  }
+
+  @Test
   void shouldFailUsingFirstConflictingExtensionLibraryWhenMultipleConflictsExist() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"),

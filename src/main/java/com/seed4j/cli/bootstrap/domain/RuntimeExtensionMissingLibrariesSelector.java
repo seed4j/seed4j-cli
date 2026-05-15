@@ -100,6 +100,10 @@ final class RuntimeExtensionMissingLibrariesSelector {
   }
 
   private static RuntimeLibraryVersionComparison compareLibraryVersions(String extensionVersion, String cliVersion) {
+    if (normalizedVersion(extensionVersion).equals(normalizedVersion(cliVersion))) {
+      return RuntimeLibraryVersionComparison.SAME_VERSION;
+    }
+
     Optional<List<Integer>> extensionVersionSegments = parsedVersionSegments(extensionVersion);
     Optional<List<Integer>> cliVersionSegments = parsedVersionSegments(cliVersion);
     if (extensionVersionSegments.isEmpty() || cliVersionSegments.isEmpty()) {
