@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 class ExtensionRuntimeBootstrapApplyPackagedJarIT {
 
   private static final String OVERRIDDEN_PRETTIER_VERSION = "3.6.2";
+  private static final String OVERRIDDEN_PRETTIER_TEMPLATE_MARKER = "seed4j-extension-template-override";
 
   @Test
   void shouldKeepCorePrettierBaselineInExtensionModeWhenExtensionHasNoSourceOrTemplateCollision() throws IOException, InterruptedException {
@@ -78,7 +79,35 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
   }
 
-  // [TEST] should override core prettier template when extension collides on the same classpath resource path
+  @Test
+  void shouldOverrideCorePrettierTemplateWhenExtensionCollidesOnTheSameClasspathResourcePath() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-template-standard-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-template-extension-");
+    ExtensionRuntimeFixture.installWithApplyTemplateResourceOverrideExtensionModule(extensionUserHome);
+    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-template-standard-project-");
+    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-template-extension-project-");
+
+    PackagedRunResult standardInitResult = runApplyInit(packagedCliJar, standardUserHome, standardProjectPath);
+    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
+    PackagedRunResult standardPrettierResult = runApplyPrettier(packagedCliJar, standardUserHome, standardProjectPath);
+    PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
+
+    String standardPrettierConfiguration = Files.readString(standardProjectPath.resolve(".prettierrc"));
+    String extensionPrettierConfiguration = Files.readString(extensionProjectPath.resolve(".prettierrc"));
+
+    assertThat(standardInitResult.finished()).isTrue();
+    assertThat(standardInitResult.exitCode()).isZero();
+    assertThat(extensionInitResult.finished()).isTrue();
+    assertThat(extensionInitResult.exitCode()).isZero();
+    assertThat(standardPrettierResult.finished()).isTrue();
+    assertThat(standardPrettierResult.exitCode()).isZero();
+    assertThat(extensionPrettierResult.finished()).isTrue();
+    assertThat(extensionPrettierResult.exitCode()).isZero();
+    assertThat(standardPrettierConfiguration).doesNotContain(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+    assertThat(extensionPrettierConfiguration).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+  }
+
   // [TEST] should apply extension module using the same global runtime readers and resources
 
   private static PackagedRunResult runApplyInit(Path packagedCliJar, Path userHome, Path projectPath)

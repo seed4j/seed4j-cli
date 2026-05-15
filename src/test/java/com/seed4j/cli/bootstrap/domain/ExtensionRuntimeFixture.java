@@ -38,8 +38,20 @@ final class ExtensionRuntimeFixture {
   private static final String BOOT_INF_DIRECTORY = "BOOT-INF/";
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CONFIG_DIRECTORY = "BOOT-INF/classes/config/";
+  private static final String BOOT_INF_GENERATOR_DIRECTORY = "BOOT-INF/classes/generator/";
+  private static final String BOOT_INF_PRETTIER_DIRECTORY = "BOOT-INF/classes/generator/prettier/";
   private static final String EXTENSION_APPLICATION_YML_ENTRY = "BOOT-INF/classes/config/application.yml";
   private static final String EXTENSION_LOGBACK_ENTRY = "BOOT-INF/classes/logback-spring.xml";
+  private static final String EXTENSION_PRETTIER_TEMPLATE_ENTRY = "BOOT-INF/classes/generator/prettier/.prettierrc.mustache";
+  private static final String EXTENSION_PRETTIER_TEMPLATE_OVERRIDE = """
+    # seed4j-extension-template-override
+
+    printWidth: 140
+    singleQuote: true
+    tabWidth: {{indentSize}}
+    useTabs: false
+    endOfLine: '{{endOfLine}}'
+    """;
   private static final String EXTENSION_APPLICATION_YML = """
     logging:
       level:
@@ -124,6 +136,10 @@ final class ExtensionRuntimeFixture {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithCommonSourceOverride);
   }
 
+  static ExtensionRuntimeFixturePaths installWithApplyTemplateResourceOverrideExtensionModule(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithTemplateResourceOverride);
+  }
+
   static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
   }
@@ -193,6 +209,27 @@ final class ExtensionRuntimeFixture {
       for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
       }
+    }
+    return jarPath;
+  }
+
+  static Path createListExtensionModuleJarWithTemplateResourceOverride(Path jarPath) throws IOException {
+    Manifest manifest = manifestWithStartClass();
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_GENERATOR_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_PRETTIER_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_GENERATOR_DIRECTORY);
+      addedEntries.add(BOOT_INF_PRETTIER_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      addTextEntry(jarOutputStream, EXTENSION_PRETTIER_TEMPLATE_ENTRY, EXTENSION_PRETTIER_TEMPLATE_OVERRIDE);
     }
     return jarPath;
   }
