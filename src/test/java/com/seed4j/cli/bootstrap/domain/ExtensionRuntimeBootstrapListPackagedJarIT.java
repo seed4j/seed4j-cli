@@ -80,11 +80,6 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
   }
 
   @Test
-  void runtimeExtensionCustomPackagePendingBehaviors() {
-    // [TEST] covered below: shouldListTheCustomPackageExtensionOnlySlugInExtensionMode
-  }
-
-  @Test
   void shouldListTheCustomPackageExtensionOnlySlugInExtensionMode() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
     Path extensionUserHome = Files.createTempDirectory("seed4j-cli-custom-package-extension-");
