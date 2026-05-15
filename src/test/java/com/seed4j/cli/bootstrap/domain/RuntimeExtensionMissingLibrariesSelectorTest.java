@@ -171,6 +171,75 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
+  void shouldFailFastWhenQualifiedVersionCannotBeComparedWithReleaseToken() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-7.2.12.Final.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.12.Final"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-RELEASE.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "RELEASE"))
+      )
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("org.hibernate.orm:hibernate-core")
+      .hasMessageContaining("7.2.12.Final")
+      .hasMessageContaining("RELEASE")
+      .hasMessageContaining("not safely comparable");
+  }
+
+  @Test
+  void shouldFailFastWhenQualifiedVersionsUseDifferentQualifierFamilies() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-7.2.12.Final.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.12.Final"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-7.2.13.CR.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.13.CR"))
+      )
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("org.hibernate.orm:hibernate-core")
+      .hasMessageContaining("7.2.12.Final")
+      .hasMessageContaining("7.2.13.CR")
+      .hasMessageContaining("not safely comparable");
+  }
+
+  @Test
+  void shouldFailFastWhenQualifiedVersionHasNumericSegmentOutsideIntegerRange() {
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-999999999999999999999999.Final.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "999999999999999999999999.Final"))
+      )
+    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
+      new RuntimeLibraryEntry(
+        "hibernate-core-RELEASE.jar",
+        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "RELEASE"))
+      )
+    );
+
+    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("org.hibernate.orm:hibernate-core")
+      .hasMessageContaining("999999999999999999999999.Final")
+      .hasMessageContaining("RELEASE")
+      .hasMessageContaining("not safely comparable");
+  }
+
+  @Test
   void shouldFailUsingFirstConflictingExtensionLibraryWhenMultipleConflictsExist() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       RuntimeLibraryEntry.fromFileName("shared-lib-2.0.0.jar"),
