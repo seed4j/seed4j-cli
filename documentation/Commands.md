@@ -302,11 +302,41 @@ Rules:
 
 #### Extension Mode Behavior
 
-`extension` mode is additive for module discovery:
+`extension` mode has two explicit contracts:
 
-- `seed4j list` keeps standard modules
-- extension modules can be added on top of the standard catalog
-- module slugs remain unique (no duplicated entries in `list`)
+- additive discovery for `seed4j list`
+- shared runtime behavior for `seed4j apply`
+
+`seed4j list` contract in `extension` mode:
+
+- keeps all core modules from the standard catalog
+- adds extension modules on top of the core catalog
+- keeps module slugs unique (no duplicated entries in `list`)
+- is not reduced by extension-level global config resources (`config/application*`, `logback*`)
+
+`seed4j apply` contract in `extension` mode:
+
+- runs with one shared Spring runtime context (core + extension)
+- shares dependency readers/resources globally across core and extension modules
+- allows extension overrides to affect core module output only when there is real overlap
+- requires overlap on the same logical source/key for dependency version overrides
+- requires overlap on the same classpath resource path for template/resource overrides
+
+Practical implications for overrides:
+
+- Node dependency overrides for core modules require the same logical source used by core readers (for example `COMMON`)
+- adding a custom source namespace does not override the core value by itself
+- template/resource overrides require collision on the exact classpath path consumed by the core module (for example `/generator/prettier/.prettierrc.mustache`)
+
+`BOOT-INF/lib` policy in `extension` mode:
+
+- CLI packaged runtime is the infrastructure baseline
+- extension libraries are added to `loader.path` only when they are missing from the CLI runtime
+- identity resolution prioritizes nested `META-INF/maven/**/pom.properties` and falls back to jar file name inference only when metadata is unavailable
+- extension older version for the same coordinate is non-blocking (CLI version wins)
+- extension newer version for the same coordinate is blocking (fail-fast)
+- not safely comparable versions for the same coordinate are blocking (fail-fast)
+- no inferable identity plus same file-name collision with a CLI library is blocking (fail-fast)
 
 #### Runtime Validation and Failure Cases
 
@@ -318,11 +348,36 @@ Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors
 - Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
 - Invalid `compatibility.min-cli-version` format
 - Current CLI version lower than `compatibility.min-cli-version`
+- Extension runtime jar missing `BOOT-INF/classes`
+- Extension nested runtime library metadata is incomplete or conflicting
+- Extension library requires a newer version than the CLI for the same coordinate
+- Extension/CLI library versions are not safely comparable for the same coordinate
 
-If the extension artifact is invalid, Seed4J CLI reports:
+Representative fail-fast messages:
+
+Invalid extension jar layout:
 
 ```text
 Invalid runtime jar file: /home/user/.config/seed4j-cli/runtime/active/extension.jar. Expected a Spring Boot fat jar containing BOOT-INF/classes.
+```
+
+Invalid runtime library metadata (`pom.properties`) in a nested extension library:
+
+```text
+Runtime library metadata for 'shared-lib.jar' is incomplete: pom.properties must define groupId, artifactId and version.
+Runtime library metadata for 'shared-lib.jar' is conflicting: multiple identities found [com.acme:shared-lib:1.0.0, org.example:shared-lib:2.0.0].
+```
+
+Blocking version conflict when extension requires a newer library than the CLI:
+
+```text
+Extension runtime library conflict detected for coordinate 'ch.qos.logback:logback-classic': CLI uses version 1.5.32 while extension requires 1.6.0.
+```
+
+Blocking conflict for versions that are not safely comparable:
+
+```text
+Extension runtime library conflict detected for coordinate 'com.acme:shared-lib': CLI version RELEASE and extension version v1 are not safely comparable.
 ```
 
 In this case, follow [Creating a Seed4J Extension](#creating-a-seed4j-extension), rebuild the artifact, and replace `~/.config/seed4j-cli/runtime/active/extension.jar`.
