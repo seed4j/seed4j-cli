@@ -18,6 +18,8 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
 
   private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
   private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
+  private static final String SPRING_BOOT_BANNER_MARKER = " :: Spring Boot :: ";
+  private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
 
   @Test
   void shouldKeepVersionOutputFreeFromExtensionLoggingMarkersWhenExtensionPublishesRegressionOverrides()
@@ -40,6 +42,29 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
     assertThat(finished).isTrue();
     assertThat(process.exitValue()).isZero();
     assertThat(output).doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER).doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER);
+  }
+
+  @Test
+  void shouldKeepVersionOutputFreeFromSpringBootBannerAndStartupInfoWhenExtensionPublishesRegressionOverrides()
+    throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-banner-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isZero();
+    assertThat(output).doesNotContain(SPRING_BOOT_BANNER_MARKER).doesNotContain(STARTUP_INFO_MARKER);
   }
 
   @Test
