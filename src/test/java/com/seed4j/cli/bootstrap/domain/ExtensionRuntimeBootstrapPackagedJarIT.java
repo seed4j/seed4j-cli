@@ -68,6 +68,32 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
   }
 
   @Test
+  void shouldKeepRuntimeModeAndDistributionOutputStableWhenExtensionPublishesRegressionOverrides()
+    throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-runtime-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isZero();
+    assertThat(output)
+      .contains("Runtime mode: extension")
+      .contains("Distribution ID: company-extension")
+      .contains("Distribution version: 1.0.0");
+  }
+
+  @Test
   void shouldKeepVersionOutputStableWhenExtensionPublishesApplicationAndLogbackOverrides() throws IOException, InterruptedException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-stability-");
     ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
