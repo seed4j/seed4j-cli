@@ -163,6 +163,7 @@ Most commands accept additional options and parameters:
 
 - `--project-path=<projectpath>`: Specifies the project directory (defaults to current directory)
 - `--[no-]commit`: Whether to commit changes to git (defaults to true)
+- `--debug`: Enables runtime bootstrap diagnostics (mainly for `extension` mode runtime troubleshooting)
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)
 - `--package-name=<packagename>`: The base Java package (required for Java projects)
@@ -253,6 +254,13 @@ seed4j:
 ```
 
 If `seed4j.runtime.mode` is not declared, Seed4J CLI falls back to `standard`.
+
+`--debug` runtime note:
+
+- `--debug` is a CLI flag (no value required) shown in `seed4j --help`
+- in `extension` mode it enables bootstrap diagnostics for `com.seed4j.cli.bootstrap.domain`
+- in `extension` mode it does not force `logging.level.root=ERROR`, so DEBUG diagnostics can be emitted
+- the supported operational contract is the literal token `--debug`
 
 #### Extension Runtime Metadata
 

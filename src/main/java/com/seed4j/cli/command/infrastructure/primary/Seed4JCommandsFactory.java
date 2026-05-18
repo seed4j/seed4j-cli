@@ -7,12 +7,14 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Model.OptionSpec;
 
 @Component
 class Seed4JCommandsFactory {
 
   private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
   private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
+  private static final String DEBUG_OPTION = "--debug";
   private static final String UNKNOWN_VERSION = "unknown";
 
   private final List<Seed4JCommand> seed4JCommands;
@@ -37,6 +39,13 @@ class Seed4JCommandsFactory {
 
   public CommandSpec buildCommandSpec() {
     CommandSpec spec = CommandSpec.create().name("seed4j").mixinStandardHelpOptions(true).version(versionOutput());
+    spec.addOption(
+      OptionSpec.builder(DEBUG_OPTION)
+        .description("Enable runtime bootstrap diagnostics (extension mode only)")
+        .type(Boolean.class)
+        .defaultValue("false")
+        .build()
+    );
 
     spec.usageMessage().description("Seed4J CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
 
