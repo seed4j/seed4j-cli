@@ -22,55 +22,8 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
   private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
 
   @Test
-  void shouldKeepVersionOutputFreeFromExtensionLoggingMarkersWhenExtensionPublishesRegressionOverrides()
-    throws IOException, InterruptedException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-markers-");
-    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
-    Path packagedCliJar = packagedCliJar();
-    ProcessBuilder processBuilder = new ProcessBuilder(
-      javaExecutablePath().toString(),
-      "-Duser.home=" + userHome,
-      "-jar",
-      packagedCliJar.toString(),
-      "--version"
-    ).redirectErrorStream(true);
-
-    Process process = processBuilder.start();
-    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-    String output = readOutput(process.getInputStream());
-
-    assertThat(finished).isTrue();
-    assertThat(process.exitValue()).isZero();
-    assertThat(output).doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER).doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER);
-  }
-
-  @Test
-  void shouldKeepVersionOutputFreeFromSpringBootBannerAndStartupInfoWhenExtensionPublishesRegressionOverrides()
-    throws IOException, InterruptedException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-banner-");
-    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
-    Path packagedCliJar = packagedCliJar();
-    ProcessBuilder processBuilder = new ProcessBuilder(
-      javaExecutablePath().toString(),
-      "-Duser.home=" + userHome,
-      "-jar",
-      packagedCliJar.toString(),
-      "--version"
-    ).redirectErrorStream(true);
-
-    Process process = processBuilder.start();
-    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-    String output = readOutput(process.getInputStream());
-
-    assertThat(finished).isTrue();
-    assertThat(process.exitValue()).isZero();
-    assertThat(output).doesNotContain(SPRING_BOOT_BANNER_MARKER).doesNotContain(STARTUP_INFO_MARKER);
-  }
-
-  @Test
-  void shouldKeepRuntimeModeAndDistributionOutputStableWhenExtensionPublishesRegressionOverrides()
-    throws IOException, InterruptedException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-runtime-");
+  void shouldKeepVersionOutputOperationallyCleanWhenExtensionPublishesRegressionOverrides() throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-operational-clean-");
     ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
     Path packagedCliJar = packagedCliJar();
     ProcessBuilder processBuilder = new ProcessBuilder(
@@ -88,56 +41,58 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
     assertThat(finished).isTrue();
     assertThat(process.exitValue()).isZero();
     assertThat(output)
+      .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER)
+      .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+      .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+      .doesNotContain(STARTUP_INFO_MARKER)
+      .doesNotContain("Missing watchable .xml or .properties files")
+      .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL")
       .contains("Runtime mode: extension")
       .contains("Distribution ID: company-extension")
       .contains("Distribution version: 1.0.0");
   }
 
   @Test
-  void shouldKeepVersionOutputStableWhenExtensionPublishesApplicationAndLogbackOverrides() throws IOException, InterruptedException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-stability-");
-    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
-    Path packagedCliJar = packagedCliJar();
-    ProcessBuilder processBuilder = new ProcessBuilder(
-      javaExecutablePath().toString(),
-      "-Duser.home=" + userHome,
-      "-jar",
-      packagedCliJar.toString(),
-      "--version"
-    ).redirectErrorStream(true);
-
-    Process process = processBuilder.start();
-    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-    String output = readOutput(process.getInputStream());
-
-    assertThat(finished).isTrue();
-    assertThat(process.exitValue()).isZero();
-    assertThat(output).containsPattern("Seed4J CLI v(?!null)\\S+").containsPattern("Seed4J version: (?!null)\\S+");
-  }
-
-  @Test
-  void shouldKeepVersionOutputFreeFromLogbackScanWarningsWhenExtensionPublishesScanEnabledLogback()
+  void shouldKeepCliAndSeed4JVersionValuesStableComparedToStandardModeWhenExtensionPublishesRegressionOverrides()
     throws IOException, InterruptedException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-logback-scan-");
-    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
     Path packagedCliJar = packagedCliJar();
-    ProcessBuilder processBuilder = new ProcessBuilder(
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-version-stability-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-version-stability-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(extensionUserHome);
+
+    ProcessBuilder standardProcessBuilder = new ProcessBuilder(
       javaExecutablePath().toString(),
-      "-Duser.home=" + userHome,
+      "-Duser.home=" + standardUserHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+    ProcessBuilder extensionProcessBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + extensionUserHome,
       "-jar",
       packagedCliJar.toString(),
       "--version"
     ).redirectErrorStream(true);
 
-    Process process = processBuilder.start();
-    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-    String output = readOutput(process.getInputStream());
+    Process standardProcess = standardProcessBuilder.start();
+    boolean standardFinished = standardProcess.waitFor(60, TimeUnit.SECONDS);
+    String standardOutput = readOutput(standardProcess.getInputStream());
+    Process extensionProcess = extensionProcessBuilder.start();
+    boolean extensionFinished = extensionProcess.waitFor(60, TimeUnit.SECONDS);
+    String extensionOutput = readOutput(extensionProcess.getInputStream());
 
-    assertThat(finished).isTrue();
-    assertThat(process.exitValue()).isZero();
-    assertThat(output)
-      .doesNotContain("Missing watchable .xml or .properties files")
-      .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL");
+    assertThat(standardFinished).isTrue();
+    assertThat(standardProcess.exitValue()).isZero();
+    assertThat(extensionFinished).isTrue();
+    assertThat(extensionProcess.exitValue()).isZero();
+
+    String standardCliVersionLine = lineWithPrefix(standardOutput, "Seed4J CLI v");
+    String standardSeed4jVersionLine = lineWithPrefix(standardOutput, "Seed4J version: ");
+    String extensionCliVersionLine = lineWithPrefix(extensionOutput, "Seed4J CLI v");
+    String extensionSeed4jVersionLine = lineWithPrefix(extensionOutput, "Seed4J version: ");
+    assertThat(extensionCliVersionLine).isEqualTo(standardCliVersionLine);
+    assertThat(extensionSeed4jVersionLine).isEqualTo(standardSeed4jVersionLine);
   }
 
   @Test
@@ -216,5 +171,13 @@ class ExtensionRuntimeBootstrapPackagedJarIT {
     try (InputStream inputStream = processOutput) {
       return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
     }
+  }
+
+  private static String lineWithPrefix(String output, String prefix) {
+    return output
+      .lines()
+      .filter(line -> line.startsWith(prefix))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("Missing line: " + prefix));
   }
 }
