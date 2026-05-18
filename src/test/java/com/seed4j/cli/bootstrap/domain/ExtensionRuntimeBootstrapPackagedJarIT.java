@@ -16,6 +16,32 @@ import org.junit.jupiter.api.Test;
 @UnitTest
 class ExtensionRuntimeBootstrapPackagedJarIT {
 
+  private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
+  private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
+
+  @Test
+  void shouldKeepVersionOutputFreeFromExtensionLoggingMarkersWhenExtensionPublishesRegressionOverrides()
+    throws IOException, InterruptedException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-markers-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    Path packagedCliJar = packagedCliJar();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "--version"
+    ).redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+    String output = readOutput(process.getInputStream());
+
+    assertThat(finished).isTrue();
+    assertThat(process.exitValue()).isZero();
+    assertThat(output).doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER).doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER);
+  }
+
   @Test
   void shouldKeepVersionOutputStableWhenExtensionPublishesApplicationAndLogbackOverrides() throws IOException, InterruptedException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-version-stability-");
