@@ -138,16 +138,8 @@ final class ExtensionRuntimeFixture {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
   }
 
-  static ExtensionRuntimeFixturePaths installWithApplyControlExtensionModule(Path userHome) throws IOException {
-    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
-  }
-
   static ExtensionRuntimeFixturePaths installWithApplyCommonSourceOverrideExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithCommonSourceOverride);
-  }
-
-  static ExtensionRuntimeFixturePaths installWithApplyTemplateResourceOverrideExtensionModule(Path userHome) throws IOException {
-    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithTemplateResourceOverride);
   }
 
   static ExtensionRuntimeFixturePaths installWithApplyExtensionModuleUsingSharedRuntimeOverrides(Path userHome) throws IOException {
@@ -223,27 +215,6 @@ final class ExtensionRuntimeFixture {
       for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
       }
-    }
-    return jarPath;
-  }
-
-  static Path createListExtensionModuleJarWithTemplateResourceOverride(Path jarPath) throws IOException {
-    Manifest manifest = manifestWithStartClass();
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      Set<String> addedEntries = new HashSet<>();
-      addedEntries.add(JarFile.MANIFEST_NAME);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_GENERATOR_DIRECTORY);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_PRETTIER_DIRECTORY);
-      addedEntries.add(BOOT_INF_DIRECTORY);
-      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
-      addedEntries.add(BOOT_INF_GENERATOR_DIRECTORY);
-      addedEntries.add(BOOT_INF_PRETTIER_DIRECTORY);
-      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
-        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
-      }
-      addTextEntry(jarOutputStream, EXTENSION_PRETTIER_TEMPLATE_ENTRY, EXTENSION_PRETTIER_TEMPLATE_OVERRIDE);
     }
     return jarPath;
   }

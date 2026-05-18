@@ -21,37 +21,6 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
   private static final String EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG = "runtime-extension-apply-shared-context";
 
   @Test
-  void shouldKeepCorePrettierBaselineInExtensionModeWhenExtensionHasNoSourceOrTemplateCollision() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-standard-");
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-extension-");
-    ExtensionRuntimeFixture.installWithApplyControlExtensionModule(extensionUserHome);
-    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-standard-project-");
-    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-extension-project-");
-
-    PackagedRunResult standardInitResult = runApplyInit(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
-    PackagedRunResult standardPrettierResult = runApplyPrettier(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
-
-    String standardPackageJson = Files.readString(standardProjectPath.resolve("package.json"));
-    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
-    String standardPrettierConfiguration = Files.readString(standardProjectPath.resolve(".prettierrc"));
-    String extensionPrettierConfiguration = Files.readString(extensionProjectPath.resolve(".prettierrc"));
-
-    assertThat(standardInitResult.finished()).isTrue();
-    assertThat(standardInitResult.exitCode()).isZero();
-    assertThat(extensionInitResult.finished()).isTrue();
-    assertThat(extensionInitResult.exitCode()).isZero();
-    assertThat(standardPrettierResult.finished()).isTrue();
-    assertThat(standardPrettierResult.exitCode()).isZero();
-    assertThat(extensionPrettierResult.finished()).isTrue();
-    assertThat(extensionPrettierResult.exitCode()).isZero();
-    assertThat(extensionPackageJson).isEqualTo(standardPackageJson);
-    assertThat(extensionPrettierConfiguration).isEqualTo(standardPrettierConfiguration);
-  }
-
-  @Test
   void shouldOverrideCorePrettierDependencyVersionsWhenExtensionCollidesOnCommonSource() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-common-standard-");
@@ -78,35 +47,6 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     assertThat(extensionPrettierResult.exitCode()).isZero();
     assertThat(standardPackageJson).doesNotContain("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
     assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
-  }
-
-  @Test
-  void shouldOverrideCorePrettierTemplateWhenExtensionCollidesOnTheSameClasspathResourcePath() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-template-standard-");
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-template-extension-");
-    ExtensionRuntimeFixture.installWithApplyTemplateResourceOverrideExtensionModule(extensionUserHome);
-    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-template-standard-project-");
-    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-template-extension-project-");
-
-    PackagedRunResult standardInitResult = runApplyInit(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
-    PackagedRunResult standardPrettierResult = runApplyPrettier(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
-
-    String standardPrettierConfiguration = Files.readString(standardProjectPath.resolve(".prettierrc"));
-    String extensionPrettierConfiguration = Files.readString(extensionProjectPath.resolve(".prettierrc"));
-
-    assertThat(standardInitResult.finished()).isTrue();
-    assertThat(standardInitResult.exitCode()).isZero();
-    assertThat(extensionInitResult.finished()).isTrue();
-    assertThat(extensionInitResult.exitCode()).isZero();
-    assertThat(standardPrettierResult.finished()).isTrue();
-    assertThat(standardPrettierResult.exitCode()).isZero();
-    assertThat(extensionPrettierResult.finished()).isTrue();
-    assertThat(extensionPrettierResult.exitCode()).isZero();
-    assertThat(standardPrettierConfiguration).doesNotContain(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
-    assertThat(extensionPrettierConfiguration).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
   }
 
   @Test

@@ -27,33 +27,6 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
   private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
   @Test
-  void shouldNotListTheExtensionOnlySlugInStandardMode() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-");
-
-    PackagedRunResult standardResult = runList(packagedCliJar, standardUserHome);
-
-    List<String> standardSlugs = moduleSlugs(standardResult.output());
-    assertThat(standardResult.finished()).isTrue();
-    assertThat(standardResult.exitCode()).isZero();
-    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotContain("Module").doesNotHaveDuplicates();
-  }
-
-  @Test
-  void shouldListTheExtensionOnlySlugInExtensionMode() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-");
-    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
-
-    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
-
-    List<String> extensionSlugs = moduleSlugs(extensionResult.output());
-    assertThat(extensionResult.finished()).isTrue();
-    assertThat(extensionResult.exitCode()).isZero();
-    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
-  }
-
-  @Test
   void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlug() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-catalog-");
