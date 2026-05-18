@@ -5,6 +5,10 @@ import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionList
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleConfiguration;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleFactory;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleSlug;
+import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextApplicationService;
+import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleConfiguration;
+import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleFactory;
+import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleSlug;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionCommonSourceNodePackagesVersionsReader;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
@@ -117,6 +121,12 @@ final class ExtensionRuntimeFixture {
   private static final List<Class<?>> APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES = List.of(
     RuntimeExtensionCommonSourceNodePackagesVersionsReader.class
   );
+  private static final List<Class<?>> APPLY_SHARED_RUNTIME_EXTENSION_MODULE_CLASSES = List.of(
+    RuntimeExtensionApplySharedContextModuleSlug.class,
+    RuntimeExtensionApplySharedContextModuleFactory.class,
+    RuntimeExtensionApplySharedContextApplicationService.class,
+    RuntimeExtensionApplySharedContextModuleConfiguration.class
+  );
 
   private ExtensionRuntimeFixture() {}
 
@@ -138,6 +148,10 @@ final class ExtensionRuntimeFixture {
 
   static ExtensionRuntimeFixturePaths installWithApplyTemplateResourceOverrideExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithTemplateResourceOverride);
+  }
+
+  static ExtensionRuntimeFixturePaths installWithApplyExtensionModuleUsingSharedRuntimeOverrides(Path userHome) throws IOException {
+    return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithApplySharedRuntimeOverrides);
   }
 
   static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
@@ -228,6 +242,33 @@ final class ExtensionRuntimeFixture {
       addedEntries.add(BOOT_INF_PRETTIER_DIRECTORY);
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      addTextEntry(jarOutputStream, EXTENSION_PRETTIER_TEMPLATE_ENTRY, EXTENSION_PRETTIER_TEMPLATE_OVERRIDE);
+    }
+    return jarPath;
+  }
+
+  static Path createListExtensionModuleJarWithApplySharedRuntimeOverrides(Path jarPath) throws IOException {
+    Manifest manifest = manifestWithStartClass();
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_GENERATOR_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_PRETTIER_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_GENERATOR_DIRECTORY);
+      addedEntries.add(BOOT_INF_PRETTIER_DIRECTORY);
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      for (Class<?> moduleClass : APPLY_SHARED_RUNTIME_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
       }
       addTextEntry(jarOutputStream, EXTENSION_PRETTIER_TEMPLATE_ENTRY, EXTENSION_PRETTIER_TEMPLATE_OVERRIDE);
     }

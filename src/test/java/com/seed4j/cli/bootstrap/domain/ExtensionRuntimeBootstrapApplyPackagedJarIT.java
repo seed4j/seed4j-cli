@@ -18,6 +18,7 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
 
   private static final String OVERRIDDEN_PRETTIER_VERSION = "3.6.2";
   private static final String OVERRIDDEN_PRETTIER_TEMPLATE_MARKER = "seed4j-extension-template-override";
+  private static final String EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG = "runtime-extension-apply-shared-context";
 
   @Test
   void shouldKeepCorePrettierBaselineInExtensionModeWhenExtensionHasNoSourceOrTemplateCollision() throws IOException, InterruptedException {
@@ -108,7 +109,34 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     assertThat(extensionPrettierConfiguration).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
   }
 
-  // [TEST] should apply extension module using the same global runtime readers and resources
+  @Test
+  void shouldApplyExtensionModuleUsingTheSameGlobalRuntimeReadersAndResources() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-extension-");
+    ExtensionRuntimeFixture.installWithApplyExtensionModuleUsingSharedRuntimeOverrides(extensionUserHome);
+    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-project-");
+
+    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
+    PackagedRunResult extensionModuleApplyResult = runApplyWithoutBaseNameAndProjectName(
+      packagedCliJar,
+      extensionUserHome,
+      extensionProjectPath,
+      EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG
+    );
+
+    assertThat(extensionInitResult.finished()).isTrue();
+    assertThat(extensionInitResult.exitCode()).isZero();
+    assertThat(extensionModuleApplyResult.finished()).isTrue();
+    assertThat(extensionModuleApplyResult.exitCode())
+      .withFailMessage("Expected extension apply module command to succeed but got output:%n%s", extensionModuleApplyResult.output())
+      .isZero();
+
+    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
+    String extensionPrettierConfiguration = Files.readString(extensionProjectPath.resolve(".prettierrc"));
+
+    assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
+    assertThat(extensionPrettierConfiguration).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+  }
 
   private static PackagedRunResult runApplyInit(Path packagedCliJar, Path userHome, Path projectPath)
     throws IOException, InterruptedException {
@@ -118,6 +146,26 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
   private static PackagedRunResult runApplyPrettier(Path packagedCliJar, Path userHome, Path projectPath)
     throws IOException, InterruptedException {
     return runApply(packagedCliJar, userHome, projectPath, "prettier");
+  }
+
+  private static PackagedRunResult runApplyWithoutBaseNameAndProjectName(
+    Path packagedCliJar,
+    Path userHome,
+    Path projectPath,
+    String moduleSlug
+  ) throws IOException, InterruptedException {
+    String[] command = {
+      javaExecutablePath().toString(),
+      "-Duser.home=" + userHome,
+      "-jar",
+      packagedCliJar.toString(),
+      "apply",
+      moduleSlug,
+      "--project-path",
+      projectPath.toString(),
+      "--no-commit",
+    };
+    return runCommand(command);
   }
 
   private static PackagedRunResult runApply(
@@ -145,6 +193,10 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     String[] command = new String[commonArguments.length + additionalArguments.length];
     System.arraycopy(commonArguments, 0, command, 0, commonArguments.length);
     System.arraycopy(additionalArguments, 0, command, commonArguments.length, additionalArguments.length);
+    return runCommand(command);
+  }
+
+  private static PackagedRunResult runCommand(String[] command) throws IOException, InterruptedException {
     ProcessBuilder processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
 
     Process process = processBuilder.start();
