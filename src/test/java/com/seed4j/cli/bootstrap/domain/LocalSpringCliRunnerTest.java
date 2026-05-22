@@ -38,7 +38,7 @@ class LocalSpringCliRunnerTest {
   @Test
   void shouldLoadTheExternalConfigFileWhenItExists() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configFile = userHome.resolve(".config/seed4j-cli.yml");
+    Path configFile = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configFile.getParent());
     Files.writeString(configFile, "seed4j:\n  runtime:\n    mode: standard\n");
     RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
@@ -47,6 +47,20 @@ class LocalSpringCliRunnerTest {
     runner.run(new String[] { "--version" });
 
     assertThat(builder.properties()).isEqualTo("spring.config.location=classpath:/config/,file:%s".formatted(configFile));
+  }
+
+  @Test
+  void shouldNotLoadTheLegacyExternalConfigFileLocation() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path legacyConfigFile = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(legacyConfigFile.getParent());
+    Files.writeString(legacyConfigFile, "seed4j:\n  runtime:\n    mode: extension\n");
+    RecordingApplicationBuilder builder = new RecordingApplicationBuilder();
+    LocalSpringCliRunner runner = new LocalSpringCliRunner(() -> builder, context -> 0, () -> userHome);
+
+    runner.run(new String[] { "--version" });
+
+    assertThat(builder.propertyEntries()).isEmpty();
   }
 
   @Test
@@ -93,7 +107,7 @@ class LocalSpringCliRunnerTest {
   @Test
   void shouldPreserveExternalConfigLocationWhenAlsoAddingSpringMainSources() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configFile = userHome.resolve(".config/seed4j-cli.yml");
+    Path configFile = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configFile.getParent());
     Files.writeString(configFile, "seed4j:\n  runtime:\n    mode: extension\n");
     String runtimeExtensionStartClassProperty = "seed4j.cli.runtime.extension.start-class";

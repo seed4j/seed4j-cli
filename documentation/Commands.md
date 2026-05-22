@@ -198,7 +198,7 @@ The CLI will automatically reuse the `project-name`, `base-name`, and `node-pack
 Seed4J CLI supports external configuration files to customize its behavior. The CLI automatically looks for a configuration file at:
 
 ```
-~/.config/seed4j-cli.yml
+~/.config/seed4j-cli/config.yml
 ```
 
 If this file exists, it will be loaded automatically when the CLI starts.
@@ -209,7 +209,7 @@ If this file exists, it will be loaded automatically when the CLI starts.
 
 You can hide specific modules from being displayed in the `list` command and prevent them from being applied. This is useful for customizing which modules are available in different environments.
 
-Create a `~/.config/seed4j-cli.yml` file with the following structure:
+Create a `~/.config/seed4j-cli/config.yml` file with the following structure:
 
 ```yaml
 seed4j:
@@ -245,7 +245,7 @@ Use runtime mode to control how the CLI bootstraps:
 - `standard` (default): uses the standard runtime
 - `extension`: loads an additional runtime extension JAR and metadata
 
-Configure it in `~/.config/seed4j-cli.yml`:
+Configure it in `~/.config/seed4j-cli/config.yml`:
 
 ```yaml
 seed4j:
@@ -351,7 +351,7 @@ Practical implications for overrides:
 Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors:
 
 - Invalid `seed4j.runtime.mode` value or type
-- Invalid YAML structure in `~/.config/seed4j-cli.yml`
+- Invalid YAML structure in `~/.config/seed4j-cli/config.yml`
 - Missing `extension.jar` or `metadata.yml` in extension mode
 - Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
 - Invalid `compatibility.min-cli-version` format
@@ -412,7 +412,7 @@ Recommended implementation flow for this CLI runtime mode:
 6. Install runtime files:
    - `~/.config/seed4j-cli/runtime/active/extension.jar`
    - `~/.config/seed4j-cli/runtime/active/metadata.yml`
-7. Enable extension mode in `~/.config/seed4j-cli.yml` and run `seed4j --version` / `seed4j list` to validate.
+7. Enable extension mode in `~/.config/seed4j-cli/config.yml` and run `seed4j --version` / `seed4j list` to validate.
 
 Minimal module resource example:
 

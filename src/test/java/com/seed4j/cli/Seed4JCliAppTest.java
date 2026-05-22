@@ -37,7 +37,7 @@ class Seed4JCliAppTest {
   @Test
   void shouldRunTheProductionBootstrapEntryPointUsingTheLauncherPath() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(
       configPath,

@@ -29,7 +29,7 @@ Recent history follows Conventional Commits with scopes, for example `feat(boots
 
 ## Configuration & Architecture Notes
 
-The CLI loads external overrides from `~/.config/seed4j-cli.yml`; document any new configuration keys in both code and `README.md`. If you change command flow or boundaries, update the relevant files in `documentation/`, especially the hexagonal architecture and commands guides.
+The CLI loads external overrides from `~/.config/seed4j-cli/config.yml`; document any new configuration keys in both code and `README.md`. If you change command flow or boundaries, update the relevant files in `documentation/`, especially the hexagonal architecture and commands guides.
 
 ## Sonar and Cleanup Learnings
 

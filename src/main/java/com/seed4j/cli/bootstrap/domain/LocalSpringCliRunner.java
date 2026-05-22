@@ -8,7 +8,7 @@ import org.springframework.boot.WebApplicationType;
 
 public class LocalSpringCliRunner implements LocalCliRunner {
 
-  private static final String CONFIG_FILE_NAME = ".config/seed4j-cli.yml";
+  private static final String CONFIG_FILE_NAME = ".config/seed4j-cli/config.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
   private static final String SPRING_MAIN_SOURCES_TEMPLATE = "spring.main.sources=%s";
