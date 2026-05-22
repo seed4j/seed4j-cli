@@ -12,7 +12,7 @@ class RuntimeModeConfigReader {
   private static final String SEED4J_KEY = "seed4j";
 
   RuntimeMode runtimeMode(Path userHome) {
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     if (!Files.exists(configPath)) {
       return RuntimeMode.STANDARD;
     }
@@ -20,10 +20,10 @@ class RuntimeModeConfigReader {
     try {
       Object loadedConfiguration = new Yaml().load(Files.newInputStream(configPath));
       if (!(loadedConfiguration instanceof Map<?, ?> configuration)) {
-        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: YAML root must be an object.");
+        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: YAML root must be an object.");
       }
       if (configuration.containsKey(SEED4J_KEY) && !(configuration.get(SEED4J_KEY) instanceof Map<?, ?>)) {
-        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli.yml: seed4j must be an object.");
+        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: seed4j must be an object.");
       }
       if (!(configuration.get(SEED4J_KEY) instanceof Map<?, ?> seed4j)) {
         return RuntimeMode.STANDARD;
@@ -33,7 +33,7 @@ class RuntimeModeConfigReader {
       }
       if (runtime.containsKey("mode") && !(runtime.get("mode") instanceof String)) {
         throw new InvalidRuntimeConfigurationException(
-          "Invalid ~/.config/seed4j-cli.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
+          "Invalid ~/.config/seed4j-cli/config.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
         );
       }
       if (!(runtime.get("mode") instanceof String mode)) {
@@ -43,7 +43,7 @@ class RuntimeModeConfigReader {
       String normalizedMode = mode.trim().toUpperCase();
       return runtimeMode(mode, normalizedMode);
     } catch (IOException | YAMLException _) {
-      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli.yml.");
+      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
     }
   }
 

@@ -35,7 +35,7 @@ class Seed4JCliLauncherTest {
   void shouldNotForceErrorRootLoggingWhenDebugFlagIsPresentInExtensionMode() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -69,7 +69,7 @@ class Seed4JCliLauncherTest {
   void shouldEmitBootstrapDiagnosticsInParentProcessWhenDebugFlagIsPresentInExtensionMode() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -131,7 +131,7 @@ class Seed4JCliLauncherTest {
   void shouldFailBeforeSpringWhenExtensionModeIsSelectedOutsideARegularJar() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableLocation = Files.createTempDirectory("seed4j-cli-classes");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -230,6 +230,37 @@ class Seed4JCliLauncherTest {
   }
 
   @Test
+  void shouldIgnoreLegacyExternalRuntimeConfigPath() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path legacyConfigPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(legacyConfigPath.getParent());
+    Files.writeString(
+      legacyConfigPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      createExecutableJar(),
+      "0.0.1-SNAPSHOT",
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
   void shouldRunTheLocalCliPathWhenAlreadyExecutingAsAChildProcess() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
@@ -254,7 +285,7 @@ class Seed4JCliLauncherTest {
   void shouldFailBeforeLaunchingAChildProcessWhenRuntimeConfigurationIsInvalid(String scenarioName, String configContent)
     throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, configContent);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
@@ -277,7 +308,7 @@ class Seed4JCliLauncherTest {
   @Test
   void shouldStartAChildProcessWhenExtensionRuntimeConfigurationIsValid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -314,7 +345,7 @@ class Seed4JCliLauncherTest {
   @Test
   void shouldFailBeforeChildProcessAndPrintRuntimeErrorWhenExtensionJarLayoutIsInvalid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -353,7 +384,7 @@ class Seed4JCliLauncherTest {
   void shouldStartAStandardChildProcessWhenExternalConfigDoesNotSelectExtensionMode(String scenarioName, String configContent)
     throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, configContent);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
@@ -377,7 +408,7 @@ class Seed4JCliLauncherTest {
   @Test
   void shouldFailBeforeLaunchingAChildProcessWhenExternalConfigCannotBeRead() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
@@ -451,7 +482,7 @@ class Seed4JCliLauncherTest {
   void shouldLaunchTheExtensionChildProcessRequestWithLoaderPathAndActiveDistributionSystemProperties() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -491,7 +522,7 @@ class Seed4JCliLauncherTest {
   void shouldSetExtensionChildProcessLoggingBaselineSystemPropertiesWhenExtensionModeIsSelected() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -524,7 +555,7 @@ class Seed4JCliLauncherTest {
   void shouldMaterializeExtensionOverlayCacheWhenExtensionModeIsSelected() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -554,7 +585,7 @@ class Seed4JCliLauncherTest {
   void shouldPublishExtensionStartClassSystemPropertyWhenExtensionModeIsSelected() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);
@@ -586,7 +617,7 @@ class Seed4JCliLauncherTest {
   void shouldFailBeforeChildProcessWhenExtensionStartClassIsMissingFromManifest() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
-    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeDirectory);

@@ -36,7 +36,7 @@ final class ExtensionRuntimeFixture {
       runtime:
         mode: extension
     """;
-  private static final String CONFIG_FILE_LOCATION = ".config/seed4j-cli.yml";
+  private static final String CONFIG_FILE_LOCATION = ".config/seed4j-cli/config.yml";
   private static final String RUNTIME_DIRECTORY_LOCATION = ".config/seed4j-cli/runtime/active";
   private static final String METADATA_RESOURCE_LOCATION = "runtime/extension/metadata.yml";
   private static final String BOOT_INF_DIRECTORY = "BOOT-INF/";
