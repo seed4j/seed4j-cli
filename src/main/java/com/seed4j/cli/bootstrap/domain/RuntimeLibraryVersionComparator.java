@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 final class RuntimeLibraryVersionComparator {
 
   private static final Pattern NUMERIC_VERSION_PATTERN = Pattern.compile("^\\d++(?:\\.\\d++)*+$");
-  private static final Pattern QUALIFIED_NUMERIC_VERSION_PATTERN = Pattern.compile("^(\\d++(?:\\.\\d++)*+)(?:[.-])([A-Za-z]++)$");
+  private static final Pattern QUALIFIED_NUMERIC_VERSION_PATTERN = Pattern.compile("^(\\d++(?:\\.\\d++)*+)[.-]([A-Za-z]++)$");
 
   RuntimeLibraryVersionComparison compare(String extensionVersion, String cliVersion) {
     if (normalizedVersion(extensionVersion).equals(normalizedVersion(cliVersion))) {
