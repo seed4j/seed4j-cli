@@ -89,4 +89,24 @@ class RuntimeLibraryVersionComparatorTest {
 
     assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
   }
+
+  @Test
+  void shouldReturnUncomparableWhenNumericVersionIsVeryLargeAndMalformed() {
+    String extensionVersion = "1.".repeat(2500);
+    String cliVersion = "1.0.0";
+
+    RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
+
+    assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
+  }
+
+  @Test
+  void shouldReturnUncomparableWhenQualifiedVersionIsVeryLargeAndMalformed() {
+    String extensionVersion = "1.".repeat(2500) + "1-";
+    String cliVersion = "1.0.0-final";
+
+    RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
+
+    assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
+  }
 }

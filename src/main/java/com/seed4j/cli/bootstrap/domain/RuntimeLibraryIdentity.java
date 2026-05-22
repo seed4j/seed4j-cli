@@ -10,6 +10,14 @@ record RuntimeLibraryIdentity(String coordinate, String version) {
   );
 
   static Optional<RuntimeLibraryIdentity> fromJarFileName(String libraryFileName) {
+    if (notJarFileName(libraryFileName)) {
+      return Optional.empty();
+    }
+
+    if (notContainsCoordinateVersionDelimiter(libraryFileName)) {
+      return Optional.empty();
+    }
+
     Matcher matcher = LIBRARY_COORDINATE_AND_VERSION_PATTERN.matcher(libraryFileName);
     if (!matcher.matches()) {
       return Optional.empty();
@@ -18,5 +26,13 @@ record RuntimeLibraryIdentity(String coordinate, String version) {
     String coordinate = matcher.group(1);
     String version = matcher.group(2);
     return Optional.of(new RuntimeLibraryIdentity(coordinate, version));
+  }
+
+  private static boolean notJarFileName(String libraryFileName) {
+    return !libraryFileName.endsWith(".jar");
+  }
+
+  private static boolean notContainsCoordinateVersionDelimiter(String libraryFileName) {
+    return libraryFileName.lastIndexOf('-') <= 0;
   }
 }

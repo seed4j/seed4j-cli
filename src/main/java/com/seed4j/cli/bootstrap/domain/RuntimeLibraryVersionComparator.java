@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -7,7 +8,8 @@ import java.util.regex.Pattern;
 
 final class RuntimeLibraryVersionComparator {
 
-  private static final Pattern QUALIFIED_NUMERIC_VERSION_PATTERN = Pattern.compile("^(\\d+(?:\\.\\d+)*)(?:[.-])([A-Za-z]+)$");
+  private static final Pattern NUMERIC_VERSION_PATTERN = Pattern.compile("^\\d++(?:\\.\\d++)*+$");
+  private static final Pattern QUALIFIED_NUMERIC_VERSION_PATTERN = Pattern.compile("^(\\d++(?:\\.\\d++)*+)(?:[.-])([A-Za-z]++)$");
 
   RuntimeLibraryVersionComparison compare(String extensionVersion, String cliVersion) {
     if (normalizedVersion(extensionVersion).equals(normalizedVersion(cliVersion))) {
@@ -105,7 +107,7 @@ final class RuntimeLibraryVersionComparator {
     }
 
     try {
-      List<Integer> segments = List.of(normalizedVersion.split("\\.")).stream().map(Integer::parseInt).toList();
+      List<Integer> segments = Arrays.stream(normalizedVersion.split("\\.")).map(Integer::parseInt).toList();
       return Optional.of(segments);
     } catch (NumberFormatException _) {
       return Optional.empty();
@@ -121,7 +123,7 @@ final class RuntimeLibraryVersionComparator {
   }
 
   private boolean numericVersion(String version) {
-    return version.matches("\\d+(\\.\\d+)*");
+    return NUMERIC_VERSION_PATTERN.matcher(version).matches();
   }
 
   enum RuntimeLibraryVersionComparison {
