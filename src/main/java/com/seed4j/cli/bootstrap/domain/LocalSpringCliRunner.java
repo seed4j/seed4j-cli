@@ -2,6 +2,7 @@ package com.seed4j.cli.bootstrap.domain;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 
@@ -9,6 +10,8 @@ public class LocalSpringCliRunner implements LocalCliRunner {
 
   private static final String CONFIG_FILE_NAME = ".config/seed4j-cli.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
+  private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
+  private static final String SPRING_MAIN_SOURCES_TEMPLATE = "spring.main.sources=%s";
 
   @FunctionalInterface
   public interface ApplicationBuilderFactory {
@@ -60,10 +63,17 @@ public class LocalSpringCliRunner implements LocalCliRunner {
     if (Files.exists(configPath)) {
       builder.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath));
     }
+    extensionStartClass().ifPresent(startClass -> builder.properties(SPRING_MAIN_SOURCES_TEMPLATE.formatted(startClass)));
     builder.bannerMode(Banner.Mode.OFF);
     builder.web(WebApplicationType.NONE);
     builder.lazyInitialization(true);
     ApplicationContext context = builder.run(args);
     return exitCodeResolver.resolve(context);
+  }
+
+  private static Optional<String> extensionStartClass() {
+    return Optional.ofNullable(System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY))
+      .map(String::trim)
+      .filter(startClass -> !startClass.isEmpty());
   }
 }

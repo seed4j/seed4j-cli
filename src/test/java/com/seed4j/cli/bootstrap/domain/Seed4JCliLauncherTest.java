@@ -2,6 +2,10 @@ package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import java.io.IOException;
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.LoggerFactory;
 
 @UnitTest
 class Seed4JCliLauncherTest {
@@ -25,6 +30,81 @@ class Seed4JCliLauncherTest {
       id: company-extension
       version: 1.0.0
     """;
+
+  @Test
+  void shouldNotForceErrorRootLoggingWhenDebugFlagIsPresentInExtensionMode() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    createFatJar(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version", "--debug" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().systemProperties())
+      .containsEntry("logging.config", "classpath:seed4j-cli-logback-spring.xml")
+      .containsEntry("logging.level.com.seed4j.cli.bootstrap.domain", "DEBUG")
+      .doesNotContainEntry("logging.level.root", "ERROR")
+      .containsEntry("spring.main.log-startup-info", "false");
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldEmitBootstrapDiagnosticsInParentProcessWhenDebugFlagIsPresentInExtensionMode() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    createFatJar(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+
+    int exitCode;
+    try {
+      exitCode = launcher.launch(new String[] { "--version", "--debug" });
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    assertThat(exitCode).isZero();
+    assertThat(appender.list)
+      .extracting(ILoggingEvent::getFormattedMessage)
+      .anyMatch(message -> message.contains("No extension runtime libraries were added to loader.path"));
+  }
 
   @Test
   void shouldRunTheLocalCliPathWhenStandardModeIsSelectedOutsideARegularJar() throws IOException {
@@ -392,8 +472,9 @@ class Seed4JCliLauncherTest {
     int exitCode = launcher.launch(new String[] { "--version" });
 
     Path extensionJarPath = runtimeDirectory.resolve("extension.jar");
-    String extensionJarUri = extensionJarPath.toUri().toString();
-    String expectedLoaderPath = "jar:" + extensionJarUri + "!/BOOT-INF/classes,jar:" + extensionJarUri + "!/BOOT-INF/lib/";
+    RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
+    Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
+    String expectedLoaderPath = overlayClassesPath.toString();
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -437,6 +518,100 @@ class Seed4JCliLauncherTest {
       .containsEntry("logging.level.root", "ERROR")
       .containsEntry("spring.main.log-startup-info", "false");
     assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
+  void shouldMaterializeExtensionOverlayCacheWhenExtensionModeIsSelected() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    Path extensionJarPath = createFatJar(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
+    Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
+    assertThat(exitCode).isZero();
+    assertThat(overlayClassesPath).exists().isDirectory();
+  }
+
+  @Test
+  void shouldPublishExtensionStartClassSystemPropertyWhenExtensionModeIsSelected() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    createFatJarWithStartClass(runtimeDirectory.resolve("extension.jar"), "com.seed4j.extension.ExtensionApplication");
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(childProcessLauncher.request()).isNotNull();
+    assertThat(childProcessLauncher.request().systemProperties()).containsEntry(
+      "seed4j.cli.runtime.extension.start-class",
+      "com.seed4j.extension.ExtensionApplication"
+    );
+  }
+
+  @Test
+  void shouldFailBeforeChildProcessWhenExtensionStartClassIsMissingFromManifest() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    Path configPath = userHome.resolve(".config/seed4j-cli.yml");
+    Path runtimeDirectory = userHome.resolve(".config/seed4j-cli/runtime/active");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeDirectory);
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    createFatJarWithoutStartClass(runtimeDirectory.resolve("extension.jar"));
+    Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = launcher.launch(new String[] { "--version" });
+
+      assertThat(exitCode).isNotZero();
+      assertThat(childProcessLauncher.request()).isNull();
+      assertThat(localCliRunner.wasCalled()).isFalse();
+      assertThat(outputCaptor.getStandardError()).contains("Start-Class");
+    }
   }
 
   private static Stream<Arguments> invalidRuntimeConfigurationContents() {
@@ -563,6 +738,26 @@ class Seed4JCliLauncherTest {
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {
+    return createFatJarWithStartClass(jarPath, "com.seed4j.extension.ExtensionApplication");
+  }
+
+  private static Path createFatJarWithStartClass(Path jarPath, String startClass) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    manifest.getMainAttributes().putValue("Start-Class", startClass);
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/com/seed4j/extension/ExtensionApplication.class"));
+      jarOutputStream.write(new byte[] { 0 });
+      jarOutputStream.closeEntry();
+    }
+    return jarPath;
+  }
+
+  private static Path createFatJarWithoutStartClass(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {

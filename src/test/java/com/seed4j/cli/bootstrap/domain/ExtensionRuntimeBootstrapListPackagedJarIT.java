@@ -22,35 +22,9 @@ import org.junit.jupiter.api.Test;
 class ExtensionRuntimeBootstrapListPackagedJarIT {
 
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
+  private static final String CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG = "runtime-extension-custom-package-list-only";
   private static final Pattern MODULE_LINE_PATTERN = Pattern.compile("^\\s{2}(\\S+)\\s{2,}.+$");
   private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
-
-  @Test
-  void shouldNotListTheExtensionOnlySlugInStandardMode() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-");
-
-    PackagedRunResult standardResult = runList(packagedCliJar, standardUserHome);
-
-    List<String> standardSlugs = moduleSlugs(standardResult.output());
-    assertThat(standardResult.finished()).isTrue();
-    assertThat(standardResult.exitCode()).isZero();
-    assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotContain("Module").doesNotHaveDuplicates();
-  }
-
-  @Test
-  void shouldListTheExtensionOnlySlugInExtensionMode() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-");
-    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
-
-    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
-
-    List<String> extensionSlugs = moduleSlugs(extensionResult.output());
-    assertThat(extensionResult.finished()).isTrue();
-    assertThat(extensionResult.exitCode()).isZero();
-    assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
-  }
 
   @Test
   void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlug() throws IOException, InterruptedException {
@@ -76,6 +50,20 @@ class ExtensionRuntimeBootstrapListPackagedJarIT {
     assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG);
     assertThat(addedSlugs).containsExactly(EXTENSION_ONLY_SLUG);
     assertThat(removedSlugs).isEmpty();
+  }
+
+  @Test
+  void shouldListTheCustomPackageExtensionOnlySlugInExtensionMode() throws IOException, InterruptedException {
+    Path packagedCliJar = packagedCliJar();
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-custom-package-extension-");
+    ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(extensionUserHome);
+
+    PackagedRunResult extensionResult = runList(packagedCliJar, extensionUserHome);
+
+    List<String> extensionSlugs = moduleSlugs(extensionResult.output());
+    assertThat(extensionResult.finished()).isTrue();
+    assertThat(extensionResult.exitCode()).isZero();
+    assertThat(extensionSlugs).contains(CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
   }
 
   private static PackagedRunResult runList(Path packagedCliJar, Path userHome) throws IOException, InterruptedException {

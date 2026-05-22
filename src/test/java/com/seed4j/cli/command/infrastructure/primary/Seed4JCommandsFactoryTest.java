@@ -47,15 +47,23 @@ class Seed4JCommandsFactoryTest {
     int exitCode = commandLine(modules, projects).execute(args);
 
     assertThat(exitCode).isEqualTo(2);
-    assertThat(output).contains(
-      """
-      Seed4J CLI
-        -h, --help      Show this help message and exit.
-        -V, --version   Print version information and exit.
+    assertThat(output)
+      .contains("Seed4J CLI")
+      .contains("-h, --help      Show this help message and exit.")
+      .contains("-V, --version   Print version information and exit.")
+      .contains("--debug")
+      .contains("Enable runtime bootstrap diagnostics (extension mode only)")
+      .contains("Commands:");
+  }
 
-      Commands:
-      """
-    );
+  @Test
+  void shouldAcceptDebugFlagInRootCommand(CapturedOutput output) {
+    String[] args = { "--version", "--debug" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
   }
 
   @Nested
