@@ -1,9 +1,14 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.seed4j.cli.UnitTest;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @UnitTest
 class RuntimeLibraryVersionComparatorTest {
@@ -60,31 +65,9 @@ class RuntimeLibraryVersionComparatorTest {
     assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.EXTENSION_OLDER);
   }
 
-  @Test
-  void shouldReturnUncomparableWhenQualifiedVersionsUseDifferentQualifierFamilies() {
-    String extensionVersion = "7.2.12.Final";
-    String cliVersion = "7.2.13.CR";
-
-    RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
-
-    assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
-  }
-
-  @Test
-  void shouldReturnUncomparableWhenQualifiedVersionIsComparedToReleaseToken() {
-    String extensionVersion = "7.2.12.Final";
-    String cliVersion = "RELEASE";
-
-    RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
-
-    assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
-  }
-
-  @Test
-  void shouldReturnUncomparableWhenNumericSegmentOverflowsIntegerRange() {
-    String extensionVersion = "999999999999999999999999999.1";
-    String cliVersion = "1.0.0";
-
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("uncomparableVersions")
+  void shouldReturnUncomparableForIncompatibleVersions(String scenario, String extensionVersion, String cliVersion) {
     RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
 
     assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
@@ -108,5 +91,13 @@ class RuntimeLibraryVersionComparatorTest {
     RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison comparison = comparator.compare(extensionVersion, cliVersion);
 
     assertThat(comparison).isEqualTo(RuntimeLibraryVersionComparator.RuntimeLibraryVersionComparison.UNCOMPARABLE);
+  }
+
+  private static Stream<Arguments> uncomparableVersions() {
+    return Stream.of(
+      arguments("different qualifier families", "7.2.12.Final", "7.2.13.CR"),
+      arguments("qualified version vs RELEASE token", "7.2.12.Final", "RELEASE"),
+      arguments("numeric segment overflow", "999999999999999999999999999.1", "1.0.0")
+    );
   }
 }

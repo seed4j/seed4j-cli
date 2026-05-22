@@ -187,7 +187,7 @@ final class RuntimeExtensionOverlayCache {
         walk.sorted(Comparator.reverseOrder()).forEach(RuntimeExtensionOverlayCache::deletePathQuietly);
       }
     } catch (IOException _) {
-      return;
+      // Best-effort cleanup: intentionally ignore deletion failures.
     }
   }
 
@@ -196,7 +196,7 @@ final class RuntimeExtensionOverlayCache {
     try {
       Files.deleteIfExists(path);
     } catch (IOException _) {
-      return;
+      // Best-effort cleanup: intentionally ignore deletion failures.
     }
   }
 
