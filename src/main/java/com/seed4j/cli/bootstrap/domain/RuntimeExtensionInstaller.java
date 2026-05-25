@@ -112,13 +112,13 @@ public class RuntimeExtensionInstaller {
       throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
     }
 
-    return linkedHashMap(loadedConfigurationMap);
+    return new LinkedHashMap<>(loadedConfigurationMap);
   }
 
   private static Map<Object, Object> nestedMap(Map<Object, Object> source, String key) {
     Object existingValue = source.get(key);
     if (existingValue instanceof Map<?, ?> existingMap) {
-      Map<Object, Object> nestedValue = linkedHashMap(existingMap);
+      Map<Object, Object> nestedValue = new LinkedHashMap<>(existingMap);
       source.put(key, nestedValue);
       return nestedValue;
     }
@@ -134,12 +134,6 @@ public class RuntimeExtensionInstaller {
     dumperOptions.setPrettyFlow(true);
 
     return new Yaml(dumperOptions);
-  }
-
-  private static Map<Object, Object> linkedHashMap(Map<?, ?> sourceMap) {
-    Map<Object, Object> copy = new LinkedHashMap<>();
-    sourceMap.forEach(copy::put);
-    return copy;
   }
 
   private static void replacePathWithSource(Path sourcePath, Path targetPath) throws IOException {
