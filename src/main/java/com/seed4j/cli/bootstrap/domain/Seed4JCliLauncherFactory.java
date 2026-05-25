@@ -17,13 +17,7 @@ public class Seed4JCliLauncherFactory {
     LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
   ) {}
 
-  public Seed4JCliLauncher create(
-    Path userHome,
-    Path executableJar,
-    String currentCliVersion,
-    String currentSeed4JVersion,
-    LauncherDependencies dependencies
-  ) {
+  public Seed4JCliLauncher create(Path userHome, Path executableJar, String currentSeed4JVersion, LauncherDependencies dependencies) {
     LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(
       dependencies.applicationBuilderFactory(),
       dependencies.exitCodeResolver(),
@@ -33,6 +27,6 @@ public class Seed4JCliLauncherFactory {
       dependencies.javaExecutable(),
       dependencies.commandExecutor()::execute
     );
-    return new Seed4JCliLauncher(userHome, executableJar, currentCliVersion, currentSeed4JVersion, childProcessLauncher, localCliRunner);
+    return new Seed4JCliLauncher(userHome, executableJar, currentSeed4JVersion, childProcessLauncher, localCliRunner);
   }
 }
