@@ -126,6 +126,37 @@ class RuntimeExtensionInstallerTest {
   }
 
   @Test
+  void shouldMarkRuntimeAsReplacedWhenOnlyMetadataAlreadyExists() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(metadataPath.getParent());
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: legacy-extension
+        version: 0.9.0
+      """
+    );
+    Path extensionJarPath = createFatJar(
+      userHome.resolve("company-extension.jar"),
+      "BOOT-INF/classes/com/company/New.class",
+      new byte[] { 2, 3 }
+    );
+    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+
+    RuntimeExtensionInstallResult installResult = installer.install(request);
+
+    assertThat(installResult.runtimeReplaced()).isTrue();
+    assertThat(runtimeJarPath).exists();
+    assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
+    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID);
+    assertThat(Files.readString(metadataPath)).contains("version: " + DISTRIBUTION_VERSION);
+  }
+
+  @Test
   void shouldFailWhenJarDoesNotContainBootInfClasses() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFlatJar(userHome.resolve("company-extension.jar"));
