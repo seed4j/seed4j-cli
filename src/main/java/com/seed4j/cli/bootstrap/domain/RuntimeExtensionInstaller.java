@@ -2,7 +2,6 @@ package com.seed4j.cli.bootstrap.domain;
 
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,7 +11,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.error.YAMLException;
 
 public class RuntimeExtensionInstaller {
 
@@ -30,12 +28,12 @@ public class RuntimeExtensionInstaller {
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     Path configPath = userHome.resolve(CONFIG_PATH);
-    validateInstallRequest(request, configPath);
+    Map<Object, Object> currentConfiguration = validateInstallRequest(request);
     boolean runtimeReplaced = activeRuntimePresent(runtimeExtensionConfiguration);
 
     try {
       installRuntimeArtifacts(request, runtimeExtensionConfiguration);
-      ensureExtensionMode(configPath);
+      ensureExtensionMode(configPath, currentConfiguration);
     } catch (IOException ioException) {
       throw new InvalidRuntimeConfigurationException("Could not install runtime extension: " + ioException.getMessage());
     }
@@ -48,17 +46,9 @@ public class RuntimeExtensionInstaller {
     );
   }
 
-  private void validateInstallRequest(RuntimeExtensionInstallRequest request, Path configPath) {
+  private Map<Object, Object> validateInstallRequest(RuntimeExtensionInstallRequest request) {
     runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath());
-    validateExistingConfiguration(configPath);
-  }
-
-  private void validateExistingConfiguration(Path configPath) {
-    if (!Files.exists(configPath)) {
-      return;
-    }
-
-    runtimeModeConfigReader.runtimeMode(userHome);
+    return runtimeModeConfigReader.configuration(userHome);
   }
 
   private static boolean activeRuntimePresent(RuntimeExtensionConfiguration runtimeExtensionConfiguration) {
@@ -75,9 +65,9 @@ public class RuntimeExtensionInstaller {
     replacePathWithContent(metadataContent(request), runtimeExtensionConfiguration.metadataPath());
   }
 
-  private static void ensureExtensionMode(Path configPath) throws IOException {
+  private static void ensureExtensionMode(Path configPath, Map<Object, Object> currentConfiguration) throws IOException {
     Files.createDirectories(configPath.getParent());
-    replacePathWithContent(extensionModeConfiguration(configPath), configPath);
+    replacePathWithContent(extensionModeConfiguration(currentConfiguration), configPath);
   }
 
   private static String metadataContent(RuntimeExtensionInstallRequest request) {
@@ -88,31 +78,13 @@ public class RuntimeExtensionInstaller {
     """.formatted(request.distributionId(), request.distributionVersion());
   }
 
-  private static String extensionModeConfiguration(Path configPath) throws IOException {
-    Map<Object, Object> configuration = loadConfiguration(configPath);
+  private static String extensionModeConfiguration(Map<Object, Object> currentConfiguration) {
+    Map<Object, Object> configuration = new LinkedHashMap<>(currentConfiguration);
     Map<Object, Object> seed4j = nestedMap(configuration, "seed4j");
     Map<Object, Object> runtime = nestedMap(seed4j, "runtime");
     runtime.put("mode", "extension");
 
     return yaml().dump(configuration);
-  }
-
-  private static Map<Object, Object> loadConfiguration(Path configPath) throws IOException {
-    if (!Files.exists(configPath)) {
-      return new LinkedHashMap<>();
-    }
-
-    Object loadedConfiguration;
-    try (InputStream configInputStream = Files.newInputStream(configPath)) {
-      loadedConfiguration = new Yaml().load(configInputStream);
-    } catch (YAMLException yamlException) {
-      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
-    }
-    if (!(loadedConfiguration instanceof Map<?, ?> loadedConfigurationMap)) {
-      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
-    }
-
-    return new LinkedHashMap<>(loadedConfigurationMap);
   }
 
   private static Map<Object, Object> nestedMap(Map<Object, Object> source, String key) {
