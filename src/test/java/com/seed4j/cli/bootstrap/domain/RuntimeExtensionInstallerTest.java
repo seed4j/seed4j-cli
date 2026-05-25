@@ -23,14 +23,13 @@ class RuntimeExtensionInstallerTest {
   void shouldCreateConfigFileWhenMissingAndInstallExtensionRuntime() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
-
-    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
-    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
-    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
 
     assertThat(configPath).exists();
     assertThat(Files.readString(configPath)).contains("mode: extension");

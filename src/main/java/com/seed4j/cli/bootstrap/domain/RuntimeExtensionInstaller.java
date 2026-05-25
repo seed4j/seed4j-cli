@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -15,6 +16,7 @@ import org.yaml.snakeyaml.error.YAMLException;
 
 public class RuntimeExtensionInstaller {
 
+  private static final Path CONFIG_PATH = Path.of(".config", "seed4j-cli", "config.yml");
   private final Path userHome;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
   private final RuntimeExtensionJarLayoutValidator runtimeExtensionJarLayoutValidator;
@@ -27,27 +29,13 @@ public class RuntimeExtensionInstaller {
 
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
-    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
-    runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath());
-    if (Files.exists(configPath)) {
-      runtimeModeConfigReader.runtimeMode(userHome);
-    }
-
-    boolean runtimeReplaced =
-      Files.exists(runtimeExtensionConfiguration.jarPath()) || Files.exists(runtimeExtensionConfiguration.metadataPath());
-    Path runtimeDirectoryPath = runtimeExtensionConfiguration.jarPath().getParent();
+    Path configPath = userHome.resolve(CONFIG_PATH);
+    validateInstallRequest(request, configPath);
+    boolean runtimeReplaced = activeRuntimePresent(runtimeExtensionConfiguration);
 
     try {
-      Files.createDirectories(runtimeDirectoryPath);
-      replacePathWithSource(request.extensionJarPath(), runtimeExtensionConfiguration.jarPath());
-      replacePathWithContent(metadataContent(request), runtimeExtensionConfiguration.metadataPath());
-
-      Files.createDirectories(configPath.getParent());
-      replacePathWithContent(extensionModeConfiguration(configPath), configPath);
-    } catch (InvalidRuntimeConfigurationException invalidRuntimeConfigurationException) {
-      throw invalidRuntimeConfigurationException;
-    } catch (YAMLException yamlException) {
-      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
+      installRuntimeArtifacts(request, runtimeExtensionConfiguration);
+      ensureExtensionMode(configPath);
     } catch (IOException ioException) {
       throw new InvalidRuntimeConfigurationException("Could not install runtime extension: " + ioException.getMessage());
     }
@@ -58,6 +46,38 @@ public class RuntimeExtensionInstaller {
       configPath,
       runtimeReplaced
     );
+  }
+
+  private void validateInstallRequest(RuntimeExtensionInstallRequest request, Path configPath) {
+    runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath());
+    validateExistingConfiguration(configPath);
+  }
+
+  private void validateExistingConfiguration(Path configPath) {
+    if (!Files.exists(configPath)) {
+      return;
+    }
+
+    runtimeModeConfigReader.runtimeMode(userHome);
+  }
+
+  private static boolean activeRuntimePresent(RuntimeExtensionConfiguration runtimeExtensionConfiguration) {
+    return (Files.exists(runtimeExtensionConfiguration.jarPath()) || Files.exists(runtimeExtensionConfiguration.metadataPath()));
+  }
+
+  private static void installRuntimeArtifacts(
+    RuntimeExtensionInstallRequest request,
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration
+  ) throws IOException {
+    Path runtimeDirectoryPath = runtimeExtensionConfiguration.jarPath().getParent();
+    Files.createDirectories(runtimeDirectoryPath);
+    replacePathWithSource(request.extensionJarPath(), runtimeExtensionConfiguration.jarPath());
+    replacePathWithContent(metadataContent(request), runtimeExtensionConfiguration.metadataPath());
+  }
+
+  private static void ensureExtensionMode(Path configPath) throws IOException {
+    Files.createDirectories(configPath.getParent());
+    replacePathWithContent(extensionModeConfiguration(configPath), configPath);
   }
 
   private static String metadataContent(RuntimeExtensionInstallRequest request) {
@@ -85,6 +105,8 @@ public class RuntimeExtensionInstaller {
     Object loadedConfiguration;
     try (InputStream configInputStream = Files.newInputStream(configPath)) {
       loadedConfiguration = new Yaml().load(configInputStream);
+    } catch (YAMLException yamlException) {
+      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
     }
     if (!(loadedConfiguration instanceof Map<?, ?> loadedConfigurationMap)) {
       throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
@@ -142,6 +164,7 @@ public class RuntimeExtensionInstaller {
     }
   }
 
+  @ExcludeFromGeneratedCodeCoverage(reason = "Cache publication race branch depends on filesystem concurrency timing")
   private static void moveReplacing(Path sourcePath, Path targetPath) throws IOException {
     try {
       Files.move(sourcePath, targetPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
