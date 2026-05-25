@@ -38,7 +38,7 @@ class ExtensionRuntimeFixtureTest {
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.install(userHome);
     RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, "0.0.1-SNAPSHOT");
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.distributionId()).contains("company-extension");
@@ -73,7 +73,7 @@ class ExtensionRuntimeFixtureTest {
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
     RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration, "0.0.1-SNAPSHOT");
+    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.distributionId()).contains("company-extension");

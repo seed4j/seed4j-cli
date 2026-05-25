@@ -298,15 +298,12 @@ seed4j list
 distribution:
   id: company-extension
   version: 1.0.0
-compatibility:
-  min-cli-version: 0.0.1
 ```
 
 Rules:
 
 - `distribution.id` is required
 - `distribution.version` is required
-- `compatibility.min-cli-version` is optional
 
 #### Extension Mode Behavior
 
@@ -354,8 +351,6 @@ Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors
 - Invalid YAML structure in `~/.config/seed4j-cli/config.yml`
 - Missing `extension.jar` or `metadata.yml` in extension mode
 - Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
-- Invalid `compatibility.min-cli-version` format
-- Current CLI version lower than `compatibility.min-cli-version`
 - Extension runtime jar missing `BOOT-INF/classes`
 - Extension nested runtime library metadata is incomplete or conflicting
 - Extension library requires a newer version than the CLI for the same coordinate
@@ -439,12 +434,9 @@ Minimal metadata example:
 distribution:
   id: my-company-extension
   version: 1.0.0
-compatibility:
-  min-cli-version: 0.0.1
 ```
 
 Important notes:
 
 - `distribution.id` and `distribution.version` are mandatory.
-- `compatibility.min-cli-version` is optional but recommended.
 - Avoid shipping unintended overrides (for example, `config/application.yml`) unless you intentionally want to change core behavior.
