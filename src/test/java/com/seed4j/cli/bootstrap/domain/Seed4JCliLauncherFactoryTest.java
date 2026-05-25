@@ -44,7 +44,7 @@ class Seed4JCliLauncherFactoryTest {
       }
     );
 
-    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "0.0.1-SNAPSHOT", "2.2.0", dependencies);
+    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "2.2.0", dependencies);
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -54,7 +54,6 @@ class Seed4JCliLauncherFactoryTest {
       "-Dseed4j.cli.runtime.child=true",
       "-Dseed4j.cli.runtime.mode=standard",
       "-Dseed4j.cli.seed4j.version=2.2.0",
-      "-Dseed4j.cli.version=0.0.1-SNAPSHOT",
       "-cp",
       executableJar.toString(),
       "org.springframework.boot.loader.launch.PropertiesLauncher",

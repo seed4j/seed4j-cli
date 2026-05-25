@@ -17,13 +17,11 @@ public class Seed4JCliLauncher {
 
   private static final String PROPERTIES_LAUNCHER_MAIN_CLASS = "org.springframework.boot.loader.launch.PropertiesLauncher";
   private static final String BOOTSTRAP_LOGGER_NAME = "com.seed4j.cli.bootstrap.domain";
-  private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
   private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
 
   private final Path userHome;
   private final Path executableJar;
-  private final String currentCliVersion;
   private final String currentSeed4JVersion;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
@@ -35,24 +33,12 @@ public class Seed4JCliLauncher {
   Seed4JCliLauncher(
     Path userHome,
     Path executableJar,
-    String currentCliVersion,
-    ChildProcessLauncher childProcessLauncher,
-    LocalCliRunner localCliRunner
-  ) {
-    this(userHome, executableJar, currentCliVersion, currentCliVersion, childProcessLauncher, localCliRunner);
-  }
-
-  Seed4JCliLauncher(
-    Path userHome,
-    Path executableJar,
-    String currentCliVersion,
     String currentSeed4JVersion,
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
-    this.currentCliVersion = currentCliVersion;
     this.currentSeed4JVersion = currentSeed4JVersion;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
@@ -108,7 +94,6 @@ public class Seed4JCliLauncher {
     Map<String, String> systemProperties = new LinkedHashMap<>();
     systemProperties.put("seed4j.cli.runtime.child", "true");
     systemProperties.put("seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase());
-    systemProperties.put(CLI_VERSION_PROPERTY, currentCliVersion);
     systemProperties.put(SEED4J_VERSION_PROPERTY, currentSeed4JVersion);
     runtimeSelection
       .distributionId()
