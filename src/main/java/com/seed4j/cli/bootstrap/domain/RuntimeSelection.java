@@ -12,7 +12,7 @@ public record RuntimeSelection(
 ) {
   private static final RuntimeExtensionJarLayoutValidator RUNTIME_EXTENSION_JAR_LAYOUT_VALIDATOR = new RuntimeExtensionJarLayoutValidator();
 
-  public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration, String currentCliVersion) {
+  public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
     if (runtimeConfiguration == null) {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
@@ -32,9 +32,6 @@ public record RuntimeSelection(
     RUNTIME_EXTENSION_JAR_LAYOUT_VALIDATOR.validate(runtimeConfiguration.extension().jarPath());
 
     RuntimeMetadata metadata = RuntimeMetadata.read(runtimeConfiguration.extension().metadataPath());
-    metadata
-      .compatibilityMinCliVersion()
-      .ifPresent(version -> CliVersion.current(currentCliVersion).validateCompatibilityWith(CliVersion.minimumCompatibility(version)));
 
     return new RuntimeSelection(
       RuntimeMode.EXTENSION,

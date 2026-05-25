@@ -156,7 +156,7 @@ public class Seed4JCliLauncher {
       RuntimeExtensionConfiguration.withDefaultPaths(userHome)
     );
 
-    return RuntimeSelection.resolve(runtimeConfiguration, currentCliVersion);
+    return RuntimeSelection.resolve(runtimeConfiguration);
   }
 
   private static boolean debugModeRequested(String[] args) {
