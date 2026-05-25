@@ -7,10 +7,12 @@ import com.seed4j.cli.UnitTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -176,6 +178,52 @@ class RuntimeExtensionInstallerTest {
     assertThat(configPath).doesNotExist();
   }
 
+  @Test
+  void shouldFailWhenRuntimeJarTargetIsNonEmptyDirectoryAndDeleteTemporaryJarFile() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Files.createDirectories(runtimeJarPath);
+    Files.writeString(runtimeJarPath.resolve("occupied.txt"), "existing");
+    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+
+    assertThatThrownBy(() -> installer.install(request))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not install runtime extension:");
+
+    assertThat(runtimeJarPath).isDirectory();
+    assertThat(runtimeJarPath.resolve("occupied.txt")).exists();
+    assertThat(metadataPath).doesNotExist();
+    assertThat(configPath).doesNotExist();
+    assertThat(filesWithPrefix(runtimeJarPath.getParent(), ".extension.jar.tmp-")).isEmpty();
+  }
+
+  @Test
+  void shouldFailWhenMetadataTargetIsNonEmptyDirectoryAndDeleteTemporaryMetadataFile() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Files.createDirectories(metadataPath);
+    Files.writeString(metadataPath.resolve("occupied.txt"), "existing");
+    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+
+    assertThatThrownBy(() -> installer.install(request))
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not install runtime extension:");
+
+    assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
+    assertThat(metadataPath).isDirectory();
+    assertThat(metadataPath.resolve("occupied.txt")).exists();
+    assertThat(configPath).doesNotExist();
+    assertThat(filesWithPrefix(metadataPath.getParent(), ".metadata.yml.tmp-")).isEmpty();
+  }
+
   private static Path createFatJar(Path jarPath) throws IOException {
     return createFatJar(jarPath, "BOOT-INF/classes/", new byte[] {});
   }
@@ -212,5 +260,11 @@ class RuntimeExtensionInstallerTest {
     }
 
     return jarPath;
+  }
+
+  private static List<Path> filesWithPrefix(Path directoryPath, String prefix) throws IOException {
+    try (Stream<Path> paths = Files.list(directoryPath)) {
+      return paths.filter(path -> path.getFileName().toString().startsWith(prefix)).toList();
+    }
   }
 }
