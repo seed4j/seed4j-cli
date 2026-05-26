@@ -141,6 +141,36 @@ class ExtensionInstallCommandTest {
     }
   }
 
+  @Test
+  void shouldPersistRuntimeArtifactsAndConfigFileWhenInstallCommandSucceeds() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(userHome.toString());
+    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    String[] args = {
+      "install",
+      extensionJarPath.toString(),
+      "--distribution-id",
+      DISTRIBUTION_ID,
+      "--distribution-version",
+      DISTRIBUTION_VERSION,
+    };
+
+    CommandLine commandLine = new CommandLine(extensionCommand.spec());
+    int exitCode = commandLine.execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(configPath).exists();
+    assertThat(Files.readString(configPath)).contains("mode: extension");
+    assertThat(runtimeJarPath).exists();
+    assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
+    assertThat(metadataPath).exists();
+    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+  }
+
   private static Path createFatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
