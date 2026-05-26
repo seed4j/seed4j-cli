@@ -108,6 +108,19 @@ seed4j --version
 
 This prints both the Seed4J CLI version and the bundled Seed4J version.
 
+To install or replace the active extension runtime:
+
+```bash
+seed4j extension install target/<your-extension-artifact>.jar --distribution-id my-company-extension --distribution-version 1.0.0
+```
+
+After installation, validate runtime activation with:
+
+```bash
+seed4j --version
+seed4j list
+```
+
 <!-- seed4j-needle-startupCommand -->
 
 ## Documentation

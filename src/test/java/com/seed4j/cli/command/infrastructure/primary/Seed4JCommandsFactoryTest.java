@@ -66,6 +66,16 @@ class Seed4JCommandsFactoryTest {
     assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
   }
 
+  @Test
+  void shouldListInstallSubcommandWhenShowingExtensionHelp(CapturedOutput output) {
+    String[] args = { "extension", "--help" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("Manage runtime extensions").contains("install").contains("Install active runtime extension");
+  }
+
   @Nested
   @DisplayName("list")
   class ListModules {

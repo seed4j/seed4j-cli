@@ -83,9 +83,11 @@ class CliFixture {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
+    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(System.getProperty("user.home"));
+    ExtensionCommand extensionCommand = new ExtensionCommand(extensionInstallCommand);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand),
+      List.of(listModulesCommand, applyModuleCommand, extensionCommand),
       cliVersion,
       seed4JVersion,
       runtimeSelectionProvider,
