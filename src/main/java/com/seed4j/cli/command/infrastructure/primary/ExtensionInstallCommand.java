@@ -4,6 +4,8 @@ import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +25,12 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private final CommandSpec commandSpec;
 
   ExtensionInstallCommand(@Value("${user.home}") String userHomePath) {
-    this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(Path.of(userHomePath));
+    Path userHome = Path.of(userHomePath);
+    this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(
+      userHome,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeExtensionArtifactsRepository()
+    );
     this.commandSpec = buildCommandSpec();
   }
 

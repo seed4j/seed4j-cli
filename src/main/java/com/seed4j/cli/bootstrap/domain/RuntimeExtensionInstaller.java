@@ -11,16 +11,15 @@ public class RuntimeExtensionInstaller {
   private final RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository;
   private final RuntimeExtensionJarLayoutValidator runtimeExtensionJarLayoutValidator;
 
-  public RuntimeExtensionInstaller(Path userHome) {
-    this(
-      userHome,
-      new RuntimeModeConfigurationFileSystemRepository(userHome),
-      new RuntimeExtensionArtifactsFileSystemRepository(),
-      new RuntimeExtensionJarLayoutValidator()
-    );
+  public RuntimeExtensionInstaller(
+    Path userHome,
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
+    RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository
+  ) {
+    this(userHome, runtimeModeConfigurationRepository, runtimeExtensionArtifactsRepository, new RuntimeExtensionJarLayoutValidator());
   }
 
-  public RuntimeExtensionInstaller(
+  private RuntimeExtensionInstaller(
     Path userHome,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository,

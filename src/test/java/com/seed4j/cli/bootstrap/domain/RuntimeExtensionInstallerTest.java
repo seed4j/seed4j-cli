@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,13 +26,13 @@ class RuntimeExtensionInstallerTest {
   private static final String DISTRIBUTION_VERSION = "1.0.0";
 
   @Test
-  void shouldCreateConfigFileWhenMissingAndInstallExtensionRuntime() throws IOException {
+  void shouldCreateConfigFileWhenMissingAndInstallExtensionRuntimeUsingFileSystemSecondaryRepositories() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
@@ -54,7 +56,7 @@ class RuntimeExtensionInstallerTest {
     Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     assertThatThrownBy(() -> installer.install(request))
@@ -85,7 +87,7 @@ class RuntimeExtensionInstallerTest {
         enabled: true
       """
     );
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     installer.install(request);
@@ -119,7 +121,7 @@ class RuntimeExtensionInstallerTest {
       "BOOT-INF/classes/com/company/New.class",
       new byte[] { 2, 3 }
     );
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
@@ -149,7 +151,7 @@ class RuntimeExtensionInstallerTest {
       "BOOT-INF/classes/com/company/New.class",
       new byte[] { 2, 3 }
     );
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
@@ -168,7 +170,7 @@ class RuntimeExtensionInstallerTest {
     Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     assertThatThrownBy(() -> installer.install(request))
@@ -190,7 +192,7 @@ class RuntimeExtensionInstallerTest {
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(runtimeJarPath);
     Files.writeString(runtimeJarPath.resolve("occupied.txt"), "existing");
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     assertThatThrownBy(() -> installer.install(request))
@@ -213,7 +215,7 @@ class RuntimeExtensionInstallerTest {
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(metadataPath);
     Files.writeString(metadataPath.resolve("occupied.txt"), "existing");
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
+    RuntimeExtensionInstaller installer = installer(userHome);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
     assertThatThrownBy(() -> installer.install(request))
@@ -241,8 +243,7 @@ class RuntimeExtensionInstallerTest {
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
       userHome,
       runtimeModeConfigurationRepository,
-      runtimeExtensionArtifactsRepository,
-      new RuntimeExtensionJarLayoutValidator()
+      runtimeExtensionArtifactsRepository
     );
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
 
@@ -301,6 +302,14 @@ class RuntimeExtensionInstallerTest {
     try (Stream<Path> paths = Files.list(directoryPath)) {
       return paths.filter(path -> path.getFileName().toString().startsWith(prefix)).toList();
     }
+  }
+
+  private static RuntimeExtensionInstaller installer(Path userHome) {
+    return new RuntimeExtensionInstaller(
+      userHome,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeExtensionArtifactsRepository()
+    );
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {

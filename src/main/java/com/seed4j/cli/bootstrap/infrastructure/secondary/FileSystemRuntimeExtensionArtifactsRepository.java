@@ -1,5 +1,8 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -8,7 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
-final class RuntimeExtensionArtifactsFileSystemRepository implements RuntimeExtensionArtifactsRepository {
+public final class FileSystemRuntimeExtensionArtifactsRepository implements RuntimeExtensionArtifactsRepository {
 
   @Override
   public boolean activeRuntimePresent(RuntimeExtensionConfiguration runtimeExtensionConfiguration) {

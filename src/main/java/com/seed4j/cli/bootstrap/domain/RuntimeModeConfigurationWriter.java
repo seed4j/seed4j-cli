@@ -11,7 +11,7 @@ import java.util.UUID;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
-final class RuntimeModeConfigurationWriter {
+public final class RuntimeModeConfigurationWriter {
 
   private static final String SEED4J_KEY = "seed4j";
   private static final String RUNTIME_KEY = "runtime";
@@ -19,7 +19,7 @@ final class RuntimeModeConfigurationWriter {
 
   private RuntimeModeConfigurationWriter() {}
 
-  static void writeMode(Path configPath, Map<Object, Object> currentConfiguration, RuntimeMode mode) throws IOException {
+  public static void writeMode(Path configPath, Map<Object, Object> currentConfiguration, RuntimeMode mode) throws IOException {
     Files.createDirectories(configPath.getParent());
     replacePathWithContent(configurationWithMode(currentConfiguration, mode), configPath);
   }

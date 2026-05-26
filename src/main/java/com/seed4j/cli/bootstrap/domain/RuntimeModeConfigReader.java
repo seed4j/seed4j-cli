@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
-class RuntimeModeConfigReader {
+public class RuntimeModeConfigReader {
 
   private static final String SEED4J_KEY = "seed4j";
   private static final String RUNTIME_KEY = "runtime";
@@ -21,7 +21,7 @@ class RuntimeModeConfigReader {
     return runtimeMode(configuration);
   }
 
-  Map<Object, Object> configuration(Path userHome) {
+  public Map<Object, Object> configuration(Path userHome) {
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     if (!Files.exists(configPath)) {
       return new LinkedHashMap<>();
