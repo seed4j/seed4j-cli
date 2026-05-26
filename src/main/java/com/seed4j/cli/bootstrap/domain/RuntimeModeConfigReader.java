@@ -6,12 +6,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
 class RuntimeModeConfigReader {
 
   private static final String SEED4J_KEY = "seed4j";
+  private static final String RUNTIME_KEY = "runtime";
+  private static final String MODE_KEY = "mode";
 
   RuntimeMode runtimeMode(Path userHome) {
     Map<Object, Object> configuration = configuration(userHome);
@@ -30,20 +33,8 @@ class RuntimeModeConfigReader {
         throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: YAML root must be an object.");
       }
 
-      if (loadedConfigurationMap.containsKey(SEED4J_KEY) && !(loadedConfigurationMap.get(SEED4J_KEY) instanceof Map<?, ?>)) {
-        throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: seed4j must be an object.");
-      }
-
-      if (
-        loadedConfigurationMap.get(SEED4J_KEY) instanceof Map<?, ?> seed4j
-        && seed4j.get("runtime") instanceof Map<?, ?> runtime
-        && runtime.containsKey("mode")
-        && !(runtime.get("mode") instanceof String)
-      ) {
-        throw new InvalidRuntimeConfigurationException(
-          "Invalid ~/.config/seed4j-cli/config.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
-        );
-      }
+      validateSeed4jConfiguration(loadedConfigurationMap);
+      validateRuntimeModeConfiguration(loadedConfigurationMap);
 
       return new LinkedHashMap<>(loadedConfigurationMap);
     } catch (IOException | YAMLException _) {
@@ -51,19 +42,26 @@ class RuntimeModeConfigReader {
     }
   }
 
-  private RuntimeMode runtimeMode(Map<Object, Object> configuration) {
-    if (!(configuration.get(SEED4J_KEY) instanceof Map<?, ?> seed4j)) {
-      return RuntimeMode.STANDARD;
+  private void validateSeed4jConfiguration(Map<?, ?> loadedConfigurationMap) {
+    if (loadedConfigurationMap.containsKey(SEED4J_KEY) && seed4jSection(loadedConfigurationMap).isEmpty()) {
+      throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: seed4j must be an object.");
     }
-    if (!(seed4j.get("runtime") instanceof Map<?, ?> runtime)) {
-      return RuntimeMode.STANDARD;
-    }
-    if (!(runtime.get("mode") instanceof String mode)) {
-      return RuntimeMode.STANDARD;
-    }
+  }
 
-    String normalizedMode = mode.trim().toUpperCase();
-    return runtimeMode(mode, normalizedMode);
+  private void validateRuntimeModeConfiguration(Map<?, ?> loadedConfigurationMap) {
+    RuntimeModeEntry runtimeModeEntry = runtimeModeEntry(loadedConfigurationMap);
+    if (runtimeModeEntry.invalidType()) {
+      throw new InvalidRuntimeConfigurationException(
+        "Invalid ~/.config/seed4j-cli/config.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
+      );
+    }
+  }
+
+  private RuntimeMode runtimeMode(Map<Object, Object> configuration) {
+    return runtimeModeEntry(configuration)
+      .valueAsString()
+      .map(configuredMode -> runtimeMode(configuredMode, configuredMode.trim().toUpperCase()))
+      .orElse(RuntimeMode.STANDARD);
   }
 
   private RuntimeMode runtimeMode(String mode, String normalizedMode) {
@@ -73,6 +71,52 @@ class RuntimeModeConfigReader {
       throw new InvalidRuntimeConfigurationException(
         "Invalid seed4j.runtime.mode '%s'. Valid values: standard, extension.".formatted(mode)
       );
+    }
+  }
+
+  private RuntimeModeEntry runtimeModeEntry(Map<?, ?> configuration) {
+    return runtimeSection(configuration)
+      .filter(runtime -> runtime.containsKey(MODE_KEY))
+      .map(runtime -> RuntimeModeEntry.present(runtime.get(MODE_KEY)))
+      .orElseGet(RuntimeModeEntry::missing);
+  }
+
+  private Optional<Map<?, ?>> runtimeSection(Map<?, ?> configuration) {
+    return seed4jSection(configuration).flatMap(seed4j -> mapSection(seed4j, RUNTIME_KEY));
+  }
+
+  private Optional<Map<?, ?>> seed4jSection(Map<?, ?> configuration) {
+    return mapSection(configuration, SEED4J_KEY);
+  }
+
+  private Optional<Map<?, ?>> mapSection(Map<?, ?> configuration, String key) {
+    Object section = configuration.get(key);
+    if (!(section instanceof Map<?, ?> sectionMap)) {
+      return Optional.empty();
+    }
+
+    return Optional.of(sectionMap);
+  }
+
+  private record RuntimeModeEntry(boolean present, Object value) {
+    static RuntimeModeEntry missing() {
+      return new RuntimeModeEntry(false, null);
+    }
+
+    static RuntimeModeEntry present(Object value) {
+      return new RuntimeModeEntry(true, value);
+    }
+
+    boolean invalidType() {
+      return present && !(value instanceof String);
+    }
+
+    Optional<String> valueAsString() {
+      if (value instanceof String configuredMode) {
+        return Optional.of(configuredMode);
+      }
+
+      return Optional.empty();
     }
   }
 }
