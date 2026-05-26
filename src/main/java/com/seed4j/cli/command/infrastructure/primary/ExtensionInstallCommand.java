@@ -6,7 +6,6 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -23,13 +22,8 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private final RuntimeExtensionInstaller runtimeExtensionInstaller;
   private final CommandSpec commandSpec;
 
-  @Autowired
   ExtensionInstallCommand(@Value("${user.home}") String userHomePath) {
-    this(new RuntimeExtensionInstaller(Path.of(userHomePath)));
-  }
-
-  ExtensionInstallCommand(RuntimeExtensionInstaller runtimeExtensionInstaller) {
-    this.runtimeExtensionInstaller = runtimeExtensionInstaller;
+    this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(Path.of(userHomePath));
     this.commandSpec = buildCommandSpec();
   }
 
@@ -68,7 +62,7 @@ class ExtensionInstallCommand implements Callable<Integer> {
     spec.addPositional(
       PositionalParamSpec.builder()
         .index("0")
-        .paramLabel("<jar>")
+        .paramLabel("<jar*>")
         .description("Path to the runtime extension jar")
         .type(String.class)
         .build()
@@ -76,7 +70,7 @@ class ExtensionInstallCommand implements Callable<Integer> {
     spec.addOption(
       OptionSpec.builder(DISTRIBUTION_ID_OPTION)
         .required(true)
-        .paramLabel("<id>")
+        .paramLabel("<id*>")
         .description("Runtime extension distribution id")
         .type(String.class)
         .build()
@@ -84,7 +78,7 @@ class ExtensionInstallCommand implements Callable<Integer> {
     spec.addOption(
       OptionSpec.builder(DISTRIBUTION_VERSION_OPTION)
         .required(true)
-        .paramLabel("<version>")
+        .paramLabel("<version*>")
         .description("Runtime extension distribution version")
         .type(String.class)
         .build()

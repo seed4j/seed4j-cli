@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,8 +22,7 @@ class ExtensionInstallCommandTest {
 
   @Test
   void shouldListInstallSubcommandWhenShowingExtensionHelp() {
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(Path.of(System.getProperty("user.home")));
-    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(installer);
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(System.getProperty("user.home"));
     ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -40,8 +38,7 @@ class ExtensionInstallCommandTest {
   void shouldInstallExtensionRuntimeAndPrintValidationHintsWhenInputsAreValid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
-    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(installer);
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(userHome.toString());
     ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
     String[] args = {
       "install",
@@ -80,8 +77,7 @@ class ExtensionInstallCommandTest {
       """
     );
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
-    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(installer);
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(userHome.toString());
     ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
     String[] args = {
       "install",
@@ -108,8 +104,7 @@ class ExtensionInstallCommandTest {
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(userHome);
-    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(installer);
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(userHome.toString());
     ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
     String[] args = {
       "install",
@@ -126,6 +121,23 @@ class ExtensionInstallCommandTest {
 
       assertThat(exitCode).isNotZero();
       assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.");
+    }
+  }
+
+  @Test
+  void shouldShowRequiredOptionLabelsWhenDistributionOptionsAreMissing() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(userHome.toString());
+    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    String[] args = { "install", extensionJarPath.toString() };
+
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      CommandLine commandLine = new CommandLine(extensionCommand.spec());
+      int exitCode = commandLine.execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(outputCaptor.getStandardError()).contains("'--distribution-id=<id*>'").contains("'--distribution-version=<version*>'");
     }
   }
 
