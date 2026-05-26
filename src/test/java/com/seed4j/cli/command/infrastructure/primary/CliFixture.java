@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
@@ -83,9 +84,12 @@ class CliFixture {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
+    RuntimeExtensionInstaller runtimeExtensionInstaller = new RuntimeExtensionInstaller(Path.of(System.getProperty("user.home")));
+    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionInstaller);
+    ExtensionCommand extensionCommand = new ExtensionCommand(extensionInstallCommand);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand),
+      List.of(listModulesCommand, applyModuleCommand, extensionCommand),
       cliVersion,
       seed4JVersion,
       runtimeSelectionProvider,
