@@ -9,6 +9,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Version](#version)
   - [List Available Modules](#list-available-modules)
   - [Apply a Module](#apply-a-module)
+  - [Install a Runtime Extension](#install-a-runtime-extension)
 - [Project Creation Workflow Example](#project-creation-workflow-example)
 - [Options and Parameters](#options-and-parameters)
   - [Parameters Reuse](#parameter-reuse)
@@ -108,6 +109,42 @@ To see the specific parameters for a module and which one is required, run:
 ```bash
 seed4j apply <module-name> --help
 ```
+
+### Install a Runtime Extension
+
+To install or replace the active runtime extension:
+
+```bash
+seed4j extension install <jar> --distribution-id <id> --distribution-version <version>
+```
+
+Behavior:
+
+- validates that `<jar>` is a Seed4J runtime extension JAR (`BOOT-INF/classes` is required)
+- writes `~/.config/seed4j-cli/runtime/active/extension.jar`
+- writes `~/.config/seed4j-cli/runtime/active/metadata.yml`
+- guarantees `seed4j.runtime.mode: extension` in `~/.config/seed4j-cli/config.yml`
+- replaces existing active runtime files without `--force`
+
+On success, the command prints:
+
+```text
+Extension runtime installed successfully.
+Validate installation with:
+  seed4j --version
+  seed4j list
+```
+
+When a runtime is already installed, the command also prints:
+
+```text
+Replaced active runtime extension.
+```
+
+Fail-fast behavior:
+
+- returns non-zero exit code when the extension JAR layout is invalid
+- returns non-zero exit code when `~/.config/seed4j-cli/config.yml` is invalid
 
 ## Project Creation Workflow Example
 
@@ -255,6 +292,12 @@ seed4j:
 
 If `seed4j.runtime.mode` is not declared, Seed4J CLI falls back to `standard`.
 
+`seed4j extension install` config note:
+
+- sets `seed4j.runtime.mode` to `extension` automatically on successful installation
+- creates `~/.config/seed4j-cli/config.yml` when missing
+- preserves other existing config keys when the YAML is valid
+
 `--debug` runtime note:
 
 - `--debug` is a CLI flag (no value required) shown in `seed4j --help`
@@ -275,22 +318,26 @@ When `seed4j.runtime.mode: extension` is enabled, Seed4J CLI expects:
 - Follow [Creating a Seed4J Extension](#creating-a-seed4j-extension) to create and package the artifact correctly.
 - Use `seed4j-sample-extension` as the practical reference implementation for structure and packaging.
 
-Example setup for extension mode:
+Recommended setup for extension mode:
 
 ```bash
 # 1) build your Seed4J extension project
 ./mvnw clean package
 
-# 2) install the generated runtime artifact with the expected filename
-cp target/<your-extension-artifact>.jar ~/.config/seed4j-cli/runtime/active/extension.jar
+# 2) install/replace the active runtime extension
+seed4j extension install target/<your-extension-artifact>.jar \
+  --distribution-id company-extension \
+  --distribution-version 1.0.0
 
-# 3) keep metadata.yml in the same runtime folder
-ls ~/.config/seed4j-cli/runtime/active/metadata.yml
-
-# 4) validate extension runtime loading
+# 3) validate extension runtime loading
 seed4j --version
 seed4j list
 ```
+
+The install command creates or replaces these runtime files:
+
+- `~/.config/seed4j-cli/runtime/active/extension.jar`
+- `~/.config/seed4j-cli/runtime/active/metadata.yml`
 
 `metadata.yml` contract:
 
@@ -404,10 +451,8 @@ Recommended implementation flow for this CLI runtime mode:
 3. Implement a factory that builds a `Seed4JModule`.
 4. Expose a `Seed4JModuleResource` bean wired to your application service.
 5. Build your extension JAR.
-6. Install runtime files:
-   - `~/.config/seed4j-cli/runtime/active/extension.jar`
-   - `~/.config/seed4j-cli/runtime/active/metadata.yml`
-7. Enable extension mode in `~/.config/seed4j-cli/config.yml` and run `seed4j --version` / `seed4j list` to validate.
+6. Run `seed4j extension install <jar> --distribution-id <id> --distribution-version <version>`.
+7. Validate with `seed4j --version` and `seed4j list`.
 
 Minimal module resource example:
 
