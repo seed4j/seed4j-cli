@@ -89,11 +89,12 @@ class RuntimeExtensionInstallerTest {
     installer.install(request);
 
     String persistedConfiguration = Files.readString(configPath);
-    assertThat(persistedConfiguration).contains("mode: extension");
-    assertThat(persistedConfiguration).contains("hidden-resources");
-    assertThat(persistedConfiguration).contains("gradle-java");
-    assertThat(persistedConfiguration).contains("custom:");
-    assertThat(persistedConfiguration).contains("enabled: true");
+    assertThat(persistedConfiguration)
+      .contains("mode: extension")
+      .contains("hidden-resources")
+      .contains("gradle-java")
+      .contains("custom:")
+      .contains("enabled: true");
   }
 
   @Test

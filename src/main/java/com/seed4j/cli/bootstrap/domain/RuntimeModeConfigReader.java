@@ -34,12 +34,15 @@ class RuntimeModeConfigReader {
         throw new InvalidRuntimeConfigurationException("Invalid ~/.config/seed4j-cli/config.yml: seed4j must be an object.");
       }
 
-      if (loadedConfigurationMap.get(SEED4J_KEY) instanceof Map<?, ?> seed4j && seed4j.get("runtime") instanceof Map<?, ?> runtime) {
-        if (runtime.containsKey("mode") && !(runtime.get("mode") instanceof String)) {
-          throw new InvalidRuntimeConfigurationException(
-            "Invalid ~/.config/seed4j-cli/config.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
-          );
-        }
+      if (
+        loadedConfigurationMap.get(SEED4J_KEY) instanceof Map<?, ?> seed4j
+        && seed4j.get("runtime") instanceof Map<?, ?> runtime
+        && runtime.containsKey("mode")
+        && !(runtime.get("mode") instanceof String)
+      ) {
+        throw new InvalidRuntimeConfigurationException(
+          "Invalid ~/.config/seed4j-cli/config.yml: seed4j.runtime.mode must be a string. Valid values: standard, extension."
+        );
       }
 
       return new LinkedHashMap<>(loadedConfigurationMap);
