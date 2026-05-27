@@ -1,12 +1,10 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
-import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigReader;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationDocument;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
-import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationWriter;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
 
 public final class FileSystemRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
 
@@ -26,12 +24,17 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
   }
 
   @Override
-  public Map<Object, Object> readCurrentConfiguration() {
+  public RuntimeModeConfigurationDocument readConfiguration() {
     return runtimeModeConfigReader.configuration(userHome);
   }
 
   @Override
-  public void persistExtensionMode(Map<Object, Object> currentConfiguration) throws IOException {
-    RuntimeModeConfigurationWriter.writeMode(configPath(), currentConfiguration, RuntimeMode.EXTENSION);
+  public RuntimeMode readMode() {
+    return runtimeModeConfigReader.runtimeMode(userHome);
+  }
+
+  @Override
+  public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
+    RuntimeModeConfigurationWriter.writeMode(configPath(), currentConfiguration, mode);
   }
 }

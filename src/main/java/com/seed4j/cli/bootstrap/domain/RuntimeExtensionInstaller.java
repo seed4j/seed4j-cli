@@ -2,7 +2,6 @@ package com.seed4j.cli.bootstrap.domain;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
 
 public class RuntimeExtensionInstaller {
 
@@ -33,12 +32,12 @@ public class RuntimeExtensionInstaller {
 
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
-    Map<Object, Object> currentConfiguration = validateInstallRequest(request);
+    RuntimeModeConfigurationDocument currentConfiguration = validateInstallRequest(request);
     boolean runtimeReplaced = runtimeExtensionArtifactsRepository.activeRuntimePresent(runtimeExtensionConfiguration);
 
     try {
       runtimeExtensionArtifactsRepository.install(request, runtimeExtensionConfiguration);
-      runtimeModeConfigurationRepository.persistExtensionMode(currentConfiguration);
+      runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.EXTENSION);
     } catch (IOException ioException) {
       throw new InvalidRuntimeConfigurationException("Could not install runtime extension: " + ioException.getMessage());
     }
@@ -51,8 +50,8 @@ public class RuntimeExtensionInstaller {
     );
   }
 
-  private Map<Object, Object> validateInstallRequest(RuntimeExtensionInstallRequest request) {
+  private RuntimeModeConfigurationDocument validateInstallRequest(RuntimeExtensionInstallRequest request) {
     runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath());
-    return runtimeModeConfigurationRepository.readCurrentConfiguration();
+    return runtimeModeConfigurationRepository.readConfiguration();
   }
 }

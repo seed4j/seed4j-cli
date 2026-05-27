@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -230,11 +229,11 @@ class RuntimeExtensionInstallerTest {
   }
 
   @Test
-  void shouldOrchestrateRuntimeArtifactInstallationAndConfigPersistenceThroughInjectedRepositories() throws IOException {
+  void shouldOrchestrateRuntimeArtifactInstallationAndModePersistenceThroughInjectedRepositories() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
-    Map<Object, Object> currentConfiguration = new LinkedHashMap<>();
+    RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       userHome.resolve(".config/seed4j-cli/config.yml"),
       currentConfiguration
@@ -252,6 +251,7 @@ class RuntimeExtensionInstallerTest {
     assertThat(runtimeModeConfigurationRepository.readCalls()).isEqualTo(1);
     assertThat(runtimeModeConfigurationRepository.persistCalls()).isEqualTo(1);
     assertThat(runtimeModeConfigurationRepository.lastPersistedConfiguration()).isEqualTo(currentConfiguration);
+    assertThat(runtimeModeConfigurationRepository.lastPersistedMode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
     assertThat(runtimeExtensionArtifactsRepository.lastInstallRequest()).isEqualTo(request);
     assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(runtimeExtensionConfiguration);
@@ -315,12 +315,13 @@ class RuntimeExtensionInstallerTest {
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
 
     private final Path configPath;
-    private final Map<Object, Object> currentConfiguration;
+    private final RuntimeModeConfigurationDocument currentConfiguration;
     private int readCalls;
     private int persistCalls;
-    private Map<Object, Object> lastPersistedConfiguration;
+    private RuntimeModeConfigurationDocument lastPersistedConfiguration;
+    private RuntimeMode lastPersistedMode;
 
-    private RecordingRuntimeModeConfigurationRepository(Path configPath, Map<Object, Object> currentConfiguration) {
+    private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
     }
@@ -331,15 +332,21 @@ class RuntimeExtensionInstallerTest {
     }
 
     @Override
-    public Map<Object, Object> readCurrentConfiguration() {
+    public RuntimeModeConfigurationDocument readConfiguration() {
       readCalls = readCalls + 1;
       return currentConfiguration;
     }
 
     @Override
-    public void persistExtensionMode(Map<Object, Object> currentConfiguration) {
+    public RuntimeMode readMode() {
+      return RuntimeMode.STANDARD;
+    }
+
+    @Override
+    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
       persistCalls = persistCalls + 1;
       lastPersistedConfiguration = currentConfiguration;
+      lastPersistedMode = mode;
     }
 
     private int readCalls() {
@@ -350,8 +357,12 @@ class RuntimeExtensionInstallerTest {
       return persistCalls;
     }
 
-    private Map<Object, Object> lastPersistedConfiguration() {
+    private RuntimeModeConfigurationDocument lastPersistedConfiguration() {
       return lastPersistedConfiguration;
+    }
+
+    private RuntimeMode lastPersistedMode() {
+      return lastPersistedMode;
     }
   }
 
