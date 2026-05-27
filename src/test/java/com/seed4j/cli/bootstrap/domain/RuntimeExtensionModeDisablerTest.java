@@ -134,6 +134,23 @@ class RuntimeExtensionModeDisablerTest {
     assertThat(Files.readString(configPath)).isEqualTo("seed4j: [broken");
   }
 
+  @Test
+  void shouldFailWhenPersistingStandardModeFails() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-disabler-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
+    RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
+      configPath,
+      currentConfiguration,
+      new IOException("cannot persist")
+    );
+    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(runtimeModeConfigurationRepository);
+
+    assertThatThrownBy(disabler::disable)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessage("Could not update ~/.config/seed4j-cli/config.yml.");
+  }
+
   private static Path createFatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -159,10 +176,20 @@ class RuntimeExtensionModeDisablerTest {
     private int persistCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
+    private final IOException persistFailure;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
+      this(configPath, currentConfiguration, null);
+    }
+
+    private RecordingRuntimeModeConfigurationRepository(
+      Path configPath,
+      RuntimeModeConfigurationDocument currentConfiguration,
+      IOException persistFailure
+    ) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
+      this.persistFailure = persistFailure;
     }
 
     @Override
@@ -182,7 +209,11 @@ class RuntimeExtensionModeDisablerTest {
     }
 
     @Override
-    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
+    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
+      if (persistFailure != null) {
+        throw persistFailure;
+      }
+
       persistCalls = persistCalls + 1;
       lastPersistedConfiguration = currentConfiguration;
       lastPersistedMode = mode;

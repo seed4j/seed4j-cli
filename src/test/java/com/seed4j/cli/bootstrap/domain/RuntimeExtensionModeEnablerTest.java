@@ -152,6 +152,35 @@ class RuntimeExtensionModeEnablerTest {
       .hasMessage("Could not read ~/.config/seed4j-cli/config.yml.");
   }
 
+  @Test
+  void shouldFailWhenPersistingExtensionModeFails() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-enabler-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(runtimeJarPath.getParent());
+    createFatJar(runtimeJarPath);
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+      """
+    );
+    RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
+    RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
+      configPath,
+      currentConfiguration,
+      new IOException("cannot persist")
+    );
+    RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(userHome, runtimeModeConfigurationRepository);
+
+    assertThatThrownBy(enabler::enable)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessage("Could not update ~/.config/seed4j-cli/config.yml.");
+  }
+
   private static Path createFatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
@@ -177,10 +206,20 @@ class RuntimeExtensionModeEnablerTest {
     private int persistCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
+    private final IOException persistFailure;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
+      this(configPath, currentConfiguration, null);
+    }
+
+    private RecordingRuntimeModeConfigurationRepository(
+      Path configPath,
+      RuntimeModeConfigurationDocument currentConfiguration,
+      IOException persistFailure
+    ) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
+      this.persistFailure = persistFailure;
     }
 
     @Override
@@ -200,7 +239,11 @@ class RuntimeExtensionModeEnablerTest {
     }
 
     @Override
-    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
+    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
+      if (persistFailure != null) {
+        throw persistFailure;
+      }
+
       persistCalls = persistCalls + 1;
       lastPersistedConfiguration = currentConfiguration;
       lastPersistedMode = mode;
