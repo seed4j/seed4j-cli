@@ -12,7 +12,6 @@ import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeCo
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -856,17 +855,6 @@ class Seed4JCliLauncherTest {
     }
 
     @Override
-    public Path configPath() {
-      return configPath;
-    }
-
-    @Override
-    public RuntimeModeConfigurationDocument readConfiguration() {
-      readConfigurationCalls = readConfigurationCalls + 1;
-      return new RuntimeModeConfigurationDocument(Map.of());
-    }
-
-    @Override
     public RuntimeMode readMode() {
       readModeCalls = readModeCalls + 1;
       return runtimeMode;
@@ -875,7 +863,7 @@ class Seed4JCliLauncherTest {
     @Override
     public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
       prepareModeChangeCalls = prepareModeChangeCalls + 1;
-      RuntimeModeConfigurationDocument currentConfiguration = readConfiguration();
+      readConfigurationCalls = readConfigurationCalls + 1;
 
       return new RuntimeModeChangePlan() {
         @Override
@@ -885,14 +873,9 @@ class Seed4JCliLauncherTest {
 
         @Override
         public void apply() {
-          persistMode(currentConfiguration, targetMode);
+          persistModeCalls = persistModeCalls + 1;
         }
       };
-    }
-
-    @Override
-    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
-      persistModeCalls = persistModeCalls + 1;
     }
 
     private int readModeCalls() {

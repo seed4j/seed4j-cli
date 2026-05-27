@@ -359,8 +359,6 @@ class RuntimeExtensionInstallerTest {
     private final Path configPath;
     private final RuntimeModeConfigurationDocument currentConfiguration;
     private final InvocationOrder invocationOrder;
-    private int readCalls;
-    private int persistCalls;
     private int prepareCalls;
     private int applyCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
@@ -380,17 +378,6 @@ class RuntimeExtensionInstallerTest {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
       this.invocationOrder = invocationOrder;
-    }
-
-    @Override
-    public Path configPath() {
-      return configPath;
-    }
-
-    @Override
-    public RuntimeModeConfigurationDocument readConfiguration() {
-      readCalls = readCalls + 1;
-      return currentConfiguration;
     }
 
     @Override
@@ -417,21 +404,6 @@ class RuntimeExtensionInstallerTest {
           lastPersistedConfiguration = currentConfiguration;
         }
       };
-    }
-
-    @Override
-    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
-      persistCalls = persistCalls + 1;
-      lastPersistedConfiguration = currentConfiguration;
-      lastPersistedMode = mode;
-    }
-
-    private int readCalls() {
-      return readCalls;
-    }
-
-    private int persistCalls() {
-      return persistCalls;
     }
 
     private int prepareCalls() {

@@ -208,8 +208,6 @@ class RuntimeExtensionModeEnablerTest {
 
     private final Path configPath;
     private final RuntimeModeConfigurationDocument currentConfiguration;
-    private int readCalls;
-    private int persistCalls;
     private int prepareCalls;
     private int applyCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
@@ -229,17 +227,6 @@ class RuntimeExtensionModeEnablerTest {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
       this.persistFailure = persistFailure;
-    }
-
-    @Override
-    public Path configPath() {
-      return configPath;
-    }
-
-    @Override
-    public RuntimeModeConfigurationDocument readConfiguration() {
-      readCalls = readCalls + 1;
-      return currentConfiguration;
     }
 
     @Override
@@ -269,25 +256,6 @@ class RuntimeExtensionModeEnablerTest {
           lastPersistedMode = targetMode;
         }
       };
-    }
-
-    @Override
-    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
-      if (persistFailure != null) {
-        throw persistFailure;
-      }
-
-      persistCalls = persistCalls + 1;
-      lastPersistedConfiguration = currentConfiguration;
-      lastPersistedMode = mode;
-    }
-
-    private int readCalls() {
-      return readCalls;
-    }
-
-    private int persistCalls() {
-      return persistCalls;
     }
 
     private int prepareCalls() {

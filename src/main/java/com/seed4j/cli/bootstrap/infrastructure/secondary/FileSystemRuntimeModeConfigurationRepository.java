@@ -20,19 +20,8 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
   }
 
   @Override
-  public Path configPath() {
-    return userHome.resolve(CONFIG_PATH);
-  }
-
-  @Override
-  public RuntimeModeConfigurationDocument readConfiguration() {
-    return runtimeModeConfigReader.configuration(userHome);
-  }
-
-  @Override
   public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
-    RuntimeModeConfigurationDocument currentConfiguration = readConfiguration();
-    return new FileSystemRuntimeModeChangePlan(configPath(), currentConfiguration, targetMode);
+    return new FileSystemRuntimeModeChangePlan(configPath(), currentConfiguration(), targetMode);
   }
 
   @Override
@@ -40,9 +29,12 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
     return runtimeModeConfigReader.runtimeMode(userHome);
   }
 
-  @Override
-  public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
-    RuntimeModeConfigurationWriter.writeMode(configPath(), currentConfiguration, mode);
+  private Path configPath() {
+    return userHome.resolve(CONFIG_PATH);
+  }
+
+  private RuntimeModeConfigurationDocument currentConfiguration() {
+    return runtimeModeConfigReader.configuration(userHome);
   }
 
   private static final class FileSystemRuntimeModeChangePlan implements RuntimeModeChangePlan {
