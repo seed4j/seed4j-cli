@@ -1,16 +1,16 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 public record RuntimeModeConfigurationDocument(Map<Object, Object> configuration) {
   public RuntimeModeConfigurationDocument {
-    Objects.requireNonNull(configuration, "configuration");
+    Assert.notNull("configuration", configuration);
     configuration = new LinkedHashMap<>(configuration);
   }
 
-  @Override //TODO Me explique porque o override?
+  @Override
   public Map<Object, Object> configuration() {
     return new LinkedHashMap<>(configuration);
   }
