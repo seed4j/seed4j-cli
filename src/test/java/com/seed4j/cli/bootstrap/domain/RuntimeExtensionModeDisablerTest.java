@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -17,10 +19,30 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionModeDisablerTest {
 
   @Test
+  void shouldPersistStandardModeThroughInjectedRuntimeModeConfigurationRepository() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-disabler-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
+    RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
+      configPath,
+      currentConfiguration
+    );
+    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(runtimeModeConfigurationRepository);
+
+    Path persistedConfigPath = disabler.disable();
+
+    assertThat(persistedConfigPath).isEqualTo(configPath);
+    assertThat(runtimeModeConfigurationRepository.readCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.persistCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.lastPersistedConfiguration()).isEqualTo(currentConfiguration);
+    assertThat(runtimeModeConfigurationRepository.lastPersistedMode()).isEqualTo(RuntimeMode.STANDARD);
+  }
+
+  @Test
   void shouldWriteStandardModeWhenConfigFileIsMissing() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-disabler-");
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
-    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(userHome);
+    RuntimeExtensionModeDisabler disabler = disabler(userHome);
 
     Path persistedConfigPath = disabler.disable();
 
@@ -47,7 +69,7 @@ class RuntimeExtensionModeDisablerTest {
         enabled: true
       """
     );
-    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(userHome);
+    RuntimeExtensionModeDisabler disabler = disabler(userHome);
 
     disabler.disable();
 
@@ -87,7 +109,7 @@ class RuntimeExtensionModeDisablerTest {
     );
     byte[] runtimeJarContentBeforeDisable = Files.readAllBytes(runtimeJarPath);
     String metadataContentBeforeDisable = Files.readString(metadataPath);
-    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(userHome);
+    RuntimeExtensionModeDisabler disabler = disabler(userHome);
 
     disabler.disable();
 
@@ -103,7 +125,7 @@ class RuntimeExtensionModeDisablerTest {
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
-    RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(userHome);
+    RuntimeExtensionModeDisabler disabler = disabler(userHome);
 
     assertThatThrownBy(disabler::disable)
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -123,5 +145,63 @@ class RuntimeExtensionModeDisablerTest {
     }
 
     return jarPath;
+  }
+
+  private static RuntimeExtensionModeDisabler disabler(Path userHome) {
+    return new RuntimeExtensionModeDisabler(new FileSystemRuntimeModeConfigurationRepository(userHome));
+  }
+
+  private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
+
+    private final Path configPath;
+    private final RuntimeModeConfigurationDocument currentConfiguration;
+    private int readCalls;
+    private int persistCalls;
+    private RuntimeModeConfigurationDocument lastPersistedConfiguration;
+    private RuntimeMode lastPersistedMode;
+
+    private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
+      this.configPath = configPath;
+      this.currentConfiguration = currentConfiguration;
+    }
+
+    @Override
+    public Path configPath() {
+      return configPath;
+    }
+
+    @Override
+    public RuntimeModeConfigurationDocument readConfiguration() {
+      readCalls = readCalls + 1;
+      return currentConfiguration;
+    }
+
+    @Override
+    public RuntimeMode readMode() {
+      return RuntimeMode.STANDARD;
+    }
+
+    @Override
+    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
+      persistCalls = persistCalls + 1;
+      lastPersistedConfiguration = currentConfiguration;
+      lastPersistedMode = mode;
+    }
+
+    private int readCalls() {
+      return readCalls;
+    }
+
+    private int persistCalls() {
+      return persistCalls;
+    }
+
+    private RuntimeModeConfigurationDocument lastPersistedConfiguration() {
+      return lastPersistedConfiguration;
+    }
+
+    private RuntimeMode lastPersistedMode() {
+      return lastPersistedMode;
+    }
   }
 }
