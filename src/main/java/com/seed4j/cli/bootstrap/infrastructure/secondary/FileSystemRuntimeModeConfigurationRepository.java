@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationDocument;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import java.io.IOException;
@@ -29,6 +30,12 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
   }
 
   @Override
+  public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+    RuntimeModeConfigurationDocument currentConfiguration = readConfiguration();
+    return new FileSystemRuntimeModeChangePlan(configPath(), currentConfiguration, targetMode);
+  }
+
+  @Override
   public RuntimeMode readMode() {
     return runtimeModeConfigReader.runtimeMode(userHome);
   }
@@ -36,5 +43,32 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
   @Override
   public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
     RuntimeModeConfigurationWriter.writeMode(configPath(), currentConfiguration, mode);
+  }
+
+  private static final class FileSystemRuntimeModeChangePlan implements RuntimeModeChangePlan {
+
+    private final Path configPath;
+    private final RuntimeModeConfigurationDocument currentConfiguration;
+    private final RuntimeMode targetMode;
+
+    private FileSystemRuntimeModeChangePlan(
+      Path configPath,
+      RuntimeModeConfigurationDocument currentConfiguration,
+      RuntimeMode targetMode
+    ) {
+      this.configPath = configPath;
+      this.currentConfiguration = currentConfiguration;
+      this.targetMode = targetMode;
+    }
+
+    @Override
+    public Path configPath() {
+      return configPath;
+    }
+
+    @Override
+    public void apply() throws IOException {
+      RuntimeModeConfigurationWriter.writeMode(configPath, currentConfiguration, targetMode);
+    }
   }
 }
