@@ -120,7 +120,7 @@ class ExtensionInstallCommandTest {
       int exitCode = commandLine.execute(args);
 
       assertThat(exitCode).isNotZero();
-      assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.");
+      assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
     }
   }
 

@@ -26,12 +26,19 @@ final class RuntimeExtensionStartClassResolver {
       }
 
       return resolvedStartClass;
-    } catch (IOException _) {
-      throw invalidStartClass(extensionJarPath, "Could not read manifest Start-Class.");
+    } catch (IOException ioException) {
+      throw InvalidRuntimeConfigurationException.technicalError(
+        invalidStartClassMessage(extensionJarPath, "Could not read manifest Start-Class."),
+        ioException
+      );
     }
   }
 
   private InvalidRuntimeConfigurationException invalidStartClass(Path extensionJarPath, String reason) {
-    return new InvalidRuntimeConfigurationException("Invalid runtime jar file: " + extensionJarPath + ". " + reason);
+    return new InvalidRuntimeConfigurationException(invalidStartClassMessage(extensionJarPath, reason));
+  }
+
+  private String invalidStartClassMessage(Path extensionJarPath, String reason) {
+    return "Invalid runtime jar file: " + extensionJarPath + ". " + reason;
   }
 }

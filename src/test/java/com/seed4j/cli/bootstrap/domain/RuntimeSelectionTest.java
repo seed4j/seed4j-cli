@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.yaml.snakeyaml.error.YAMLException;
 
 @UnitTest
 class RuntimeSelectionTest {
@@ -143,7 +144,9 @@ class RuntimeSelectionTest {
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("Invalid runtime jar file")
       .hasMessageContaining("BOOT-INF/classes")
-      .hasMessageContaining(unreadableJarPath.toString());
+      .hasMessageContaining(unreadableJarPath.toString())
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
   }
 
   @Test
@@ -280,7 +283,9 @@ class RuntimeSelectionTest {
     assertThatThrownBy(() -> RuntimeSelection.resolve(runtimeConfiguration))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("Invalid runtime metadata file")
-      .hasMessageContaining(metadataPath.toString());
+      .hasMessageContaining(metadataPath.toString())
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(YAMLException.class);
   }
 
   @Test

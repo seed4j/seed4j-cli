@@ -17,6 +17,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.error.YAMLException;
 
 @UnitTest
 class RuntimeExtensionInstallerTest {
@@ -60,7 +61,9 @@ class RuntimeExtensionInstallerTest {
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessage("Could not read ~/.config/seed4j-cli/config.yml.");
+      .hasMessageContaining("Could not read ~/.config/seed4j-cli/config.yml.")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(YAMLException.class);
 
     assertThat(runtimeJarPath).doesNotExist();
     assertThat(metadataPath).doesNotExist();
@@ -196,7 +199,9 @@ class RuntimeExtensionInstallerTest {
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("Could not install runtime extension:");
+      .hasMessageContaining("Could not install runtime extension.")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
 
     assertThat(runtimeJarPath).isDirectory();
     assertThat(runtimeJarPath.resolve("occupied.txt")).exists();
@@ -219,7 +224,9 @@ class RuntimeExtensionInstallerTest {
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("Could not install runtime extension:");
+      .hasMessageContaining("Could not install runtime extension.")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
 
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
     assertThat(metadataPath).isDirectory();

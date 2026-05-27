@@ -76,7 +76,9 @@ class RuntimeExtensionOverlayCacheTest {
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ":");
+      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ".")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
 
     Path runtimeCacheDirectoryPath = userHome.resolve(".config/seed4j-cli/runtime/cache");
     if (Files.exists(runtimeCacheDirectoryPath)) {
@@ -94,7 +96,9 @@ class RuntimeExtensionOverlayCacheTest {
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ":");
+      .hasMessageContaining("Could not materialize runtime extension overlay cache for " + extensionJarPath + ".")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
   }
 
   @Test

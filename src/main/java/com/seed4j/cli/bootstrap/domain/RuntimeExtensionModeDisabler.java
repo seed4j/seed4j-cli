@@ -18,7 +18,7 @@ public class RuntimeExtensionModeDisabler {
     try {
       runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.STANDARD);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException("Could not update ~/.config/seed4j-cli/config.yml.");
+      throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
     }
 
     return configPath;

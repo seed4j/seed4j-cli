@@ -14,6 +14,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.error.YAMLException;
 
 @UnitTest
 class RuntimeExtensionModeDisablerTest {
@@ -129,8 +130,9 @@ class RuntimeExtensionModeDisablerTest {
 
     assertThatThrownBy(disabler::disable)
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessage("Could not read ~/.config/seed4j-cli/config.yml.");
-
+      .hasMessageContaining("Could not read ~/.config/seed4j-cli/config.yml.")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(YAMLException.class);
     assertThat(Files.readString(configPath)).isEqualTo("seed4j: [broken");
   }
 
@@ -148,10 +150,12 @@ class RuntimeExtensionModeDisablerTest {
 
     assertThatThrownBy(disabler::disable)
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessage("Could not update ~/.config/seed4j-cli/config.yml.");
+      .hasMessageContaining("Could not update ~/.config/seed4j-cli/config.yml.")
+      .hasMessageContaining("Details: cannot persist")
+      .hasCauseInstanceOf(IOException.class);
   }
 
-  private static Path createFatJar(Path jarPath) throws IOException {
+  private static void createFatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
@@ -160,8 +164,6 @@ class RuntimeExtensionModeDisablerTest {
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
       jarOutputStream.closeEntry();
     }
-
-    return jarPath;
   }
 
   private static RuntimeExtensionModeDisabler disabler(Path userHome) {

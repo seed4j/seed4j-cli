@@ -21,8 +21,8 @@ final class RuntimeExtensionJarLayoutValidator {
   private boolean hasBootInfClasses(Path extensionJarPath) {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
       return extensionJarFile.stream().map(JarEntry::getName).anyMatch(RuntimeExtensionJarLayoutValidator::isBootInfClassesEntry);
-    } catch (IOException _) {
-      throw invalidRuntimeJarLayout(extensionJarPath);
+    } catch (IOException ioException) {
+      throw InvalidRuntimeConfigurationException.technicalError(invalidRuntimeJarLayoutMessage(extensionJarPath), ioException);
     }
   }
 
@@ -35,8 +35,10 @@ final class RuntimeExtensionJarLayoutValidator {
   }
 
   private InvalidRuntimeConfigurationException invalidRuntimeJarLayout(Path extensionJarPath) {
-    return new InvalidRuntimeConfigurationException(
-      "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes."
-    );
+    return new InvalidRuntimeConfigurationException(invalidRuntimeJarLayoutMessage(extensionJarPath));
+  }
+
+  private String invalidRuntimeJarLayoutMessage(Path extensionJarPath) {
+    return "Invalid runtime jar file: " + extensionJarPath + ". Expected a Spring Boot fat jar containing BOOT-INF/classes.";
   }
 }

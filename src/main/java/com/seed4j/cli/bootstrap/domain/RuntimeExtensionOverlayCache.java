@@ -53,8 +53,9 @@ final class RuntimeExtensionOverlayCache {
       throw invalidRuntimeConfigurationException;
     } catch (IOException ioException) {
       deleteDirectoryQuietly(stagingDirectoryPath);
-      throw new InvalidRuntimeConfigurationException(
-        "Could not materialize runtime extension overlay cache for " + extensionJarPath + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not materialize runtime extension overlay cache for " + extensionJarPath + ".",
+        ioException
       );
     }
   }

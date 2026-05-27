@@ -84,6 +84,19 @@ class RuntimeExtensionLoaderPathResolverTest {
   }
 
   @Test
+  void shouldReportTechnicalDetailsWhenExtensionJarCannotBeInspected() throws IOException {
+    Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
+    Path executableJarPath = createJarWithBootInfLibraries(Files.createTempFile("seed4j-cli-", ".jar"), List.of("shared-lib-1.0.0.jar"));
+    Path extensionJarPath = Files.createTempDirectory("seed4j-extension-not-a-jar-");
+
+    assertThatThrownBy(() -> new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath))
+      .isInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not inspect runtime library entries from " + extensionJarPath + ".")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
+  }
+
+  @Test
   void shouldFailFastWhenExtensionNestedJarContainsConflictingPomIdentities() throws IOException {
     Path overlayClassesPath = Files.createTempDirectory("seed4j-cli-overlay-");
     Path executableJarPath = createJarWithBootInfLibrariesAndPomCoordinates(

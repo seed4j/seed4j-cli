@@ -39,7 +39,7 @@ public class RuntimeExtensionInstaller {
       runtimeExtensionArtifactsRepository.install(request, runtimeExtensionConfiguration);
       runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.EXTENSION);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException("Could not install runtime extension: " + ioException.getMessage());
+      throw InvalidRuntimeConfigurationException.technicalError("Could not install runtime extension.", ioException);
     }
 
     return new RuntimeExtensionInstallResult(

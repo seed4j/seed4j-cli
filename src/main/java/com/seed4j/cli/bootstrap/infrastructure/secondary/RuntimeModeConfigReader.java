@@ -40,8 +40,8 @@ final class RuntimeModeConfigReader {
       validateRuntimeModeConfiguration(loadedConfigurationMap);
 
       return new RuntimeModeConfigurationDocument(new LinkedHashMap<>(loadedConfigurationMap));
-    } catch (IOException | YAMLException _) {
-      throw new InvalidRuntimeConfigurationException("Could not read ~/.config/seed4j-cli/config.yml.");
+    } catch (IOException | YAMLException exception) {
+      throw InvalidRuntimeConfigurationException.technicalError("Could not read ~/.config/seed4j-cli/config.yml.", exception);
     }
   }
 

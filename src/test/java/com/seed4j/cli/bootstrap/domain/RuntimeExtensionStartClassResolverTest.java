@@ -33,7 +33,9 @@ class RuntimeExtensionStartClassResolverTest {
 
     assertThatThrownBy(() -> runtimeExtensionStartClassResolver.resolve(invalidExtensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("Could not read manifest Start-Class");
+      .hasMessageContaining("Could not read manifest Start-Class")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
   }
 
   @Test

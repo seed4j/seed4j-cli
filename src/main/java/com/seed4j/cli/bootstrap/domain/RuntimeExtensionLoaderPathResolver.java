@@ -69,8 +69,9 @@ class RuntimeExtensionLoaderPathResolver {
     try {
       return strictLibrariesInternal(jarPath);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not inspect runtime library entries from " + jarPath + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not inspect runtime library entries from " + jarPath + ".",
+        ioException
       );
     }
   }
@@ -94,8 +95,9 @@ class RuntimeExtensionLoaderPathResolver {
     try {
       return lenientLibrariesInternal(jarPath);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not inspect runtime library entries from " + jarPath + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not inspect runtime library entries from " + jarPath + ".",
+        ioException
       );
     }
   }
@@ -148,8 +150,9 @@ class RuntimeExtensionLoaderPathResolver {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
       return strictRuntimeLibraryIdentityFromNestedJar(jarInputStream, libraryFileName);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not inspect nested library metadata from " + jarEntry.getName() + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not inspect nested library metadata from " + jarEntry.getName() + ".",
+        ioException
       );
     }
   }
@@ -159,8 +162,9 @@ class RuntimeExtensionLoaderPathResolver {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
       return lenientRuntimeLibraryIdentityFromNestedJar(jarInputStream);
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not inspect nested library metadata from " + jarEntry.getName() + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not inspect nested library metadata from " + jarEntry.getName() + ".",
+        ioException
       );
     }
   }

@@ -29,8 +29,9 @@ final class RuntimeExtensionCacheIdentityResolver {
       }
       return toHex(messageDigest.digest());
     } catch (IOException ioException) {
-      throw new InvalidRuntimeConfigurationException(
-        "Could not calculate runtime extension cache identity for " + extensionJarPath + ": " + ioException.getMessage()
+      throw InvalidRuntimeConfigurationException.technicalError(
+        "Could not calculate runtime extension cache identity for " + extensionJarPath + ".",
+        ioException
       );
     } catch (NoSuchAlgorithmException noSuchAlgorithmException) {
       throw new IllegalStateException("Missing SHA-256 algorithm support in current runtime.", noSuchAlgorithmException);
