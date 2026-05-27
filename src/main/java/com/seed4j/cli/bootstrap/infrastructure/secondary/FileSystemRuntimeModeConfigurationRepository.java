@@ -37,27 +37,11 @@ public final class FileSystemRuntimeModeConfigurationRepository implements Runti
     return runtimeModeConfigReader.configuration(userHome);
   }
 
-  private static final class FileSystemRuntimeModeChangePlan implements RuntimeModeChangePlan {
-
-    private final Path configPath;
-    private final RuntimeModeConfigurationDocument currentConfiguration;
-    private final RuntimeMode targetMode;
-
-    private FileSystemRuntimeModeChangePlan(
-      Path configPath,
-      RuntimeModeConfigurationDocument currentConfiguration,
-      RuntimeMode targetMode
-    ) {
-      this.configPath = configPath;
-      this.currentConfiguration = currentConfiguration;
-      this.targetMode = targetMode;
-    }
-
-    @Override
-    public Path configPath() {
-      return configPath;
-    }
-
+  private record FileSystemRuntimeModeChangePlan(
+    Path configPath,
+    RuntimeModeConfigurationDocument currentConfiguration,
+    RuntimeMode targetMode
+  ) implements RuntimeModeChangePlan {
     @Override
     public void apply() throws IOException {
       RuntimeModeConfigurationWriter.writeMode(configPath, currentConfiguration, targetMode);
