@@ -57,6 +57,7 @@ class Seed4JCliLauncherTest {
     assertThat(exitCode).isZero();
     assertThat(runtimeModeConfigurationRepository.readModeCalls()).isEqualTo(1);
     assertThat(runtimeModeConfigurationRepository.readConfigurationCalls()).isZero();
+    assertThat(runtimeModeConfigurationRepository.prepareModeChangeCalls()).isZero();
     assertThat(runtimeModeConfigurationRepository.persistModeCalls()).isZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
     assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
@@ -846,6 +847,7 @@ class Seed4JCliLauncherTest {
     private final RuntimeMode runtimeMode;
     private int readModeCalls;
     private int readConfigurationCalls;
+    private int prepareModeChangeCalls;
     private int persistModeCalls;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeMode runtimeMode) {
@@ -871,6 +873,24 @@ class Seed4JCliLauncherTest {
     }
 
     @Override
+    public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+      prepareModeChangeCalls = prepareModeChangeCalls + 1;
+      RuntimeModeConfigurationDocument currentConfiguration = readConfiguration();
+
+      return new RuntimeModeChangePlan() {
+        @Override
+        public Path configPath() {
+          return configPath;
+        }
+
+        @Override
+        public void apply() {
+          persistMode(currentConfiguration, targetMode);
+        }
+      };
+    }
+
+    @Override
     public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
       persistModeCalls = persistModeCalls + 1;
     }
@@ -881,6 +901,10 @@ class Seed4JCliLauncherTest {
 
     private int readConfigurationCalls() {
       return readConfigurationCalls;
+    }
+
+    private int prepareModeChangeCalls() {
+      return prepareModeChangeCalls;
     }
 
     private int persistModeCalls() {
