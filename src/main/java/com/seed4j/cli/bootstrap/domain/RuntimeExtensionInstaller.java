@@ -32,12 +32,12 @@ public class RuntimeExtensionInstaller {
 
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
-    RuntimeModeConfigurationDocument currentConfiguration = validateInstallRequest(request);
+    RuntimeModeChangePlan modeChangePlan = validateInstallRequest(request);
     boolean runtimeReplaced = runtimeExtensionArtifactsRepository.activeRuntimePresent(runtimeExtensionConfiguration);
 
     try {
       runtimeExtensionArtifactsRepository.install(request, runtimeExtensionConfiguration);
-      runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.EXTENSION);
+      modeChangePlan.apply();
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not install runtime extension.", ioException);
     }
@@ -45,13 +45,13 @@ public class RuntimeExtensionInstaller {
     return new RuntimeExtensionInstallResult(
       runtimeExtensionConfiguration.jarPath(),
       runtimeExtensionConfiguration.metadataPath(),
-      runtimeModeConfigurationRepository.configPath(),
+      modeChangePlan.configPath(),
       runtimeReplaced
     );
   }
 
-  private RuntimeModeConfigurationDocument validateInstallRequest(RuntimeExtensionInstallRequest request) {
+  private RuntimeModeChangePlan validateInstallRequest(RuntimeExtensionInstallRequest request) {
     runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath());
-    return runtimeModeConfigurationRepository.readConfiguration();
+    return runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.EXTENSION);
   }
 }

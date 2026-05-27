@@ -14,18 +14,17 @@ public class RuntimeExtensionModeEnabler {
   }
 
   public Path enable() {
-    RuntimeModeConfigurationDocument currentConfiguration = runtimeModeConfigurationRepository.readConfiguration();
+    RuntimeModeChangePlan modeChangePlan = runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.EXTENSION);
     RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(RuntimeMode.EXTENSION, runtimeExtensionConfiguration);
     RuntimeSelection.resolve(runtimeConfiguration);
-    Path configPath = runtimeModeConfigurationRepository.configPath();
 
     try {
-      runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.EXTENSION);
+      modeChangePlan.apply();
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
     }
 
-    return configPath;
+    return modeChangePlan.configPath();
   }
 }

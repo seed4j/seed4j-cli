@@ -20,7 +20,7 @@ import org.yaml.snakeyaml.error.YAMLException;
 class RuntimeExtensionModeEnablerTest {
 
   @Test
-  void shouldPersistExtensionModeThroughInjectedRuntimeModeConfigurationRepository() throws IOException {
+  void shouldUsePreparedModeChangePlanToEnableExtensionModeThroughInjectedRepository() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-enabler-");
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
@@ -45,8 +45,9 @@ class RuntimeExtensionModeEnablerTest {
     Path persistedConfigPath = enabler.enable();
 
     assertThat(persistedConfigPath).isEqualTo(configPath);
-    assertThat(runtimeModeConfigurationRepository.readCalls()).isEqualTo(1);
-    assertThat(runtimeModeConfigurationRepository.persistCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.prepareCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.lastPreparedMode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeModeConfigurationRepository.applyCalls()).isEqualTo(1);
     assertThat(runtimeModeConfigurationRepository.lastPersistedConfiguration()).isEqualTo(currentConfiguration);
     assertThat(runtimeModeConfigurationRepository.lastPersistedMode()).isEqualTo(RuntimeMode.EXTENSION);
   }
@@ -209,8 +210,11 @@ class RuntimeExtensionModeEnablerTest {
     private final RuntimeModeConfigurationDocument currentConfiguration;
     private int readCalls;
     private int persistCalls;
+    private int prepareCalls;
+    private int applyCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
+    private RuntimeMode lastPreparedMode;
     private final IOException persistFailure;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
@@ -244,6 +248,30 @@ class RuntimeExtensionModeEnablerTest {
     }
 
     @Override
+    public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+      prepareCalls = prepareCalls + 1;
+      lastPreparedMode = targetMode;
+
+      return new RuntimeModeChangePlan() {
+        @Override
+        public Path configPath() {
+          return configPath;
+        }
+
+        @Override
+        public void apply() throws IOException {
+          if (persistFailure != null) {
+            throw persistFailure;
+          }
+
+          applyCalls = applyCalls + 1;
+          lastPersistedConfiguration = currentConfiguration;
+          lastPersistedMode = targetMode;
+        }
+      };
+    }
+
+    @Override
     public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) throws IOException {
       if (persistFailure != null) {
         throw persistFailure;
@@ -262,12 +290,24 @@ class RuntimeExtensionModeEnablerTest {
       return persistCalls;
     }
 
+    private int prepareCalls() {
+      return prepareCalls;
+    }
+
+    private int applyCalls() {
+      return applyCalls;
+    }
+
     private RuntimeModeConfigurationDocument lastPersistedConfiguration() {
       return lastPersistedConfiguration;
     }
 
     private RuntimeMode lastPersistedMode() {
       return lastPersistedMode;
+    }
+
+    private RuntimeMode lastPreparedMode() {
+      return lastPreparedMode;
     }
   }
 }

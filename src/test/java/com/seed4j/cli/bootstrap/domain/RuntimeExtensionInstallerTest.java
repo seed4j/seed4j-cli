@@ -26,6 +26,39 @@ class RuntimeExtensionInstallerTest {
   private static final String DISTRIBUTION_VERSION = "1.0.0";
 
   @Test
+  void shouldUsePreparedModeChangePlanToPersistExtensionModeAfterRuntimeArtifactInstallation() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    InvocationOrder invocationOrder = new InvocationOrder();
+    RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
+      userHome.resolve(".config/seed4j-cli/config.yml"),
+      new RuntimeModeConfigurationDocument(new LinkedHashMap<>()),
+      invocationOrder
+    );
+    RecordingRuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository = new RecordingRuntimeExtensionArtifactsRepository(
+      invocationOrder
+    );
+    RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
+      userHome,
+      runtimeModeConfigurationRepository,
+      runtimeExtensionArtifactsRepository
+    );
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+
+    RuntimeExtensionInstallResult installResult = installer.install(request);
+
+    assertThat(runtimeModeConfigurationRepository.prepareCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.lastPreparedMode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeModeConfigurationRepository.applyCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.applyCalledAfterInstall()).isTrue();
+    assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
+    assertThat(runtimeExtensionArtifactsRepository.lastInstallRequest()).isEqualTo(request);
+    assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(runtimeExtensionConfiguration);
+    assertThat(installResult.configPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/config.yml"));
+  }
+
+  @Test
   void shouldCreateConfigFileWhenMissingAndInstallExtensionRuntimeUsingFileSystemSecondaryRepositories() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
@@ -255,8 +288,10 @@ class RuntimeExtensionInstallerTest {
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
-    assertThat(runtimeModeConfigurationRepository.readCalls()).isEqualTo(1);
-    assertThat(runtimeModeConfigurationRepository.persistCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.prepareCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.lastPreparedMode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeModeConfigurationRepository.applyCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.applyCalledAfterInstall()).isTrue();
     assertThat(runtimeModeConfigurationRepository.lastPersistedConfiguration()).isEqualTo(currentConfiguration);
     assertThat(runtimeModeConfigurationRepository.lastPersistedMode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
@@ -323,14 +358,28 @@ class RuntimeExtensionInstallerTest {
 
     private final Path configPath;
     private final RuntimeModeConfigurationDocument currentConfiguration;
+    private final InvocationOrder invocationOrder;
     private int readCalls;
     private int persistCalls;
+    private int prepareCalls;
+    private int applyCalls;
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
+    private RuntimeMode lastPreparedMode;
+    private int applyInvocationOrder;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
+      this(configPath, currentConfiguration, new InvocationOrder());
+    }
+
+    private RecordingRuntimeModeConfigurationRepository(
+      Path configPath,
+      RuntimeModeConfigurationDocument currentConfiguration,
+      InvocationOrder invocationOrder
+    ) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
+      this.invocationOrder = invocationOrder;
     }
 
     @Override
@@ -350,6 +399,27 @@ class RuntimeExtensionInstallerTest {
     }
 
     @Override
+    public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+      prepareCalls = prepareCalls + 1;
+      lastPreparedMode = targetMode;
+
+      return new RuntimeModeChangePlan() {
+        @Override
+        public Path configPath() {
+          return configPath;
+        }
+
+        @Override
+        public void apply() {
+          applyCalls = applyCalls + 1;
+          applyInvocationOrder = invocationOrder.next();
+          lastPersistedMode = targetMode;
+          lastPersistedConfiguration = currentConfiguration;
+        }
+      };
+    }
+
+    @Override
     public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
       persistCalls = persistCalls + 1;
       lastPersistedConfiguration = currentConfiguration;
@@ -364,6 +434,14 @@ class RuntimeExtensionInstallerTest {
       return persistCalls;
     }
 
+    private int prepareCalls() {
+      return prepareCalls;
+    }
+
+    private int applyCalls() {
+      return applyCalls;
+    }
+
     private RuntimeModeConfigurationDocument lastPersistedConfiguration() {
       return lastPersistedConfiguration;
     }
@@ -371,13 +449,30 @@ class RuntimeExtensionInstallerTest {
     private RuntimeMode lastPersistedMode() {
       return lastPersistedMode;
     }
+
+    private RuntimeMode lastPreparedMode() {
+      return lastPreparedMode;
+    }
+
+    private boolean applyCalledAfterInstall() {
+      return applyInvocationOrder > 0 && applyInvocationOrder > invocationOrder.installInvocationOrder();
+    }
   }
 
   private static final class RecordingRuntimeExtensionArtifactsRepository implements RuntimeExtensionArtifactsRepository {
 
+    private final InvocationOrder invocationOrder;
     private int installCalls;
     private RuntimeExtensionInstallRequest lastInstallRequest;
     private RuntimeExtensionConfiguration lastRuntimeConfiguration;
+
+    private RecordingRuntimeExtensionArtifactsRepository() {
+      this(new InvocationOrder());
+    }
+
+    private RecordingRuntimeExtensionArtifactsRepository(InvocationOrder invocationOrder) {
+      this.invocationOrder = invocationOrder;
+    }
 
     @Override
     public boolean activeRuntimePresent(RuntimeExtensionConfiguration runtimeExtensionConfiguration) {
@@ -389,6 +484,7 @@ class RuntimeExtensionInstallerTest {
       installCalls = installCalls + 1;
       lastInstallRequest = request;
       lastRuntimeConfiguration = runtimeExtensionConfiguration;
+      invocationOrder.markInstall();
     }
 
     private int installCalls() {
@@ -401,6 +497,25 @@ class RuntimeExtensionInstallerTest {
 
     private RuntimeExtensionConfiguration lastRuntimeConfiguration() {
       return lastRuntimeConfiguration;
+    }
+  }
+
+  private static final class InvocationOrder {
+
+    private int sequence;
+    private int installInvocationOrder;
+
+    private int next() {
+      sequence = sequence + 1;
+      return sequence;
+    }
+
+    private void markInstall() {
+      installInvocationOrder = next();
+    }
+
+    private int installInvocationOrder() {
+      return installInvocationOrder;
     }
   }
 }

@@ -12,15 +12,14 @@ public class RuntimeExtensionModeDisabler {
   }
 
   public Path disable() {
-    RuntimeModeConfigurationDocument currentConfiguration = runtimeModeConfigurationRepository.readConfiguration();
-    Path configPath = runtimeModeConfigurationRepository.configPath();
+    RuntimeModeChangePlan modeChangePlan = runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.STANDARD);
 
     try {
-      runtimeModeConfigurationRepository.persistMode(currentConfiguration, RuntimeMode.STANDARD);
+      modeChangePlan.apply();
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
     }
 
-    return configPath;
+    return modeChangePlan.configPath();
   }
 }
