@@ -8,9 +8,11 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -32,6 +34,36 @@ class Seed4JCliLauncherTest {
     """;
 
   @Test
+  void shouldReadRuntimeModeFromInjectedRuntimeModeConfigurationRepository() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createExecutableJar();
+    RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
+      userHome.resolve(".config/seed4j-cli/config.yml"),
+      RuntimeMode.STANDARD
+    );
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      runtimeModeConfigurationRepository,
+      childProcessLauncher,
+      localCliRunner
+    );
+
+    int exitCode = launcher.launch(new String[] { "--version" });
+
+    assertThat(exitCode).isZero();
+    assertThat(runtimeModeConfigurationRepository.readModeCalls()).isEqualTo(1);
+    assertThat(runtimeModeConfigurationRepository.readConfigurationCalls()).isZero();
+    assertThat(runtimeModeConfigurationRepository.persistModeCalls()).isZero();
+    assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
+    assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(localCliRunner.wasCalled()).isFalse();
+  }
+
+  @Test
   void shouldNotForceErrorRootLoggingWhenDebugFlagIsPresentInExtensionMode() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
@@ -51,7 +83,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version", "--debug" });
 
@@ -85,7 +124,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
     Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
     Level previousLevel = logger.getLevel();
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -116,6 +162,7 @@ class Seed4JCliLauncherTest {
       userHome,
       executableLocation,
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -151,6 +198,7 @@ class Seed4JCliLauncherTest {
       userHome,
       executableLocation,
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -172,6 +220,7 @@ class Seed4JCliLauncherTest {
       userHome,
       executableLocation,
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -196,6 +245,7 @@ class Seed4JCliLauncherTest {
       userHome,
       executableLocation,
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -219,6 +269,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -248,6 +299,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -269,6 +321,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -294,6 +347,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -328,6 +382,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -365,6 +420,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -393,6 +449,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -416,6 +473,7 @@ class Seed4JCliLauncherTest {
       userHome,
       createExecutableJar(),
       "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
     );
@@ -433,7 +491,14 @@ class Seed4JCliLauncherTest {
     Path executableJar = createExecutableJar();
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -454,7 +519,14 @@ class Seed4JCliLauncherTest {
     Path executableJar = createExecutableJar();
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "1.2.3", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "1.2.3",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -469,7 +541,14 @@ class Seed4JCliLauncherTest {
     Path executableJar = createExecutableJar();
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "9.8.7", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "9.8.7",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -498,7 +577,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -538,7 +624,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -571,7 +664,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -601,7 +701,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -633,7 +740,14 @@ class Seed4JCliLauncherTest {
     Files.writeString(runtimeDirectory.resolve("metadata.yml"), MINIMAL_EXTENSION_METADATA);
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, "0.0.1-SNAPSHOT", childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      "0.0.1-SNAPSHOT",
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
       int exitCode = launcher.launch(new String[] { "--version" });
@@ -724,6 +838,54 @@ class Seed4JCliLauncherTest {
         """
       )
     );
+  }
+
+  private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
+
+    private final Path configPath;
+    private final RuntimeMode runtimeMode;
+    private int readModeCalls;
+    private int readConfigurationCalls;
+    private int persistModeCalls;
+
+    private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeMode runtimeMode) {
+      this.configPath = configPath;
+      this.runtimeMode = runtimeMode;
+    }
+
+    @Override
+    public Path configPath() {
+      return configPath;
+    }
+
+    @Override
+    public RuntimeModeConfigurationDocument readConfiguration() {
+      readConfigurationCalls = readConfigurationCalls + 1;
+      return new RuntimeModeConfigurationDocument(Map.of());
+    }
+
+    @Override
+    public RuntimeMode readMode() {
+      readModeCalls = readModeCalls + 1;
+      return runtimeMode;
+    }
+
+    @Override
+    public void persistMode(RuntimeModeConfigurationDocument currentConfiguration, RuntimeMode mode) {
+      persistModeCalls = persistModeCalls + 1;
+    }
+
+    private int readModeCalls() {
+      return readModeCalls;
+    }
+
+    private int readConfigurationCalls() {
+      return readConfigurationCalls;
+    }
+
+    private int persistModeCalls() {
+      return persistModeCalls;
+    }
   }
 
   private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {

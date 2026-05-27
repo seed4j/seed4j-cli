@@ -23,9 +23,9 @@ public class Seed4JCliLauncher {
   private final Path userHome;
   private final Path executableJar;
   private final String currentSeed4JVersion;
+  private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
-  private final RuntimeModeConfigReader runtimeModeConfigReader;
   private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
   private final RuntimeExtensionOverlayCache runtimeExtensionOverlayCache;
   private final RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver;
@@ -34,15 +34,16 @@ public class Seed4JCliLauncher {
     Path userHome,
     Path executableJar,
     String currentSeed4JVersion,
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner
   ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.currentSeed4JVersion = currentSeed4JVersion;
+    this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
-    this.runtimeModeConfigReader = new RuntimeModeConfigReader();
     this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
     this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(userHome);
     this.runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
@@ -132,7 +133,7 @@ public class Seed4JCliLauncher {
   }
 
   private RuntimeSelection runtimeSelection() {
-    if (runtimeModeConfigReader.runtimeMode(userHome) == RuntimeMode.STANDARD) {
+    if (runtimeModeConfigurationRepository.readMode() == RuntimeMode.STANDARD) {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
 

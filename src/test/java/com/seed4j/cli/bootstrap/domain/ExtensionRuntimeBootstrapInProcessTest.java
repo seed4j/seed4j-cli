@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,7 +48,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      CURRENT_CLI_VERSION,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
     );
@@ -84,7 +92,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      CURRENT_CLI_VERSION,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
     );
@@ -119,7 +134,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      CURRENT_CLI_VERSION,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
@@ -150,7 +172,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(userHome, executableJar, CURRENT_CLI_VERSION, childProcessLauncher, localCliRunner);
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      userHome,
+      executableJar,
+      CURRENT_CLI_VERSION,
+      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      childProcessLauncher,
+      localCliRunner
+    );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
