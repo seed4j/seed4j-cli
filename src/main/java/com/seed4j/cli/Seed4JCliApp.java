@@ -30,6 +30,14 @@ public class Seed4JCliApp {
     runProductionPath(args, productionBootstrapEntryPoint(userHomePath(), childMode()), System::exit);
   }
 
+  private static Path userHomePath() {
+    return Path.of(System.getProperty("user.home"));
+  }
+
+  private static boolean childMode() {
+    return Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY));
+  }
+
   static void runProductionPath(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
     int exitCode = bootstrapEntryPoint.launch(args);
     exitHandler.exit(exitCode);
@@ -39,8 +47,10 @@ public class Seed4JCliApp {
     return new PreSpringLauncherAssembler().assemble(userHomePath, executablePath(), currentSeed4JVersion(), childMode)::launch;
   }
 
-  private static Path userHomePath() {
-    return Path.of(System.getProperty("user.home"));
+  private static String currentSeed4JVersion() {
+    return Optional.ofNullable(Seed4JApp.class.getPackage().getImplementationVersion())
+      .filter(version -> !version.isBlank())
+      .orElse(DEFAULT_CLI_VERSION);
   }
 
   private static Path executablePath() {
@@ -55,6 +65,10 @@ public class Seed4JCliApp {
     } catch (URISyntaxException uriSyntaxException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not resolve executable path.", uriSyntaxException);
     }
+  }
+
+  private static Path currentWorkingDirectory() {
+    return Path.of(System.getProperty("user.dir"));
   }
 
   static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {
@@ -95,19 +109,5 @@ public class Seed4JCliApp {
       .filter(path -> path.endsWith(".jar"))
       .map(Path::of)
       .filter(Files::isRegularFile);
-  }
-
-  private static Path currentWorkingDirectory() {
-    return Path.of(System.getProperty("user.dir"));
-  }
-
-  private static String currentSeed4JVersion() {
-    return Optional.ofNullable(Seed4JApp.class.getPackage().getImplementationVersion())
-      .filter(version -> !version.isBlank())
-      .orElse(DEFAULT_CLI_VERSION);
-  }
-
-  private static boolean childMode() {
-    return Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY));
   }
 }
