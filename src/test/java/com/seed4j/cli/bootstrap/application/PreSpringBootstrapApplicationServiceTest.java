@@ -3,6 +3,7 @@ package com.seed4j.cli.bootstrap.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapEntryPoint;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,9 +39,9 @@ class PreSpringBootstrapApplicationServiceTest {
       """
     );
     PreSpringLauncherAssembler assembler = new PreSpringLauncherAssembler();
-    PreSpringBootstrapApplicationService service = assembler.assemble(userHome, Path.of("seed4j-cli.jar"), "2.2.0", true);
+    PreSpringBootstrapEntryPoint entryPoint = assembler.assemble(userHome, Path.of("seed4j-cli.jar"), "2.2.0", true);
 
-    int exitCode = service.launch(new String[] { "--version" });
+    int exitCode = entryPoint.launch(new String[] { "--version" });
 
     assertThat(exitCode).isZero();
   }

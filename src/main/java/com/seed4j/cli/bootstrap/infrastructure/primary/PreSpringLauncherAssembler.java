@@ -20,12 +20,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 public class PreSpringLauncherAssembler {
 
-  public PreSpringBootstrapApplicationService assemble(
-    Path userHomePath,
-    Path executablePath,
-    String currentSeed4JVersion,
-    boolean childMode
-  ) {
+  public PreSpringBootstrapEntryPoint assemble(Path userHomePath, Path executablePath, String currentSeed4JVersion, boolean childMode) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       defaultJavaExecutable(),
@@ -41,7 +36,11 @@ public class PreSpringLauncherAssembler {
       launcherDependencies
     );
 
-    return new PreSpringBootstrapApplicationService(launcher::launch, childMode);
+    PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
+      launcher::launch,
+      childMode
+    );
+    return preSpringBootstrapApplicationService::launch;
   }
 
   private static Path defaultJavaExecutable() {

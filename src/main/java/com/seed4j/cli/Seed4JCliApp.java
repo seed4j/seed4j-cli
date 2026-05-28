@@ -1,8 +1,8 @@
 package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
-import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapEntryPoint;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.net.URISyntaxException;
@@ -31,8 +31,8 @@ public class Seed4JCliApp {
     BootstrapEntryPoint create();
   }
 
-  interface PreSpringBootstrapApplicationServiceFactory {
-    PreSpringBootstrapApplicationService create(Path userHomePath, boolean childMode);
+  interface PreSpringBootstrapEntryPointFactory {
+    BootstrapEntryPoint create(Path userHomePath, boolean childMode);
   }
 
   static void main(String[] args) {
@@ -46,20 +46,22 @@ public class Seed4JCliApp {
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
     return productionBootstrapEntryPoint(userHomePath, childMode, (requestedUserHomePath, requestedChildMode) ->
-      new PreSpringLauncherAssembler().assemble(requestedUserHomePath, executablePath(), currentSeed4JVersion(), requestedChildMode)
+      toBootstrapEntryPoint(
+        new PreSpringLauncherAssembler().assemble(requestedUserHomePath, executablePath(), currentSeed4JVersion(), requestedChildMode)
+      )
     );
   }
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(
     Path userHomePath,
     boolean childMode,
-    PreSpringBootstrapApplicationServiceFactory preSpringBootstrapApplicationServiceFactory
+    PreSpringBootstrapEntryPointFactory preSpringBootstrapEntryPointFactory
   ) {
-    PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = preSpringBootstrapApplicationServiceFactory.create(
-      userHomePath,
-      childMode
-    );
-    return preSpringBootstrapApplicationService::launch;
+    return preSpringBootstrapEntryPointFactory.create(userHomePath, childMode);
+  }
+
+  private static BootstrapEntryPoint toBootstrapEntryPoint(PreSpringBootstrapEntryPoint preSpringBootstrapEntryPoint) {
+    return preSpringBootstrapEntryPoint::launch;
   }
 
   private static Path userHomePath() {
