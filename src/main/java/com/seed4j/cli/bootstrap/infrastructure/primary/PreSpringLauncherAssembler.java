@@ -2,16 +2,13 @@ package com.seed4j.cli.bootstrap.infrastructure.primary;
 
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner;
 import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner.ApplicationBuilder;
 import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner.ApplicationContext;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
-import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -22,9 +19,10 @@ public class PreSpringLauncherAssembler {
 
   public PreSpringBootstrapEntryPoint assemble(Path userHomePath, Path executablePath, String currentSeed4JVersion, boolean childMode) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
+    JavaChildProcessCommandExecutor javaChildProcessCommandExecutor = new JavaChildProcessCommandExecutor();
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       defaultJavaExecutable(),
-      PreSpringLauncherAssembler::executeCommand,
+      javaChildProcessCommandExecutor::execute,
       PreSpringLauncherAssembler::applicationBuilder,
       PreSpringLauncherAssembler::resolveExitCode
     );
@@ -45,18 +43,6 @@ public class PreSpringLauncherAssembler {
 
   private static Path defaultJavaExecutable() {
     return Path.of(System.getProperty("java.home"), "bin", "java");
-  }
-
-  private static int executeCommand(List<String> command) {
-    try {
-      Process process = new ProcessBuilder(command).inheritIO().start();
-      return process.waitFor();
-    } catch (IOException ioException) {
-      throw InvalidRuntimeConfigurationException.technicalError("Could not launch child process.", ioException);
-    } catch (InterruptedException interruptedException) {
-      Thread.currentThread().interrupt();
-      throw InvalidRuntimeConfigurationException.technicalError("Child process execution was interrupted.", interruptedException);
-    }
   }
 
   private static LocalSpringCliRunner.ApplicationBuilder applicationBuilder() {
