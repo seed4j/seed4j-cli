@@ -51,6 +51,17 @@ class Seed4JCliLauncherFactoryTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     RecordingCommandExecutor commandExecutor = new RecordingCommandExecutor();
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RuntimeModeConfigurationRepository() {
+      @Override
+      public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+        throw new UnsupportedOperationException("Not required in this test.");
+      }
+
+      @Override
+      public RuntimeMode readMode() {
+        return RuntimeMode.STANDARD;
+      }
+    };
     Seed4JCliLauncherFactory factory = new Seed4JCliLauncherFactory();
     Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       Path.of("/opt/jdk/bin/java"),
@@ -63,7 +74,7 @@ class Seed4JCliLauncherFactoryTest {
       }
     );
 
-    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "2.2.0", dependencies);
+    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "2.2.0", runtimeModeConfigurationRepository, dependencies);
 
     int exitCode = launcher.launch(new String[] { "--version" });
 

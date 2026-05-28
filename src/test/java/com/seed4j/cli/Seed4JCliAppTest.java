@@ -3,7 +3,9 @@ package com.seed4j.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.Seed4JCliApp.BootstrapEntryPoint;
+import com.seed4j.cli.Seed4JCliApp.PreSpringBootstrapApplicationServiceFactory;
 import com.seed4j.cli.Seed4JCliApp.ProductionBootstrapEntryPointFactory;
+import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,6 +58,22 @@ class Seed4JCliAppTest {
     );
 
     assertThat(exitHandler.exitCode()).isZero();
+  }
+
+  @Test
+  void shouldDelegateProductionBootstrapEntryPointCreationToThePreSpringApplicationServiceFactory() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    RecordingPreSpringBootstrapApplicationServiceFactory preSpringBootstrapApplicationServiceFactory =
+      new RecordingPreSpringBootstrapApplicationServiceFactory();
+
+    int exitCode = Seed4JCliApp.productionBootstrapEntryPoint(userHome, true, preSpringBootstrapApplicationServiceFactory).launch(
+      new String[] { "--version" }
+    );
+
+    assertThat(exitCode).isEqualTo(43);
+    assertThat(preSpringBootstrapApplicationServiceFactory.userHome()).isEqualTo(userHome);
+    assertThat(preSpringBootstrapApplicationServiceFactory.childMode()).isTrue();
+    assertThat(preSpringBootstrapApplicationServiceFactory.arguments()).containsExactly("--version");
   }
 
   @Test
@@ -146,6 +164,38 @@ class Seed4JCliAppTest {
 
     Integer exitCode() {
       return exitCode;
+    }
+  }
+
+  private static final class RecordingPreSpringBootstrapApplicationServiceFactory implements PreSpringBootstrapApplicationServiceFactory {
+
+    private Path userHome;
+    private Boolean childMode;
+    private String[] arguments;
+
+    @Override
+    public PreSpringBootstrapApplicationService create(Path userHomePath, boolean childMode) {
+      this.userHome = userHomePath;
+      this.childMode = childMode;
+      return new PreSpringBootstrapApplicationService(
+        (args, ignoredChildMode) -> {
+          this.arguments = args;
+          return 43;
+        },
+        childMode
+      );
+    }
+
+    Path userHome() {
+      return userHome;
+    }
+
+    Boolean childMode() {
+      return childMode;
+    }
+
+    String[] arguments() {
+      return arguments;
     }
   }
 }

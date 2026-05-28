@@ -1,6 +1,5 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -18,7 +17,13 @@ public class Seed4JCliLauncherFactory {
     LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
   ) {}
 
-  public Seed4JCliLauncher create(Path userHome, Path executableJar, String currentSeed4JVersion, LauncherDependencies dependencies) {
+  public Seed4JCliLauncher create(
+    Path userHome,
+    Path executableJar,
+    String currentSeed4JVersion,
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
+    LauncherDependencies dependencies
+  ) {
     LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(
       dependencies.applicationBuilderFactory(),
       dependencies.exitCodeResolver(),
@@ -28,7 +33,6 @@ public class Seed4JCliLauncherFactory {
       dependencies.javaExecutable(),
       dependencies.commandExecutor()::execute
     );
-    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new FileSystemRuntimeModeConfigurationRepository(userHome);
     return new Seed4JCliLauncher(
       userHome,
       executableJar,
