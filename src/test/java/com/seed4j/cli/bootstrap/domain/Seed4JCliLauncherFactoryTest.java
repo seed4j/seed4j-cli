@@ -91,7 +91,7 @@ class Seed4JCliLauncherFactoryTest {
     );
   }
 
-  private static final class RecordingCommandExecutor implements Seed4JCliLauncherFactory.CommandExecutor {
+  private static final class RecordingCommandExecutor implements ProcessCommandExecutor {
 
     private List<String> command;
 

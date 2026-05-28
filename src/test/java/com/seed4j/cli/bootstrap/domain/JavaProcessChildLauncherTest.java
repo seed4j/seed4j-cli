@@ -43,7 +43,7 @@ class JavaProcessChildLauncherTest {
     );
   }
 
-  private static final class RecordingProcessExecutor implements JavaProcessChildLauncher.ProcessExecutor {
+  private static final class RecordingProcessExecutor implements ProcessCommandExecutor {
 
     private List<String> command;
 

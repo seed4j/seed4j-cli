@@ -8,6 +8,7 @@ import com.seed4j.cli.bootstrap.domain.LocalSpringCliRunner.ApplicationContext;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
 import java.nio.file.Path;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
@@ -19,10 +20,9 @@ public class PreSpringLauncherAssembler {
 
   public PreSpringBootstrapEntryPoint assemble(Path userHomePath, Path executablePath, String currentSeed4JVersion, boolean childMode) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
-    JavaChildProcessCommandExecutor javaChildProcessCommandExecutor = new JavaChildProcessCommandExecutor();
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       defaultJavaExecutable(),
-      javaChildProcessCommandExecutor::execute,
+      new JavaChildProcessCommandExecutor(),
       PreSpringLauncherAssembler::applicationBuilder,
       PreSpringLauncherAssembler::resolveExitCode
     );

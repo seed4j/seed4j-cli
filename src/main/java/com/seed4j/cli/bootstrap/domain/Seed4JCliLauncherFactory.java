@@ -1,18 +1,12 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import java.nio.file.Path;
-import java.util.List;
 
 public class Seed4JCliLauncherFactory {
 
-  @FunctionalInterface
-  public interface CommandExecutor {
-    int execute(List<String> command);
-  }
-
   public record LauncherDependencies(
     Path javaExecutable,
-    CommandExecutor commandExecutor,
+    ProcessCommandExecutor commandExecutor,
     LocalSpringCliRunner.ApplicationBuilderFactory applicationBuilderFactory,
     LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
   ) {}
@@ -29,10 +23,7 @@ public class Seed4JCliLauncherFactory {
       dependencies.exitCodeResolver(),
       () -> userHome
     );
-    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(
-      dependencies.javaExecutable(),
-      dependencies.commandExecutor()::execute
-    );
+    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(dependencies.javaExecutable(), dependencies.commandExecutor());
     return new Seed4JCliLauncher(
       userHome,
       executableJar,

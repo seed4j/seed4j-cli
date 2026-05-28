@@ -7,15 +7,10 @@ import java.util.Map;
 
 class JavaProcessChildLauncher implements ChildProcessLauncher {
 
-  @FunctionalInterface
-  public interface ProcessExecutor {
-    int execute(List<String> command);
-  }
-
   private final Path javaExecutable;
-  private final ProcessExecutor processExecutor;
+  private final ProcessCommandExecutor processExecutor;
 
-  public JavaProcessChildLauncher(Path javaExecutable, ProcessExecutor processExecutor) {
+  public JavaProcessChildLauncher(Path javaExecutable, ProcessCommandExecutor processExecutor) {
     this.javaExecutable = javaExecutable;
     this.processExecutor = processExecutor;
   }
