@@ -2,7 +2,6 @@ package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapEntryPoint;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.net.URISyntaxException;
@@ -37,13 +36,7 @@ public class Seed4JCliApp {
   }
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
-    return toBootstrapEntryPoint(
-      new PreSpringLauncherAssembler().assemble(userHomePath, executablePath(), currentSeed4JVersion(), childMode)
-    );
-  }
-
-  private static BootstrapEntryPoint toBootstrapEntryPoint(PreSpringBootstrapEntryPoint preSpringBootstrapEntryPoint) {
-    return preSpringBootstrapEntryPoint::launch;
+    return new PreSpringLauncherAssembler().assemble(userHomePath, executablePath(), currentSeed4JVersion(), childMode)::launch;
   }
 
   private static Path userHomePath() {
