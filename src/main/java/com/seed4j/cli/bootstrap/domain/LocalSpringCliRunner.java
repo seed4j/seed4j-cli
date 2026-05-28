@@ -64,10 +64,7 @@ public class LocalSpringCliRunner implements LocalCliRunner {
       builder.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath));
     }
     extensionStartClass().ifPresent(startClass -> builder.properties(SPRING_MAIN_SOURCES_TEMPLATE.formatted(startClass)));
-    builder.bannerMode(Banner.Mode.OFF);
-    builder.web(WebApplicationType.NONE);
-    builder.lazyInitialization(true);
-    ApplicationContext context = builder.run(args);
+    ApplicationContext context = builder.bannerMode(Banner.Mode.OFF).web(WebApplicationType.NONE).lazyInitialization(true).run(args);
     return exitCodeResolver.resolve(context);
   }
 
