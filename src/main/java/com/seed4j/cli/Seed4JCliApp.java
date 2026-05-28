@@ -4,6 +4,7 @@ import com.seed4j.Seed4JApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
+import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,11 +82,10 @@ public class Seed4JCliApp {
       return executablePathFromCommand.orElseThrow();
     }
 
-    String pathSeparator = System.getProperty("path.separator");
     return Optional.ofNullable(javaClassPath)
       .filter(classPath -> !classPath.isBlank())
       .stream()
-      .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(pathSeparator))))
+      .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(File.pathSeparator))))
       .map(String::trim)
       .map(Seed4JCliApp::regularJarPath)
       .flatMap(Optional::stream)
