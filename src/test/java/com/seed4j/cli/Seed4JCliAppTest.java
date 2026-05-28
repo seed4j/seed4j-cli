@@ -3,11 +3,10 @@ package com.seed4j.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.Seed4JCliApp.BootstrapEntryPoint;
-import com.seed4j.cli.Seed4JCliApp.PreSpringBootstrapEntryPointFactory;
-import com.seed4j.cli.Seed4JCliApp.ProductionBootstrapEntryPointFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -16,10 +15,9 @@ class Seed4JCliAppTest {
   @Test
   void shouldForwardArgumentsWhenRunningProductionPath() {
     RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
-    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
     RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
 
     assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
   }
@@ -27,10 +25,9 @@ class Seed4JCliAppTest {
   @Test
   void shouldExitWithCodeReturnedByProductionBootstrapWhenRunningProductionPath() {
     RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint(79);
-    RecordingBootstrapEntryPointFactory bootstrapEntryPointFactory = new RecordingBootstrapEntryPointFactory(bootstrapEntryPoint);
     RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPointFactory, exitHandler);
+    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
 
     assertThat(exitHandler.exitCode()).isEqualTo(79);
   }
@@ -50,11 +47,7 @@ class Seed4JCliAppTest {
     );
     RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    Seed4JCliApp.runProductionPath(
-      new String[] { "--version" },
-      () -> Seed4JCliApp.productionBootstrapEntryPoint(userHome, true),
-      exitHandler
-    );
+    Seed4JCliApp.runProductionPath(new String[] { "--version" }, Seed4JCliApp.productionBootstrapEntryPoint(userHome, true), exitHandler);
 
     assertThat(exitHandler.exitCode()).isZero();
   }
@@ -142,15 +135,6 @@ class Seed4JCliAppTest {
     }
   }
 
-  private record RecordingBootstrapEntryPointFactory(
-    BootstrapEntryPoint bootstrapEntryPoint
-  ) implements ProductionBootstrapEntryPointFactory {
-    @Override
-    public BootstrapEntryPoint create() {
-      return bootstrapEntryPoint;
-    }
-  }
-
   private static final class RecordingExitHandler implements Seed4JCliApp.ExitHandler {
 
     private Integer exitCode;
@@ -165,14 +149,14 @@ class Seed4JCliAppTest {
     }
   }
 
-  private static final class RecordingPreSpringBootstrapEntryPointFactory implements PreSpringBootstrapEntryPointFactory {
+  private static final class RecordingPreSpringBootstrapEntryPointFactory implements BiFunction<Path, Boolean, BootstrapEntryPoint> {
 
     private Path userHome;
     private Boolean childMode;
     private String[] arguments;
 
     @Override
-    public BootstrapEntryPoint create(Path userHomePath, boolean childMode) {
+    public BootstrapEntryPoint apply(Path userHomePath, Boolean childMode) {
       this.userHome = userHomePath;
       this.childMode = childMode;
       return args -> {

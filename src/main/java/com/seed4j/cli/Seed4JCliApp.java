@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackageClasses = { Seed4JApp.class, Seed4JCliApp.class })
@@ -27,20 +28,12 @@ public class Seed4JCliApp {
     void exit(int exitCode);
   }
 
-  interface ProductionBootstrapEntryPointFactory {
-    BootstrapEntryPoint create();
-  }
-
-  interface PreSpringBootstrapEntryPointFactory {
-    BootstrapEntryPoint create(Path userHomePath, boolean childMode);
-  }
-
   static void main(String[] args) {
-    runProductionPath(args, () -> productionBootstrapEntryPoint(userHomePath(), childMode()), System::exit);
+    runProductionPath(args, productionBootstrapEntryPoint(userHomePath(), childMode()), System::exit);
   }
 
-  static void runProductionPath(String[] args, ProductionBootstrapEntryPointFactory bootstrapEntryPointFactory, ExitHandler exitHandler) {
-    int exitCode = bootstrapEntryPointFactory.create().launch(args);
+  static void runProductionPath(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
+    int exitCode = bootstrapEntryPoint.launch(args);
     exitHandler.exit(exitCode);
   }
 
@@ -55,9 +48,9 @@ public class Seed4JCliApp {
   static BootstrapEntryPoint productionBootstrapEntryPoint(
     Path userHomePath,
     boolean childMode,
-    PreSpringBootstrapEntryPointFactory preSpringBootstrapEntryPointFactory
+    BiFunction<Path, Boolean, BootstrapEntryPoint> preSpringBootstrapEntryPointFactory
   ) {
-    return preSpringBootstrapEntryPointFactory.create(userHomePath, childMode);
+    return preSpringBootstrapEntryPointFactory.apply(userHomePath, childMode);
   }
 
   private static BootstrapEntryPoint toBootstrapEntryPoint(PreSpringBootstrapEntryPoint preSpringBootstrapEntryPoint) {
