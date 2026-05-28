@@ -2,11 +2,9 @@ package com.seed4j.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.seed4j.cli.Seed4JCliApp.BootstrapEntryPoint;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -50,21 +48,6 @@ class Seed4JCliAppTest {
     Seed4JCliApp.runProductionPath(new String[] { "--version" }, Seed4JCliApp.productionBootstrapEntryPoint(userHome, true), exitHandler);
 
     assertThat(exitHandler.exitCode()).isZero();
-  }
-
-  @Test
-  void shouldDelegateProductionBootstrapEntryPointCreationToThePreSpringEntryPointFactory() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-");
-    RecordingPreSpringBootstrapEntryPointFactory preSpringBootstrapEntryPointFactory = new RecordingPreSpringBootstrapEntryPointFactory();
-
-    int exitCode = Seed4JCliApp.productionBootstrapEntryPoint(userHome, true, preSpringBootstrapEntryPointFactory).launch(
-      new String[] { "--version" }
-    );
-
-    assertThat(exitCode).isEqualTo(43);
-    assertThat(preSpringBootstrapEntryPointFactory.userHome()).isEqualTo(userHome);
-    assertThat(preSpringBootstrapEntryPointFactory.childMode()).isTrue();
-    assertThat(preSpringBootstrapEntryPointFactory.arguments()).containsExactly("--version");
   }
 
   @Test
@@ -146,35 +129,6 @@ class Seed4JCliAppTest {
 
     Integer exitCode() {
       return exitCode;
-    }
-  }
-
-  private static final class RecordingPreSpringBootstrapEntryPointFactory implements BiFunction<Path, Boolean, BootstrapEntryPoint> {
-
-    private Path userHome;
-    private Boolean childMode;
-    private String[] arguments;
-
-    @Override
-    public BootstrapEntryPoint apply(Path userHomePath, Boolean childMode) {
-      this.userHome = userHomePath;
-      this.childMode = childMode;
-      return args -> {
-        this.arguments = args;
-        return 43;
-      };
-    }
-
-    Path userHome() {
-      return userHome;
-    }
-
-    Boolean childMode() {
-      return childMode;
-    }
-
-    String[] arguments() {
-      return arguments;
     }
   }
 }

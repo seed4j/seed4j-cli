@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackageClasses = { Seed4JApp.class, Seed4JCliApp.class })
@@ -38,19 +37,9 @@ public class Seed4JCliApp {
   }
 
   static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
-    return productionBootstrapEntryPoint(userHomePath, childMode, (requestedUserHomePath, requestedChildMode) ->
-      toBootstrapEntryPoint(
-        new PreSpringLauncherAssembler().assemble(requestedUserHomePath, executablePath(), currentSeed4JVersion(), requestedChildMode)
-      )
+    return toBootstrapEntryPoint(
+      new PreSpringLauncherAssembler().assemble(userHomePath, executablePath(), currentSeed4JVersion(), childMode)
     );
-  }
-
-  static BootstrapEntryPoint productionBootstrapEntryPoint(
-    Path userHomePath,
-    boolean childMode,
-    BiFunction<Path, Boolean, BootstrapEntryPoint> preSpringBootstrapEntryPointFactory
-  ) {
-    return preSpringBootstrapEntryPointFactory.apply(userHomePath, childMode);
   }
 
   private static BootstrapEntryPoint toBootstrapEntryPoint(PreSpringBootstrapEntryPoint preSpringBootstrapEntryPoint) {
