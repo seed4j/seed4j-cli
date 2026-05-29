@@ -1,21 +1,24 @@
 package com.seed4j.cli.bootstrap.application;
 
+import com.seed4j.cli.shared.error.domain.Assert;
+
 public class PreSpringBootstrapApplicationService {
 
-  @FunctionalInterface
-  public interface Launcher {
-    int launch(String[] args, boolean childMode);
+  private final PreSpringLauncherFactory preSpringLauncherFactory;
+
+  public PreSpringBootstrapApplicationService(PreSpringLauncherFactory preSpringLauncherFactory) {
+    Assert.notNull("preSpringLauncherFactory", preSpringLauncherFactory);
+    this.preSpringLauncherFactory = preSpringLauncherFactory;
   }
 
-  private final Launcher launcher;
-  private final boolean childMode;
-
-  public PreSpringBootstrapApplicationService(Launcher launcher, boolean childMode) {
-    this.launcher = launcher;
-    this.childMode = childMode;
-  }
-
-  public int launch(String[] args) {
-    return launcher.launch(args, childMode);
+  public int exitCodeFor(PreSpringBootstrapCommand command) {
+    Assert.notNull("command", command);
+    PreSpringBootstrapCommand sanitizedCommand = command;
+    PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(
+      sanitizedCommand.userHomePath(),
+      sanitizedCommand.executablePath(),
+      sanitizedCommand.currentSeed4JVersion()
+    );
+    return preSpringLauncher.launch(sanitizedCommand.args(), sanitizedCommand.childMode());
   }
 }

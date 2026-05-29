@@ -19,16 +19,13 @@ public class Seed4JCliApp {
   private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
   private static final String DEFAULT_CLI_VERSION = "0.0.0-SNAPSHOT";
 
-  interface BootstrapEntryPoint {
-    int launch(String[] args);
-  }
-
-  interface ExitHandler {
-    void exit(int exitCode);
+  interface BootstrapExitCodeResolver {
+    int exitCodeFor(String[] args);
   }
 
   static void main(String[] args) {
-    runProductionPath(args, productionBootstrapEntryPoint(userHomePath(), childMode()), System::exit);
+    int exitCode = productionExitCode(args, productionBootstrapExitCodeResolver(userHomePath(), childMode()));
+    System.exit(exitCode);
   }
 
   private static Path userHomePath() {
@@ -39,13 +36,20 @@ public class Seed4JCliApp {
     return Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY));
   }
 
-  static void runProductionPath(String[] args, BootstrapEntryPoint bootstrapEntryPoint, ExitHandler exitHandler) {
-    int exitCode = bootstrapEntryPoint.launch(args);
-    exitHandler.exit(exitCode);
+  static int productionExitCode(String[] args, BootstrapExitCodeResolver bootstrapExitCodeResolver) {
+    return bootstrapExitCodeResolver.exitCodeFor(args);
   }
 
-  static BootstrapEntryPoint productionBootstrapEntryPoint(Path userHomePath, boolean childMode) {
-    return new PreSpringLauncherAssembler().assemble(userHomePath, executablePath(), currentSeed4JVersion(), childMode)::launch;
+  static BootstrapExitCodeResolver productionBootstrapExitCodeResolver(Path userHomePath, boolean childMode) {
+    return productionBootstrapExitCodeResolver(userHomePath, childMode, new PreSpringLauncherAssembler());
+  }
+
+  static BootstrapExitCodeResolver productionBootstrapExitCodeResolver(
+    Path userHomePath,
+    boolean childMode,
+    PreSpringLauncherAssembler preSpringLauncherAssembler
+  ) {
+    return args -> preSpringLauncherAssembler.exitCodeFor(userHomePath, executablePath(), currentSeed4JVersion(), childMode, args);
   }
 
   private static String currentSeed4JVersion() {

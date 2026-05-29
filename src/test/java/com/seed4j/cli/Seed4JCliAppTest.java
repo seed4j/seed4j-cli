@@ -12,22 +12,20 @@ class Seed4JCliAppTest {
 
   @Test
   void shouldForwardArgumentsWhenRunningProductionPath() {
-    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint();
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
+    RecordingBootstrapExitCodeResolver bootstrapExitCodeResolver = new RecordingBootstrapExitCodeResolver();
 
-    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
+    Seed4JCliApp.productionExitCode(new String[] { "--version" }, bootstrapExitCodeResolver);
 
-    assertThat(bootstrapEntryPoint.arguments()).containsExactly("--version");
+    assertThat(bootstrapExitCodeResolver.arguments()).containsExactly("--version");
   }
 
   @Test
   void shouldExitWithCodeReturnedByProductionBootstrapWhenRunningProductionPath() {
-    RecordingBootstrapEntryPoint bootstrapEntryPoint = new RecordingBootstrapEntryPoint(79);
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
+    RecordingBootstrapExitCodeResolver bootstrapExitCodeResolver = new RecordingBootstrapExitCodeResolver(79);
 
-    Seed4JCliApp.runProductionPath(new String[] { "--version" }, bootstrapEntryPoint, exitHandler);
+    int exitCode = Seed4JCliApp.productionExitCode(new String[] { "--version" }, bootstrapExitCodeResolver);
 
-    assertThat(exitHandler.exitCode()).isEqualTo(79);
+    assertThat(exitCode).isEqualTo(79);
   }
 
   @Test
@@ -43,11 +41,13 @@ class Seed4JCliAppTest {
           mode: standard
       """
     );
-    RecordingExitHandler exitHandler = new RecordingExitHandler();
 
-    Seed4JCliApp.runProductionPath(new String[] { "--version" }, Seed4JCliApp.productionBootstrapEntryPoint(userHome, true), exitHandler);
+    int exitCode = Seed4JCliApp.productionExitCode(
+      new String[] { "--version" },
+      Seed4JCliApp.productionBootstrapExitCodeResolver(userHome, true)
+    );
 
-    assertThat(exitHandler.exitCode()).isZero();
+    assertThat(exitCode).isZero();
   }
 
   @Test
@@ -94,41 +94,27 @@ class Seed4JCliAppTest {
     assertThat(executablePath).isEqualTo(executableJarPath);
   }
 
-  private static final class RecordingBootstrapEntryPoint implements Seed4JCliApp.BootstrapEntryPoint {
+  private static final class RecordingBootstrapExitCodeResolver implements Seed4JCliApp.BootstrapExitCodeResolver {
 
     private final int exitCode;
     private String[] arguments;
 
-    private RecordingBootstrapEntryPoint() {
+    private RecordingBootstrapExitCodeResolver() {
       this(23);
     }
 
-    private RecordingBootstrapEntryPoint(int exitCode) {
+    private RecordingBootstrapExitCodeResolver(int exitCode) {
       this.exitCode = exitCode;
     }
 
     @Override
-    public int launch(String[] args) {
+    public int exitCodeFor(String[] args) {
       this.arguments = args;
       return exitCode;
     }
 
     String[] arguments() {
       return arguments;
-    }
-  }
-
-  private static final class RecordingExitHandler implements Seed4JCliApp.ExitHandler {
-
-    private Integer exitCode;
-
-    @Override
-    public void exit(int exitCode) {
-      this.exitCode = exitCode;
-    }
-
-    Integer exitCode() {
-      return exitCode;
     }
   }
 }
