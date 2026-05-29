@@ -17,9 +17,6 @@ public class RuntimeExtensionApplicationService {
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository
   ) {
-    Assert.notNull("userHome", userHome);
-    Assert.notNull("runtimeModeConfigurationRepository", runtimeModeConfigurationRepository);
-    Assert.notNull("runtimeExtensionArtifactsRepository", runtimeExtensionArtifactsRepository);
     this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(
       userHome,
       runtimeModeConfigurationRepository,

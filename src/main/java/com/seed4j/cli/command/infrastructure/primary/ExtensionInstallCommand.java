@@ -4,7 +4,6 @@ import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
-import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
@@ -23,7 +22,6 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private final CommandSpec commandSpec;
 
   ExtensionInstallCommand(RuntimeExtensionApplicationService runtimeExtensionApplicationService) {
-    Assert.notNull("runtimeExtensionApplicationService", runtimeExtensionApplicationService);
     this.runtimeExtensionApplicationService = runtimeExtensionApplicationService;
     this.commandSpec = buildCommandSpec();
   }
