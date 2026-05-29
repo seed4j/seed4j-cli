@@ -110,6 +110,38 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
   }
 
   @Test
+  void shouldKeepCodeSourcePathWhenCodeSourceIsARegularJar() throws IOException {
+    Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path codeSourceJarPath = workingDirectory.resolve("seed4j-cli.jar");
+    Files.writeString(codeSourceJarPath, "jar");
+
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
+      codeSourceJarPath,
+      "org.springframework.boot.loader.launch.PropertiesLauncher --version",
+      "",
+      workingDirectory
+    );
+
+    assertThat(executablePath).isEqualTo(codeSourceJarPath);
+  }
+
+  @Test
+  void shouldFallbackToCodeSourcePathWhenJavaCommandAndClasspathAreBlank() throws IOException {
+    Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path codeSourcePath = workingDirectory.resolve("classes.bin");
+    Files.writeString(codeSourcePath, "classes");
+
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
+      codeSourcePath,
+      "   ",
+      "   ",
+      workingDirectory
+    );
+
+    assertThat(executablePath).isEqualTo(codeSourcePath);
+  }
+
+  @Test
   void shouldResolveCurrentSeed4JVersionUsingFallbackWhenImplementationVersionIsNullOrBlank() {
     String versionWhenNull = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveCurrentSeed4JVersion(null);
     String versionWhenBlank = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveCurrentSeed4JVersion(" ");
