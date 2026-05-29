@@ -10,24 +10,32 @@ import org.junit.jupiter.api.Test;
 class PreSpringBootstrapApplicationServiceTest {
 
   @Test
-  void shouldCreateLauncherFromCommandDataAndDelegateLaunchArgumentsAndChildMode() {
+  void shouldReadRuntimeEnvironmentFromProviderAndDelegateArgsChildModeAndFactoryInputs() {
     RecordingPreSpringLauncher recordingPreSpringLauncher = new RecordingPreSpringLauncher(37);
     RecordingPreSpringLauncherFactory recordingPreSpringLauncherFactory = new RecordingPreSpringLauncherFactory(recordingPreSpringLauncher);
-    PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(recordingPreSpringLauncherFactory);
-    PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       Path.of("/home/user"),
       Path.of("/tmp/seed4j-cli.jar"),
       "2.2.0",
       true,
-      new String[] { "--version" }
+      Path.of("/tmp/jdk/bin/java")
     );
+    RecordingPreSpringRuntimeEnvironmentProvider recordingPreSpringRuntimeEnvironmentProvider =
+      new RecordingPreSpringRuntimeEnvironmentProvider(runtimeEnvironment);
+    PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(
+      recordingPreSpringLauncherFactory,
+      recordingPreSpringRuntimeEnvironmentProvider
+    );
+    PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(new String[] { "--version" });
 
     int exitCode = service.exitCodeFor(command);
 
     assertThat(exitCode).isEqualTo(37);
+    assertThat(recordingPreSpringRuntimeEnvironmentProvider.currentCalls()).isEqualTo(1);
     assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
     assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
     assertThat(recordingPreSpringLauncherFactory.currentSeed4JVersion()).isEqualTo("2.2.0");
+    assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of("/tmp/jdk/bin/java"));
     assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
     assertThat(recordingPreSpringLauncher.childMode()).isTrue();
   }
@@ -64,16 +72,18 @@ class PreSpringBootstrapApplicationServiceTest {
     private Path userHomePath;
     private Path executablePath;
     private String currentSeed4JVersion;
+    private Path javaExecutablePath;
 
     private RecordingPreSpringLauncherFactory(RecordingPreSpringLauncher preSpringLauncher) {
       this.preSpringLauncher = preSpringLauncher;
     }
 
     @Override
-    public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion) {
+    public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion, Path javaExecutablePath) {
       this.userHomePath = userHomePath;
       this.executablePath = executablePath;
       this.currentSeed4JVersion = currentSeed4JVersion;
+      this.javaExecutablePath = javaExecutablePath;
       return preSpringLauncher;
     }
 
@@ -87,6 +97,30 @@ class PreSpringBootstrapApplicationServiceTest {
 
     String currentSeed4JVersion() {
       return currentSeed4JVersion;
+    }
+
+    Path javaExecutablePath() {
+      return javaExecutablePath;
+    }
+  }
+
+  private static final class RecordingPreSpringRuntimeEnvironmentProvider implements PreSpringRuntimeEnvironmentProvider {
+
+    private final PreSpringRuntimeEnvironment runtimeEnvironment;
+    private int currentCalls;
+
+    private RecordingPreSpringRuntimeEnvironmentProvider(PreSpringRuntimeEnvironment runtimeEnvironment) {
+      this.runtimeEnvironment = runtimeEnvironment;
+    }
+
+    @Override
+    public PreSpringRuntimeEnvironment current() {
+      currentCalls++;
+      return runtimeEnvironment;
+    }
+
+    int currentCalls() {
+      return currentCalls;
     }
   }
 }

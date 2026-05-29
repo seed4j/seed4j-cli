@@ -31,6 +31,7 @@ class PreSpringLauncherAssemblerTest {
     assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
     assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
     assertThat(recordingPreSpringLauncherFactory.currentSeed4JVersion()).isEqualTo("2.2.0");
+    assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of(System.getProperty("java.home"), "bin", "java"));
     assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
     assertThat(recordingPreSpringLauncher.childMode()).isTrue();
   }
@@ -87,16 +88,18 @@ class PreSpringLauncherAssemblerTest {
     private Path userHomePath;
     private Path executablePath;
     private String currentSeed4JVersion;
+    private Path javaExecutablePath;
 
     private RecordingPreSpringLauncherFactory(RecordingPreSpringLauncher preSpringLauncher) {
       this.preSpringLauncher = preSpringLauncher;
     }
 
     @Override
-    public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion) {
+    public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion, Path javaExecutablePath) {
       this.userHomePath = userHomePath;
       this.executablePath = executablePath;
       this.currentSeed4JVersion = currentSeed4JVersion;
+      this.javaExecutablePath = javaExecutablePath;
       return preSpringLauncher;
     }
 
@@ -110,6 +113,10 @@ class PreSpringLauncherAssemblerTest {
 
     String currentSeed4JVersion() {
       return currentSeed4JVersion;
+    }
+
+    Path javaExecutablePath() {
+      return javaExecutablePath;
     }
   }
 }

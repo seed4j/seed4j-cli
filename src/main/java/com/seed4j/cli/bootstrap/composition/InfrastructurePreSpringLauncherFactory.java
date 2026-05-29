@@ -20,10 +20,10 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class InfrastructurePreSpringLauncherFactory implements PreSpringLauncherFactory {
 
   @Override
-  public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion) {
+  public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion, Path javaExecutablePath) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      defaultJavaExecutable(),
+      javaExecutablePath,
       new JavaChildProcessCommandExecutor(),
       InfrastructurePreSpringLauncherFactory::applicationBuilder,
       InfrastructurePreSpringLauncherFactory::resolveExitCode
@@ -36,10 +36,6 @@ public class InfrastructurePreSpringLauncherFactory implements PreSpringLauncher
       launcherDependencies
     );
     return launcher::launch;
-  }
-
-  private static Path defaultJavaExecutable() {
-    return Path.of(System.getProperty("java.home"), "bin", "java");
   }
 
   private static LocalSpringCliRunner.ApplicationBuilder applicationBuilder() {
