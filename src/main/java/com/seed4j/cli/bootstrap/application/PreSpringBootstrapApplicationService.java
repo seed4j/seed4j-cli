@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.application;
 
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public class PreSpringBootstrapApplicationService {

@@ -2,7 +2,7 @@ package com.seed4j.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;

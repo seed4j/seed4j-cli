@@ -2,9 +2,9 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.Seed4JApp;
 import com.seed4j.cli.Seed4JCliApp;
-import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;

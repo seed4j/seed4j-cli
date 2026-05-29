@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapCommand;
-import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
