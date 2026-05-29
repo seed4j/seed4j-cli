@@ -3,7 +3,7 @@ package com.seed4j.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
+import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
@@ -30,15 +30,13 @@ class Seed4JCliAppTest {
 
   @Test
   void shouldBuildProductionBootstrapExitCodeResolverUsingPreWiredPrimaryAdapter() {
-    RecordingPreSpringLauncherAssembler preSpringLauncherAssembler = new RecordingPreSpringLauncherAssembler(61);
+    RecordingPreSpringBootstrapRunner preSpringBootstrapRunner = new RecordingPreSpringBootstrapRunner(61);
 
-    Seed4JCliApp.BootstrapExitCodeResolver bootstrapExitCodeResolver = (
-      (PreSpringLauncherAssembler) preSpringLauncherAssembler
-    )::exitCodeFor;
+    Seed4JCliApp.BootstrapExitCodeResolver bootstrapExitCodeResolver = preSpringBootstrapRunner::exitCodeFor;
     int exitCode = bootstrapExitCodeResolver.exitCodeFor(new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(61);
-    assertThat(preSpringLauncherAssembler.arguments()).containsExactly("--version");
+    assertThat(preSpringBootstrapRunner.arguments()).containsExactly("--version");
   }
 
   private static final class RecordingBootstrapExitCodeResolver implements Seed4JCliApp.BootstrapExitCodeResolver {
@@ -65,12 +63,12 @@ class Seed4JCliAppTest {
     }
   }
 
-  private static final class RecordingPreSpringLauncherAssembler extends PreSpringLauncherAssembler {
+  private static final class RecordingPreSpringBootstrapRunner extends PreSpringBootstrapRunner {
 
     private final int exitCode;
     private String[] arguments;
 
-    private RecordingPreSpringLauncherAssembler(int exitCode) {
+    private RecordingPreSpringBootstrapRunner(int exitCode) {
       super(
         new com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService(
           (userHomePath, executablePath, currentSeed4JVersion, javaExecutablePath) -> (args, childMode) -> exitCode,

@@ -4,18 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentProvider;
-import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
+import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class PreSpringBootstrapCompositionTest {
+class PreSpringBootstrapConfigurationTest {
 
   @Test
-  void shouldBuildPrimaryAssemblerFromCompositionUsingExplicitRuntimeProvider() throws IOException {
+  void shouldBuildPrimaryRunnerFromConfigurationUsingExplicitRuntimeReader() throws IOException {
     Path userHomePath = Files.createTempDirectory("seed4j-cli-");
     Path configPath = userHomePath.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
@@ -34,25 +34,25 @@ class PreSpringBootstrapCompositionTest {
       true,
       Path.of(System.getProperty("java.home"), "bin", "java")
     );
-    RecordingPreSpringRuntimeEnvironmentProvider preSpringRuntimeEnvironmentProvider = new RecordingPreSpringRuntimeEnvironmentProvider(
+    RecordingPreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader = new RecordingPreSpringRuntimeEnvironmentReader(
       runtimeEnvironment
     );
-    PreSpringLauncherAssembler preSpringLauncherAssembler = PreSpringBootstrapComposition.preSpringLauncherAssembler(
-      preSpringRuntimeEnvironmentProvider
+    PreSpringBootstrapRunner preSpringBootstrapRunner = PreSpringBootstrapConfiguration.preSpringBootstrapRunner(
+      preSpringRuntimeEnvironmentReader
     );
 
-    int exitCode = preSpringLauncherAssembler.exitCodeFor(new String[] { "--version" });
+    int exitCode = preSpringBootstrapRunner.exitCodeFor(new String[] { "--version" });
 
     assertThat(exitCode).isZero();
-    assertThat(preSpringRuntimeEnvironmentProvider.currentCalls()).isEqualTo(1);
+    assertThat(preSpringRuntimeEnvironmentReader.currentCalls()).isEqualTo(1);
   }
 
-  private static final class RecordingPreSpringRuntimeEnvironmentProvider implements PreSpringRuntimeEnvironmentProvider {
+  private static final class RecordingPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
 
     private final PreSpringRuntimeEnvironment runtimeEnvironment;
     private int currentCalls;
 
-    private RecordingPreSpringRuntimeEnvironmentProvider(PreSpringRuntimeEnvironment runtimeEnvironment) {
+    private RecordingPreSpringRuntimeEnvironmentReader(PreSpringRuntimeEnvironment runtimeEnvironment) {
       this.runtimeEnvironment = runtimeEnvironment;
     }
 

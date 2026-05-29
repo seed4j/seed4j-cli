@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class PreSpringBootstrapApplicationServiceTest {
 
   @Test
-  void shouldReadRuntimeEnvironmentFromProviderAndDelegateArgsChildModeAndFactoryInputs() {
+  void shouldReadRuntimeEnvironmentFromReaderAndDelegateArgsChildModeAndFactoryInputs() {
     RecordingPreSpringLauncher recordingPreSpringLauncher = new RecordingPreSpringLauncher(37);
     RecordingPreSpringLauncherFactory recordingPreSpringLauncherFactory = new RecordingPreSpringLauncherFactory(recordingPreSpringLauncher);
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
@@ -20,18 +20,19 @@ class PreSpringBootstrapApplicationServiceTest {
       true,
       Path.of("/tmp/jdk/bin/java")
     );
-    RecordingPreSpringRuntimeEnvironmentProvider recordingPreSpringRuntimeEnvironmentProvider =
-      new RecordingPreSpringRuntimeEnvironmentProvider(runtimeEnvironment);
+    RecordingPreSpringRuntimeEnvironmentReader recordingPreSpringRuntimeEnvironmentReader = new RecordingPreSpringRuntimeEnvironmentReader(
+      runtimeEnvironment
+    );
     PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(
       recordingPreSpringLauncherFactory,
-      recordingPreSpringRuntimeEnvironmentProvider
+      recordingPreSpringRuntimeEnvironmentReader
     );
     PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(new String[] { "--version" });
 
     int exitCode = service.exitCodeFor(command);
 
     assertThat(exitCode).isEqualTo(37);
-    assertThat(recordingPreSpringRuntimeEnvironmentProvider.currentCalls()).isEqualTo(1);
+    assertThat(recordingPreSpringRuntimeEnvironmentReader.currentCalls()).isEqualTo(1);
     assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
     assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
     assertThat(recordingPreSpringLauncherFactory.currentSeed4JVersion()).isEqualTo("2.2.0");
@@ -104,12 +105,12 @@ class PreSpringBootstrapApplicationServiceTest {
     }
   }
 
-  private static final class RecordingPreSpringRuntimeEnvironmentProvider implements PreSpringRuntimeEnvironmentProvider {
+  private static final class RecordingPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
 
     private final PreSpringRuntimeEnvironment runtimeEnvironment;
     private int currentCalls;
 
-    private RecordingPreSpringRuntimeEnvironmentProvider(PreSpringRuntimeEnvironment runtimeEnvironment) {
+    private RecordingPreSpringRuntimeEnvironmentReader(PreSpringRuntimeEnvironment runtimeEnvironment) {
       this.runtimeEnvironment = runtimeEnvironment;
     }
 

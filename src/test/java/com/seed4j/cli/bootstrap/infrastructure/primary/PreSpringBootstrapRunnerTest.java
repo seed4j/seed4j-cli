@@ -10,16 +10,16 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class PreSpringLauncherAssemblerTest {
+class PreSpringBootstrapRunnerTest {
 
   @Test
   void shouldDelegateArgsToApplicationServiceAndReturnItsExitCode() {
     RecordingPreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new RecordingPreSpringBootstrapApplicationService(
       53
     );
-    PreSpringLauncherAssembler assembler = new PreSpringLauncherAssembler(preSpringBootstrapApplicationService);
+    PreSpringBootstrapRunner runner = new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
 
-    int exitCode = assembler.exitCodeFor(new String[] { "--version" });
+    int exitCode = runner.exitCodeFor(new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(53);
     assertThat(preSpringBootstrapApplicationService.receivedCommand().args()).containsExactly("--version");

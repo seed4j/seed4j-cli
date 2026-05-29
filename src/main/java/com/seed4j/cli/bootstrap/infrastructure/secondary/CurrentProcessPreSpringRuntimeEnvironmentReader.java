@@ -3,7 +3,7 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 import com.seed4j.Seed4JApp;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentProvider;
+import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import java.io.File;
 import java.net.URISyntaxException;
@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class CurrentProcessPreSpringRuntimeEnvironmentProvider implements PreSpringRuntimeEnvironmentProvider {
+public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
 
   private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
   private static final String DEFAULT_CLI_VERSION = "0.0.0-SNAPSHOT";
@@ -63,7 +63,7 @@ public class CurrentProcessPreSpringRuntimeEnvironmentProvider implements PreSpr
       .stream()
       .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(File.pathSeparator))))
       .map(String::trim)
-      .map(CurrentProcessPreSpringRuntimeEnvironmentProvider::regularJarPath)
+      .map(CurrentProcessPreSpringRuntimeEnvironmentReader::regularJarPath)
       .flatMap(Optional::stream)
       .findFirst()
       .orElse(codeSourcePath);
@@ -77,7 +77,7 @@ public class CurrentProcessPreSpringRuntimeEnvironmentProvider implements PreSpr
       .map(Path::of)
       .map(path -> path.isAbsolute() ? path : workingDirectory.resolve(path).normalize())
       .map(Path::toString)
-      .flatMap(CurrentProcessPreSpringRuntimeEnvironmentProvider::regularJarPath);
+      .flatMap(CurrentProcessPreSpringRuntimeEnvironmentReader::regularJarPath);
   }
 
   private static Optional<Path> regularJarPath(String candidatePath) {

@@ -5,21 +5,21 @@ import com.seed4j.cli.shared.error.domain.Assert;
 public class PreSpringBootstrapApplicationService {
 
   private final PreSpringLauncherFactory preSpringLauncherFactory;
-  private final PreSpringRuntimeEnvironmentProvider preSpringRuntimeEnvironmentProvider;
+  private final PreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader;
 
   public PreSpringBootstrapApplicationService(
     PreSpringLauncherFactory preSpringLauncherFactory,
-    PreSpringRuntimeEnvironmentProvider preSpringRuntimeEnvironmentProvider
+    PreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader
   ) {
     Assert.notNull("preSpringLauncherFactory", preSpringLauncherFactory);
-    Assert.notNull("preSpringRuntimeEnvironmentProvider", preSpringRuntimeEnvironmentProvider);
+    Assert.notNull("preSpringRuntimeEnvironmentReader", preSpringRuntimeEnvironmentReader);
     this.preSpringLauncherFactory = preSpringLauncherFactory;
-    this.preSpringRuntimeEnvironmentProvider = preSpringRuntimeEnvironmentProvider;
+    this.preSpringRuntimeEnvironmentReader = preSpringRuntimeEnvironmentReader;
   }
 
   public int exitCodeFor(PreSpringBootstrapCommand command) {
     Assert.notNull("command", command);
-    PreSpringRuntimeEnvironment runtimeEnvironment = preSpringRuntimeEnvironmentProvider.current();
+    PreSpringRuntimeEnvironment runtimeEnvironment = preSpringRuntimeEnvironmentReader.current();
     PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(
       runtimeEnvironment.userHomePath(),
       runtimeEnvironment.executablePath(),

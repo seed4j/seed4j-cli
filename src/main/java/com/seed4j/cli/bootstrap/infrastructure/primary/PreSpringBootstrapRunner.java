@@ -4,11 +4,11 @@ import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapCommand;
 import com.seed4j.cli.shared.error.domain.Assert;
 
-public class PreSpringLauncherAssembler {
+public class PreSpringBootstrapRunner {
 
   private final PreSpringBootstrapApplicationService preSpringBootstrapApplicationService;
 
-  public PreSpringLauncherAssembler(PreSpringBootstrapApplicationService preSpringBootstrapApplicationService) {
+  public PreSpringBootstrapRunner(PreSpringBootstrapApplicationService preSpringBootstrapApplicationService) {
     Assert.notNull("preSpringBootstrapApplicationService", preSpringBootstrapApplicationService);
     this.preSpringBootstrapApplicationService = preSpringBootstrapApplicationService;
   }

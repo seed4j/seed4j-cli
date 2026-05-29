@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class CurrentProcessPreSpringRuntimeEnvironmentProviderTest {
+class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
   @Test
   void shouldResolveExecutableJarPathFromJavaCommandWhenCodeSourceIsNotAJar() throws IOException {
@@ -19,7 +19,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentProviderTest {
     Path executableJarPath = tempDirectory.resolve("seed4j-cli.jar");
     Files.writeString(executableJarPath, "jar");
 
-    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveExecutablePath(
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
       executableJarPath + " --version",
       "",
@@ -37,7 +37,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentProviderTest {
     Path executableJarPath = tempDirectory.resolve("seed4j-cli.jar");
     Files.writeString(executableJarPath, "jar");
 
-    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveExecutablePath(
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
       "org.springframework.boot.loader.launch.PropertiesLauncher --version",
       executableJarPath.toString(),
@@ -55,7 +55,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentProviderTest {
     Path executableJarPath = workingDirectory.resolve("seed4j-cli.jar");
     Files.writeString(executableJarPath, "jar");
 
-    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveExecutablePath(
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
       "seed4j-cli.jar --version",
       "",
@@ -67,9 +67,9 @@ class CurrentProcessPreSpringRuntimeEnvironmentProviderTest {
 
   @Test
   void shouldResolveCurrentSeed4JVersionUsingFallbackWhenImplementationVersionIsNullOrBlank() {
-    String versionWhenNull = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveCurrentSeed4JVersion(null);
-    String versionWhenBlank = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveCurrentSeed4JVersion(" ");
-    String versionWhenPresent = CurrentProcessPreSpringRuntimeEnvironmentProvider.resolveCurrentSeed4JVersion("2.2.0");
+    String versionWhenNull = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveCurrentSeed4JVersion(null);
+    String versionWhenBlank = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveCurrentSeed4JVersion(" ");
+    String versionWhenPresent = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveCurrentSeed4JVersion("2.2.0");
 
     assertThat(versionWhenNull).isEqualTo("0.0.0-SNAPSHOT");
     assertThat(versionWhenBlank).isEqualTo("0.0.0-SNAPSHOT");

@@ -1,7 +1,7 @@
 package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
-import com.seed4j.cli.bootstrap.composition.PreSpringBootstrapComposition;
+import com.seed4j.cli.bootstrap.composition.PreSpringBootstrapConfiguration;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -18,6 +18,6 @@ public class Seed4JCliApp {
   }
 
   static BootstrapExitCodeResolver productionBootstrapExitCodeResolver() {
-    return PreSpringBootstrapComposition.preSpringLauncherAssembler()::exitCodeFor;
+    return PreSpringBootstrapConfiguration.preSpringBootstrapRunner()::exitCodeFor;
   }
 }
