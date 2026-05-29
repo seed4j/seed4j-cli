@@ -13,7 +13,7 @@ import java.util.UUID;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
-class RuntimeModeConfigurationWriter {
+final class RuntimeModeConfigurationWriter {
 
   private static final String SEED4J_KEY = "seed4j";
   private static final String RUNTIME_KEY = "runtime";
