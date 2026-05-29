@@ -1,117 +1,36 @@
 package com.seed4j.cli;
 
 import com.seed4j.Seed4JApp;
-import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironmentProvider;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringLauncherAssembler;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentProvider;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
-import java.io.File;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Optional;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackageClasses = { Seed4JApp.class, Seed4JCliApp.class })
 @ExcludeFromGeneratedCodeCoverage(reason = "Not testing logs")
 public class Seed4JCliApp {
 
-  private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
-  private static final String DEFAULT_CLI_VERSION = "0.0.0-SNAPSHOT";
-
   interface BootstrapExitCodeResolver {
     int exitCodeFor(String[] args);
   }
 
   static void main(String[] args) {
-    int exitCode = productionExitCode(args, productionBootstrapExitCodeResolver(userHomePath(), childMode()));
-    System.exit(exitCode);
-  }
-
-  private static Path userHomePath() {
-    return Path.of(System.getProperty("user.home"));
-  }
-
-  private static boolean childMode() {
-    return Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY));
+    System.exit(productionExitCode(args, productionBootstrapExitCodeResolver()));
   }
 
   static int productionExitCode(String[] args, BootstrapExitCodeResolver bootstrapExitCodeResolver) {
     return bootstrapExitCodeResolver.exitCodeFor(args);
   }
 
-  static BootstrapExitCodeResolver productionBootstrapExitCodeResolver(Path userHomePath, boolean childMode) {
-    return productionBootstrapExitCodeResolver(userHomePath, childMode, new PreSpringLauncherAssembler());
+  static BootstrapExitCodeResolver productionBootstrapExitCodeResolver() {
+    return productionBootstrapExitCodeResolver(new CurrentProcessPreSpringRuntimeEnvironmentProvider(), new PreSpringLauncherAssembler());
   }
 
   static BootstrapExitCodeResolver productionBootstrapExitCodeResolver(
-    Path userHomePath,
-    boolean childMode,
+    PreSpringRuntimeEnvironmentProvider preSpringRuntimeEnvironmentProvider,
     PreSpringLauncherAssembler preSpringLauncherAssembler
   ) {
-    return args -> preSpringLauncherAssembler.exitCodeFor(userHomePath, executablePath(), currentSeed4JVersion(), childMode, args);
-  }
-
-  private static String currentSeed4JVersion() {
-    return Optional.ofNullable(Seed4JApp.class.getPackage().getImplementationVersion())
-      .filter(version -> !version.isBlank())
-      .orElse(DEFAULT_CLI_VERSION);
-  }
-
-  private static Path executablePath() {
-    try {
-      Path codeSourcePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-      return resolveExecutablePath(
-        codeSourcePath,
-        System.getProperty("sun.java.command", ""),
-        System.getProperty("java.class.path", ""),
-        currentWorkingDirectory()
-      );
-    } catch (URISyntaxException uriSyntaxException) {
-      throw InvalidRuntimeConfigurationException.technicalError("Could not resolve executable path.", uriSyntaxException);
-    }
-  }
-
-  private static Path currentWorkingDirectory() {
-    return Path.of(System.getProperty("user.dir"));
-  }
-
-  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {
-    if (Files.isRegularFile(codeSourcePath) && codeSourcePath.getFileName().toString().endsWith(".jar")) {
-      return codeSourcePath;
-    }
-
-    Optional<Path> executablePathFromCommand = executablePathFromJavaCommand(javaCommand, workingDirectory);
-    if (executablePathFromCommand.isPresent()) {
-      return executablePathFromCommand.orElseThrow();
-    }
-
-    return Optional.ofNullable(javaClassPath)
-      .filter(classPath -> !classPath.isBlank())
-      .stream()
-      .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(File.pathSeparator))))
-      .map(String::trim)
-      .map(Seed4JCliApp::regularJarPath)
-      .flatMap(Optional::stream)
-      .findFirst()
-      .orElse(codeSourcePath);
-  }
-
-  private static Optional<Path> executablePathFromJavaCommand(String javaCommand, Path workingDirectory) {
-    return Optional.ofNullable(javaCommand)
-      .map(String::trim)
-      .filter(command -> !command.isEmpty())
-      .map(command -> command.split("\\s+", 2)[0])
-      .map(Path::of)
-      .map(path -> path.isAbsolute() ? path : workingDirectory.resolve(path).normalize())
-      .map(Path::toString)
-      .flatMap(Seed4JCliApp::regularJarPath);
-  }
-
-  private static Optional<Path> regularJarPath(String candidatePath) {
-    return Optional.ofNullable(candidatePath)
-      .filter(path -> path.endsWith(".jar"))
-      .map(Path::of)
-      .filter(Files::isRegularFile);
+    return args -> preSpringLauncherAssembler.exitCodeFor(preSpringRuntimeEnvironmentProvider.current(), args);
   }
 }

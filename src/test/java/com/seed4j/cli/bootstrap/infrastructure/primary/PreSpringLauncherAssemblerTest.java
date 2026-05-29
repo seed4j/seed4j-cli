@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.PreSpringLauncher;
 import com.seed4j.cli.bootstrap.application.PreSpringLauncherFactory;
+import com.seed4j.cli.bootstrap.application.PreSpringRuntimeEnvironment;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,20 +19,21 @@ class PreSpringLauncherAssemblerTest {
     RecordingPreSpringLauncher recordingPreSpringLauncher = new RecordingPreSpringLauncher(53);
     RecordingPreSpringLauncherFactory recordingPreSpringLauncherFactory = new RecordingPreSpringLauncherFactory(recordingPreSpringLauncher);
     PreSpringLauncherAssembler assembler = new PreSpringLauncherAssembler(recordingPreSpringLauncherFactory);
-
-    int exitCode = assembler.exitCodeFor(
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       Path.of("/home/user"),
       Path.of("/tmp/seed4j-cli.jar"),
       "2.2.0",
       true,
-      new String[] { "--version" }
+      Path.of("/tmp/jdk/bin/java")
     );
+
+    int exitCode = assembler.exitCodeFor(runtimeEnvironment, new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(53);
     assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
     assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
     assertThat(recordingPreSpringLauncherFactory.currentSeed4JVersion()).isEqualTo("2.2.0");
-    assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of(System.getProperty("java.home"), "bin", "java"));
+    assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of("/tmp/jdk/bin/java"));
     assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
     assertThat(recordingPreSpringLauncher.childMode()).isTrue();
   }
@@ -50,8 +52,15 @@ class PreSpringLauncherAssemblerTest {
       """
     );
     PreSpringLauncherAssembler assembler = new PreSpringLauncherAssembler();
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+      userHomePath,
+      Path.of("seed4j-cli.jar"),
+      "2.2.0",
+      true,
+      Path.of(System.getProperty("java.home"), "bin", "java")
+    );
 
-    int exitCode = assembler.exitCodeFor(userHomePath, Path.of("seed4j-cli.jar"), "2.2.0", true, new String[] { "--version" });
+    int exitCode = assembler.exitCodeFor(runtimeEnvironment, new String[] { "--version" });
 
     assertThat(exitCode).isZero();
   }
