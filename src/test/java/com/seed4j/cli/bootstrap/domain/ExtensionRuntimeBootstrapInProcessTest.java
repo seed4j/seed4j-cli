@@ -187,34 +187,39 @@ class ExtensionRuntimeBootstrapInProcessTest {
       System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
       System.clearProperty(LOADER_PATH_PROPERTY);
 
-      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-        int versionExitCode = launcher.launch(new String[] { "--version" });
+      CliLaunchResult versionLaunch = launchCapturingOutput(launcher, "--version");
+      assertSuccessfulLaunch("--version before list", versionLaunch);
+      assertThat(versionLaunch.output())
+        .contains("Runtime mode: extension")
+        .contains("Distribution ID: company-extension")
+        .contains("Distribution version: 1.0.0")
+        .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+        .doesNotContain(STARTUP_INFO_MARKER)
+        .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+        .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
 
-        assertThat(versionExitCode).isZero();
-        assertThat(outputCaptor.getOutput())
-          .contains("Runtime mode: extension")
-          .contains("Distribution ID: company-extension")
-          .contains("Distribution version: 1.0.0")
-          .doesNotContain(SPRING_BOOT_BANNER_MARKER)
-          .doesNotContain(STARTUP_INFO_MARKER)
-          .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
-          .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
-      }
-
-      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-        int listExitCode = launcher.launch(new String[] { "list" });
-
-        assertThat(listExitCode).isZero();
-        assertThat(outputCaptor.getOutput())
-          .contains(EXTENSION_ONLY_SLUG)
-          .doesNotContain(SPRING_BOOT_BANNER_MARKER)
-          .doesNotContain(STARTUP_INFO_MARKER)
-          .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
-          .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
-      }
+      CliLaunchResult listLaunch = launchCapturingOutput(launcher, "list");
+      assertSuccessfulLaunch("list after --version", listLaunch);
+      assertThat(listLaunch.output())
+        .contains(EXTENSION_ONLY_SLUG)
+        .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+        .doesNotContain(STARTUP_INFO_MARKER)
+        .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+        .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER);
     } finally {
       baselineProperties.restore();
     }
+  }
+
+  private static CliLaunchResult launchCapturingOutput(Seed4JCliLauncher launcher, String... arguments) {
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = launcher.launch(arguments);
+      return new CliLaunchResult(exitCode, outputCaptor.getOutput());
+    }
+  }
+
+  private static void assertSuccessfulLaunch(String launchName, CliLaunchResult launchResult) {
+    assertThat(launchResult.exitCode()).as("%s should exit with code 0. Captured output:%n%s", launchName, launchResult.output()).isZero();
   }
 
   private static List<String> jarEntries(Path extensionJarPath) throws IOException {
@@ -246,6 +251,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
       }
     }
   }
+
+  private record CliLaunchResult(int exitCode, String output) {}
 
   private record ScopedSystemProperties(Map<String, Optional<String>> originalValues) {
     private static ScopedSystemProperties capture(Set<String> propertyKeys) {

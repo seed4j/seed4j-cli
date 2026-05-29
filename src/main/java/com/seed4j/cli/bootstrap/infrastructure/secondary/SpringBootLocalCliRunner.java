@@ -14,14 +14,14 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
   private static final String SPRING_MAIN_SOURCES_TEMPLATE = "spring.main.sources=%s";
 
-  private final SpringApplicationBuilderOperations springApplicationBuilderOperations;
+  private final SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory;
   private final SpringBootExitCodeResolver springBootExitCodeResolver;
   private final Path userHomePath;
   private final RuntimeExtensionStartClassReader runtimeExtensionStartClassReader;
 
   public SpringBootLocalCliRunner(Class<?> applicationClass, Path userHomePath) {
     this(
-      new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(applicationClass)),
+      () -> new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(applicationClass)),
       new SpringBootExitCodeResolver(),
       userHomePath,
       () -> System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY)
@@ -29,16 +29,16 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
   }
 
   SpringBootLocalCliRunner(
-    SpringApplicationBuilderOperations springApplicationBuilderOperations,
+    SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory,
     SpringBootExitCodeResolver springBootExitCodeResolver,
     Path userHomePath,
     RuntimeExtensionStartClassReader runtimeExtensionStartClassReader
   ) {
-    Assert.notNull("springApplicationBuilderOperations", springApplicationBuilderOperations);
+    Assert.notNull("springApplicationBuilderOperationsFactory", springApplicationBuilderOperationsFactory);
     Assert.notNull("springBootExitCodeResolver", springBootExitCodeResolver);
     Assert.notNull("userHomePath", userHomePath);
     Assert.notNull("runtimeExtensionStartClassReader", runtimeExtensionStartClassReader);
-    this.springApplicationBuilderOperations = springApplicationBuilderOperations;
+    this.springApplicationBuilderOperationsFactory = springApplicationBuilderOperationsFactory;
     this.springBootExitCodeResolver = springBootExitCodeResolver;
     this.userHomePath = userHomePath;
     this.runtimeExtensionStartClassReader = runtimeExtensionStartClassReader;
@@ -46,6 +46,7 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
 
   @Override
   public int run(String[] args) {
+    SpringApplicationBuilderOperations springApplicationBuilderOperations = springApplicationBuilderOperationsFactory.create();
     Path configPath = userHomePath.resolve(CONFIG_FILE_NAME);
 
     if (Files.exists(configPath)) {

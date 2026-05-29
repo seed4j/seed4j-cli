@@ -18,7 +18,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -34,7 +34,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -54,7 +54,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> null
@@ -76,7 +76,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> null
@@ -93,7 +93,7 @@ class SpringBootLocalCliRunnerTest {
       new RecordingSpringApplicationBuilderOperations();
     RecordingSpringBootExitCodeResolver recordingSpringBootExitCodeResolver = new RecordingSpringBootExitCodeResolver(37);
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       recordingSpringBootExitCodeResolver,
       Path.of("/tmp"),
       () -> null
@@ -110,7 +110,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -126,7 +126,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
@@ -148,7 +148,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
@@ -167,7 +167,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      recordingSpringApplicationBuilderOperations,
+      () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> "   "
@@ -178,6 +178,28 @@ class SpringBootLocalCliRunnerTest {
     assertThat(recordingSpringApplicationBuilderOperations.propertyEntries()).isEmpty();
   }
 
+  @Test
+  void shouldCreateFreshSpringApplicationBuilderOperationsForEachRun() {
+    List<RecordingSpringApplicationBuilderOperations> createdSpringApplicationBuilderOperations = new ArrayList<>();
+    SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
+      () -> {
+        RecordingSpringApplicationBuilderOperations operations = new RecordingSpringApplicationBuilderOperations();
+        createdSpringApplicationBuilderOperations.add(operations);
+        return operations;
+      },
+      new RecordingSpringBootExitCodeResolver(),
+      Path.of("/tmp"),
+      () -> null
+    );
+
+    runner.run(new String[] { "--version" });
+    runner.run(new String[] { "list" });
+
+    assertThat(createdSpringApplicationBuilderOperations).hasSize(2);
+    assertThat(createdSpringApplicationBuilderOperations.get(0).runArguments()).containsExactly(List.of("--version"));
+    assertThat(createdSpringApplicationBuilderOperations.get(1).runArguments()).containsExactly(List.of("list"));
+  }
+
   private static final class RecordingSpringApplicationBuilderOperations implements SpringApplicationBuilderOperations {
 
     private int bannerModeOffCalls;
@@ -185,6 +207,7 @@ class SpringBootLocalCliRunnerTest {
     private Boolean lazyInitialization;
     private String lastProperty;
     private final List<String> propertyEntries = new ArrayList<>();
+    private final List<List<String>> runArguments = new ArrayList<>();
 
     @Override
     public SpringApplicationBuilderOperations bannerModeOff() {
@@ -213,6 +236,7 @@ class SpringBootLocalCliRunnerTest {
 
     @Override
     public SpringApplicationContextAdapter run(String[] args) {
+      runArguments.add(List.of(args));
       return new SpringApplicationContextAdapter(null);
     }
 
@@ -234,6 +258,10 @@ class SpringBootLocalCliRunnerTest {
 
     private List<String> propertyEntries() {
       return List.copyOf(propertyEntries);
+    }
+
+    private List<List<String>> runArguments() {
+      return List.copyOf(runArguments);
     }
   }
 
