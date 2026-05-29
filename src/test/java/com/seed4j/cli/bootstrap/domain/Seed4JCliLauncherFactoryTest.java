@@ -66,10 +66,7 @@ class Seed4JCliLauncherFactoryTest {
     Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
       Path.of("/opt/jdk/bin/java"),
       commandExecutor,
-      () -> {
-        throw new IllegalStateException("Should not run local path in this test.");
-      },
-      context -> {
+      args -> {
         throw new IllegalStateException("Should not resolve local exit code in this test.");
       }
     );

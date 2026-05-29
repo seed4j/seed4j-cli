@@ -6,6 +6,7 @@ import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,11 +18,6 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.Banner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
 
 @UnitTest
 class ExtensionRuntimeBootstrapInProcessTest {
@@ -46,7 +42,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     ExtensionRuntimeFixture.install(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
-    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
@@ -90,7 +86,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-list-");
     ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
-    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
@@ -132,7 +128,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths =
       ExtensionRuntimeFixture.installWithListExtensionModuleAndHiddenResourcesOverrides(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
-    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
@@ -170,7 +166,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths =
       ExtensionRuntimeFixture.installWithListExtensionModuleAndLoggingOverrides(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
-    LocalSpringCliRunner localCliRunner = localCliRunner(userHome);
+    LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
@@ -227,17 +223,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
     }
   }
 
-  private static LocalSpringCliRunner localCliRunner(Path userHome) {
-    return new LocalSpringCliRunner(
-      () -> new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(Seed4JCliApp.class)),
-      ExtensionRuntimeBootstrapInProcessTest::resolveExitCode,
-      () -> userHome
-    );
-  }
-
-  private static int resolveExitCode(LocalSpringCliRunner.ApplicationContext context) {
-    SpringApplicationContextAdapter springApplicationContext = (SpringApplicationContextAdapter) context;
-    return SpringApplication.exit(springApplicationContext.context());
+  private static LocalCliRunner localCliRunner(Path userHome) {
+    return new SpringBootLocalCliRunner(Seed4JCliApp.class, userHome);
   }
 
   private static final class InProcessChildProcessLauncher implements ChildProcessLauncher {
@@ -277,49 +264,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
           System.clearProperty(propertyKey);
         }
       });
-    }
-  }
-
-  private record SpringApplicationContextAdapter(
-    ConfigurableApplicationContext context
-  ) implements LocalSpringCliRunner.ApplicationContext {}
-
-  private static final class SpringApplicationBuilderAdapter implements LocalSpringCliRunner.ApplicationBuilder {
-
-    private final SpringApplicationBuilder springApplicationBuilder;
-
-    private SpringApplicationBuilderAdapter(SpringApplicationBuilder springApplicationBuilder) {
-      this.springApplicationBuilder = springApplicationBuilder;
-    }
-
-    @Override
-    public LocalSpringCliRunner.ApplicationBuilder bannerMode(Banner.Mode bannerMode) {
-      springApplicationBuilder.bannerMode(bannerMode);
-      return this;
-    }
-
-    @Override
-    public LocalSpringCliRunner.ApplicationBuilder web(WebApplicationType webApplicationType) {
-      springApplicationBuilder.web(webApplicationType);
-      return this;
-    }
-
-    @Override
-    public LocalSpringCliRunner.ApplicationBuilder lazyInitialization(boolean lazyInitialization) {
-      springApplicationBuilder.lazyInitialization(lazyInitialization);
-      return this;
-    }
-
-    @Override
-    public LocalSpringCliRunner.ApplicationBuilder properties(String properties) {
-      springApplicationBuilder.properties(properties);
-      return this;
-    }
-
-    @Override
-    public LocalSpringCliRunner.ApplicationContext run(String[] args) {
-      ConfigurableApplicationContext applicationContext = springApplicationBuilder.run(args);
-      return new SpringApplicationContextAdapter(applicationContext);
     }
   }
 }

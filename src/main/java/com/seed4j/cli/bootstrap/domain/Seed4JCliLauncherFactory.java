@@ -4,12 +4,7 @@ import java.nio.file.Path;
 
 public class Seed4JCliLauncherFactory {
 
-  public record LauncherDependencies(
-    Path javaExecutable,
-    ProcessCommandExecutor commandExecutor,
-    LocalSpringCliRunner.ApplicationBuilderFactory applicationBuilderFactory,
-    LocalSpringCliRunner.ExitCodeResolver exitCodeResolver
-  ) {}
+  public record LauncherDependencies(Path javaExecutable, ProcessCommandExecutor commandExecutor, LocalCliRunner localCliRunner) {}
 
   public Seed4JCliLauncher create(
     Path userHome,
@@ -18,11 +13,6 @@ public class Seed4JCliLauncherFactory {
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     LauncherDependencies dependencies
   ) {
-    LocalSpringCliRunner localCliRunner = new LocalSpringCliRunner(
-      dependencies.applicationBuilderFactory(),
-      dependencies.exitCodeResolver(),
-      () -> userHome
-    );
     ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(dependencies.javaExecutable(), dependencies.commandExecutor());
     return new Seed4JCliLauncher(
       userHome,
@@ -30,7 +20,7 @@ public class Seed4JCliLauncherFactory {
       currentSeed4JVersion,
       runtimeModeConfigurationRepository,
       childProcessLauncher,
-      localCliRunner
+      dependencies.localCliRunner()
     );
   }
 }
