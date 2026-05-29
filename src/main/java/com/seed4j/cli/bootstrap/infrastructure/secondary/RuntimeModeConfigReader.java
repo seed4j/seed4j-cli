@@ -13,7 +13,7 @@ import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
-final class RuntimeModeConfigReader {
+class RuntimeModeConfigReader {
 
   private static final String SEED4J_KEY = "seed4j";
   private static final String RUNTIME_KEY = "runtime";

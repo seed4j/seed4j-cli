@@ -7,7 +7,7 @@ import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import java.io.IOException;
 import java.nio.file.Path;
 
-public final class FileSystemRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
+public class FileSystemRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
 
   private static final Path CONFIG_PATH = Path.of(".config", "seed4j-cli", "config.yml");
 

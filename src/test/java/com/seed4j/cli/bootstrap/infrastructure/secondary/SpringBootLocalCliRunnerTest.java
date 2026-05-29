@@ -18,7 +18,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -34,7 +34,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -54,7 +54,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> null
@@ -76,7 +76,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> null
@@ -93,7 +93,7 @@ class SpringBootLocalCliRunnerTest {
       new RecordingSpringApplicationBuilderOperations();
     RecordingSpringBootExitCodeResolver recordingSpringBootExitCodeResolver = new RecordingSpringBootExitCodeResolver(37);
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       recordingSpringBootExitCodeResolver,
       Path.of("/tmp"),
       () -> null
@@ -110,7 +110,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> null
@@ -126,7 +126,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
@@ -148,7 +148,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       userHomePath,
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
@@ -167,7 +167,7 @@ class SpringBootLocalCliRunnerTest {
     RecordingSpringApplicationBuilderOperations recordingSpringApplicationBuilderOperations =
       new RecordingSpringApplicationBuilderOperations();
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
-      () -> recordingSpringApplicationBuilderOperations,
+      recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
       Path.of("/tmp"),
       () -> "   "
