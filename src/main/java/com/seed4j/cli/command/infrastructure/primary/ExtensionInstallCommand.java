@@ -1,14 +1,12 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
@@ -21,16 +19,12 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private static final String DISTRIBUTION_ID_OPTION = "--distribution-id";
   private static final String DISTRIBUTION_VERSION_OPTION = "--distribution-version";
 
-  private final RuntimeExtensionInstaller runtimeExtensionInstaller;
+  private final RuntimeExtensionApplicationService runtimeExtensionApplicationService;
   private final CommandSpec commandSpec;
 
-  ExtensionInstallCommand(@Value("${user.home}") String userHomePath) {
-    Path userHome = Path.of(userHomePath);
-    this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(
-      userHome,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
-      new FileSystemRuntimeExtensionArtifactsRepository()
-    );
+  ExtensionInstallCommand(RuntimeExtensionApplicationService runtimeExtensionApplicationService) {
+    Assert.notNull("runtimeExtensionApplicationService", runtimeExtensionApplicationService);
+    this.runtimeExtensionApplicationService = runtimeExtensionApplicationService;
     this.commandSpec = buildCommandSpec();
   }
 
@@ -54,7 +48,7 @@ class ExtensionInstallCommand implements Callable<Integer> {
     );
 
     try {
-      RuntimeExtensionInstallResult installationResult = runtimeExtensionInstaller.install(request);
+      RuntimeExtensionInstallResult installationResult = runtimeExtensionApplicationService.install(request);
       printSuccess(installationResult.runtimeReplaced());
       return ExitCode.OK;
     } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
