@@ -5,6 +5,7 @@ import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -19,20 +20,25 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSprin
 
   @Override
   public PreSpringRuntimeEnvironment current() {
+    Path codeSourcePath = currentCodeSourcePath();
+    return new PreSpringRuntimeEnvironment(
+      Path.of(System.getProperty("user.home")),
+      resolveExecutablePath(
+        codeSourcePath,
+        System.getProperty("sun.java.command", ""),
+        System.getProperty("java.class.path", ""),
+        Path.of(System.getProperty("user.dir"))
+      ),
+      currentSeed4JVersion(),
+      Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY)),
+      Path.of(System.getProperty("java.home"), "bin", "java")
+    );
+  }
+
+  @ExcludeFromGeneratedCodeCoverage(reason = "Code source URI syntax failure path depends on JVM protection domain wiring")
+  private static Path currentCodeSourcePath() {
     try {
-      Path codeSourcePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-      return new PreSpringRuntimeEnvironment(
-        Path.of(System.getProperty("user.home")),
-        resolveExecutablePath(
-          codeSourcePath,
-          System.getProperty("sun.java.command", ""),
-          System.getProperty("java.class.path", ""),
-          Path.of(System.getProperty("user.dir"))
-        ),
-        currentSeed4JVersion(),
-        Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY)),
-        Path.of(System.getProperty("java.home"), "bin", "java")
-      );
+      return Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     } catch (URISyntaxException uriSyntaxException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not resolve executable path.", uriSyntaxException);
     }
