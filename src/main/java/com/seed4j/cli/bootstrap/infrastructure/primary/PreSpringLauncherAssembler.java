@@ -3,7 +3,7 @@ package com.seed4j.cli.bootstrap.infrastructure.primary;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapCommand;
 import com.seed4j.cli.bootstrap.application.PreSpringLauncherFactory;
-import com.seed4j.cli.bootstrap.infrastructure.composition.InfrastructurePreSpringLauncherFactory;
+import com.seed4j.cli.bootstrap.composition.InfrastructurePreSpringLauncherFactory;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
 

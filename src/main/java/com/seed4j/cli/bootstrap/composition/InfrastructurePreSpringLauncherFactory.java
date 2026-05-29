@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap.infrastructure.composition;
+package com.seed4j.cli.bootstrap.composition;
 
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringLauncher;
