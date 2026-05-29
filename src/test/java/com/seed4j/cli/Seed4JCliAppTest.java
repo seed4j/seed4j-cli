@@ -39,6 +39,13 @@ class Seed4JCliAppTest {
     assertThat(preSpringBootstrapRunner.arguments()).containsExactly("--version");
   }
 
+  @Test
+  void shouldBuildProductionBootstrapExitCodeResolverUsingConfigurationWiring() {
+    Seed4JCliApp.BootstrapExitCodeResolver bootstrapExitCodeResolver = Seed4JCliApp.productionBootstrapExitCodeResolver();
+
+    assertThat(bootstrapExitCodeResolver).isNotNull();
+  }
+
   private static final class RecordingBootstrapExitCodeResolver implements Seed4JCliApp.BootstrapExitCodeResolver {
 
     private final int exitCode;
