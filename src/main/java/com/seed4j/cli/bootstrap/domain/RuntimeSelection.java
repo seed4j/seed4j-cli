@@ -7,8 +7,8 @@ import java.util.Optional;
 public record RuntimeSelection(
   RuntimeMode mode,
   Optional<Path> extensionJarPath,
-  Optional<String> distributionId,
-  Optional<String> distributionVersion
+  Optional<RuntimeDistributionId> distributionId,
+  Optional<RuntimeDistributionVersion> distributionVersion
 ) {
   private static final RuntimeExtensionJarLayoutValidator RUNTIME_EXTENSION_JAR_LAYOUT_VALIDATOR = new RuntimeExtensionJarLayoutValidator();
 

@@ -1,5 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.Map;
@@ -21,11 +23,14 @@ class SystemPropertyRuntimeSelectionProvider implements RuntimeSelectionProvider
   public RuntimeSelection runtimeSelection() {
     RuntimeMode runtimeMode = RuntimeMode.valueOf(systemProperties.getOrDefault(RUNTIME_MODE_PROPERTY, "standard").toUpperCase());
 
-    return new RuntimeSelection(
-      runtimeMode,
-      Optional.empty(),
-      Optional.ofNullable(systemProperties.get(DISTRIBUTION_ID_PROPERTY)),
-      Optional.ofNullable(systemProperties.get(DISTRIBUTION_VERSION_PROPERTY))
-    );
+    return new RuntimeSelection(runtimeMode, Optional.empty(), distributionId(), distributionVersion());
+  }
+
+  private Optional<RuntimeDistributionId> distributionId() {
+    return Optional.ofNullable(systemProperties.get(DISTRIBUTION_ID_PROPERTY)).map(RuntimeDistributionId::new);
+  }
+
+  private Optional<RuntimeDistributionVersion> distributionVersion() {
+    return Optional.ofNullable(systemProperties.get(DISTRIBUTION_VERSION_PROPERTY)).map(RuntimeDistributionVersion::new);
   }
 }

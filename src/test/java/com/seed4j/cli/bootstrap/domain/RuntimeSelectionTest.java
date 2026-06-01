@@ -300,7 +300,7 @@ class RuntimeSelectionTest {
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
-    assertThat(runtimeSelection.distributionId()).contains("company-extension");
+    assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
   }
 
   @Test
@@ -315,7 +315,7 @@ class RuntimeSelectionTest {
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
-    assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+    assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
   }
 
   private static Stream<Arguments> ignoredCompatibilityMetadata() {

@@ -3,6 +3,8 @@ package com.seed4j.cli.command.infrastructure.primary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.Map;
@@ -25,7 +27,7 @@ class CurrentProcessRuntimeSelectionProviderTest {
     ).runtimeSelection();
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(runtimeSelection.distributionId()).contains("company-extension");
-    assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+    assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
   }
 }

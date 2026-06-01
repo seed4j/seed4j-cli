@@ -44,7 +44,7 @@ class RuntimeExtensionInstallerTest {
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
@@ -66,7 +66,7 @@ class RuntimeExtensionInstallerTest {
     Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
@@ -90,7 +90,7 @@ class RuntimeExtensionInstallerTest {
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -123,7 +123,7 @@ class RuntimeExtensionInstallerTest {
       """
     );
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     installer.install(request);
 
@@ -157,7 +157,7 @@ class RuntimeExtensionInstallerTest {
       new byte[] { 2, 3 }
     );
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
@@ -187,7 +187,7 @@ class RuntimeExtensionInstallerTest {
       new byte[] { 2, 3 }
     );
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
@@ -206,7 +206,7 @@ class RuntimeExtensionInstallerTest {
     Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -228,7 +228,7 @@ class RuntimeExtensionInstallerTest {
     Files.createDirectories(runtimeJarPath);
     Files.writeString(runtimeJarPath.resolve("occupied.txt"), "existing");
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -253,7 +253,7 @@ class RuntimeExtensionInstallerTest {
     Files.createDirectories(metadataPath);
     Files.writeString(metadataPath.resolve("occupied.txt"), "existing");
     RuntimeExtensionInstaller installer = installer(userHome);
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     assertThatThrownBy(() -> installer.install(request))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -284,7 +284,7 @@ class RuntimeExtensionInstallerTest {
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, DISTRIBUTION_ID, DISTRIBUTION_VERSION);
+    RuntimeExtensionInstallRequest request = installRequest(extensionJarPath);
 
     RuntimeExtensionInstallResult installResult = installer.install(request);
 
@@ -300,6 +300,14 @@ class RuntimeExtensionInstallerTest {
     assertThat(installResult.configPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/config.yml"));
     assertThat(installResult.extensionJarPath()).isEqualTo(runtimeExtensionConfiguration.jarPath());
     assertThat(installResult.metadataPath()).isEqualTo(runtimeExtensionConfiguration.metadataPath());
+  }
+
+  private static RuntimeExtensionInstallRequest installRequest(Path extensionJarPath) {
+    return new RuntimeExtensionInstallRequest(
+      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      new RuntimeDistributionId(DISTRIBUTION_ID),
+      new RuntimeDistributionVersion(DISTRIBUTION_VERSION)
+    );
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {

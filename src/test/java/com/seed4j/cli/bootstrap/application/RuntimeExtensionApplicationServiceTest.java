@@ -5,10 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
@@ -40,7 +43,11 @@ class RuntimeExtensionApplicationServiceTest {
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, "company-extension", "1.0.0");
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
+      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      new RuntimeDistributionId("company-extension"),
+      new RuntimeDistributionVersion("1.0.0")
+    );
 
     RuntimeExtensionInstallResult installResult = service.install(request);
 
@@ -75,7 +82,11 @@ class RuntimeExtensionApplicationServiceTest {
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, "company-extension", "1.0.0");
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
+      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      new RuntimeDistributionId("company-extension"),
+      new RuntimeDistributionVersion("1.0.0")
+    );
 
     assertThatThrownBy(() -> service.install(request)).isSameAs(runtimeConfigurationException);
     assertThat(runtimeModeConfigurationRepository.prepareCalls()).isEqualTo(1);

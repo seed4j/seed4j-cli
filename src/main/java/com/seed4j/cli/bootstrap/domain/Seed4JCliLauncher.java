@@ -98,10 +98,10 @@ public class Seed4JCliLauncher {
     systemProperties.put(SEED4J_VERSION_PROPERTY, currentSeed4JVersion);
     runtimeSelection
       .distributionId()
-      .ifPresent(distributionId -> systemProperties.put("seed4j.cli.runtime.distribution.id", distributionId));
+      .ifPresent(distributionId -> systemProperties.put("seed4j.cli.runtime.distribution.id", distributionId.id()));
     runtimeSelection
       .distributionVersion()
-      .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion));
+      .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion.version()));
     runtimeSelection
       .extensionJarPath()
       .ifPresent(extensionJarPath -> {

@@ -392,8 +392,8 @@ class Seed4JCliLauncherTest {
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
     assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(childProcessLauncher.runtimeSelection().distributionId()).contains("company-extension");
-    assertThat(childProcessLauncher.runtimeSelection().distributionVersion()).contains("1.0.0");
+    assertThat(childProcessLauncher.runtimeSelection().distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(childProcessLauncher.runtimeSelection().distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
     assertThat(localCliRunner.wasCalled()).isFalse();
   }
 
@@ -957,7 +957,7 @@ class Seed4JCliLauncherTest {
     return jarPath;
   }
 
-  private static Path createFatJarWithoutStartClass(Path jarPath) throws IOException {
+  private static void createFatJarWithoutStartClass(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
@@ -966,10 +966,9 @@ class Seed4JCliLauncherTest {
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
       jarOutputStream.closeEntry();
     }
-    return jarPath;
   }
 
-  private static Path createFlatJar(Path jarPath) throws IOException {
+  private static void createFlatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
@@ -981,6 +980,5 @@ class Seed4JCliLauncherTest {
       jarOutputStream.write(new byte[] { 0 });
       jarOutputStream.closeEntry();
     }
-    return jarPath;
   }
 }

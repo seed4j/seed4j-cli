@@ -5,6 +5,8 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
@@ -411,8 +413,8 @@ class Seed4JCommandsFactoryTest {
       RuntimeSelection runtimeSelection = new RuntimeSelection(
         RuntimeMode.EXTENSION,
         Optional.of(Path.of("company-extension.jar")),
-        Optional.of("company-extension"),
-        Optional.of("1.0.0")
+        Optional.of(new RuntimeDistributionId("company-extension")),
+        Optional.of(new RuntimeDistributionVersion("1.0.0"))
       );
 
       int exitCode = commandLine(
@@ -460,8 +462,8 @@ class Seed4JCommandsFactoryTest {
       RuntimeSelection runtimeSelection = new RuntimeSelection(
         RuntimeMode.EXTENSION,
         Optional.of(Path.of("company-extension.jar")),
-        Optional.of("company-extension"),
-        Optional.of("1.0.0")
+        Optional.of(new RuntimeDistributionId("company-extension")),
+        Optional.of(new RuntimeDistributionVersion("1.0.0"))
       );
 
       int exitCode = commandLine(modules, projects, runtimeSelection).execute(args);

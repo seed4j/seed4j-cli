@@ -1,5 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.List;
 import java.util.Map;
@@ -69,8 +71,8 @@ class Seed4JCommandsFactory {
         resolvedCliVersion,
         resolvedSeed4JVersion,
         runtimeSelection.mode().name().toLowerCase(),
-        runtimeSelection.distributionId().orElse("standard"),
-        runtimeSelection.distributionVersion().orElse(resolvedCliVersion)
+        runtimeSelection.distributionId().map(RuntimeDistributionId::id).orElse("standard"),
+        runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::version).orElse(resolvedCliVersion)
       );
   }
 

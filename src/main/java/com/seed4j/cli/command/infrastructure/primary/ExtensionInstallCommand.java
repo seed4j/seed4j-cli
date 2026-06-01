@@ -2,9 +2,11 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
-import java.nio.file.Path;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -40,9 +42,9 @@ class ExtensionInstallCommand implements Callable<Integer> {
     String distributionId = commandSpec.findOption(DISTRIBUTION_ID_OPTION).getValue();
     String distributionVersion = commandSpec.findOption(DISTRIBUTION_VERSION_OPTION).getValue();
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      Path.of(extensionJarPath),
-      distributionId,
-      distributionVersion
+      new RuntimeExtensionJarPath(extensionJarPath),
+      new RuntimeDistributionId(distributionId),
+      new RuntimeDistributionVersion(distributionVersion)
     );
 
     try {

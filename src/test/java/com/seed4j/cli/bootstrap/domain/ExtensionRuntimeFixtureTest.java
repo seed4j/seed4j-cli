@@ -41,8 +41,8 @@ class ExtensionRuntimeFixtureTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(runtimeSelection.distributionId()).contains("company-extension");
-    assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+    assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
   }
 
   @Test
@@ -76,8 +76,8 @@ class ExtensionRuntimeFixtureTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(runtimeSelection.distributionId()).contains("company-extension");
-    assertThat(runtimeSelection.distributionVersion()).contains("1.0.0");
+    assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
   }
 
   private static RuntimeConfiguration extensionRuntimeConfiguration(ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths) {

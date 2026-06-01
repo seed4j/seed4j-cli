@@ -1,5 +1,15 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import java.nio.file.Path;
+import com.seed4j.cli.shared.error.domain.Assert;
 
-public record RuntimeExtensionInstallRequest(Path extensionJarPath, String distributionId, String distributionVersion) {}
+public record RuntimeExtensionInstallRequest(
+  RuntimeExtensionJarPath extensionJarPath,
+  RuntimeDistributionId distributionId,
+  RuntimeDistributionVersion distributionVersion
+) {
+  public RuntimeExtensionInstallRequest {
+    Assert.notNull("extensionJarPath", extensionJarPath);
+    Assert.notNull("distributionId", distributionId);
+    Assert.notNull("distributionVersion", distributionVersion);
+  }
+}

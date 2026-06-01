@@ -8,7 +8,7 @@ import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
-record RuntimeMetadata(String distributionId, String distributionVersion) {
+record RuntimeMetadata(RuntimeDistributionId distributionId, RuntimeDistributionVersion distributionVersion) {
   static RuntimeMetadata read(Path metadataPath) {
     try (InputStream metadataInputStream = Files.newInputStream(metadataPath)) {
       Object loadedMetadata = new Yaml().load(metadataInputStream);
@@ -19,8 +19,8 @@ record RuntimeMetadata(String distributionId, String distributionVersion) {
       Map<?, ?> distribution = mapValue(metadata, "distribution", "distribution", metadataPath);
 
       return new RuntimeMetadata(
-        stringValue(distribution, "id", "distribution.id", metadataPath),
-        stringValue(distribution, "version", "distribution.version", metadataPath)
+        new RuntimeDistributionId(stringValue(distribution, "id", "distribution.id", metadataPath)),
+        new RuntimeDistributionVersion(stringValue(distribution, "version", "distribution.version", metadataPath))
       );
     } catch (IOException | YAMLException exception) {
       throw InvalidRuntimeConfigurationException.technicalError(invalidMetadataMessage(metadataPath), exception);

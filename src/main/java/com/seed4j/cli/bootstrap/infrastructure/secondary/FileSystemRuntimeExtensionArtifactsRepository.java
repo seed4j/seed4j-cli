@@ -23,7 +23,7 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
     throws IOException {
     Path runtimeDirectoryPath = runtimeExtensionConfiguration.jarPath().getParent();
     Files.createDirectories(runtimeDirectoryPath);
-    replacePathWithSource(request.extensionJarPath(), runtimeExtensionConfiguration.jarPath());
+    replacePathWithSource(request.extensionJarPath().filePath(), runtimeExtensionConfiguration.jarPath());
     replacePathWithContent(metadataContent(request), runtimeExtensionConfiguration.metadataPath());
   }
 
@@ -32,7 +32,7 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
     distribution:
       id: %s
       version: %s
-    """.formatted(request.distributionId(), request.distributionVersion());
+    """.formatted(request.distributionId().id(), request.distributionVersion().version());
   }
 
   private static void replacePathWithSource(Path sourcePath, Path targetPath) throws IOException {

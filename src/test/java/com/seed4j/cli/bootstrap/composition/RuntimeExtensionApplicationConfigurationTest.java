@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
@@ -34,7 +37,11 @@ class RuntimeExtensionApplicationConfigurationTest {
       runtimeModeConfigurationRepository,
       configuration.runtimeExtensionArtifactsRepository()
     );
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, "company-extension", "1.0.0");
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
+      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      new RuntimeDistributionId("company-extension"),
+      new RuntimeDistributionVersion("1.0.0")
+    );
 
     RuntimeExtensionInstallResult installResult = runtimeExtensionApplicationService.install(request);
 
