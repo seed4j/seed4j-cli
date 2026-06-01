@@ -141,7 +141,7 @@ public class Seed4JCliLauncher {
   }
 
   private static boolean debugModeRequested(String[] args) {
-    return Arrays.stream(args).anyMatch("--debug"::equals);
+    return Arrays.asList(args).contains("--debug");
   }
 
   @ExcludeFromGeneratedCodeCoverage(
