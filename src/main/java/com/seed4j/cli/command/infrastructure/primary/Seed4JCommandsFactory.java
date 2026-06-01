@@ -4,7 +4,6 @@ import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,29 +13,30 @@ import picocli.CommandLine.Model.OptionSpec;
 @Component
 class Seed4JCommandsFactory {
 
-  private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
-  private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
   private static final String DEBUG_OPTION = "--debug";
   private static final String UNKNOWN_VERSION = "unknown";
 
   private final List<Seed4JCommand> seed4JCommands;
-  private final String version;
-  private final String seed4JVersion;
-  private final RuntimeSelectionProvider runtimeSelectionProvider;
-  private final RuntimeSystemProperties runtimeSystemProperties;
+  private final String dedicatedCliVersion;
+  private final String projectCliVersion;
+  private final String dedicatedSeed4JVersion;
+  private final String projectSeed4JVersion;
+  private final RuntimeSelection runtimeSelection;
 
   public Seed4JCommandsFactory(
     List<Seed4JCommand> seed4JCommands,
-    @Value("${project.version:}") String version,
-    @Value("${project.seed4j-version:}") String seed4JVersion,
-    RuntimeSelectionProvider runtimeSelectionProvider,
-    RuntimeSystemProperties runtimeSystemProperties
+    @Value("${seed4j.cli.version:}") String dedicatedCliVersion,
+    @Value("${project.version:}") String projectCliVersion,
+    @Value("${seed4j.cli.seed4j.version:}") String dedicatedSeed4JVersion,
+    @Value("${project.seed4j-version:}") String projectSeed4JVersion,
+    RuntimeSelection runtimeSelection
   ) {
     this.seed4JCommands = seed4JCommands;
-    this.version = version;
-    this.seed4JVersion = seed4JVersion;
-    this.runtimeSelectionProvider = runtimeSelectionProvider;
-    this.runtimeSystemProperties = runtimeSystemProperties;
+    this.dedicatedCliVersion = dedicatedCliVersion;
+    this.projectCliVersion = projectCliVersion;
+    this.dedicatedSeed4JVersion = dedicatedSeed4JVersion;
+    this.projectSeed4JVersion = projectSeed4JVersion;
+    this.runtimeSelection = runtimeSelection;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -57,10 +57,8 @@ class Seed4JCommandsFactory {
   }
 
   private String versionOutput() {
-    RuntimeSelection runtimeSelection = runtimeSelectionProvider.runtimeSelection();
-    Map<String, String> systemProperties = runtimeSystemProperties.values();
-    String resolvedCliVersion = resolvedVersion(systemProperties.get(CLI_VERSION_PROPERTY), version, UNKNOWN_VERSION);
-    String resolvedSeed4JVersion = resolvedVersion(systemProperties.get(SEED4J_VERSION_PROPERTY), seed4JVersion, resolvedCliVersion);
+    String resolvedCliVersion = resolvedVersion(dedicatedCliVersion, projectCliVersion, UNKNOWN_VERSION);
+    String resolvedSeed4JVersion = resolvedVersion(dedicatedSeed4JVersion, projectSeed4JVersion, resolvedCliVersion);
 
     return """
     Seed4J CLI v%s

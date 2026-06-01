@@ -16,7 +16,6 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -421,8 +420,9 @@ class Seed4JCommandsFactoryTest {
         modules,
         projects,
         runtimeSelection,
-        Map.of("seed4j.cli.version", "9.9.9", "seed4j.cli.seed4j.version", "8.8.8"),
+        "9.9.9",
         "fallback-cli-version",
+        "8.8.8",
         "fallback-seed4j-version"
       ).execute(args);
 
@@ -435,7 +435,7 @@ class Seed4JCommandsFactoryTest {
       String[] args = { "--version" };
       RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
 
-      int exitCode = commandLine(modules, projects, runtimeSelection, Map.of(), "", "").execute(args);
+      int exitCode = commandLine(modules, projects, runtimeSelection, "", "", "", "").execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)

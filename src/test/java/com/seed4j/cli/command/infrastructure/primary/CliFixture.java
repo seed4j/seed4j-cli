@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
@@ -11,7 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import picocli.CommandLine;
 
 class CliFixture {
@@ -45,7 +46,7 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, new CurrentProcessRuntimeSelectionProvider(Map::of), Map::of, "1", "2");
+    return commandLine(modules, projects, standardRuntimeSelection(), "", "1", "", "2");
   }
 
   static CommandLine commandLine(
@@ -53,35 +54,17 @@ class CliFixture {
     ProjectsApplicationService projects,
     RuntimeSelection runtimeSelection
   ) {
-    return commandLine(modules, projects, () -> runtimeSelection, Map::of, "1", "2");
+    return commandLine(modules, projects, runtimeSelection, "", "1", "", "2");
   }
 
   static CommandLine commandLine(
     Seed4JModulesApplicationService modules,
     ProjectsApplicationService projects,
     RuntimeSelection runtimeSelection,
-    Map<String, String> runtimeSystemProperties,
-    String cliVersion,
-    String seed4JVersion
-  ) {
-    return commandLine(modules, projects, () -> runtimeSelection, () -> runtimeSystemProperties, cliVersion, seed4JVersion);
-  }
-
-  static CommandLine commandLine(
-    Seed4JModulesApplicationService modules,
-    ProjectsApplicationService projects,
-    RuntimeSelectionProvider runtimeSelectionProvider
-  ) {
-    return commandLine(modules, projects, runtimeSelectionProvider, Map::of, "1", "2");
-  }
-
-  static CommandLine commandLine(
-    Seed4JModulesApplicationService modules,
-    ProjectsApplicationService projects,
-    RuntimeSelectionProvider runtimeSelectionProvider,
-    RuntimeSystemProperties runtimeSystemProperties,
-    String cliVersion,
-    String seed4JVersion
+    String dedicatedCliVersion,
+    String projectCliVersion,
+    String dedicatedSeed4JVersion,
+    String projectSeed4JVersion
   ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
@@ -97,12 +80,17 @@ class CliFixture {
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
       List.of(listModulesCommand, applyModuleCommand, extensionCommand),
-      cliVersion,
-      seed4JVersion,
-      runtimeSelectionProvider,
-      runtimeSystemProperties
+      dedicatedCliVersion,
+      projectCliVersion,
+      dedicatedSeed4JVersion,
+      projectSeed4JVersion,
+      runtimeSelection
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
+  }
+
+  private static RuntimeSelection standardRuntimeSelection() {
+    return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
   }
 }
