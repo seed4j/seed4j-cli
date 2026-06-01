@@ -39,7 +39,7 @@ class ExtensionInstallCommandTest {
   }
 
   @Test
-  void shouldInstallExtensionRuntimeAndPrintValidationHintsWhenInputsAreValid() throws IOException {
+  void shouldInstallExtensionRuntimeAndPrintRuntimePathsAndValidationHintsWhenInputsAreValid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     ExtensionInstallCommand installCommand = installCommand(userHome);
@@ -60,8 +60,12 @@ class ExtensionInstallCommandTest {
       assertThat(exitCode).isZero();
       assertThat(outputCaptor.getStandardOutput())
         .contains("Extension runtime installed")
+        .contains("Runtime jar: ~/.config/seed4j-cli/runtime/active/extension.jar")
+        .contains("Metadata: ~/.config/seed4j-cli/runtime/active/metadata.yml")
+        .contains("Config: ~/.config/seed4j-cli/config.yml")
         .contains("seed4j --version")
-        .contains("seed4j list");
+        .contains("seed4j list")
+        .doesNotContain(userHome.toString());
     }
   }
 
@@ -176,7 +180,7 @@ class ExtensionInstallCommandTest {
   }
 
   private static ExtensionInstallCommand installCommand(Path userHome) {
-    return new ExtensionInstallCommand(runtimeExtensionApplicationService(userHome));
+    return new ExtensionInstallCommand(runtimeExtensionApplicationService(userHome), userHome.toString());
   }
 
   private static RuntimeExtensionApplicationService runtimeExtensionApplicationService(Path userHome) {

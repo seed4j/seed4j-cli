@@ -130,6 +130,9 @@ On success, the command prints:
 
 ```text
 Extension runtime installed successfully.
+Runtime jar: ~/.config/seed4j-cli/runtime/active/extension.jar
+Metadata: ~/.config/seed4j-cli/runtime/active/metadata.yml
+Config: ~/.config/seed4j-cli/config.yml
 Validate installation with:
   seed4j --version
   seed4j list
