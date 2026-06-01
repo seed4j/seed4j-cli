@@ -28,7 +28,7 @@ class Seed4JCliLauncherFactoryTest {
   @Test
   void shouldNotExposeLegacyLauncherConstructorWithoutRuntimeModeConfigurationRepository() {
     assertThatThrownBy(() ->
-      Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, String.class, ChildProcessLauncher.class, LocalCliRunner.class)
+      Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, ChildProcessLauncher.class, LocalCliRunner.class)
     ).isExactlyInstanceOf(NoSuchMethodException.class);
   }
 
@@ -37,7 +37,6 @@ class Seed4JCliLauncherFactoryTest {
     Constructor<Seed4JCliLauncher> constructor = Seed4JCliLauncher.class.getDeclaredConstructor(
       Path.class,
       Path.class,
-      String.class,
       RuntimeModeConfigurationRepository.class,
       ChildProcessLauncher.class,
       LocalCliRunner.class
@@ -71,7 +70,7 @@ class Seed4JCliLauncherFactoryTest {
       }
     );
 
-    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, "2.2.0", runtimeModeConfigurationRepository, dependencies);
+    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, runtimeModeConfigurationRepository, dependencies);
 
     int exitCode = launcher.launch(new String[] { "--version" });
 
@@ -80,7 +79,6 @@ class Seed4JCliLauncherFactoryTest {
       "/opt/jdk/bin/java",
       "-Dseed4j.cli.runtime.child=true",
       "-Dseed4j.cli.runtime.mode=standard",
-      "-Dseed4j.cli.seed4j.version=2.2.0",
       "-cp",
       executableJar.toString(),
       "org.springframework.boot.loader.launch.PropertiesLauncher",

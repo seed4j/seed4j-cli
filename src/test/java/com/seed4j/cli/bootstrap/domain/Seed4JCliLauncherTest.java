@@ -45,7 +45,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       runtimeModeConfigurationRepository,
       childProcessLauncher,
       localCliRunner
@@ -86,7 +85,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -127,7 +125,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -161,7 +158,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableLocation,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -197,7 +193,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableLocation,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -219,7 +214,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableLocation,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -244,7 +238,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableLocation,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -268,7 +261,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -298,7 +290,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -320,7 +311,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -346,7 +336,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -381,7 +370,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -419,7 +407,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -448,7 +435,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -472,7 +458,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       createExecutableJar(),
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -494,7 +479,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -514,7 +498,7 @@ class Seed4JCliLauncherTest {
   }
 
   @Test
-  void shouldNotPublishCliVersionSystemPropertyWhenBuildingTheChildProcessRequest() throws IOException {
+  void shouldNotPublishDedicatedVersionSystemPropertiesWhenBuildingTheChildProcessRequest() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createExecutableJar();
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
@@ -522,7 +506,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "1.2.3",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -532,29 +515,9 @@ class Seed4JCliLauncherTest {
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
-    assertThat(childProcessLauncher.request().systemProperties()).doesNotContainKey("seed4j.cli.version");
-  }
-
-  @Test
-  void shouldPublishSeed4jVersionSystemPropertyWhenBuildingTheChildProcessRequest() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path executableJar = createExecutableJar();
-    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
-    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
-    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
-      executableJar,
-      "9.8.7",
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
-      childProcessLauncher,
-      localCliRunner
-    );
-
-    int exitCode = launcher.launch(new String[] { "--version" });
-
-    assertThat(exitCode).isZero();
-    assertThat(childProcessLauncher.request()).isNotNull();
-    assertThat(childProcessLauncher.request().systemProperties()).containsEntry("seed4j.cli.seed4j.version", "9.8.7");
+    assertThat(childProcessLauncher.request().systemProperties())
+      .doesNotContainKey("seed4j.cli.version")
+      .doesNotContainKey("seed4j.cli.seed4j.version");
   }
 
   @Test
@@ -580,7 +543,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -627,7 +589,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -667,7 +628,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -704,7 +664,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -743,7 +702,6 @@ class Seed4JCliLauncherTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      "0.0.1-SNAPSHOT",
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner

@@ -25,7 +25,6 @@ public class PreSpringBootstrapApplicationService {
     PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(
       runtimeEnvironment.userHomePath(),
       runtimeEnvironment.executablePath(),
-      runtimeEnvironment.currentSeed4JVersion(),
       runtimeEnvironment.javaExecutablePath()
     );
     return preSpringLauncher.launch(command.args(), runtimeEnvironment.childMode());

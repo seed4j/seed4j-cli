@@ -9,7 +9,6 @@ public class Seed4JCliLauncherFactory {
   public Seed4JCliLauncher create(
     Path userHome,
     Path executableJar,
-    String currentSeed4JVersion,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     LauncherDependencies dependencies
   ) {
@@ -17,7 +16,6 @@ public class Seed4JCliLauncherFactory {
     return new Seed4JCliLauncher(
       userHome,
       executableJar,
-      currentSeed4JVersion,
       runtimeModeConfigurationRepository,
       childProcessLauncher,
       dependencies.localCliRunner()

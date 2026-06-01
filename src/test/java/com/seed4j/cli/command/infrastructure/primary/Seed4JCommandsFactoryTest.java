@@ -407,7 +407,7 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldPreferDedicatedRuntimeVersionSystemPropertiesWhenRenderingVersionOutput(CapturedOutput output) {
+    void shouldRenderVersionOutputUsingProjectBuildMetadata(CapturedOutput output) {
       String[] args = { "--version" };
       RuntimeSelection runtimeSelection = new RuntimeSelection(
         RuntimeMode.EXTENSION,
@@ -416,15 +416,7 @@ class Seed4JCommandsFactoryTest {
         Optional.of(new RuntimeDistributionVersion("1.0.0"))
       );
 
-      int exitCode = commandLine(
-        modules,
-        projects,
-        runtimeSelection,
-        "9.9.9",
-        "fallback-cli-version",
-        "8.8.8",
-        "fallback-seed4j-version"
-      ).execute(args);
+      int exitCode = commandLine(modules, projects, runtimeSelection, "9.9.9", "8.8.8").execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("Seed4J CLI v9.9.9").contains("Seed4J version: 8.8.8");
@@ -435,7 +427,7 @@ class Seed4JCommandsFactoryTest {
       String[] args = { "--version" };
       RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
 
-      int exitCode = commandLine(modules, projects, runtimeSelection, "", "", "", "").execute(args);
+      int exitCode = commandLine(modules, projects, runtimeSelection, "", "").execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)

@@ -30,7 +30,6 @@ class PreSpringBootstrapConfigurationTest {
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       userHomePath,
       Path.of("seed4j-cli.jar"),
-      "2.2.0",
       true,
       Path.of(System.getProperty("java.home"), "bin", "java")
     );

@@ -32,15 +32,8 @@ class PreSpringBootstrapRunnerTest {
 
     private RecordingPreSpringBootstrapApplicationService(int exitCode) {
       super(
-        (userHomePath, executablePath, currentSeed4JVersion, javaExecutablePath) -> (args, childMode) -> exitCode,
-        () ->
-          new PreSpringRuntimeEnvironment(
-            Path.of("/home/user"),
-            Path.of("/tmp/seed4j-cli.jar"),
-            "2.2.0",
-            false,
-            Path.of("/tmp/jdk/bin/java")
-          )
+        (userHomePath, executablePath, javaExecutablePath) -> (args, childMode) -> exitCode,
+        () -> new PreSpringRuntimeEnvironment(Path.of("/home/user"), Path.of("/tmp/seed4j-cli.jar"), false, Path.of("/tmp/jdk/bin/java"))
       );
       this.exitCode = exitCode;
     }

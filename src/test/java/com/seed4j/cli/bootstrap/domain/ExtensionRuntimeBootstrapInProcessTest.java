@@ -27,7 +27,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
   private static final String DISTRIBUTION_VERSION_PROPERTY = "seed4j.cli.runtime.distribution.version";
   private static final String LOADER_PATH_PROPERTY = "loader.path";
   private static final String BASELINE_RUNTIME_MODE = "baseline-mode";
-  private static final String CURRENT_CLI_VERSION = "0.0.1-SNAPSHOT";
   private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
   private static final String CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE = "gradle-java";
   private static final String SPRING_BOOT_BANNER_MARKER = " :: Spring Boot :: ";
@@ -47,7 +46,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      CURRENT_CLI_VERSION,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -91,7 +89,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      CURRENT_CLI_VERSION,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -133,7 +130,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      CURRENT_CLI_VERSION,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner
@@ -171,7 +167,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       userHome,
       executableJar,
-      CURRENT_CLI_VERSION,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
       localCliRunner

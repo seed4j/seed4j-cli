@@ -1,6 +1,5 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
-import com.seed4j.Seed4JApp;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
@@ -16,7 +15,6 @@ import java.util.Optional;
 public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
 
   private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
-  private static final String DEFAULT_CLI_VERSION = "0.0.0-SNAPSHOT";
 
   @Override
   public PreSpringRuntimeEnvironment current() {
@@ -29,7 +27,6 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSprin
         System.getProperty("java.class.path", ""),
         Path.of(System.getProperty("user.dir"))
       ),
-      currentSeed4JVersion(),
       Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY)),
       Path.of(System.getProperty("java.home"), "bin", "java")
     );
@@ -42,16 +39,6 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSprin
     } catch (URISyntaxException uriSyntaxException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not resolve executable path.", uriSyntaxException);
     }
-  }
-
-  private static String currentSeed4JVersion() {
-    return resolveCurrentSeed4JVersion(Seed4JApp.class.getPackage().getImplementationVersion());
-  }
-
-  static String resolveCurrentSeed4JVersion(String implementationVersion) {
-    return Optional.ofNullable(implementationVersion)
-      .filter(version -> !version.isBlank())
-      .orElse(DEFAULT_CLI_VERSION);
   }
 
   static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {

@@ -37,12 +37,7 @@ public final class PreSpringBootstrapConfiguration {
     return PreSpringBootstrapConfiguration::preSpringLauncher;
   }
 
-  private static PreSpringLauncher preSpringLauncher(
-    Path userHomePath,
-    Path executablePath,
-    String currentSeed4JVersion,
-    Path javaExecutablePath
-  ) {
+  private static PreSpringLauncher preSpringLauncher(Path userHomePath, Path executablePath, Path javaExecutablePath) {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, userHomePath);
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
@@ -53,7 +48,6 @@ public final class PreSpringBootstrapConfiguration {
     Seed4JCliLauncher launcher = launcherFactory.create(
       userHomePath,
       executablePath,
-      currentSeed4JVersion,
       new FileSystemRuntimeModeConfigurationRepository(userHomePath),
       launcherDependencies
     );

@@ -17,24 +17,18 @@ class Seed4JCommandsFactory {
   private static final String UNKNOWN_VERSION = "unknown";
 
   private final List<Seed4JCommand> seed4JCommands;
-  private final String dedicatedCliVersion;
   private final String projectCliVersion;
-  private final String dedicatedSeed4JVersion;
   private final String projectSeed4JVersion;
   private final RuntimeSelection runtimeSelection;
 
   public Seed4JCommandsFactory(
     List<Seed4JCommand> seed4JCommands,
-    @Value("${seed4j.cli.version:}") String dedicatedCliVersion,
     @Value("${project.version:}") String projectCliVersion,
-    @Value("${seed4j.cli.seed4j.version:}") String dedicatedSeed4JVersion,
     @Value("${project.seed4j-version:}") String projectSeed4JVersion,
     RuntimeSelection runtimeSelection
   ) {
     this.seed4JCommands = seed4JCommands;
-    this.dedicatedCliVersion = dedicatedCliVersion;
     this.projectCliVersion = projectCliVersion;
-    this.dedicatedSeed4JVersion = dedicatedSeed4JVersion;
     this.projectSeed4JVersion = projectSeed4JVersion;
     this.runtimeSelection = runtimeSelection;
   }
@@ -57,8 +51,8 @@ class Seed4JCommandsFactory {
   }
 
   private String versionOutput() {
-    String resolvedCliVersion = resolvedVersion(dedicatedCliVersion, projectCliVersion, UNKNOWN_VERSION);
-    String resolvedSeed4JVersion = resolvedVersion(dedicatedSeed4JVersion, projectSeed4JVersion, resolvedCliVersion);
+    String resolvedCliVersion = resolvedVersion(projectCliVersion, UNKNOWN_VERSION);
+    String resolvedSeed4JVersion = resolvedVersion(projectSeed4JVersion, resolvedCliVersion);
 
     return """
     Seed4J CLI v%s
@@ -74,10 +68,8 @@ class Seed4JCommandsFactory {
       );
   }
 
-  private static String resolvedVersion(String prioritizedValue, String fallbackValue, String defaultValue) {
-    return nonBlank(prioritizedValue)
-      .or(() -> nonBlank(fallbackValue))
-      .orElse(defaultValue);
+  private static String resolvedVersion(String primaryValue, String defaultValue) {
+    return nonBlank(primaryValue).orElse(defaultValue);
   }
 
   private static Optional<String> nonBlank(String candidateValue) {

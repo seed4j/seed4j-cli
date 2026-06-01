@@ -4,5 +4,5 @@ import java.nio.file.Path;
 
 @FunctionalInterface
 public interface PreSpringLauncherFactory {
-  PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion, Path javaExecutablePath);
+  PreSpringLauncher create(Path userHomePath, Path executablePath, Path javaExecutablePath);
 }

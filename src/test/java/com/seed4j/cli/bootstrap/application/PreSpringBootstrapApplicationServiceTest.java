@@ -18,7 +18,6 @@ class PreSpringBootstrapApplicationServiceTest {
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       Path.of("/home/user"),
       Path.of("/tmp/seed4j-cli.jar"),
-      "2.2.0",
       true,
       Path.of("/tmp/jdk/bin/java")
     );
@@ -37,7 +36,6 @@ class PreSpringBootstrapApplicationServiceTest {
     assertThat(recordingPreSpringRuntimeEnvironmentReader.currentCalls()).isEqualTo(1);
     assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
     assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
-    assertThat(recordingPreSpringLauncherFactory.currentSeed4JVersion()).isEqualTo("2.2.0");
     assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of("/tmp/jdk/bin/java"));
     assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
     assertThat(recordingPreSpringLauncher.childMode()).isTrue();
@@ -74,7 +72,6 @@ class PreSpringBootstrapApplicationServiceTest {
     private final RecordingPreSpringLauncher preSpringLauncher;
     private Path userHomePath;
     private Path executablePath;
-    private String currentSeed4JVersion;
     private Path javaExecutablePath;
 
     private RecordingPreSpringLauncherFactory(RecordingPreSpringLauncher preSpringLauncher) {
@@ -82,10 +79,9 @@ class PreSpringBootstrapApplicationServiceTest {
     }
 
     @Override
-    public PreSpringLauncher create(Path userHomePath, Path executablePath, String currentSeed4JVersion, Path javaExecutablePath) {
+    public PreSpringLauncher create(Path userHomePath, Path executablePath, Path javaExecutablePath) {
       this.userHomePath = userHomePath;
       this.executablePath = executablePath;
-      this.currentSeed4JVersion = currentSeed4JVersion;
       this.javaExecutablePath = javaExecutablePath;
       return preSpringLauncher;
     }
@@ -96,10 +92,6 @@ class PreSpringBootstrapApplicationServiceTest {
 
     Path executablePath() {
       return executablePath;
-    }
-
-    String currentSeed4JVersion() {
-      return currentSeed4JVersion;
     }
 
     Path javaExecutablePath() {

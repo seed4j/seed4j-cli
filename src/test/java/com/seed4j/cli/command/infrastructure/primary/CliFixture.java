@@ -46,7 +46,7 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, standardRuntimeSelection(), "", "1", "", "2");
+    return commandLine(modules, projects, standardRuntimeSelection(), "1", "2");
   }
 
   static CommandLine commandLine(
@@ -54,16 +54,14 @@ class CliFixture {
     ProjectsApplicationService projects,
     RuntimeSelection runtimeSelection
   ) {
-    return commandLine(modules, projects, runtimeSelection, "", "1", "", "2");
+    return commandLine(modules, projects, runtimeSelection, "1", "2");
   }
 
   static CommandLine commandLine(
     Seed4JModulesApplicationService modules,
     ProjectsApplicationService projects,
     RuntimeSelection runtimeSelection,
-    String dedicatedCliVersion,
     String projectCliVersion,
-    String dedicatedSeed4JVersion,
     String projectSeed4JVersion
   ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
@@ -80,9 +78,7 @@ class CliFixture {
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
       List.of(listModulesCommand, applyModuleCommand, extensionCommand),
-      dedicatedCliVersion,
       projectCliVersion,
-      dedicatedSeed4JVersion,
       projectSeed4JVersion,
       runtimeSelection
     );
