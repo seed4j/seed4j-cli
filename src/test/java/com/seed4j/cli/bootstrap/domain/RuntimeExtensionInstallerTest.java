@@ -304,7 +304,7 @@ class RuntimeExtensionInstallerTest {
 
   private static RuntimeExtensionInstallRequest installRequest(Path extensionJarPath) {
     return new RuntimeExtensionInstallRequest(
-      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      RuntimeExtensionJarPath.from(extensionJarPath.toString()),
       new RuntimeDistributionId(DISTRIBUTION_ID),
       new RuntimeDistributionVersion(DISTRIBUTION_VERSION)
     );

@@ -13,22 +13,42 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionInstallRequestTest {
 
   @Test
-  void shouldExposeDomainValueObjectsAndResolveJarPathAsPath() {
+  void shouldExposeDomainValueObjects() {
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      new RuntimeExtensionJarPath("runtime/company-extension.jar"),
+      RuntimeExtensionJarPath.from("runtime/company-extension.jar"),
       new RuntimeDistributionId("company-extension"),
       new RuntimeDistributionVersion("1.0.0")
     );
 
-    assertThat(request.extensionJarPath().path()).isEqualTo("runtime/company-extension.jar");
-    assertThat(request.extensionJarPath().filePath()).isEqualTo(Path.of("runtime/company-extension.jar"));
+    assertThat(request.extensionJarPath().path()).isEqualTo(Path.of("runtime/company-extension.jar"));
     assertThat(request.distributionId().id()).isEqualTo("company-extension");
     assertThat(request.distributionVersion().version()).isEqualTo("1.0.0");
   }
 
   @Test
-  void shouldFailWhenJarPathIsBlank() {
-    assertThatThrownBy(() -> new RuntimeExtensionJarPath("  "))
+  void shouldCreateJarPathFromString() {
+    RuntimeExtensionJarPath extensionJarPath = RuntimeExtensionJarPath.from("runtime/company-extension.jar");
+
+    assertThat(extensionJarPath.path()).isEqualTo(Path.of("runtime/company-extension.jar"));
+  }
+
+  @Test
+  void shouldFailWhenJarPathFactoryInputIsBlank() {
+    assertThatThrownBy(() -> RuntimeExtensionJarPath.from("  "))
+      .isExactlyInstanceOf(MissingMandatoryValueException.class)
+      .hasMessageContaining("\"path\"");
+  }
+
+  @Test
+  void shouldFailWhenJarPathFactoryInputIsNull() {
+    assertThatThrownBy(() -> RuntimeExtensionJarPath.from(null))
+      .isExactlyInstanceOf(MissingMandatoryValueException.class)
+      .hasMessageContaining("\"path\"");
+  }
+
+  @Test
+  void shouldFailWhenJarPathConstructorInputIsNull() {
+    assertThatThrownBy(() -> new RuntimeExtensionJarPath(null))
       .isExactlyInstanceOf(MissingMandatoryValueException.class)
       .hasMessageContaining("\"path\"");
   }
@@ -49,12 +69,12 @@ class RuntimeExtensionInstallRequestTest {
 
   @Test
   void shouldFailWhenJarPathCannotBeConvertedToPath() {
-    assertThatThrownBy(() -> new RuntimeExtensionJarPath("\u0000invalid.jar")).isExactlyInstanceOf(InvalidPathException.class);
+    assertThatThrownBy(() -> RuntimeExtensionJarPath.from("\u0000invalid.jar")).isExactlyInstanceOf(InvalidPathException.class);
   }
 
   @Test
   void shouldFailWhenRequestContainsNullValueObjects() {
-    RuntimeExtensionJarPath extensionJarPath = new RuntimeExtensionJarPath("runtime/company-extension.jar");
+    RuntimeExtensionJarPath extensionJarPath = RuntimeExtensionJarPath.from("runtime/company-extension.jar");
     RuntimeDistributionId distributionId = new RuntimeDistributionId("company-extension");
     RuntimeDistributionVersion distributionVersion = new RuntimeDistributionVersion("1.0.0");
 

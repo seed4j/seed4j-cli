@@ -51,7 +51,7 @@ public class RuntimeExtensionInstaller {
   }
 
   private RuntimeModeChangePlan validateInstallRequest(RuntimeExtensionInstallRequest request) {
-    runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath().filePath());
+    runtimeExtensionJarLayoutValidator.validate(request.extensionJarPath().path());
     return runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.EXTENSION);
   }
 }

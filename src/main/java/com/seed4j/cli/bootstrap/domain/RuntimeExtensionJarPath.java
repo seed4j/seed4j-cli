@@ -3,13 +3,14 @@ package com.seed4j.cli.bootstrap.domain;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
 
-public record RuntimeExtensionJarPath(String path) {
+public record RuntimeExtensionJarPath(Path path) {
   public RuntimeExtensionJarPath {
-    Assert.notBlank("path", path);
-    Path.of(path);
+    Assert.notNull("path", path);
+    Assert.notBlank("path", path.toString());
   }
 
-  public Path filePath() {
-    return Path.of(path);
+  public static RuntimeExtensionJarPath from(String path) {
+    Assert.notBlank("path", path);
+    return new RuntimeExtensionJarPath(Path.of(path));
   }
 }

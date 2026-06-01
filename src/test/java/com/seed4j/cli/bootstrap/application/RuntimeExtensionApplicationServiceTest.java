@@ -44,7 +44,7 @@ class RuntimeExtensionApplicationServiceTest {
       runtimeExtensionArtifactsRepository
     );
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      RuntimeExtensionJarPath.from(extensionJarPath.toString()),
       new RuntimeDistributionId("company-extension"),
       new RuntimeDistributionVersion("1.0.0")
     );
@@ -83,7 +83,7 @@ class RuntimeExtensionApplicationServiceTest {
       runtimeExtensionArtifactsRepository
     );
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      new RuntimeExtensionJarPath(extensionJarPath.toString()),
+      RuntimeExtensionJarPath.from(extensionJarPath.toString()),
       new RuntimeDistributionId("company-extension"),
       new RuntimeDistributionVersion("1.0.0")
     );

@@ -42,7 +42,7 @@ class ExtensionInstallCommand implements Callable<Integer> {
     String distributionId = commandSpec.findOption(DISTRIBUTION_ID_OPTION).getValue();
     String distributionVersion = commandSpec.findOption(DISTRIBUTION_VERSION_OPTION).getValue();
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      new RuntimeExtensionJarPath(extensionJarPath),
+      RuntimeExtensionJarPath.from(extensionJarPath),
       new RuntimeDistributionId(distributionId),
       new RuntimeDistributionVersion(distributionVersion)
     );

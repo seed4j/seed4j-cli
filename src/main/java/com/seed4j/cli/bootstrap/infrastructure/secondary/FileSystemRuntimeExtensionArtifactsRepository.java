@@ -23,7 +23,7 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
     throws IOException {
     Path runtimeDirectoryPath = runtimeExtensionConfiguration.jarPath().getParent();
     Files.createDirectories(runtimeDirectoryPath);
-    replacePathWithSource(request.extensionJarPath().filePath(), runtimeExtensionConfiguration.jarPath());
+    replacePathWithSource(request.extensionJarPath().path(), runtimeExtensionConfiguration.jarPath());
     replacePathWithContent(metadataContent(request), runtimeExtensionConfiguration.metadataPath());
   }
 
