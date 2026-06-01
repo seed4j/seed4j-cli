@@ -6,7 +6,6 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
@@ -20,15 +19,10 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private static final String DISTRIBUTION_VERSION_OPTION = "--distribution-version";
 
   private final RuntimeExtensionApplicationService runtimeExtensionApplicationService;
-  private final Path userHome;
   private final CommandSpec commandSpec;
 
-  ExtensionInstallCommand(
-    RuntimeExtensionApplicationService runtimeExtensionApplicationService,
-    @Value("${user.home}") String userHomePath
-  ) {
+  ExtensionInstallCommand(RuntimeExtensionApplicationService runtimeExtensionApplicationService) {
     this.runtimeExtensionApplicationService = runtimeExtensionApplicationService;
-    this.userHome = Path.of(userHomePath).toAbsolutePath().normalize();
     this.commandSpec = buildCommandSpec();
   }
 
@@ -97,21 +91,11 @@ class ExtensionInstallCommand implements Callable<Integer> {
       System.out.println("Replaced active runtime extension.");
     }
     System.out.println("Extension runtime installed successfully.");
-    System.out.println("Runtime jar: " + displayPath(installationResult.extensionJarPath()));
-    System.out.println("Metadata: " + displayPath(installationResult.metadataPath()));
-    System.out.println("Config: " + displayPath(installationResult.configPath()));
+    System.out.println("Runtime jar: " + installationResult.extensionJarPath());
+    System.out.println("Metadata: " + installationResult.metadataPath());
+    System.out.println("Config: " + installationResult.configPath());
     System.out.println("Validate installation with:");
     System.out.println("  seed4j --version");
     System.out.println("  seed4j list");
-  }
-
-  private String displayPath(Path path) {
-    Path normalizedPath = path.toAbsolutePath().normalize();
-    if (!normalizedPath.startsWith(userHome)) {
-      return normalizedPath.toString();
-    }
-
-    Path relativePath = userHome.relativize(normalizedPath);
-    return "~/" + relativePath.toString().replace('\\', '/');
   }
 }

@@ -60,12 +60,11 @@ class ExtensionInstallCommandTest {
       assertThat(exitCode).isZero();
       assertThat(outputCaptor.getStandardOutput())
         .contains("Extension runtime installed")
-        .contains("Runtime jar: ~/.config/seed4j-cli/runtime/active/extension.jar")
-        .contains("Metadata: ~/.config/seed4j-cli/runtime/active/metadata.yml")
-        .contains("Config: ~/.config/seed4j-cli/config.yml")
+        .contains("Runtime jar: " + userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar"))
+        .contains("Metadata: " + userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml"))
+        .contains("Config: " + userHome.resolve(".config/seed4j-cli/config.yml"))
         .contains("seed4j --version")
-        .contains("seed4j list")
-        .doesNotContain(userHome.toString());
+        .contains("seed4j list");
     }
   }
 
@@ -180,7 +179,7 @@ class ExtensionInstallCommandTest {
   }
 
   private static ExtensionInstallCommand installCommand(Path userHome) {
-    return new ExtensionInstallCommand(runtimeExtensionApplicationService(userHome), userHome.toString());
+    return new ExtensionInstallCommand(runtimeExtensionApplicationService(userHome));
   }
 
   private static RuntimeExtensionApplicationService runtimeExtensionApplicationService(Path userHome) {

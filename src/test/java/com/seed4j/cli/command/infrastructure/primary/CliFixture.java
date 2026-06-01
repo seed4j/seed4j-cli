@@ -92,7 +92,7 @@ class CliFixture {
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       new FileSystemRuntimeExtensionArtifactsRepository()
     );
-    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionApplicationService, userHome.toString());
+    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionApplicationService);
     ExtensionCommand extensionCommand = new ExtensionCommand(extensionInstallCommand);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
