@@ -29,7 +29,7 @@ class RuntimeExtensionInstallerTest {
   void shouldUsePreparedModeChangePlanToPersistExtensionModeAfterRuntimeArtifactInstallation() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     InvocationOrder invocationOrder = new InvocationOrder();
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       userHome.resolve(".config/seed4j-cli/config.yml"),
@@ -272,7 +272,7 @@ class RuntimeExtensionInstallerTest {
   void shouldOrchestrateRuntimeArtifactInstallationAndModePersistenceThroughInjectedRepositories() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       userHome.resolve(".config/seed4j-cli/config.yml"),
@@ -355,11 +355,11 @@ class RuntimeExtensionInstallerTest {
   }
 
   private static RuntimeExtensionInstaller installer(Path userHome) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
 
     return new RuntimeExtensionInstaller(
       runtimeExtensionConfiguration,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       new FileSystemRuntimeExtensionArtifactsRepository()
     );
   }

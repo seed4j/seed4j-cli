@@ -7,6 +7,7 @@ import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +34,7 @@ class FileSystemRuntimeModeConfigurationRepositoryTest {
         enabled: true
       """
     );
-    FileSystemRuntimeModeConfigurationRepository repository = new FileSystemRuntimeModeConfigurationRepository(userHome);
+    FileSystemRuntimeModeConfigurationRepository repository = new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome));
 
     RuntimeModeChangePlan modeChangePlan = repository.prepareModeChange(RuntimeMode.EXTENSION);
     modeChangePlan.apply();
@@ -54,7 +55,7 @@ class FileSystemRuntimeModeConfigurationRepositoryTest {
     Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
-    FileSystemRuntimeModeConfigurationRepository repository = new FileSystemRuntimeModeConfigurationRepository(userHome);
+    FileSystemRuntimeModeConfigurationRepository repository = new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> repository.prepareModeChange(RuntimeMode.EXTENSION))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)

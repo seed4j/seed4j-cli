@@ -4,6 +4,7 @@ import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.File;
 import java.net.URISyntaxException;
@@ -20,7 +21,7 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSprin
   public PreSpringRuntimeEnvironment current() {
     Path codeSourcePath = currentCodeSourcePath();
     return new PreSpringRuntimeEnvironment(
-      Path.of(System.getProperty("user.home")),
+      new Seed4JCliHome(Path.of(System.getProperty("user.home"))),
       resolveExecutablePath(
         codeSourcePath,
         System.getProperty("sun.java.command", ""),

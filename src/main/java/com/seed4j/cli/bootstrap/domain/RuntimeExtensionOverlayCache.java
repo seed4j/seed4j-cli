@@ -22,18 +22,17 @@ final class RuntimeExtensionOverlayCache {
   private static final String BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH = "BOOT-INF/classes";
   private static final String APPLICATION_RESOURCE_PREFIX = "config/application";
   private static final List<String> APPLICATION_RESOURCE_SUFFIXES = List.of(".yml", ".yaml", ".properties");
-  private static final Path RUNTIME_CACHE_DIRECTORY = Path.of(".config", "seed4j-cli", "runtime", "cache");
 
-  private final Path userHome;
+  private final Seed4JCliHome cliHome;
   private final RuntimeExtensionCacheIdentityResolver cacheIdentityResolver = new RuntimeExtensionCacheIdentityResolver();
 
-  RuntimeExtensionOverlayCache(Path userHome) {
-    this.userHome = userHome;
+  RuntimeExtensionOverlayCache(Seed4JCliHome cliHome) {
+    this.cliHome = cliHome;
   }
 
   Path materialize(Path extensionJarPath) {
     RuntimeExtensionCacheIdentity cacheIdentity = cacheIdentityResolver.resolve(extensionJarPath);
-    Path cacheRootDirectoryPath = userHome.resolve(RUNTIME_CACHE_DIRECTORY);
+    Path cacheRootDirectoryPath = cliHome.runtimeCacheDirectory();
     Path cacheDirectoryPath = cacheRootDirectoryPath.resolve(cacheIdentity.value());
     Path classesDirectoryPath = cacheDirectoryPath.resolve("classes");
     Path stagingDirectoryPath = cacheRootDirectoryPath.resolve("." + cacheIdentity.value() + ".staging-" + UUID.randomUUID());

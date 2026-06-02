@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,7 +38,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
       PreSpringRuntimeEnvironment environment = reader.current();
 
-      assertThat(environment.userHomePath()).isEqualTo(userHomePath);
+      assertThat(environment.cliHome()).isEqualTo(new Seed4JCliHome(userHomePath));
       assertThat(environment.executablePath()).isEqualTo(executableJarPath);
       assertThat(environment.childMode()).isTrue();
       assertThat(environment.javaExecutablePath()).isEqualTo(expectedJavaExecutablePath);

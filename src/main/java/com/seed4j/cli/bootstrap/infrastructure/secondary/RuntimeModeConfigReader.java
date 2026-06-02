@@ -19,13 +19,12 @@ class RuntimeModeConfigReader {
   private static final String RUNTIME_KEY = "runtime";
   private static final String MODE_KEY = "mode";
 
-  RuntimeMode runtimeMode(Path userHome) {
-    RuntimeModeConfigurationDocument configurationDocument = configuration(userHome);
+  RuntimeMode runtimeMode(Path configPath) {
+    RuntimeModeConfigurationDocument configurationDocument = configuration(configPath);
     return runtimeMode(configurationDocument.configuration());
   }
 
-  RuntimeModeConfigurationDocument configuration(Path userHome) {
-    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+  RuntimeModeConfigurationDocument configuration(Path configPath) {
     if (!Files.exists(configPath)) {
       return new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
     }

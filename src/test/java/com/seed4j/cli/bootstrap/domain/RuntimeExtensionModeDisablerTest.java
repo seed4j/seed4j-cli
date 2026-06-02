@@ -168,7 +168,7 @@ class RuntimeExtensionModeDisablerTest {
   }
 
   private static RuntimeExtensionModeDisabler disabler(Path userHome) {
-    return new RuntimeExtensionModeDisabler(new FileSystemRuntimeModeConfigurationRepository(userHome));
+    return new RuntimeExtensionModeDisabler(new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)));
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {

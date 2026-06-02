@@ -43,7 +43,7 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
       runtimeModeConfigurationRepository,
       childProcessLauncher,
@@ -84,9 +84,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -125,9 +125,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -159,9 +159,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableLocation,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -195,9 +195,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableLocation,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -217,9 +217,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableLocation,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -242,9 +242,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableLocation,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -266,9 +266,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -296,9 +296,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -318,9 +318,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       true
@@ -344,9 +344,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -379,9 +379,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -417,9 +417,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -446,9 +446,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -470,9 +470,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       createExecutableJar(),
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -492,9 +492,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -520,9 +520,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -558,9 +558,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -605,9 +605,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -645,9 +645,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -682,9 +682,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -721,9 +721,9 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false

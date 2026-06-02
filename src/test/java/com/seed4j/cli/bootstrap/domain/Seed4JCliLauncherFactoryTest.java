@@ -35,7 +35,7 @@ class Seed4JCliLauncherFactoryTest {
   @Test
   void shouldKeepLauncherConstructionInternalToTheBootstrapPackage() throws NoSuchMethodException {
     Constructor<Seed4JCliLauncher> constructor = Seed4JCliLauncher.class.getDeclaredConstructor(
-      Path.class,
+      Seed4JCliHome.class,
       Path.class,
       RuntimeModeConfigurationRepository.class,
       ChildProcessLauncher.class,
@@ -52,7 +52,7 @@ class Seed4JCliLauncherFactoryTest {
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     RecordingCommandExecutor commandExecutor = new RecordingCommandExecutor();
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
       false,
       Path.of("/opt/jdk/bin/java")

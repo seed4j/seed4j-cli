@@ -4,18 +4,17 @@ import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationDocument;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Path;
 
 public class FileSystemRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
 
-  private static final Path CONFIG_PATH = Path.of(".config", "seed4j-cli", "config.yml");
-
-  private final Path userHome;
+  private final Seed4JCliHome cliHome;
   private final RuntimeModeConfigReader runtimeModeConfigReader;
 
-  public FileSystemRuntimeModeConfigurationRepository(Path userHome) {
-    this.userHome = userHome;
+  public FileSystemRuntimeModeConfigurationRepository(Seed4JCliHome cliHome) {
+    this.cliHome = cliHome;
     this.runtimeModeConfigReader = new RuntimeModeConfigReader();
   }
 
@@ -26,15 +25,15 @@ public class FileSystemRuntimeModeConfigurationRepository implements RuntimeMode
 
   @Override
   public RuntimeMode readMode() {
-    return runtimeModeConfigReader.runtimeMode(userHome);
+    return runtimeModeConfigReader.runtimeMode(configPath());
   }
 
   private Path configPath() {
-    return userHome.resolve(CONFIG_PATH);
+    return cliHome.configPath();
   }
 
   private RuntimeModeConfigurationDocument currentConfiguration() {
-    return runtimeModeConfigReader.configuration(userHome);
+    return runtimeModeConfigReader.configuration(configPath());
   }
 
   private record FileSystemRuntimeModeChangePlan(

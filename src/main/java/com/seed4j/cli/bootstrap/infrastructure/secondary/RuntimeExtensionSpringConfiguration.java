@@ -2,9 +2,9 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionModeEnabler;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,31 +15,23 @@ import org.springframework.context.annotation.Configuration;
 class RuntimeExtensionSpringConfiguration {
 
   @Bean
-  RuntimeExtensionConfiguration runtimeExtensionConfiguration(@Value("${user.home}") String userHomePath) {
-    return RuntimeExtensionConfiguration.withDefaultPaths(userHome(userHomePath));
+  Seed4JCliHome seed4jCliHome(@Value("${user.home}") String userHomePath) {
+    return new Seed4JCliHome(userHome(userHomePath));
   }
 
   @Bean
-  RuntimeModeConfigurationRepository runtimeModeConfigurationRepository(@Value("${user.home}") String userHomePath) {
-    return new FileSystemRuntimeModeConfigurationRepository(userHome(userHomePath));
+  RuntimeExtensionConfiguration runtimeExtensionConfiguration(Seed4JCliHome cliHome) {
+    return cliHome.runtimeExtensionConfiguration();
+  }
+
+  @Bean
+  RuntimeModeConfigurationRepository runtimeModeConfigurationRepository(Seed4JCliHome cliHome) {
+    return new FileSystemRuntimeModeConfigurationRepository(cliHome);
   }
 
   @Bean
   RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository() {
     return new FileSystemRuntimeExtensionArtifactsRepository();
-  }
-
-  @Bean
-  RuntimeExtensionInstaller runtimeExtensionInstaller(
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration,
-    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
-    RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository
-  ) {
-    return new RuntimeExtensionInstaller(
-      runtimeExtensionConfiguration,
-      runtimeModeConfigurationRepository,
-      runtimeExtensionArtifactsRepository
-    );
   }
 
   @Bean

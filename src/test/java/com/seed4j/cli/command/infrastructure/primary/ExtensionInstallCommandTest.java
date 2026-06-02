@@ -6,7 +6,7 @@ import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
@@ -185,14 +185,14 @@ class ExtensionInstallCommandTest {
   }
 
   private static RuntimeExtensionApplicationService runtimeExtensionApplicationService(Path userHome) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
-    RuntimeExtensionInstaller runtimeExtensionInstaller = new RuntimeExtensionInstaller(
+    Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = cliHome.runtimeExtensionConfiguration();
+
+    return new RuntimeExtensionApplicationService(
       runtimeExtensionConfiguration,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(cliHome),
       new FileSystemRuntimeExtensionArtifactsRepository()
     );
-
-    return new RuntimeExtensionApplicationService(runtimeExtensionInstaller);
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {

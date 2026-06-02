@@ -3,6 +3,7 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,7 +21,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> null
     );
 
@@ -36,7 +37,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> null
     );
 
@@ -56,7 +57,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      userHomePath,
+      new Seed4JCliHome(userHomePath),
       () -> null
     );
 
@@ -78,7 +79,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      userHomePath,
+      new Seed4JCliHome(userHomePath),
       () -> null
     );
 
@@ -95,7 +96,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       recordingSpringBootExitCodeResolver,
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> null
     );
 
@@ -112,7 +113,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> null
     );
 
@@ -128,7 +129,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
     );
 
@@ -150,7 +151,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      userHomePath,
+      new Seed4JCliHome(userHomePath),
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
     );
 
@@ -169,7 +170,7 @@ class SpringBootLocalCliRunnerTest {
     SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(
       () -> recordingSpringApplicationBuilderOperations,
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> "   "
     );
 
@@ -188,7 +189,7 @@ class SpringBootLocalCliRunnerTest {
         return operations;
       },
       new RecordingSpringBootExitCodeResolver(),
-      Path.of("/tmp"),
+      new Seed4JCliHome(Path.of("/tmp")),
       () -> null
     );
 

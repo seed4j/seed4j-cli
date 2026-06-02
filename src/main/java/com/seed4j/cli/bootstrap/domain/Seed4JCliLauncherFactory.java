@@ -14,7 +14,7 @@ public class Seed4JCliLauncherFactory {
       dependencies.commandExecutor()
     );
     return new Seed4JCliLauncher(
-      runtimeEnvironment.userHomePath(),
+      runtimeEnvironment.cliHome(),
       runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
       childProcessLauncher,

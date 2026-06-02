@@ -19,7 +19,7 @@ public class Seed4JCliLauncher {
   private static final String BOOTSTRAP_LOGGER_NAME = "com.seed4j.cli.bootstrap.domain";
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
 
-  private final Path userHome;
+  private final Seed4JCliHome cliHome;
   private final Path executableJar;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final ChildProcessLauncher childProcessLauncher;
@@ -30,21 +30,21 @@ public class Seed4JCliLauncher {
   private final RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver;
 
   Seed4JCliLauncher(
-    Path userHome,
+    Seed4JCliHome cliHome,
     Path executableJar,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner,
     boolean childMode
   ) {
-    this.userHome = userHome;
+    this.cliHome = cliHome;
     this.executableJar = executableJar;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
     this.childMode = childMode;
     this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
-    this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(userHome);
+    this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(cliHome);
     this.runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
   }
 
@@ -131,10 +131,7 @@ public class Seed4JCliLauncher {
       return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      RuntimeExtensionConfiguration.withDefaultPaths(userHome)
-    );
+    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(RuntimeMode.EXTENSION, cliHome.runtimeExtensionConfiguration());
 
     return RuntimeSelection.resolve(runtimeConfiguration);
   }

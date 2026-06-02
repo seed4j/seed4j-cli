@@ -44,9 +44,9 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -88,9 +88,9 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -130,9 +130,9 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -168,9 +168,9 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      userHome,
+      new Seed4JCliHome(userHome),
       executableJar,
-      new FileSystemRuntimeModeConfigurationRepository(userHome),
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       childProcessLauncher,
       localCliRunner,
       false
@@ -228,7 +228,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
   }
 
   private static LocalCliRunner localCliRunner(Path userHome) {
-    return new SpringBootLocalCliRunner(Seed4JCliApp.class, userHome);
+    return new SpringBootLocalCliRunner(Seed4JCliApp.class, new Seed4JCliHome(userHome));
   }
 
   private static final class InProcessChildProcessLauncher implements ChildProcessLauncher {

@@ -73,7 +73,7 @@ class RuntimeSelectionTest {
     Files.writeString(metadataPath, MINIMAL_EXTENSION_METADATA);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(
       RuntimeMode.EXTENSION,
-      RuntimeExtensionConfiguration.withDefaultPaths(tempDirectory)
+      new Seed4JCliHome(tempDirectory).runtimeExtensionConfiguration()
     );
 
     RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);

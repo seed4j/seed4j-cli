@@ -40,7 +40,7 @@ class RuntimeExtensionModeEnablerTest {
       configPath,
       currentConfiguration
     );
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
       runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository
@@ -184,7 +184,7 @@ class RuntimeExtensionModeEnablerTest {
       currentConfiguration,
       new IOException("cannot persist")
     );
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
       runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository
@@ -209,9 +209,12 @@ class RuntimeExtensionModeEnablerTest {
   }
 
   private static RuntimeExtensionModeEnabler enabler(Path userHome) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
 
-    return new RuntimeExtensionModeEnabler(runtimeExtensionConfiguration, new FileSystemRuntimeModeConfigurationRepository(userHome));
+    return new RuntimeExtensionModeEnabler(
+      runtimeExtensionConfiguration,
+      new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome))
+    );
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {

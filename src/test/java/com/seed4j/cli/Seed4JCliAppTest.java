@@ -7,6 +7,7 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
@@ -99,7 +100,7 @@ class Seed4JCliAppTest {
 
   private static Seed4JCliLauncher seed4jCliLauncher() {
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
-      Path.of("/home/user"),
+      new Seed4JCliHome(Path.of("/home/user")),
       Path.of("/tmp/seed4j-cli.jar"),
       true,
       Path.of("/tmp/jdk/bin/java")

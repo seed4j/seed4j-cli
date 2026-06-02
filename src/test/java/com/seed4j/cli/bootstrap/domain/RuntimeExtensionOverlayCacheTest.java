@@ -21,7 +21,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldMaterializeBootInfClassesInsideStableHashBasedCacheDirectory() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = ExtensionRuntimeFixture.createListExtensionModuleJar(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
 
@@ -39,7 +39,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldReuseExistingCacheWithoutReextractingOverlayContent() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = ExtensionRuntimeFixture.createListExtensionModuleJar(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
     Path firstOverlayClassesPath = overlayCache.materialize(extensionJarPath);
     Path cacheMarkerPath = firstOverlayClassesPath.resolve("cache-hit.marker");
     Files.writeString(cacheMarkerPath, "existing-overlay-content");
@@ -54,7 +54,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldDeleteStagingDirectoryWhenOverlayMaterializationFails() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = ExtensionRuntimeFixture.createFlatJar(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -72,7 +72,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldDeleteStagingDirectoryWhenOverlayMaterializationFailsWithIOException() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = createFatJarWithConflictingClassEntryPaths(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -92,7 +92,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldFailGracefullyWhenRuntimeCacheRootCannotBeCreated() throws IOException {
     Path userHomeFile = Files.createTempFile("seed4j-cli-user-home-", ".tmp");
     Path extensionJarPath = ExtensionRuntimeFixture.createListExtensionModuleJar(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHomeFile);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHomeFile));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -105,7 +105,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldMaterializeJarWhenBootInfClassesEntryDoesNotHaveTrailingSlash() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
 
@@ -116,7 +116,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldRejectPathTraversalEntryInsideBootInfClasses() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = createFatJarWithPathTraversalEntryInsideClasses(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -127,7 +127,7 @@ class RuntimeExtensionOverlayCacheTest {
   void shouldFilterGlobalRuntimeResourcesAndKeepFunctionalResourcesInOverlay() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path extensionJarPath = createFatJarWithGlobalAndFunctionalResources(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
 
@@ -144,7 +144,7 @@ class RuntimeExtensionOverlayCacheTest {
     Path extensionJarPath = createFatJarWithGlobalAndFunctionalResourcesAndNonXmlRootLogback(
       Files.createTempFile("company-extension-", ".jar")
     );
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(userHome);
+    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
 

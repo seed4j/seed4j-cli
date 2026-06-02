@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,21 +10,20 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 
 public final class SpringBootLocalCliRunner implements LocalCliRunner {
 
-  private static final String CONFIG_FILE_NAME = ".config/seed4j-cli/config.yml";
   private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
   private static final String SPRING_MAIN_SOURCES_TEMPLATE = "spring.main.sources=%s";
 
   private final SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory;
   private final SpringBootExitCodeResolver springBootExitCodeResolver;
-  private final Path userHomePath;
+  private final Seed4JCliHome cliHome;
   private final RuntimeExtensionStartClassReader runtimeExtensionStartClassReader;
 
-  public SpringBootLocalCliRunner(Class<?> applicationClass, Path userHomePath) {
+  public SpringBootLocalCliRunner(Class<?> applicationClass, Seed4JCliHome cliHome) {
     this(
       () -> new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(applicationClass)),
       new SpringBootExitCodeResolver(),
-      userHomePath,
+      cliHome,
       () -> System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY)
     );
   }
@@ -31,23 +31,23 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
   SpringBootLocalCliRunner(
     SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory,
     SpringBootExitCodeResolver springBootExitCodeResolver,
-    Path userHomePath,
+    Seed4JCliHome cliHome,
     RuntimeExtensionStartClassReader runtimeExtensionStartClassReader
   ) {
     Assert.notNull("springApplicationBuilderOperationsFactory", springApplicationBuilderOperationsFactory);
     Assert.notNull("springBootExitCodeResolver", springBootExitCodeResolver);
-    Assert.notNull("userHomePath", userHomePath);
+    Assert.notNull("cliHome", cliHome);
     Assert.notNull("runtimeExtensionStartClassReader", runtimeExtensionStartClassReader);
     this.springApplicationBuilderOperationsFactory = springApplicationBuilderOperationsFactory;
     this.springBootExitCodeResolver = springBootExitCodeResolver;
-    this.userHomePath = userHomePath;
+    this.cliHome = cliHome;
     this.runtimeExtensionStartClassReader = runtimeExtensionStartClassReader;
   }
 
   @Override
   public int run(String[] args) {
     SpringApplicationBuilderOperations springApplicationBuilderOperations = springApplicationBuilderOperationsFactory.create();
-    Path configPath = userHomePath.resolve(CONFIG_FILE_NAME);
+    Path configPath = cliHome.configPath();
 
     if (Files.exists(configPath)) {
       springApplicationBuilderOperations.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath));
