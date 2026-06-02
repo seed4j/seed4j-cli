@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import java.io.IOException;
@@ -183,11 +185,14 @@ class ExtensionInstallCommandTest {
   }
 
   private static RuntimeExtensionApplicationService runtimeExtensionApplicationService(Path userHome) {
-    return new RuntimeExtensionApplicationService(
-      userHome,
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionInstaller runtimeExtensionInstaller = new RuntimeExtensionInstaller(
+      runtimeExtensionConfiguration,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       new FileSystemRuntimeExtensionArtifactsRepository()
     );
+
+    return new RuntimeExtensionApplicationService(runtimeExtensionInstaller);
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {

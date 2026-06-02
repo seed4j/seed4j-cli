@@ -1,37 +1,46 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.io.IOException;
-import java.nio.file.Path;
 
 public class RuntimeExtensionInstaller {
 
-  private final Path userHome;
+  private final RuntimeExtensionConfiguration runtimeExtensionConfiguration;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository;
   private final RuntimeExtensionJarLayoutValidator runtimeExtensionJarLayoutValidator;
 
   public RuntimeExtensionInstaller(
-    Path userHome,
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository
   ) {
-    this(userHome, runtimeModeConfigurationRepository, runtimeExtensionArtifactsRepository, new RuntimeExtensionJarLayoutValidator());
+    this(
+      runtimeExtensionConfiguration,
+      runtimeModeConfigurationRepository,
+      runtimeExtensionArtifactsRepository,
+      new RuntimeExtensionJarLayoutValidator()
+    );
   }
 
   private RuntimeExtensionInstaller(
-    Path userHome,
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository,
     RuntimeExtensionJarLayoutValidator runtimeExtensionJarLayoutValidator
   ) {
-    this.userHome = userHome;
+    Assert.notNull("runtimeExtensionConfiguration", runtimeExtensionConfiguration);
+    Assert.notNull("runtimeModeConfigurationRepository", runtimeModeConfigurationRepository);
+    Assert.notNull("runtimeExtensionArtifactsRepository", runtimeExtensionArtifactsRepository);
+    Assert.notNull("runtimeExtensionJarLayoutValidator", runtimeExtensionJarLayoutValidator);
+
+    this.runtimeExtensionConfiguration = runtimeExtensionConfiguration;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.runtimeExtensionArtifactsRepository = runtimeExtensionArtifactsRepository;
     this.runtimeExtensionJarLayoutValidator = runtimeExtensionJarLayoutValidator;
   }
 
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     RuntimeModeChangePlan modeChangePlan = validateInstallRequest(request);
     boolean runtimeReplaced = runtimeExtensionArtifactsRepository.activeRuntimePresent(runtimeExtensionConfiguration);
 

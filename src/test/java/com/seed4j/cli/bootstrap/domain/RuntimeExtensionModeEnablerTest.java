@@ -40,7 +40,11 @@ class RuntimeExtensionModeEnablerTest {
       configPath,
       currentConfiguration
     );
-    RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(userHome, runtimeModeConfigurationRepository);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
+      runtimeExtensionConfiguration,
+      runtimeModeConfigurationRepository
+    );
 
     Path persistedConfigPath = enabler.enable();
 
@@ -180,7 +184,11 @@ class RuntimeExtensionModeEnablerTest {
       currentConfiguration,
       new IOException("cannot persist")
     );
-    RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(userHome, runtimeModeConfigurationRepository);
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+    RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
+      runtimeExtensionConfiguration,
+      runtimeModeConfigurationRepository
+    );
 
     assertThatThrownBy(enabler::enable)
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -201,7 +209,9 @@ class RuntimeExtensionModeEnablerTest {
   }
 
   private static RuntimeExtensionModeEnabler enabler(Path userHome) {
-    return new RuntimeExtensionModeEnabler(userHome, new FileSystemRuntimeModeConfigurationRepository(userHome));
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+
+    return new RuntimeExtensionModeEnabler(runtimeExtensionConfiguration, new FileSystemRuntimeModeConfigurationRepository(userHome));
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {

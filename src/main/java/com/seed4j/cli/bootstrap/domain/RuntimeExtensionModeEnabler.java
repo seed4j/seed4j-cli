@@ -1,21 +1,27 @@
 package com.seed4j.cli.bootstrap.domain;
 
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.io.IOException;
 import java.nio.file.Path;
 
 public class RuntimeExtensionModeEnabler {
 
-  private final Path userHome;
+  private final RuntimeExtensionConfiguration runtimeExtensionConfiguration;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
 
-  public RuntimeExtensionModeEnabler(Path userHome, RuntimeModeConfigurationRepository runtimeModeConfigurationRepository) {
-    this.userHome = userHome;
+  public RuntimeExtensionModeEnabler(
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration,
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository
+  ) {
+    Assert.notNull("runtimeExtensionConfiguration", runtimeExtensionConfiguration);
+    Assert.notNull("runtimeModeConfigurationRepository", runtimeModeConfigurationRepository);
+
+    this.runtimeExtensionConfiguration = runtimeExtensionConfiguration;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
   }
 
   public Path enable() {
     RuntimeModeChangePlan modeChangePlan = runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.EXTENSION);
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(RuntimeMode.EXTENSION, runtimeExtensionConfiguration);
     RuntimeSelection.resolve(runtimeConfiguration);
 

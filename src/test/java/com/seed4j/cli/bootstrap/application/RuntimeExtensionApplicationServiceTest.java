@@ -11,6 +11,7 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
@@ -28,21 +29,23 @@ import org.junit.jupiter.api.Test;
 class RuntimeExtensionApplicationServiceTest {
 
   @Test
-  void shouldInstallRuntimeExtensionUsingRepositoriesProvidedToApplicationServiceConstructor() throws IOException {
+  void shouldInstallRuntimeExtensionUsingInjectedInstaller() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-extension-app-service-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     Path expectedConfigPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       expectedConfigPath
     );
     RecordingRuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository = new RecordingRuntimeExtensionArtifactsRepository(
       false
     );
-    RuntimeExtensionApplicationService service = new RuntimeExtensionApplicationService(
-      userHome,
+    RuntimeExtensionInstaller runtimeExtensionInstaller = new RuntimeExtensionInstaller(
+      runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
+    RuntimeExtensionApplicationService service = new RuntimeExtensionApplicationService(runtimeExtensionInstaller);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
       RuntimeExtensionJarPath.from(extensionJarPath.toString()),
       new RuntimeDistributionId("company-extension"),
@@ -57,9 +60,7 @@ class RuntimeExtensionApplicationServiceTest {
     assertThat(runtimeExtensionArtifactsRepository.activeRuntimePresentCalls()).isEqualTo(1);
     assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
     assertThat(runtimeExtensionArtifactsRepository.lastInstallRequest()).isEqualTo(request);
-    assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(
-      RuntimeExtensionConfiguration.withDefaultPaths(userHome)
-    );
+    assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(runtimeExtensionConfiguration);
     assertThat(installResult.extensionJarPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar"));
     assertThat(installResult.metadataPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml"));
     assertThat(installResult.configPath()).isEqualTo(expectedConfigPath);
@@ -70,6 +71,7 @@ class RuntimeExtensionApplicationServiceTest {
   void shouldPropagateRuntimeConfigurationErrorsRaisedByTheRuntimeExtensionInstallationFlow() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-extension-app-service-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
     InvalidRuntimeConfigurationException runtimeConfigurationException = new InvalidRuntimeConfigurationException("invalid runtime config");
     ThrowingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new ThrowingRuntimeModeConfigurationRepository(
       runtimeConfigurationException
@@ -77,11 +79,12 @@ class RuntimeExtensionApplicationServiceTest {
     RecordingRuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository = new RecordingRuntimeExtensionArtifactsRepository(
       false
     );
-    RuntimeExtensionApplicationService service = new RuntimeExtensionApplicationService(
-      userHome,
+    RuntimeExtensionInstaller runtimeExtensionInstaller = new RuntimeExtensionInstaller(
+      runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
+    RuntimeExtensionApplicationService service = new RuntimeExtensionApplicationService(runtimeExtensionInstaller);
     RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
       RuntimeExtensionJarPath.from(extensionJarPath.toString()),
       new RuntimeDistributionId("company-extension"),

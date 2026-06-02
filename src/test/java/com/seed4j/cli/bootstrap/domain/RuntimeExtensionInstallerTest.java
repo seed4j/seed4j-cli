@@ -40,7 +40,7 @@ class RuntimeExtensionInstallerTest {
       invocationOrder
     );
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
-      userHome,
+      runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
@@ -280,7 +280,7 @@ class RuntimeExtensionInstallerTest {
     );
     RecordingRuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository = new RecordingRuntimeExtensionArtifactsRepository();
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
-      userHome,
+      runtimeExtensionConfiguration,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
@@ -355,8 +355,10 @@ class RuntimeExtensionInstallerTest {
   }
 
   private static RuntimeExtensionInstaller installer(Path userHome) {
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = RuntimeExtensionConfiguration.withDefaultPaths(userHome);
+
     return new RuntimeExtensionInstaller(
-      userHome,
+      runtimeExtensionConfiguration,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       new FileSystemRuntimeExtensionArtifactsRepository()
     );
