@@ -5,6 +5,16 @@
 `src/main/java/com/seed4j/cli` contains the CLI application, bootstrap logic, command adapters, and shared kernel code. Keep new production code inside that package tree and preserve the existing hexagonal split, especially `bootstrap`, `command/infrastructure/primary`, and `shared/*`. Runtime and Spring configuration live in `src/main/resources/config`. Tests mirror the main package layout under `src/test/java`, with support fixtures in `command/infrastructure/primary`. Reference material and architecture notes live in `documentation/`, and CI helpers live in `tests-ci/`.
 Use Types Driven Development. The idea is pretty simple: create a dedicated type for each business concept.
 
+## Hexagonal Architecture Boundaries
+
+Keep hexagonal boundaries explicit. `domain` contains business rules, business types, pure domain services, and ports; it must not depend on Spring, application services, or infrastructure. `application` orchestrates use cases, authorization and transactions when applicable, and receives ports and domain types. It may construct pure domain services when that is the right shape for the use case.
+
+`application` must not depend on concrete adapters, filesystem access, Spring configuration, `System.getProperty`, or classes in `..infrastructure..`. `infrastructure.primary` translates CLI, HTTP, and framework input into domain types and calls application services. `infrastructure.secondary` implements domain ports and encapsulates filesystem access, process execution, Spring Security, configuration loading, and other external mechanisms.
+
+`composition` and pre-Spring bootstrap code are manual composition roots needed before Spring is available. They may assemble primary, application, domain, and secondary objects, but they must stay explicit and must not become a shortcut for mixing layer responsibilities.
+
+`Seed4JCliHome` is the domain concept for paths derived from `user.home`. Read `user.home` only in Spring configuration or pre-Spring adapters, then pass the resulting domain type inward.
+
 ## Build, Test, and Development Commands
 
 Use Java 25 and Node.js 22+ before running the toolchain.
