@@ -93,9 +93,9 @@ class ExtensionInstallCommand implements Callable<Integer> {
       System.out.println("Replaced active runtime extension.");
     }
     System.out.println("Extension runtime installed successfully.");
-    System.out.println("Runtime jar: " + installationResult.extensionJarPath());
-    System.out.println("Metadata: " + installationResult.metadataPath());
-    System.out.println("Config: " + installationResult.configPath());
+    System.out.printf("Runtime jar: %s%n", installationResult.extensionJarPath());
+    System.out.printf("Metadata: %s%n", installationResult.metadataPath());
+    System.out.printf("Config: %s%n", installationResult.configPath());
     System.out.println("Validate installation with:");
     System.out.println("  seed4j --version");
     System.out.println("  seed4j list");
