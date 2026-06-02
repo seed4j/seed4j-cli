@@ -78,7 +78,7 @@ class Seed4JCliLauncherFactoryTest {
 
     Seed4JCliLauncher launcher = factory.create(runtimeEnvironment, runtimeModeConfigurationRepository, dependencies);
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isEqualTo(37);
     assertThat(commandExecutor.command()).containsExactly(
@@ -105,5 +105,9 @@ class Seed4JCliLauncherFactoryTest {
     List<String> command() {
       return command;
     }
+  }
+
+  private static Seed4JCliArguments arguments(String... values) {
+    return new Seed4JCliArguments(values);
   }
 }

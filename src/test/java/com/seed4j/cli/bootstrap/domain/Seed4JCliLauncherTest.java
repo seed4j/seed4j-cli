@@ -51,7 +51,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(runtimeModeConfigurationRepository.readModeCalls()).isEqualTo(1);
@@ -92,7 +92,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version", "--debug" });
+    int exitCode = launcher.launch(arguments("--version", "--debug"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -140,7 +140,7 @@ class Seed4JCliLauncherTest {
 
     int exitCode;
     try {
-      exitCode = launcher.launch(new String[] { "--version", "--debug" });
+      exitCode = launcher.launch(arguments("--version", "--debug"));
     } finally {
       logger.detachAppender(appender);
       logger.setLevel(previousLevel);
@@ -167,7 +167,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isEqualTo(12);
     assertThat(localCliRunner.wasCalled()).isTrue();
@@ -203,7 +203,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isNotZero();
     assertThat(localCliRunner.wasCalled()).isFalse();
@@ -226,7 +226,7 @@ class Seed4JCliLauncherTest {
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      int exitCode = launcher.launch(new String[] { "--version" });
+      int exitCode = launcher.launch(arguments("--version"));
 
       assertThat(exitCode).isEqualTo(12);
       assertThat(localCliRunner.wasCalled()).isTrue();
@@ -251,7 +251,7 @@ class Seed4JCliLauncherTest {
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      int exitCode = launcher.launch(new String[] { "--version" });
+      int exitCode = launcher.launch(arguments("--version"));
 
       assertThat(exitCode).isEqualTo(12);
       assertThat(localCliRunner.wasCalled()).isTrue();
@@ -274,7 +274,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
@@ -304,7 +304,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
@@ -326,7 +326,7 @@ class Seed4JCliLauncherTest {
       true
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isEqualTo(12);
     assertThat(localCliRunner.wasCalled()).isTrue();
@@ -352,7 +352,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isNotZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNull();
@@ -387,7 +387,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
@@ -426,7 +426,7 @@ class Seed4JCliLauncherTest {
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      int exitCode = launcher.launch(new String[] { "--version" });
+      int exitCode = launcher.launch(arguments("--version"));
 
       assertThat(exitCode).isNotZero();
       assertThat(childProcessLauncher.request()).isNull();
@@ -454,7 +454,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNotNull();
@@ -478,7 +478,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isNotZero();
     assertThat(childProcessLauncher.runtimeSelection()).isNull();
@@ -500,7 +500,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -528,7 +528,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -566,7 +566,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     Path extensionJarPath = runtimeDirectory.resolve("extension.jar");
     RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
@@ -613,7 +613,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -653,7 +653,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJarPath);
     Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
@@ -690,7 +690,7 @@ class Seed4JCliLauncherTest {
       false
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" });
+    int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isZero();
     assertThat(childProcessLauncher.request()).isNotNull();
@@ -730,7 +730,7 @@ class Seed4JCliLauncherTest {
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      int exitCode = launcher.launch(new String[] { "--version" });
+      int exitCode = launcher.launch(arguments("--version"));
 
       assertThat(exitCode).isNotZero();
       assertThat(childProcessLauncher.request()).isNull();
@@ -903,7 +903,7 @@ class Seed4JCliLauncherTest {
     private boolean called;
 
     @Override
-    public int run(String[] args) {
+    public int run(Seed4JCliArguments arguments) {
       called = true;
       return 12;
     }
@@ -915,6 +915,10 @@ class Seed4JCliLauncherTest {
 
   private static Path createExecutableJar() throws IOException {
     return Files.createTempFile("seed4j-cli-", ".jar");
+  }
+
+  private static Seed4JCliArguments arguments(String... values) {
+    return new Seed4JCliArguments(values);
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {

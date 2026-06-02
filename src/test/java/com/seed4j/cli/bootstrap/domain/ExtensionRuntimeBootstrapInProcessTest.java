@@ -62,7 +62,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       System.clearProperty(LOADER_PATH_PROPERTY);
 
       try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-        int exitCode = launcher.launch(new String[] { "--version" });
+        int exitCode = launcher.launch(arguments("--version"));
 
         assertThat(exitCode).isZero();
         assertThat(outputCaptor.getOutput())
@@ -106,7 +106,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       System.clearProperty(LOADER_PATH_PROPERTY);
 
       try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-        int exitCode = launcher.launch(new String[] { "list" });
+        int exitCode = launcher.launch(arguments("list"));
 
         assertThat(exitCode).isZero();
         assertThat(outputCaptor.getOutput()).contains(EXTENSION_ONLY_SLUG);
@@ -149,7 +149,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       System.clearProperty(LOADER_PATH_PROPERTY);
 
       try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-        int exitCode = launcher.launch(new String[] { "list" });
+        int exitCode = launcher.launch(arguments("list"));
 
         assertThat(exitCode).isZero();
         assertThat(outputCaptor.getOutput()).contains(EXTENSION_ONLY_SLUG).contains(CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE);
@@ -212,7 +212,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
 
   private static CliLaunchResult launchCapturingOutput(Seed4JCliLauncher launcher, String... arguments) {
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      int exitCode = launcher.launch(arguments);
+      int exitCode = launcher.launch(new Seed4JCliArguments(arguments));
       return new CliLaunchResult(exitCode, outputCaptor.getOutput());
     }
   }
@@ -244,11 +244,15 @@ class ExtensionRuntimeBootstrapInProcessTest {
       ScopedSystemProperties scopedSystemProperties = ScopedSystemProperties.capture(request.systemProperties().keySet());
       try {
         request.systemProperties().forEach(System::setProperty);
-        return localCliRunner.run(request.arguments().toArray(String[]::new));
+        return localCliRunner.run(new Seed4JCliArguments(request.arguments().toArray(String[]::new)));
       } finally {
         scopedSystemProperties.restore();
       }
     }
+  }
+
+  private static Seed4JCliArguments arguments(String... values) {
+    return new Seed4JCliArguments(values);
   }
 
   private record CliLaunchResult(int exitCode, String output) {}

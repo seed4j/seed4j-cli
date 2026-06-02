@@ -1,6 +1,7 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Files;
@@ -45,7 +46,7 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
   }
 
   @Override
-  public int run(String[] args) {
+  public int run(Seed4JCliArguments arguments) {
     SpringApplicationBuilderOperations springApplicationBuilderOperations = springApplicationBuilderOperationsFactory.create();
     Path configPath = cliHome.configPath();
 
@@ -61,7 +62,7 @@ public final class SpringBootLocalCliRunner implements LocalCliRunner {
       .bannerModeOff()
       .webNone()
       .lazyInitialization(true)
-      .run(args);
+      .run(arguments.values());
     return springBootExitCodeResolver.resolve(context);
   }
 

@@ -1,7 +1,7 @@
 package com.seed4j.cli.bootstrap.infrastructure.primary;
 
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.application.PreSpringBootstrapCommand;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public class PreSpringBootstrapRunner {
@@ -15,6 +15,6 @@ public class PreSpringBootstrapRunner {
 
   public int exitCodeFor(String[] args) {
     Assert.notNull("args", args);
-    return preSpringBootstrapApplicationService.exitCodeFor(new PreSpringBootstrapCommand(args));
+    return preSpringBootstrapApplicationService.exitCodeFor(new Seed4JCliArguments(args));
   }
 }

@@ -3,6 +3,7 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,7 +26,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.webNoneCalls()).isEqualTo(1);
   }
@@ -41,7 +42,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.bannerModeOffCalls()).isEqualTo(1);
   }
@@ -61,7 +62,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.lastProperty()).isEqualTo(
       "spring.config.location=classpath:/config/,file:%s".formatted(configPath)
@@ -83,7 +84,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.propertyEntries()).isEmpty();
   }
@@ -100,7 +101,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    int exitCode = runner.run(new String[] { "--version" });
+    int exitCode = runner.run(arguments("--version"));
 
     assertThat(exitCode).isEqualTo(37);
     assertThat(recordingSpringBootExitCodeResolver.resolveCalls()).isEqualTo(1);
@@ -117,7 +118,7 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.lazyInitialization()).isTrue();
   }
@@ -133,7 +134,7 @@ class SpringBootLocalCliRunnerTest {
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.lastProperty()).isEqualTo(
       "spring.main.sources=com.mycompany.extension.ExtensionRuntimeApplication"
@@ -155,7 +156,7 @@ class SpringBootLocalCliRunnerTest {
       () -> "com.mycompany.extension.ExtensionRuntimeApplication"
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.propertyEntries()).containsExactly(
       "spring.config.location=classpath:/config/,file:%s".formatted(configPath),
@@ -174,7 +175,7 @@ class SpringBootLocalCliRunnerTest {
       () -> "   "
     );
 
-    runner.run(new String[] { "--version" });
+    runner.run(arguments("--version"));
 
     assertThat(recordingSpringApplicationBuilderOperations.propertyEntries()).isEmpty();
   }
@@ -193,8 +194,8 @@ class SpringBootLocalCliRunnerTest {
       () -> null
     );
 
-    runner.run(new String[] { "--version" });
-    runner.run(new String[] { "list" });
+    runner.run(arguments("--version"));
+    runner.run(arguments("list"));
 
     assertThat(createdSpringApplicationBuilderOperations).hasSize(2);
     assertThat(createdSpringApplicationBuilderOperations.get(0).runArguments()).containsExactly(List.of("--version"));
@@ -264,6 +265,10 @@ class SpringBootLocalCliRunnerTest {
     private List<List<String>> runArguments() {
       return List.copyOf(runArguments);
     }
+  }
+
+  private static Seed4JCliArguments arguments(String... values) {
+    return new Seed4JCliArguments(values);
   }
 
   private static final class RecordingSpringBootExitCodeResolver extends SpringBootExitCodeResolver {

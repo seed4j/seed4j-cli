@@ -6,9 +6,7 @@ import ch.qos.logback.classic.LoggerContext;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.LoggerFactory;
@@ -48,9 +46,9 @@ public class Seed4JCliLauncher {
     this.runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
   }
 
-  public int launch(String[] args) {
+  public int launch(Seed4JCliArguments arguments) {
     if (childMode) {
-      return localCliRunner.run(args);
+      return localCliRunner.run(arguments);
     }
 
     try {
@@ -58,14 +56,14 @@ public class Seed4JCliLauncher {
       failWhenExtensionModeRunsOutsideARegularJar(runtimeSelection);
       if (shouldRunLocally(runtimeSelection)) {
         System.err.println("Standard mode is not running from a packaged CLI JAR. Falling back to local execution.");
-        return localCliRunner.run(args);
+        return localCliRunner.run(arguments);
       }
 
-      if (runtimeSelection.mode() == RuntimeMode.EXTENSION && debugModeRequested(args)) {
+      if (runtimeSelection.mode() == RuntimeMode.EXTENSION && arguments.contains("--debug")) {
         enableBootstrapDebugLoggingInParentProcess();
       }
 
-      return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, args));
+      return childProcessLauncher.launch(javaChildProcessRequest(runtimeSelection, arguments));
     } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
       System.err.println(runtimeConfigurationException.getMessage());
       return 1;
@@ -86,7 +84,7 @@ public class Seed4JCliLauncher {
     return !Files.isRegularFile(executableJar) || !executableJar.getFileName().toString().endsWith(".jar");
   }
 
-  private JavaChildProcessRequest javaChildProcessRequest(RuntimeSelection runtimeSelection, String[] args) {
+  private JavaChildProcessRequest javaChildProcessRequest(RuntimeSelection runtimeSelection, Seed4JCliArguments arguments) {
     Map<String, String> systemProperties = new LinkedHashMap<>();
     systemProperties.put("seed4j.cli.runtime.child", "true");
     systemProperties.put("seed4j.cli.runtime.mode", runtimeSelection.mode().name().toLowerCase());
@@ -109,7 +107,7 @@ public class Seed4JCliLauncher {
       });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
-      if (debugModeRequested(args)) {
+      if (arguments.contains("--debug")) {
         systemProperties.put("logging.level.com.seed4j.cli.bootstrap.domain", "DEBUG");
       } else {
         systemProperties.put("logging.level.root", "ERROR");
@@ -121,7 +119,7 @@ public class Seed4JCliLauncher {
       executableJar,
       PROPERTIES_LAUNCHER_MAIN_CLASS,
       Map.copyOf(systemProperties),
-      List.copyOf(Arrays.asList(args)),
+      arguments.asList(),
       runtimeSelection
     );
   }
@@ -134,10 +132,6 @@ public class Seed4JCliLauncher {
     RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(RuntimeMode.EXTENSION, cliHome.runtimeExtensionConfiguration());
 
     return RuntimeSelection.resolve(runtimeConfiguration);
-  }
-
-  private static boolean debugModeRequested(String[] args) {
-    return Arrays.asList(args).contains("--debug");
   }
 
   @ExcludeFromGeneratedCodeCoverage(

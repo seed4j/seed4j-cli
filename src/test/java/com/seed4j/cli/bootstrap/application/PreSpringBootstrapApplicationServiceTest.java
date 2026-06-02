@@ -8,6 +8,7 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
@@ -22,12 +23,12 @@ class PreSpringBootstrapApplicationServiceTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner(37);
     Seed4JCliLauncher seed4jCliLauncher = seed4jCliLauncher(localCliRunner);
     PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(seed4jCliLauncher);
-    PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(new String[] { "--version" });
+    Seed4JCliArguments arguments = new Seed4JCliArguments(new String[] { "--version" });
 
-    int exitCode = service.exitCodeFor(command);
+    int exitCode = service.exitCodeFor(arguments);
 
     assertThat(exitCode).isEqualTo(37);
-    assertThat(localCliRunner.arguments()).containsExactly("--version");
+    assertThat(localCliRunner.arguments()).isEqualTo(arguments);
   }
 
   private static Seed4JCliLauncher seed4jCliLauncher(LocalCliRunner localCliRunner) {
@@ -60,19 +61,19 @@ class PreSpringBootstrapApplicationServiceTest {
   private static final class RecordingLocalCliRunner implements LocalCliRunner {
 
     private final int exitCode;
-    private String[] arguments;
+    private Seed4JCliArguments arguments;
 
     private RecordingLocalCliRunner(int exitCode) {
       this.exitCode = exitCode;
     }
 
     @Override
-    public int run(String[] args) {
-      this.arguments = args;
+    public int run(Seed4JCliArguments arguments) {
+      this.arguments = arguments;
       return exitCode;
     }
 
-    String[] arguments() {
+    Seed4JCliArguments arguments() {
       return arguments;
     }
   }

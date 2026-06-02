@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.application.PreSpringBootstrapCommand;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
@@ -28,13 +28,13 @@ class PreSpringBootstrapRunnerTest {
     int exitCode = runner.exitCodeFor(new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(53);
-    assertThat(preSpringBootstrapApplicationService.receivedCommand().args()).containsExactly("--version");
+    assertThat(preSpringBootstrapApplicationService.receivedArguments().values()).containsExactly("--version");
   }
 
   private static final class RecordingPreSpringBootstrapApplicationService extends PreSpringBootstrapApplicationService {
 
     private final int exitCode;
-    private PreSpringBootstrapCommand receivedCommand;
+    private Seed4JCliArguments receivedArguments;
 
     private RecordingPreSpringBootstrapApplicationService(int exitCode) {
       super(seed4jCliLauncher());
@@ -42,13 +42,13 @@ class PreSpringBootstrapRunnerTest {
     }
 
     @Override
-    public int exitCodeFor(PreSpringBootstrapCommand command) {
-      this.receivedCommand = command;
+    public int exitCodeFor(Seed4JCliArguments arguments) {
+      this.receivedArguments = arguments;
       return exitCode;
     }
 
-    private PreSpringBootstrapCommand receivedCommand() {
-      return receivedCommand;
+    private Seed4JCliArguments receivedArguments() {
+      return receivedArguments;
     }
   }
 

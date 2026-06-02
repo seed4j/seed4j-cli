@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.application;
 
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.shared.error.domain.Assert;
 
@@ -12,8 +13,8 @@ public class PreSpringBootstrapApplicationService {
     this.seed4jCliLauncher = seed4jCliLauncher;
   }
 
-  public int exitCodeFor(PreSpringBootstrapCommand command) {
-    Assert.notNull("command", command);
-    return seed4jCliLauncher.launch(command.args());
+  public int exitCodeFor(Seed4JCliArguments arguments) {
+    Assert.notNull("arguments", arguments);
+    return seed4jCliLauncher.launch(arguments);
   }
 }
