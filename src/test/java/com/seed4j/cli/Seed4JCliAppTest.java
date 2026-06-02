@@ -2,7 +2,13 @@ package com.seed4j.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -76,12 +82,7 @@ class Seed4JCliAppTest {
     private String[] arguments;
 
     private RecordingPreSpringBootstrapRunner(int exitCode) {
-      super(
-        new com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService(
-          runtimeEnvironment -> (args, childMode) -> exitCode,
-          () -> new PreSpringRuntimeEnvironment(Path.of("/home/user"), Path.of("/tmp/seed4j-cli.jar"), false, Path.of("/tmp/jdk/bin/java"))
-        )
-      );
+      super(new PreSpringBootstrapApplicationService(seed4jCliLauncher()));
       this.exitCode = exitCode;
     }
 
@@ -94,5 +95,34 @@ class Seed4JCliAppTest {
     String[] arguments() {
       return arguments;
     }
+  }
+
+  private static Seed4JCliLauncher seed4jCliLauncher() {
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+      Path.of("/home/user"),
+      Path.of("/tmp/seed4j-cli.jar"),
+      true,
+      Path.of("/tmp/jdk/bin/java")
+    );
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RuntimeModeConfigurationRepository() {
+      @Override
+      public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+        throw new UnsupportedOperationException("Not required in this test.");
+      }
+
+      @Override
+      public RuntimeMode readMode() {
+        return RuntimeMode.STANDARD;
+      }
+    };
+    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+      command -> {
+        throw new IllegalStateException("Should not execute a child process in this test.");
+      },
+      args -> {
+        throw new IllegalStateException("Should not run the local CLI in this test.");
+      }
+    );
+    return new Seed4JCliLauncherFactory().create(runtimeEnvironment, runtimeModeConfigurationRepository, launcherDependencies);
   }
 }

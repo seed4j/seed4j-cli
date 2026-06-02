@@ -1,24 +1,25 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import java.nio.file.Path;
-
 public class Seed4JCliLauncherFactory {
 
-  public record LauncherDependencies(Path javaExecutable, ProcessCommandExecutor commandExecutor, LocalCliRunner localCliRunner) {}
+  public record LauncherDependencies(ProcessCommandExecutor commandExecutor, LocalCliRunner localCliRunner) {}
 
   public Seed4JCliLauncher create(
-    Path userHome,
-    Path executableJar,
+    PreSpringRuntimeEnvironment runtimeEnvironment,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     LauncherDependencies dependencies
   ) {
-    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(dependencies.javaExecutable(), dependencies.commandExecutor());
+    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(
+      runtimeEnvironment.javaExecutablePath(),
+      dependencies.commandExecutor()
+    );
     return new Seed4JCliLauncher(
-      userHome,
-      executableJar,
+      runtimeEnvironment.userHomePath(),
+      runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
       childProcessLauncher,
-      dependencies.localCliRunner()
+      dependencies.localCliRunner(),
+      runtimeEnvironment.childMode()
     );
   }
 }

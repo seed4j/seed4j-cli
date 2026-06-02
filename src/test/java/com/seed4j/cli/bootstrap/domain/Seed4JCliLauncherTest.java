@@ -47,7 +47,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       runtimeModeConfigurationRepository,
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -87,7 +88,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version", "--debug" });
@@ -127,7 +129,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
     Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
     Level previousLevel = logger.getLevel();
@@ -160,7 +163,8 @@ class Seed4JCliLauncherTest {
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -195,7 +199,8 @@ class Seed4JCliLauncherTest {
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -216,7 +221,8 @@ class Seed4JCliLauncherTest {
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -240,7 +246,8 @@ class Seed4JCliLauncherTest {
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -263,7 +270,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -292,7 +300,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -313,10 +322,11 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      true
     );
 
-    int exitCode = launcher.launch(new String[] { "--version" }, true);
+    int exitCode = launcher.launch(new String[] { "--version" });
 
     assertThat(exitCode).isEqualTo(12);
     assertThat(localCliRunner.wasCalled()).isTrue();
@@ -338,7 +348,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -372,7 +383,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -409,7 +421,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -437,7 +450,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -460,7 +474,8 @@ class Seed4JCliLauncherTest {
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -481,7 +496,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -508,7 +524,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -545,7 +562,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -591,7 +609,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -630,7 +649,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -666,7 +686,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     int exitCode = launcher.launch(new String[] { "--version" });
@@ -704,7 +725,8 @@ class Seed4JCliLauncherTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {

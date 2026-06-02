@@ -24,6 +24,7 @@ public class Seed4JCliLauncher {
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
+  private final boolean childMode;
   private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
   private final RuntimeExtensionOverlayCache runtimeExtensionOverlayCache;
   private final RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver;
@@ -33,23 +34,21 @@ public class Seed4JCliLauncher {
     Path executableJar,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     ChildProcessLauncher childProcessLauncher,
-    LocalCliRunner localCliRunner
+    LocalCliRunner localCliRunner,
+    boolean childMode
   ) {
     this.userHome = userHome;
     this.executableJar = executableJar;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
+    this.childMode = childMode;
     this.runtimeExtensionLoaderPathResolver = new RuntimeExtensionLoaderPathResolver();
     this.runtimeExtensionOverlayCache = new RuntimeExtensionOverlayCache(userHome);
     this.runtimeExtensionStartClassResolver = new RuntimeExtensionStartClassResolver();
   }
 
   public int launch(String[] args) {
-    return launch(args, false);
-  }
-
-  public int launch(String[] args, boolean childMode) {
     if (childMode) {
       return localCliRunner.run(args);
     }

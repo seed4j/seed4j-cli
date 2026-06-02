@@ -39,7 +39,8 @@ class Seed4JCliLauncherFactoryTest {
       Path.class,
       RuntimeModeConfigurationRepository.class,
       ChildProcessLauncher.class,
-      LocalCliRunner.class
+      LocalCliRunner.class,
+      boolean.class
     );
 
     assertThat(Modifier.isPublic(constructor.getModifiers())).isFalse();
@@ -50,6 +51,12 @@ class Seed4JCliLauncherFactoryTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     RecordingCommandExecutor commandExecutor = new RecordingCommandExecutor();
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+      userHome,
+      executableJar,
+      false,
+      Path.of("/opt/jdk/bin/java")
+    );
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RuntimeModeConfigurationRepository() {
       @Override
       public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
@@ -63,14 +70,13 @@ class Seed4JCliLauncherFactoryTest {
     };
     Seed4JCliLauncherFactory factory = new Seed4JCliLauncherFactory();
     Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      Path.of("/opt/jdk/bin/java"),
       commandExecutor,
       args -> {
         throw new IllegalStateException("Should not resolve local exit code in this test.");
       }
     );
 
-    Seed4JCliLauncher launcher = factory.create(userHome, executableJar, runtimeModeConfigurationRepository, dependencies);
+    Seed4JCliLauncher launcher = factory.create(runtimeEnvironment, runtimeModeConfigurationRepository, dependencies);
 
     int exitCode = launcher.launch(new String[] { "--version" });
 

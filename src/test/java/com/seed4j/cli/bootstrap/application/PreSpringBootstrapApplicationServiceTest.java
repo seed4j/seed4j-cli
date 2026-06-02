@@ -3,8 +3,13 @@ package com.seed4j.cli.bootstrap.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
@@ -12,96 +17,62 @@ import org.junit.jupiter.api.Test;
 class PreSpringBootstrapApplicationServiceTest {
 
   @Test
-  void shouldReadRuntimeEnvironmentFromReaderAndDelegateArgsChildModeAndFactoryInputs() {
-    RecordingPreSpringLauncher recordingPreSpringLauncher = new RecordingPreSpringLauncher(37);
-    RecordingPreSpringLauncherFactory recordingPreSpringLauncherFactory = new RecordingPreSpringLauncherFactory(recordingPreSpringLauncher);
+  void shouldDelegateArgsToLauncherAndReturnItsExitCode() {
+    RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner(37);
+    Seed4JCliLauncher seed4jCliLauncher = seed4jCliLauncher(localCliRunner);
+    PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(seed4jCliLauncher);
+    PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(new String[] { "--version" });
+
+    int exitCode = service.exitCodeFor(command);
+
+    assertThat(exitCode).isEqualTo(37);
+    assertThat(localCliRunner.arguments()).containsExactly("--version");
+  }
+
+  private static Seed4JCliLauncher seed4jCliLauncher(LocalCliRunner localCliRunner) {
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       Path.of("/home/user"),
       Path.of("/tmp/seed4j-cli.jar"),
       true,
       Path.of("/tmp/jdk/bin/java")
     );
-    RecordingPreSpringRuntimeEnvironmentReader recordingPreSpringRuntimeEnvironmentReader = new RecordingPreSpringRuntimeEnvironmentReader(
-      runtimeEnvironment
-    );
-    PreSpringBootstrapApplicationService service = new PreSpringBootstrapApplicationService(
-      recordingPreSpringLauncherFactory,
-      recordingPreSpringRuntimeEnvironmentReader
-    );
-    PreSpringBootstrapCommand command = new PreSpringBootstrapCommand(new String[] { "--version" });
+    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RuntimeModeConfigurationRepository() {
+      @Override
+      public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
+        throw new UnsupportedOperationException("Not required in this test.");
+      }
 
-    int exitCode = service.exitCodeFor(command);
-
-    assertThat(exitCode).isEqualTo(37);
-    assertThat(recordingPreSpringRuntimeEnvironmentReader.currentCalls()).isEqualTo(1);
-    assertThat(recordingPreSpringLauncherFactory.runtimeEnvironment()).isEqualTo(runtimeEnvironment);
-    assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
-    assertThat(recordingPreSpringLauncher.childMode()).isTrue();
+      @Override
+      public RuntimeMode readMode() {
+        return RuntimeMode.STANDARD;
+      }
+    };
+    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+      command -> {
+        throw new IllegalStateException("Should not execute a child process in this test.");
+      },
+      localCliRunner
+    );
+    return new Seed4JCliLauncherFactory().create(runtimeEnvironment, runtimeModeConfigurationRepository, launcherDependencies);
   }
 
-  private static final class RecordingPreSpringLauncher implements PreSpringLauncher {
+  private static final class RecordingLocalCliRunner implements LocalCliRunner {
 
     private final int exitCode;
     private String[] arguments;
-    private Boolean childMode;
 
-    private RecordingPreSpringLauncher(int exitCode) {
+    private RecordingLocalCliRunner(int exitCode) {
       this.exitCode = exitCode;
     }
 
     @Override
-    public int launch(String[] args, boolean childMode) {
+    public int run(String[] args) {
       this.arguments = args;
-      this.childMode = childMode;
       return exitCode;
     }
 
     String[] arguments() {
       return arguments;
-    }
-
-    Boolean childMode() {
-      return childMode;
-    }
-  }
-
-  private static final class RecordingPreSpringLauncherFactory implements PreSpringLauncherFactory {
-
-    private final RecordingPreSpringLauncher preSpringLauncher;
-    private PreSpringRuntimeEnvironment runtimeEnvironment;
-
-    private RecordingPreSpringLauncherFactory(RecordingPreSpringLauncher preSpringLauncher) {
-      this.preSpringLauncher = preSpringLauncher;
-    }
-
-    @Override
-    public PreSpringLauncher create(PreSpringRuntimeEnvironment runtimeEnvironment) {
-      this.runtimeEnvironment = runtimeEnvironment;
-      return preSpringLauncher;
-    }
-
-    PreSpringRuntimeEnvironment runtimeEnvironment() {
-      return runtimeEnvironment;
-    }
-  }
-
-  private static final class RecordingPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
-
-    private final PreSpringRuntimeEnvironment runtimeEnvironment;
-    private int currentCalls;
-
-    private RecordingPreSpringRuntimeEnvironmentReader(PreSpringRuntimeEnvironment runtimeEnvironment) {
-      this.runtimeEnvironment = runtimeEnvironment;
-    }
-
-    @Override
-    public PreSpringRuntimeEnvironment current() {
-      currentCalls++;
-      return runtimeEnvironment;
-    }
-
-    int currentCalls() {
-      return currentCalls;
     }
   }
 }

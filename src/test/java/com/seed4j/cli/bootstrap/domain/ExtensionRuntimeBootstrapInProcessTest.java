@@ -48,7 +48,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
@@ -91,7 +92,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
@@ -132,7 +134,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -169,7 +172,8 @@ class ExtensionRuntimeBootstrapInProcessTest {
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(userHome),
       childProcessLauncher,
-      localCliRunner
+      localCliRunner,
+      false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(

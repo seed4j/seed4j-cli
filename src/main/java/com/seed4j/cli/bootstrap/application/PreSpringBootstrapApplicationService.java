@@ -1,28 +1,19 @@
 package com.seed4j.cli.bootstrap.application;
 
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public class PreSpringBootstrapApplicationService {
 
-  private final PreSpringLauncherFactory preSpringLauncherFactory;
-  private final PreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader;
+  private final Seed4JCliLauncher seed4jCliLauncher;
 
-  public PreSpringBootstrapApplicationService(
-    PreSpringLauncherFactory preSpringLauncherFactory,
-    PreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader
-  ) {
-    Assert.notNull("preSpringLauncherFactory", preSpringLauncherFactory);
-    Assert.notNull("preSpringRuntimeEnvironmentReader", preSpringRuntimeEnvironmentReader);
-    this.preSpringLauncherFactory = preSpringLauncherFactory;
-    this.preSpringRuntimeEnvironmentReader = preSpringRuntimeEnvironmentReader;
+  public PreSpringBootstrapApplicationService(Seed4JCliLauncher seed4jCliLauncher) {
+    Assert.notNull("seed4jCliLauncher", seed4jCliLauncher);
+    this.seed4jCliLauncher = seed4jCliLauncher;
   }
 
   public int exitCodeFor(PreSpringBootstrapCommand command) {
     Assert.notNull("command", command);
-    PreSpringRuntimeEnvironment runtimeEnvironment = preSpringRuntimeEnvironmentReader.current();
-    PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(runtimeEnvironment);
-    return preSpringLauncher.launch(command.args(), runtimeEnvironment.childMode());
+    return seed4jCliLauncher.launch(command.args());
   }
 }

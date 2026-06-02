@@ -2,11 +2,8 @@ package com.seed4j.cli.bootstrap.composition;
 
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.application.PreSpringLauncher;
-import com.seed4j.cli.bootstrap.application.PreSpringLauncherFactory;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
@@ -22,39 +19,28 @@ public final class PreSpringBootstrapConfiguration {
   private PreSpringBootstrapConfiguration() {}
 
   public static PreSpringBootstrapRunner preSpringBootstrapRunner() {
-    return preSpringBootstrapRunner(new CurrentProcessPreSpringRuntimeEnvironmentReader());
+    CurrentProcessPreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader =
+      new CurrentProcessPreSpringRuntimeEnvironmentReader();
+    PreSpringRuntimeEnvironment runtimeEnvironment = preSpringRuntimeEnvironmentReader.current();
+    return preSpringBootstrapRunner(runtimeEnvironment);
   }
 
-  static PreSpringBootstrapRunner preSpringBootstrapRunner(PreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader) {
-    Assert.notNull("preSpringRuntimeEnvironmentReader", preSpringRuntimeEnvironmentReader);
+  static PreSpringBootstrapRunner preSpringBootstrapRunner(PreSpringRuntimeEnvironment runtimeEnvironment) {
+    Assert.notNull("runtimeEnvironment", runtimeEnvironment);
     PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
-      preSpringLauncherFactory(),
-      preSpringRuntimeEnvironmentReader
+      seed4jCliLauncher(runtimeEnvironment)
     );
     return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
   }
 
-  private static PreSpringLauncherFactory preSpringLauncherFactory() {
-    return PreSpringBootstrapConfiguration::preSpringLauncher;
-  }
-
-  private static PreSpringLauncher preSpringLauncher(PreSpringRuntimeEnvironment runtimeEnvironment) {
+  private static Seed4JCliLauncher seed4jCliLauncher(PreSpringRuntimeEnvironment runtimeEnvironment) {
     Path userHomePath = runtimeEnvironment.userHomePath();
-    Path executablePath = runtimeEnvironment.executablePath();
-    Path javaExecutablePath = runtimeEnvironment.javaExecutablePath();
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, userHomePath);
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      javaExecutablePath,
       new JavaChildProcessCommandExecutor(),
       localCliRunner
     );
-    Seed4JCliLauncher launcher = launcherFactory.create(
-      userHomePath,
-      executablePath,
-      new FileSystemRuntimeModeConfigurationRepository(userHomePath),
-      launcherDependencies
-    );
-    return launcher::launch;
+    return launcherFactory.create(runtimeEnvironment, new FileSystemRuntimeModeConfigurationRepository(userHomePath), launcherDependencies);
   }
 }
