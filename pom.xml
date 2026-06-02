@@ -60,6 +60,12 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5-api</artifactId>
+      <version>${archunit-junit5.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <properties>
@@ -81,6 +87,7 @@
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.0.6</spring-boot.version>
     <seed4j.version>2.2.0</seed4j.version>
+    <archunit-junit5.version>1.4.2</archunit-junit5.version>
   </properties>
 
   <build>

@@ -1,0 +1,272 @@
+package com.seed4j.cli;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+@UnitTest
+class HexagonalArchTest {
+
+  private static final String ROOT_PACKAGE = "com.seed4j.cli";
+  private static final String COMMAND_CONTEXT = ROOT_PACKAGE.concat(".command");
+  private static final String COMPOSITION_PACKAGES = ROOT_PACKAGE.concat(".bootstrap.composition..");
+
+  private static final JavaClasses classes = new ClassFileImporter()
+    .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+    .importPackages(ROOT_PACKAGE);
+
+  private static final Collection<String> businessContexts = packagesWithAnnotation(BusinessContext.class);
+  private static final Collection<String> businessContextsPackages = buildPackagesPatterns(businessContexts);
+
+  private static final Collection<String> sharedKernels = packagesWithAnnotation(SharedKernel.class);
+  private static final Collection<String> sharedKernelsPackages = buildPackagesPatterns(sharedKernels);
+
+  // The empty package is related to https://github.com/TNG/ArchUnit/issues/191#issuecomment-507964792
+  private static final Collection<String> vanillaPackages = List.of("java..", "");
+  private static final Collection<String> commonToolsAndUtilsPackages = List.of(
+    "org.slf4j..",
+    "org.apache.commons..",
+    "org.jspecify.annotations..",
+    "com.google.guava..",
+    "org.yaml.snakeyaml..",
+    "ch.qos.logback.classic.."
+  );
+
+  private static Collection<String> buildPackagesPatterns(Collection<String> packages) {
+    return packages
+      .stream()
+      .map(path -> path + "..")
+      .toList();
+  }
+
+  private static Collection<String> packagesWithAnnotation(Class<? extends Annotation> annotationClass) throws AssertionError {
+    try (Stream<Path> files = Files.walk(rootPackagePath())) {
+      return files
+        .filter(path -> path.toString().endsWith("package-info.java"))
+        .map(toPackageInfoName())
+        .map(path -> path.replaceAll("[/]", "."))
+        .map(path -> path.replaceAll("[\\\\]", "."))
+        .map(path -> path.replace("src.main.java.", ""))
+        .map(toPackage())
+        .filter(pack -> pack.getAnnotation(annotationClass) != null)
+        .map(Package::getName)
+        .toList();
+    } catch (IOException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static Path rootPackagePath() {
+    return Stream.of(ROOT_PACKAGE.split("\\.")).map(Path::of).reduce(Path.of("src", "main", "java"), Path::resolve);
+  }
+
+  private static Function<Path, String> toPackageInfoName() {
+    return path -> {
+      String stringPath = path.toString();
+      return stringPath.substring(0, stringPath.lastIndexOf("."));
+    };
+  }
+
+  private static Function<String, Package> toPackage() {
+    return path -> {
+      try {
+        return Class.forName(path).getPackage();
+      } catch (ClassNotFoundException e) {
+        throw new AssertionError(e);
+      }
+    };
+  }
+
+  @Nested
+  class BoundedContexts {
+
+    @Test
+    void shouldNotDependOnOtherBoundedContextDomains() {
+      Stream.concat(businessContexts.stream().filter(context -> !COMMAND_CONTEXT.equals(context)), sharedKernels.stream()).forEach(
+        context ->
+          noClasses()
+            .that()
+            .resideInAnyPackage(context + "..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(otherBusinessContextsDomains(context))
+            .because("contexts can only depend on domain classes in the same context or shared kernels")
+            .check(classes)
+      );
+    }
+
+    @Test
+    void commandNonPrimaryAdaptersShouldNotDependOnOtherBoundedContextDomains() {
+      noClasses()
+        .that()
+        .resideInAPackage(COMMAND_CONTEXT + "..")
+        .and()
+        .resideOutsideOfPackage(COMMAND_CONTEXT + ".infrastructure.primary..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(otherBusinessContextsDomains(COMMAND_CONTEXT))
+        .because("only command primary adapters translate CLI input and output with bootstrap domain concepts")
+        .check(classes);
+    }
+
+    private String[] otherBusinessContextsDomains(String context) {
+      return businessContexts
+        .stream()
+        .filter(other -> !context.equals(other))
+        .map(name -> name + ".domain..")
+        .toArray(String[]::new);
+    }
+  }
+
+  @Nested
+  class Domain {
+
+    @Test
+    void shouldNotDependOnOutside() {
+      classes()
+        .that()
+        .resideInAPackage("..domain..")
+        .should()
+        .onlyDependOnClassesThat()
+        .resideInAnyPackage(authorizedDomainPackages())
+        .because("domain model should only depend on domains and a very limited set of external dependencies")
+        .check(classes);
+    }
+
+    private String[] authorizedDomainPackages() {
+      return Stream.of(List.of("..domain.."), vanillaPackages, commonToolsAndUtilsPackages, sharedKernelsPackages)
+        .flatMap(Collection::stream)
+        .toArray(String[]::new);
+    }
+  }
+
+  @Nested
+  class Application {
+
+    @Test
+    void shouldNotDependOnInfrastructure() {
+      noClasses()
+        .that()
+        .resideInAPackage("..application..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("..infrastructure..")
+        .because("application should orchestrate domain use cases without depending on infrastructure adapters")
+        .check(classes);
+    }
+  }
+
+  @Nested
+  class Primary {
+
+    @Test
+    void shouldNotDependOnSecondary() {
+      noClasses()
+        .that()
+        .resideInAPackage("..primary..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("..secondary..")
+        .because("primary adapters should not interact directly with secondary adapters")
+        .check(classes);
+    }
+  }
+
+  @Nested
+  class Secondary {
+
+    @Test
+    void shouldNotDependOnApplication() {
+      noClasses()
+        .that()
+        .resideInAPackage("..infrastructure.secondary..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("..application..")
+        .because("secondary adapters should implement domain ports without depending on application services")
+        .check(classes);
+    }
+
+    @Test
+    void shouldNotDependOnSameContextPrimary() {
+      Stream.concat(businessContexts.stream(), sharedKernels.stream()).forEach(context ->
+        noClasses()
+          .that()
+          .resideInAPackage(context + ".infrastructure.secondary..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage(context + ".infrastructure.primary..")
+          .because("secondary adapters should not loop to their own context primary adapters")
+          .check(classes)
+      );
+    }
+  }
+
+  @Nested
+  class SharedKernels {
+
+    @Test
+    void sharedPackageShouldOnlyContainSharedKernels() {
+      classes()
+        .that()
+        .haveSimpleName("package-info")
+        .and()
+        .resideInAPackage(ROOT_PACKAGE.concat(".shared.."))
+        .and()
+        .resideOutsideOfPackages(ROOT_PACKAGE.concat(".shared..domain"), ROOT_PACKAGE.concat(".shared..infrastructure.*"))
+        .should()
+        .beMetaAnnotatedWith(SharedKernel.class)
+        .because(ROOT_PACKAGE + ".shared package should only contain shared kernels")
+        .check(classes);
+    }
+  }
+
+  @Nested
+  class CompositionRoot {
+
+    @Test
+    void shouldOnlyBeAccessedByRootApplicationEntryPoint() {
+      noClasses()
+        .that()
+        .resideOutsideOfPackage(COMPOSITION_PACKAGES)
+        .and()
+        .doNotHaveFullyQualifiedName(ROOT_PACKAGE.concat(".Seed4JCliApp"))
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(COMPOSITION_PACKAGES)
+        .because("pre-Spring composition is only allowed from the root application entry point")
+        .check(classes);
+    }
+
+    @Test
+    void boundedContextsAndSharedKernelsShouldNotDependOnComposition() {
+      noClasses()
+        .that()
+        .resideInAnyPackage(businessContextsOrSharedKernelsPackages())
+        .and()
+        .resideOutsideOfPackage(COMPOSITION_PACKAGES)
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(COMPOSITION_PACKAGES)
+        .because("pre-Spring composition must stay an explicit composition root, not a shared dependency")
+        .check(classes);
+    }
+
+    private String[] businessContextsOrSharedKernelsPackages() {
+      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
+    }
+  }
+}
