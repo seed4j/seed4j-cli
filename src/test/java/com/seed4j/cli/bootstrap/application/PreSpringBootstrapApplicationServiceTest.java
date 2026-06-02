@@ -34,9 +34,7 @@ class PreSpringBootstrapApplicationServiceTest {
 
     assertThat(exitCode).isEqualTo(37);
     assertThat(recordingPreSpringRuntimeEnvironmentReader.currentCalls()).isEqualTo(1);
-    assertThat(recordingPreSpringLauncherFactory.userHomePath()).isEqualTo(Path.of("/home/user"));
-    assertThat(recordingPreSpringLauncherFactory.executablePath()).isEqualTo(Path.of("/tmp/seed4j-cli.jar"));
-    assertThat(recordingPreSpringLauncherFactory.javaExecutablePath()).isEqualTo(Path.of("/tmp/jdk/bin/java"));
+    assertThat(recordingPreSpringLauncherFactory.runtimeEnvironment()).isEqualTo(runtimeEnvironment);
     assertThat(recordingPreSpringLauncher.arguments()).containsExactly("--version");
     assertThat(recordingPreSpringLauncher.childMode()).isTrue();
   }
@@ -70,32 +68,20 @@ class PreSpringBootstrapApplicationServiceTest {
   private static final class RecordingPreSpringLauncherFactory implements PreSpringLauncherFactory {
 
     private final RecordingPreSpringLauncher preSpringLauncher;
-    private Path userHomePath;
-    private Path executablePath;
-    private Path javaExecutablePath;
+    private PreSpringRuntimeEnvironment runtimeEnvironment;
 
     private RecordingPreSpringLauncherFactory(RecordingPreSpringLauncher preSpringLauncher) {
       this.preSpringLauncher = preSpringLauncher;
     }
 
     @Override
-    public PreSpringLauncher create(Path userHomePath, Path executablePath, Path javaExecutablePath) {
-      this.userHomePath = userHomePath;
-      this.executablePath = executablePath;
-      this.javaExecutablePath = javaExecutablePath;
+    public PreSpringLauncher create(PreSpringRuntimeEnvironment runtimeEnvironment) {
+      this.runtimeEnvironment = runtimeEnvironment;
       return preSpringLauncher;
     }
 
-    Path userHomePath() {
-      return userHomePath;
-    }
-
-    Path executablePath() {
-      return executablePath;
-    }
-
-    Path javaExecutablePath() {
-      return javaExecutablePath;
+    PreSpringRuntimeEnvironment runtimeEnvironment() {
+      return runtimeEnvironment;
     }
   }
 

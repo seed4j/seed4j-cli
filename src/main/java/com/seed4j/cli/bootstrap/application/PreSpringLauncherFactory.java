@@ -1,8 +1,8 @@
 package com.seed4j.cli.bootstrap.application;
 
-import java.nio.file.Path;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 
 @FunctionalInterface
 public interface PreSpringLauncherFactory {
-  PreSpringLauncher create(Path userHomePath, Path executablePath, Path javaExecutablePath);
+  PreSpringLauncher create(PreSpringRuntimeEnvironment runtimeEnvironment);
 }

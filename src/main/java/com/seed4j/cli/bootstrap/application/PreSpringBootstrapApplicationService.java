@@ -22,11 +22,7 @@ public class PreSpringBootstrapApplicationService {
   public int exitCodeFor(PreSpringBootstrapCommand command) {
     Assert.notNull("command", command);
     PreSpringRuntimeEnvironment runtimeEnvironment = preSpringRuntimeEnvironmentReader.current();
-    PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(
-      runtimeEnvironment.userHomePath(),
-      runtimeEnvironment.executablePath(),
-      runtimeEnvironment.javaExecutablePath()
-    );
+    PreSpringLauncher preSpringLauncher = preSpringLauncherFactory.create(runtimeEnvironment);
     return preSpringLauncher.launch(command.args(), runtimeEnvironment.childMode());
   }
 }

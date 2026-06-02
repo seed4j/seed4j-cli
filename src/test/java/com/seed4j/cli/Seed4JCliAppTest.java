@@ -78,7 +78,7 @@ class Seed4JCliAppTest {
     private RecordingPreSpringBootstrapRunner(int exitCode) {
       super(
         new com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService(
-          (userHomePath, executablePath, javaExecutablePath) -> (args, childMode) -> exitCode,
+          runtimeEnvironment -> (args, childMode) -> exitCode,
           () -> new PreSpringRuntimeEnvironment(Path.of("/home/user"), Path.of("/tmp/seed4j-cli.jar"), false, Path.of("/tmp/jdk/bin/java"))
         )
       );
