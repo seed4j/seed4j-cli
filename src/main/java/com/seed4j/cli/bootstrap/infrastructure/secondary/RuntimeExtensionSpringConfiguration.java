@@ -5,8 +5,6 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionModeEnabler;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
-import com.seed4j.cli.shared.error.domain.Assert;
-import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +14,7 @@ class RuntimeExtensionSpringConfiguration {
 
   @Bean
   Seed4JCliHome seed4jCliHome(@Value("${user.home}") String userHomePath) {
-    return new Seed4JCliHome(userHome(userHomePath));
+    return Seed4JCliHome.from(userHomePath);
   }
 
   @Bean
@@ -40,10 +38,5 @@ class RuntimeExtensionSpringConfiguration {
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository
   ) {
     return new RuntimeExtensionModeEnabler(runtimeExtensionConfiguration, runtimeModeConfigurationRepository);
-  }
-
-  private static Path userHome(String userHomePath) {
-    Assert.notBlank("userHomePath", userHomePath);
-    return Path.of(userHomePath);
   }
 }

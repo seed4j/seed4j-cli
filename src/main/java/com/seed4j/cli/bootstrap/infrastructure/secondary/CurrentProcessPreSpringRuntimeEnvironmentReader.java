@@ -21,7 +21,7 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSprin
   public PreSpringRuntimeEnvironment current() {
     Path codeSourcePath = currentCodeSourcePath();
     return new PreSpringRuntimeEnvironment(
-      new Seed4JCliHome(Path.of(System.getProperty("user.home"))),
+      Seed4JCliHome.from(System.getProperty("user.home")),
       resolveExecutablePath(
         codeSourcePath,
         System.getProperty("sun.java.command", ""),

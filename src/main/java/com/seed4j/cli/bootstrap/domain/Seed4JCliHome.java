@@ -8,6 +8,11 @@ public record Seed4JCliHome(Path path) {
     Assert.notNull("path", path);
   }
 
+  public static Seed4JCliHome from(String path) {
+    Assert.notBlank("path", path);
+    return new Seed4JCliHome(Path.of(path));
+  }
+
   public Path configPath() {
     return path.resolve(".config/seed4j-cli/config.yml");
   }

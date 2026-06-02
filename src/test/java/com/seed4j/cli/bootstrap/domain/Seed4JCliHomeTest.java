@@ -25,7 +25,36 @@ class Seed4JCliHomeTest {
   }
 
   @Test
+  void shouldCreateCliHomeFromString() {
+    Path homePath = Path.of("/tmp/seed4j-home");
+    Seed4JCliHome cliHome = Seed4JCliHome.from("/tmp/seed4j-home");
+
+    RuntimeExtensionConfiguration runtimeExtensionConfiguration = cliHome.runtimeExtensionConfiguration();
+
+    assertThat(cliHome.configPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/config.yml"));
+    assertThat(runtimeExtensionConfiguration.jarPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/extension.jar"));
+    assertThat(runtimeExtensionConfiguration.metadataPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/metadata.yml"));
+    assertThat(cliHome.runtimeCacheDirectory()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/cache"));
+  }
+
+  @Test
   void shouldRejectMissingHomePath() {
-    assertThatThrownBy(() -> new Seed4JCliHome(null)).isExactlyInstanceOf(MissingMandatoryValueException.class);
+    assertThatThrownBy(() -> new Seed4JCliHome(null))
+      .isExactlyInstanceOf(MissingMandatoryValueException.class)
+      .hasMessageContaining("\"path\"");
+  }
+
+  @Test
+  void shouldRejectMissingHomePathFromFactory() {
+    assertThatThrownBy(() -> Seed4JCliHome.from(null))
+      .isExactlyInstanceOf(MissingMandatoryValueException.class)
+      .hasMessageContaining("\"path\"");
+  }
+
+  @Test
+  void shouldRejectBlankHomePathFromFactory() {
+    assertThatThrownBy(() -> Seed4JCliHome.from("   "))
+      .isExactlyInstanceOf(MissingMandatoryValueException.class)
+      .hasMessageContaining("\"path\"");
   }
 }
