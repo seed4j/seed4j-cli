@@ -44,8 +44,8 @@ This command displays:
 - Seed4J CLI version
 - Seed4J version
 - Active runtime mode (`standard` or `extension`)
-- Active distribution ID
-- Active distribution version
+- Active distribution ID, in extension mode only
+- Active distribution version, in extension mode only
 
 Example output in `standard` mode:
 
@@ -53,8 +53,6 @@ Example output in `standard` mode:
 Seed4J CLI v0.0.1-SNAPSHOT
 Seed4J version: 2.2.0
 Runtime mode: standard
-Distribution ID: standard
-Distribution version: 0.0.1-SNAPSHOT
 ```
 
 Example output in `extension` mode:

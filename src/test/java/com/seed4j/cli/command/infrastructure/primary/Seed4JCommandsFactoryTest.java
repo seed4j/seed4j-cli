@@ -433,9 +433,11 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains("Seed4J CLI vunknown")
         .contains("Seed4J version: unknown")
-        .contains("Distribution version: unknown")
+        .contains("Runtime mode: standard")
         .doesNotContain("vnull")
-        .doesNotContain("version: null");
+        .doesNotContain("version: null")
+        .doesNotContain("Distribution ID")
+        .doesNotContain("Distribution version");
     }
 
     @Test
@@ -445,7 +447,12 @@ class Seed4JCommandsFactoryTest {
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
+      assertThat(output)
+        .contains("Seed4J CLI v1")
+        .contains("Seed4J version: 2")
+        .contains("Runtime mode: standard")
+        .doesNotContain("Distribution ID")
+        .doesNotContain("Distribution version");
     }
 
     @Test

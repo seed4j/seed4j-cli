@@ -2,6 +2,7 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.util.List;
 import java.util.Optional;
@@ -54,17 +55,22 @@ class Seed4JCommandsFactory {
     String resolvedCliVersion = resolvedVersion(projectCliVersion, UNKNOWN_VERSION);
     String resolvedSeed4JVersion = resolvedVersion(projectSeed4JVersion, resolvedCliVersion);
 
+    String commonOutput = """
+      Seed4J CLI v%s
+      Seed4J version: %s
+      Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeSelection.mode().name().toLowerCase());
+
+    if (runtimeSelection.mode() != RuntimeMode.EXTENSION) {
+      return commonOutput;
+    }
+
     return """
-    Seed4J CLI v%s
-    Seed4J version: %s
-    Runtime mode: %s
+    %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
-        resolvedCliVersion,
-        resolvedSeed4JVersion,
-        runtimeSelection.mode().name().toLowerCase(),
-        runtimeSelection.distributionId().map(RuntimeDistributionId::id).orElse("standard"),
-        runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::version).orElse(resolvedCliVersion)
+        commonOutput,
+        runtimeSelection.distributionId().map(RuntimeDistributionId::id).orElse(UNKNOWN_VERSION),
+        runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::version).orElse(UNKNOWN_VERSION)
       );
   }
 
