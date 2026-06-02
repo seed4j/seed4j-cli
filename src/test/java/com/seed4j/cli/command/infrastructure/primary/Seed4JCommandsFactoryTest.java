@@ -469,6 +469,8 @@ class Seed4JCommandsFactoryTest {
 
       assertThat(exitCode).isZero();
       assertThat(output)
+        .contains("Seed4J CLI v1")
+        .contains("Seed4J version: 2")
         .contains("Runtime mode: extension")
         .contains("Distribution ID: company-extension")
         .contains("Distribution version: 1.0.0");
