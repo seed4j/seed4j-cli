@@ -2,7 +2,16 @@ package com.seed4j.cli.bootstrap.domain;
 
 public class Seed4JCliLauncherFactory {
 
-  public record LauncherDependencies(ProcessCommandExecutor commandExecutor, LocalCliRunner localCliRunner) {}
+  public record LauncherDependencies(
+    ChildProcessLauncher childProcessLauncher,
+    LocalCliRunner localCliRunner,
+    PackagedExecutableDetector packagedExecutableDetector,
+    BootstrapDiagnostics bootstrapDiagnostics,
+    BootstrapOutput bootstrapOutput,
+    RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver,
+    RuntimeExtensionOverlayCache runtimeExtensionOverlayCache,
+    RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver
+  ) {}
 
   public Seed4JCliLauncher create(
     PreSpringRuntimeEnvironment runtimeEnvironment,
@@ -10,17 +19,19 @@ public class Seed4JCliLauncherFactory {
     RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
     LauncherDependencies dependencies
   ) {
-    ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(
-      runtimeEnvironment.javaExecutablePath(),
-      dependencies.commandExecutor()
-    );
     return new Seed4JCliLauncher(
       runtimeEnvironment.cliHome(),
       runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
       runtimeExtensionSelectionRepository,
-      childProcessLauncher,
+      dependencies.childProcessLauncher(),
       dependencies.localCliRunner(),
+      dependencies.packagedExecutableDetector(),
+      dependencies.bootstrapDiagnostics(),
+      dependencies.bootstrapOutput(),
+      dependencies.runtimeExtensionStartClassResolver(),
+      dependencies.runtimeExtensionOverlayCache(),
+      dependencies.runtimeExtensionLoaderPathResolver(),
       runtimeEnvironment.childMode()
     );
   }

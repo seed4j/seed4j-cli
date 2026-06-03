@@ -29,7 +29,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
-final class ExtensionRuntimeFixture {
+public final class ExtensionRuntimeFixture {
 
   private static final String EXTENSION_MODE_CONFIG = """
     seed4j:
@@ -184,7 +184,7 @@ final class ExtensionRuntimeFixture {
     return createListExtensionModuleJar(jarPath);
   }
 
-  static Path createListExtensionModuleJar(Path jarPath) throws IOException {
+  public static Path createListExtensionModuleJar(Path jarPath) throws IOException {
     Manifest manifest = manifestWithStartClass();
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
@@ -321,7 +321,7 @@ final class ExtensionRuntimeFixture {
     return jarPath;
   }
 
-  static Path createFlatJar(Path jarPath) throws IOException {
+  public static Path createFlatJar(Path jarPath) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {

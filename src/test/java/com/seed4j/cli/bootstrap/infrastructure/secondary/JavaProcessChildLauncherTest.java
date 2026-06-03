@@ -1,8 +1,11 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.JavaChildProcessRequest;
+import com.seed4j.cli.bootstrap.domain.ProcessCommandExecutor;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;

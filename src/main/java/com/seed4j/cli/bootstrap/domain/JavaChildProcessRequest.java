@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-record JavaChildProcessRequest(
+public record JavaChildProcessRequest(
   Path executableJar,
   String mainClass,
   Map<String, String> systemProperties,

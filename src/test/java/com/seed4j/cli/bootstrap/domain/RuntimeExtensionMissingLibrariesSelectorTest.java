@@ -3,16 +3,11 @@ package com.seed4j.cli.bootstrap.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.seed4j.cli.UnitTest;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 
 @UnitTest
 class RuntimeExtensionMissingLibrariesSelectorTest {
@@ -35,7 +30,7 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldLogDebugDecisionWhenCliVersionWinsOverOlderExtensionVersion() {
+  void shouldKeepCliRuntimeLibraryWhenCliVersionWinsOverOlderExtensionVersion() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
         "logback-classic-1.5.22.jar",
@@ -48,23 +43,9 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
         Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.32"))
       )
     );
-    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionMissingLibrariesSelector.class);
-    Level previousLevel = logger.getLevel();
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    logger.setLevel(Level.DEBUG);
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
-    try {
-      new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
-    } finally {
-      logger.detachAppender(appender);
-      logger.setLevel(previousLevel);
-    }
-
-    assertThat(appender.list)
-      .extracting(ILoggingEvent::getFormattedMessage)
-      .anyMatch(message -> message.contains("ch.qos.logback:logback-classic") && message.contains("1.5.32") && message.contains("1.5.22"));
+    assertThat(missingLibraries).isEmpty();
   }
 
   @Test

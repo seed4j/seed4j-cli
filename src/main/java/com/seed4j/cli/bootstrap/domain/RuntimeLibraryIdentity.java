@@ -4,12 +4,12 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-record RuntimeLibraryIdentity(String coordinate, String version) {
+public record RuntimeLibraryIdentity(String coordinate, String version) {
   private static final Pattern LIBRARY_COORDINATE_AND_VERSION_PATTERN = Pattern.compile(
     "^(.+)-(\\d[0-9A-Za-z.]*|v\\d[0-9A-Za-z.]*|RELEASE)\\.jar$"
   );
 
-  static Optional<RuntimeLibraryIdentity> fromJarFileName(String libraryFileName) {
+  public static Optional<RuntimeLibraryIdentity> fromJarFileName(String libraryFileName) {
     if (notJarFileName(libraryFileName)) {
       return Optional.empty();
     }

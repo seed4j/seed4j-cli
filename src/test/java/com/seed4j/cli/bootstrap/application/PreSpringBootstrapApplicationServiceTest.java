@@ -53,7 +53,19 @@ class PreSpringBootstrapApplicationServiceTest {
       command -> {
         throw new IllegalStateException("Should not execute a child process in this test.");
       },
-      localCliRunner
+      localCliRunner,
+      executablePath -> true,
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      extensionJarPath -> {
+        throw new IllegalStateException("Should not resolve start class in this test.");
+      },
+      extensionJarPath -> {
+        throw new IllegalStateException("Should not materialize overlay cache in this test.");
+      },
+      (overlayClassesPath, extensionJarPath, executableJarPath) -> {
+        throw new IllegalStateException("Should not resolve loader path in this test.");
+      }
     );
     return new Seed4JCliLauncherFactory().create(
       runtimeEnvironment,

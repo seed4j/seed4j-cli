@@ -9,7 +9,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -48,10 +47,10 @@ class Seed4JCliLauncherFactoryTest {
   }
 
   @Test
-  void shouldCreateLauncherThatRunsStandardModeThroughTheProvidedCommandExecutor() throws IOException {
+  void shouldCreateLauncherThatRunsStandardModeThroughTheProvidedChildProcessLauncher() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
-    RecordingCommandExecutor commandExecutor = new RecordingCommandExecutor();
+    RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       new Seed4JCliHome(userHome),
       executableJar,
@@ -71,9 +70,21 @@ class Seed4JCliLauncherFactoryTest {
     };
     Seed4JCliLauncherFactory factory = new Seed4JCliLauncherFactory();
     Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      commandExecutor,
+      childProcessLauncher,
       args -> {
         throw new IllegalStateException("Should not resolve local exit code in this test.");
+      },
+      executablePath -> true,
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      extensionJarPath -> {
+        throw new IllegalStateException("Should not resolve start class in this test.");
+      },
+      extensionJarPath -> {
+        throw new IllegalStateException("Should not materialize overlay cache in this test.");
+      },
+      (overlayClassesPath, extensionJarPath, executableJarPath) -> {
+        throw new IllegalStateException("Should not resolve loader path in this test.");
       }
     );
 
@@ -87,29 +98,25 @@ class Seed4JCliLauncherFactoryTest {
     int exitCode = launcher.launch(arguments("--version"));
 
     assertThat(exitCode).isEqualTo(37);
-    assertThat(commandExecutor.command()).containsExactly(
-      "/opt/jdk/bin/java",
-      "-Dseed4j.cli.runtime.child=true",
-      "-Dseed4j.cli.runtime.mode=standard",
-      "-cp",
-      executableJar.toString(),
-      "org.springframework.boot.loader.launch.PropertiesLauncher",
-      "--version"
-    );
+    assertThat(childProcessLauncher.request().executableJar()).isEqualTo(executableJar);
+    assertThat(childProcessLauncher.request().systemProperties())
+      .containsEntry("seed4j.cli.runtime.child", "true")
+      .containsEntry("seed4j.cli.runtime.mode", "standard");
+    assertThat(childProcessLauncher.request().arguments()).containsExactly("--version");
   }
 
-  private static final class RecordingCommandExecutor implements ProcessCommandExecutor {
+  private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
 
-    private List<String> command;
+    private JavaChildProcessRequest request;
 
     @Override
-    public int execute(List<String> command) {
-      this.command = command;
+    public int launch(JavaChildProcessRequest request) {
+      this.request = request;
       return 37;
     }
 
-    List<String> command() {
-      return command;
+    JavaChildProcessRequest request() {
+      return request;
     }
   }
 

@@ -52,6 +52,12 @@ class ExtensionRuntimeBootstrapInProcessTest {
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -97,6 +103,12 @@ class ExtensionRuntimeBootstrapInProcessTest {
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -140,6 +152,12 @@ class ExtensionRuntimeBootstrapInProcessTest {
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY);
@@ -179,6 +197,12 @@ class ExtensionRuntimeBootstrapInProcessTest {
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
+      () -> {},
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);

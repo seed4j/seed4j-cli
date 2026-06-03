@@ -35,14 +35,34 @@ class HexagonalArchTest {
   private static final Collection<String> sharedKernelsPackages = buildPackagesPatterns(sharedKernels);
 
   // The empty package is related to https://github.com/TNG/ArchUnit/issues/191#issuecomment-507964792
-  private static final Collection<String> vanillaPackages = List.of("java..", "");
+  private static final Collection<String> vanillaPackages = List.of(
+    "",
+    "java.lang..",
+    "java.math..",
+    "java.nio.file..",
+    "java.time..",
+    "java.util.."
+  );
   private static final Collection<String> commonToolsAndUtilsPackages = List.of(
-    "org.slf4j..",
     "org.apache.commons..",
     "org.jspecify.annotations..",
-    "com.google.guava..",
+    "com.google.guava.."
+  );
+  private static final Collection<String> forbiddenDomainTechnicalPackages = List.of(
+    "java.io..",
+    "java.net..",
+    "java.security..",
+    "java.util.jar..",
+    "java.util.zip..",
+    "org.slf4j..",
+    "ch.qos.logback..",
     "org.yaml.snakeyaml..",
-    "ch.qos.logback.classic.."
+    "org.springframework.."
+  );
+  private static final Collection<Class<?>> forbiddenDomainTechnicalClasses = List.of(
+    Files.class,
+    java.nio.file.StandardCopyOption.class,
+    java.nio.file.FileAlreadyExistsException.class
   );
 
   private static Collection<String> buildPackagesPatterns(Collection<String> packages) {
@@ -144,6 +164,32 @@ class HexagonalArchTest {
         .resideInAnyPackage(authorizedDomainPackages())
         .because("domain model should only depend on domains and a very limited set of external dependencies")
         .check(classes);
+    }
+
+    @Test
+    void shouldNotDependOnTechnicalPackages() {
+      noClasses()
+        .that()
+        .resideInAPackage("..domain..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(forbiddenDomainTechnicalPackages.toArray(String[]::new))
+        .because("domain code must not perform technical I/O, logging, jar, yaml, network, security, or Spring work")
+        .check(classes);
+    }
+
+    @Test
+    void shouldNotDependOnTechnicalFileSystemClasses() {
+      forbiddenDomainTechnicalClasses.forEach(forbiddenClass ->
+        noClasses()
+          .that()
+          .resideInAPackage("..domain..")
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(forbiddenClass)
+          .because("domain code may model Path values but must not perform filesystem operations")
+          .check(classes)
+      );
     }
 
     private String[] authorizedDomainPackages() {

@@ -1,11 +1,14 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
+import com.seed4j.cli.bootstrap.domain.ChildProcessLauncher;
+import com.seed4j.cli.bootstrap.domain.JavaChildProcessRequest;
+import com.seed4j.cli.bootstrap.domain.ProcessCommandExecutor;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-class JavaProcessChildLauncher implements ChildProcessLauncher {
+public class JavaProcessChildLauncher implements ChildProcessLauncher {
 
   private final Path javaExecutable;
   private final ProcessCommandExecutor processExecutor;

@@ -8,11 +8,18 @@ import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaProcessChildLauncher;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.LogbackBootstrapDiagnostics;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public final class PreSpringBootstrapConfiguration {
@@ -38,8 +45,14 @@ public final class PreSpringBootstrapConfiguration {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome());
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      new JavaChildProcessCommandExecutor(),
-      localCliRunner
+      new JavaProcessChildLauncher(runtimeEnvironment.javaExecutablePath(), new JavaChildProcessCommandExecutor()),
+      localCliRunner,
+      new FileSystemPackagedExecutableDetector(),
+      new LogbackBootstrapDiagnostics(),
+      new SystemErrBootstrapOutput(),
+      new RuntimeExtensionStartClassResolver(),
+      new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),
+      new RuntimeExtensionLoaderPathResolver()
     );
     return launcherFactory.create(
       runtimeEnvironment,
