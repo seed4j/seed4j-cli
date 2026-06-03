@@ -1,5 +1,6 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
+import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationDocument;
@@ -42,8 +43,12 @@ public class FileSystemRuntimeModeConfigurationRepository implements RuntimeMode
     RuntimeMode targetMode
   ) implements RuntimeModeChangePlan {
     @Override
-    public void apply() throws IOException {
-      RuntimeModeConfigurationWriter.writeMode(configPath, currentConfiguration, targetMode);
+    public void apply() {
+      try {
+        RuntimeModeConfigurationWriter.writeMode(configPath, currentConfiguration, targetMode);
+      } catch (IOException ioException) {
+        throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
+      }
     }
   }
 }

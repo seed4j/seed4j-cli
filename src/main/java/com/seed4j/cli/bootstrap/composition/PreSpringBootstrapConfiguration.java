@@ -8,7 +8,9 @@ import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import com.seed4j.cli.shared.error.domain.Assert;
@@ -42,6 +44,7 @@ public final class PreSpringBootstrapConfiguration {
     return launcherFactory.create(
       runtimeEnvironment,
       new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
+      new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
       launcherDependencies
     );
   }

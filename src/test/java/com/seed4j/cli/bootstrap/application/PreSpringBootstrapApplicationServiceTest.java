@@ -55,7 +55,12 @@ class PreSpringBootstrapApplicationServiceTest {
       },
       localCliRunner
     );
-    return new Seed4JCliLauncherFactory().create(runtimeEnvironment, runtimeModeConfigurationRepository, launcherDependencies);
+    return new Seed4JCliLauncherFactory().create(
+      runtimeEnvironment,
+      runtimeModeConfigurationRepository,
+      () -> com.seed4j.cli.bootstrap.domain.RuntimeSelection.standard(),
+      launcherDependencies
+    );
   }
 
   private static final class RecordingLocalCliRunner implements LocalCliRunner {

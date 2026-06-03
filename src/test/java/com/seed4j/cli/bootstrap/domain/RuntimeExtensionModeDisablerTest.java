@@ -145,7 +145,10 @@ class RuntimeExtensionModeDisablerTest {
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       configPath,
       currentConfiguration,
-      new IOException("cannot persist")
+      InvalidRuntimeConfigurationException.technicalError(
+        "Could not update ~/.config/seed4j-cli/config.yml.",
+        new IOException("cannot persist")
+      )
     );
     RuntimeExtensionModeDisabler disabler = new RuntimeExtensionModeDisabler(runtimeModeConfigurationRepository);
 
@@ -180,7 +183,7 @@ class RuntimeExtensionModeDisablerTest {
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
     private RuntimeMode lastPreparedMode;
-    private final IOException persistFailure;
+    private final RuntimeException persistFailure;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
       this(configPath, currentConfiguration, null);
@@ -189,7 +192,7 @@ class RuntimeExtensionModeDisablerTest {
     private RecordingRuntimeModeConfigurationRepository(
       Path configPath,
       RuntimeModeConfigurationDocument currentConfiguration,
-      IOException persistFailure
+      RuntimeException persistFailure
     ) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
@@ -213,7 +216,7 @@ class RuntimeExtensionModeDisablerTest {
         }
 
         @Override
-        public void apply() throws IOException {
+        public void apply() {
           if (persistFailure != null) {
             throw persistFailure;
           }

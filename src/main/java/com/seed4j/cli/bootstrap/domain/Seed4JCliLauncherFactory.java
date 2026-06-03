@@ -7,6 +7,7 @@ public class Seed4JCliLauncherFactory {
   public Seed4JCliLauncher create(
     PreSpringRuntimeEnvironment runtimeEnvironment,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
+    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
     LauncherDependencies dependencies
   ) {
     ChildProcessLauncher childProcessLauncher = new JavaProcessChildLauncher(
@@ -17,6 +18,7 @@ public class Seed4JCliLauncherFactory {
       runtimeEnvironment.cliHome(),
       runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
+      runtimeExtensionSelectionRepository,
       childProcessLauncher,
       dependencies.localCliRunner(),
       runtimeEnvironment.childMode()

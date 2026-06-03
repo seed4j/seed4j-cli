@@ -16,11 +16,7 @@ class Seed4JCliHomeTest {
     Path homePath = Path.of("/tmp/seed4j-home");
     Seed4JCliHome cliHome = new Seed4JCliHome(homePath);
 
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = cliHome.runtimeExtensionConfiguration();
-
     assertThat(cliHome.configPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/config.yml"));
-    assertThat(runtimeExtensionConfiguration.jarPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/extension.jar"));
-    assertThat(runtimeExtensionConfiguration.metadataPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/metadata.yml"));
     assertThat(cliHome.runtimeCacheDirectory()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/cache"));
   }
 
@@ -29,11 +25,7 @@ class Seed4JCliHomeTest {
     Path homePath = Path.of("/tmp/seed4j-home");
     Seed4JCliHome cliHome = Seed4JCliHome.from("/tmp/seed4j-home");
 
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = cliHome.runtimeExtensionConfiguration();
-
     assertThat(cliHome.configPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/config.yml"));
-    assertThat(runtimeExtensionConfiguration.jarPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/extension.jar"));
-    assertThat(runtimeExtensionConfiguration.metadataPath()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/active/metadata.yml"));
     assertThat(cliHome.runtimeCacheDirectory()).isEqualTo(homePath.resolve(".config/seed4j-cli/runtime/cache"));
   }
 

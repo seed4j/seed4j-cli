@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -47,6 +49,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -91,6 +94,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -133,6 +137,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -171,6 +176,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -229,6 +235,10 @@ class ExtensionRuntimeBootstrapInProcessTest {
 
   private static LocalCliRunner localCliRunner(Path userHome) {
     return new SpringBootLocalCliRunner(Seed4JCliApp.class, new Seed4JCliHome(userHome));
+  }
+
+  private static RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository(Path userHome) {
+    return new FileSystemRuntimeExtensionSelectionRepository(new Seed4JCliHome(userHome), new JarRuntimeExtensionPackageValidator());
   }
 
   private static final class InProcessChildProcessLauncher implements ChildProcessLauncher {

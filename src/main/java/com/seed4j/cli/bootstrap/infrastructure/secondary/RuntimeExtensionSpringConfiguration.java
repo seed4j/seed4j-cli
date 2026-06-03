@@ -1,8 +1,9 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionConfiguration;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionModeEnabler;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionPackageValidator;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,25 +19,33 @@ class RuntimeExtensionSpringConfiguration {
   }
 
   @Bean
-  RuntimeExtensionConfiguration runtimeExtensionConfiguration(Seed4JCliHome cliHome) {
-    return cliHome.runtimeExtensionConfiguration();
-  }
-
-  @Bean
   RuntimeModeConfigurationRepository runtimeModeConfigurationRepository(Seed4JCliHome cliHome) {
     return new FileSystemRuntimeModeConfigurationRepository(cliHome);
   }
 
   @Bean
-  RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository() {
-    return new FileSystemRuntimeExtensionArtifactsRepository();
+  RuntimeExtensionPackageValidator runtimeExtensionPackageValidator() {
+    return new JarRuntimeExtensionPackageValidator();
+  }
+
+  @Bean
+  RuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository(Seed4JCliHome cliHome) {
+    return new FileSystemRuntimeExtensionArtifactsRepository(cliHome);
+  }
+
+  @Bean
+  RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository(
+    Seed4JCliHome cliHome,
+    RuntimeExtensionPackageValidator runtimeExtensionPackageValidator
+  ) {
+    return new FileSystemRuntimeExtensionSelectionRepository(cliHome, runtimeExtensionPackageValidator);
   }
 
   @Bean
   RuntimeExtensionModeEnabler runtimeExtensionModeEnabler(
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration,
+    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository
   ) {
-    return new RuntimeExtensionModeEnabler(runtimeExtensionConfiguration, runtimeModeConfigurationRepository);
+    return new RuntimeExtensionModeEnabler(runtimeExtensionSelectionRepository, runtimeModeConfigurationRepository);
   }
 }

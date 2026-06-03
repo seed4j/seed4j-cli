@@ -8,7 +8,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,6 +48,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       runtimeModeConfigurationRepository,
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -87,6 +90,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -128,6 +132,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -162,6 +167,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -198,6 +204,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -220,6 +227,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -245,6 +253,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableLocation,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -269,6 +278,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -299,6 +309,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -321,6 +332,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       true
@@ -347,6 +359,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -382,6 +395,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -420,6 +434,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -449,6 +464,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -473,6 +489,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       createExecutableJar(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -495,6 +512,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -523,6 +541,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -561,6 +580,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -608,6 +628,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -648,6 +669,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -685,6 +707,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -724,6 +747,7 @@ class Seed4JCliLauncherTest {
       new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
+      runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       false
@@ -780,6 +804,10 @@ class Seed4JCliLauncherTest {
         """
       )
     );
+  }
+
+  private static RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository(Path userHome) {
+    return new FileSystemRuntimeExtensionSelectionRepository(new Seed4JCliHome(userHome), new JarRuntimeExtensionPackageValidator());
   }
 
   private static Stream<Arguments> standardModeConfigurationContents() {

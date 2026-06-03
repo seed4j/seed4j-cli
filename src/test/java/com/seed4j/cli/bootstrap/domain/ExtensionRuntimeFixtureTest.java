@@ -7,6 +7,8 @@ import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionLis
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
 import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,10 +37,9 @@ class ExtensionRuntimeFixtureTest {
   @Test
   void shouldResolveRuntimeSelectionFromAValidExtensionRuntimeFixture() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.install(userHome);
-    RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
+    ExtensionRuntimeFixture.install(userHome);
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+    RuntimeSelection runtimeSelection = runtimeExtensionSelectionRepository(userHome).activeRuntimeSelection();
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
@@ -70,21 +71,17 @@ class ExtensionRuntimeFixtureTest {
   @Test
   void shouldResolveRuntimeSelectionFromAnExtensionRuntimeFixtureWithListExtensionModule() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths = ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
-    RuntimeConfiguration runtimeConfiguration = extensionRuntimeConfiguration(fixturePaths);
+    ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
 
-    RuntimeSelection runtimeSelection = RuntimeSelection.resolve(runtimeConfiguration);
+    RuntimeSelection runtimeSelection = runtimeExtensionSelectionRepository(userHome).activeRuntimeSelection();
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
     assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
   }
 
-  private static RuntimeConfiguration extensionRuntimeConfiguration(ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths fixturePaths) {
-    return new RuntimeConfiguration(
-      RuntimeMode.EXTENSION,
-      new RuntimeExtensionConfiguration(fixturePaths.extensionJarPath(), fixturePaths.metadataPath())
-    );
+  private static FileSystemRuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository(Path userHome) {
+    return new FileSystemRuntimeExtensionSelectionRepository(new Seed4JCliHome(userHome), new JarRuntimeExtensionPackageValidator());
   }
 
   private static List<String> jarEntries(Path extensionJarPath) throws IOException {

@@ -1,43 +1,34 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Optional;
 
 public record RuntimeSelection(
   RuntimeMode mode,
-  Optional<Path> extensionJarPath,
+  Optional<RuntimeExtensionJarPath> extensionJarPath,
   Optional<RuntimeDistributionId> distributionId,
   Optional<RuntimeDistributionVersion> distributionVersion
 ) {
-  private static final RuntimeExtensionJarLayoutValidator RUNTIME_EXTENSION_JAR_LAYOUT_VALIDATOR = new RuntimeExtensionJarLayoutValidator();
+  public static RuntimeSelection standard() {
+    return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+  }
 
-  public static RuntimeSelection resolve(RuntimeConfiguration runtimeConfiguration) {
-    if (runtimeConfiguration == null) {
-      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
-    }
-
-    if (runtimeConfiguration.mode() == RuntimeMode.STANDARD) {
-      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
-    }
-
-    if (!Files.exists(runtimeConfiguration.extension().metadataPath())) {
-      throw new InvalidRuntimeConfigurationException("Invalid runtime metadata file: " + runtimeConfiguration.extension().metadataPath());
-    }
-
-    if (!Files.exists(runtimeConfiguration.extension().jarPath())) {
-      throw new InvalidRuntimeConfigurationException("Invalid runtime jar file: " + runtimeConfiguration.extension().jarPath());
-    }
-
-    RUNTIME_EXTENSION_JAR_LAYOUT_VALIDATOR.validate(runtimeConfiguration.extension().jarPath());
-
-    RuntimeMetadata metadata = RuntimeMetadata.read(runtimeConfiguration.extension().metadataPath());
-
+  public static RuntimeSelection extension(
+    RuntimeExtensionJarPath extensionJarPath,
+    RuntimeDistributionId distributionId,
+    RuntimeDistributionVersion distributionVersion
+  ) {
     return new RuntimeSelection(
       RuntimeMode.EXTENSION,
-      Optional.of(runtimeConfiguration.extension().jarPath()),
-      Optional.of(metadata.distributionId()),
-      Optional.of(metadata.distributionVersion())
+      Optional.of(extensionJarPath),
+      Optional.of(distributionId),
+      Optional.of(distributionVersion)
     );
+  }
+
+  public static RuntimeSelection extensionWithoutJar(
+    Optional<RuntimeDistributionId> distributionId,
+    Optional<RuntimeDistributionVersion> distributionVersion
+  ) {
+    return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.empty(), distributionId, distributionVersion);
   }
 }

@@ -38,6 +38,7 @@ class Seed4JCliLauncherFactoryTest {
       Seed4JCliHome.class,
       Path.class,
       RuntimeModeConfigurationRepository.class,
+      RuntimeExtensionSelectionRepository.class,
       ChildProcessLauncher.class,
       LocalCliRunner.class,
       boolean.class
@@ -76,7 +77,12 @@ class Seed4JCliLauncherFactoryTest {
       }
     );
 
-    Seed4JCliLauncher launcher = factory.create(runtimeEnvironment, runtimeModeConfigurationRepository, dependencies);
+    Seed4JCliLauncher launcher = factory.create(
+      runtimeEnvironment,
+      runtimeModeConfigurationRepository,
+      RuntimeSelection::standard,
+      dependencies
+    );
 
     int exitCode = launcher.launch(arguments("--version"));
 

@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.IntegrationTest;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
-import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
@@ -16,7 +16,6 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -409,11 +408,10 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldRenderVersionOutputUsingProjectBuildMetadata(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(
-        RuntimeMode.EXTENSION,
-        Optional.of(Path.of("company-extension.jar")),
-        Optional.of(new RuntimeDistributionId("company-extension")),
-        Optional.of(new RuntimeDistributionVersion("1.0.0"))
+      RuntimeSelection runtimeSelection = RuntimeSelection.extension(
+        RuntimeExtensionJarPath.from("company-extension.jar"),
+        new RuntimeDistributionId("company-extension"),
+        new RuntimeDistributionVersion("1.0.0")
       );
 
       int exitCode = commandLine(modules, projects, runtimeSelection, "9.9.9", "8.8.8").execute(args);
@@ -425,7 +423,7 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldUseSafeFallbackWhenNoVersionMetadataIsAvailable(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+      RuntimeSelection runtimeSelection = RuntimeSelection.standard();
 
       int exitCode = commandLine(modules, projects, runtimeSelection, "", "").execute(args);
 
@@ -458,11 +456,10 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldShowRuntimeModeAndDistributionInVersionOutput(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(
-        RuntimeMode.EXTENSION,
-        Optional.of(Path.of("company-extension.jar")),
-        Optional.of(new RuntimeDistributionId("company-extension")),
-        Optional.of(new RuntimeDistributionVersion("1.0.0"))
+      RuntimeSelection runtimeSelection = RuntimeSelection.extension(
+        RuntimeExtensionJarPath.from("company-extension.jar"),
+        new RuntimeDistributionId("company-extension"),
+        new RuntimeDistributionVersion("1.0.0")
       );
 
       int exitCode = commandLine(modules, projects, runtimeSelection).execute(args);

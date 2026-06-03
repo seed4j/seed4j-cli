@@ -1,32 +1,36 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
+import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionPackageValidator;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-final class RuntimeExtensionJarLayoutValidator {
+public final class JarRuntimeExtensionPackageValidator implements RuntimeExtensionPackageValidator {
 
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH = "BOOT-INF/classes";
 
-  void validate(Path extensionJarPath) {
-    if (hasBootInfClasses(extensionJarPath)) {
+  @Override
+  public void validate(RuntimeExtensionJarPath extensionJarPath) {
+    if (hasBootInfClasses(extensionJarPath.path())) {
       return;
     }
 
-    throw invalidRuntimeJarLayout(extensionJarPath);
+    throw invalidRuntimeJarLayout(extensionJarPath.path());
   }
 
   private boolean hasBootInfClasses(Path extensionJarPath) {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
-      return extensionJarFile.stream().map(JarEntry::getName).anyMatch(RuntimeExtensionJarLayoutValidator::isBootInfClassesEntry);
+      return extensionJarFile.stream().map(JarEntry::getName).anyMatch(JarRuntimeExtensionPackageValidator::bootInfClassesEntry);
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError(invalidRuntimeJarLayoutMessage(extensionJarPath), ioException);
     }
   }
 
-  private static boolean isBootInfClassesEntry(String entryName) {
+  private static boolean bootInfClassesEntry(String entryName) {
     return (
       BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH.equals(entryName)
       || BOOT_INF_CLASSES_DIRECTORY.equals(entryName)

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,9 +42,8 @@ class RuntimeExtensionModeEnablerTest {
       configPath,
       currentConfiguration
     );
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
-      runtimeExtensionConfiguration,
+      runtimeExtensionSelectionRepository(userHome),
       runtimeModeConfigurationRepository
     );
 
@@ -182,11 +183,13 @@ class RuntimeExtensionModeEnablerTest {
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       configPath,
       currentConfiguration,
-      new IOException("cannot persist")
+      InvalidRuntimeConfigurationException.technicalError(
+        "Could not update ~/.config/seed4j-cli/config.yml.",
+        new IOException("cannot persist")
+      )
     );
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeExtensionModeEnabler enabler = new RuntimeExtensionModeEnabler(
-      runtimeExtensionConfiguration,
+      runtimeExtensionSelectionRepository(userHome),
       runtimeModeConfigurationRepository
     );
 
@@ -209,12 +212,14 @@ class RuntimeExtensionModeEnablerTest {
   }
 
   private static RuntimeExtensionModeEnabler enabler(Path userHome) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
-
     return new RuntimeExtensionModeEnabler(
-      runtimeExtensionConfiguration,
+      runtimeExtensionSelectionRepository(userHome),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome))
     );
+  }
+
+  private static RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository(Path userHome) {
+    return new FileSystemRuntimeExtensionSelectionRepository(new Seed4JCliHome(userHome), new JarRuntimeExtensionPackageValidator());
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
@@ -226,7 +231,7 @@ class RuntimeExtensionModeEnablerTest {
     private RuntimeModeConfigurationDocument lastPersistedConfiguration;
     private RuntimeMode lastPersistedMode;
     private RuntimeMode lastPreparedMode;
-    private final IOException persistFailure;
+    private final RuntimeException persistFailure;
 
     private RecordingRuntimeModeConfigurationRepository(Path configPath, RuntimeModeConfigurationDocument currentConfiguration) {
       this(configPath, currentConfiguration, null);
@@ -235,7 +240,7 @@ class RuntimeExtensionModeEnablerTest {
     private RecordingRuntimeModeConfigurationRepository(
       Path configPath,
       RuntimeModeConfigurationDocument currentConfiguration,
-      IOException persistFailure
+      RuntimeException persistFailure
     ) {
       this.configPath = configPath;
       this.currentConfiguration = currentConfiguration;
@@ -259,7 +264,7 @@ class RuntimeExtensionModeEnablerTest {
         }
 
         @Override
-        public void apply() throws IOException {
+        public void apply() {
           if (persistFailure != null) {
             throw persistFailure;
           }

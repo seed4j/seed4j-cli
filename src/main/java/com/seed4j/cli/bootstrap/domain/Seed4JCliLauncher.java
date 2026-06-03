@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import org.slf4j.LoggerFactory;
 
 public class Seed4JCliLauncher {
@@ -20,6 +19,7 @@ public class Seed4JCliLauncher {
   private final Seed4JCliHome cliHome;
   private final Path executableJar;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
+  private final RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository;
   private final ChildProcessLauncher childProcessLauncher;
   private final LocalCliRunner localCliRunner;
   private final boolean childMode;
@@ -31,6 +31,7 @@ public class Seed4JCliLauncher {
     Seed4JCliHome cliHome,
     Path executableJar,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
+    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
     ChildProcessLauncher childProcessLauncher,
     LocalCliRunner localCliRunner,
     boolean childMode
@@ -38,6 +39,7 @@ public class Seed4JCliLauncher {
     this.cliHome = cliHome;
     this.executableJar = executableJar;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
+    this.runtimeExtensionSelectionRepository = runtimeExtensionSelectionRepository;
     this.childProcessLauncher = childProcessLauncher;
     this.localCliRunner = localCliRunner;
     this.childMode = childMode;
@@ -97,12 +99,13 @@ public class Seed4JCliLauncher {
     runtimeSelection
       .extensionJarPath()
       .ifPresent(extensionJarPath -> {
-        String extensionStartClass = runtimeExtensionStartClassResolver.resolve(extensionJarPath);
+        Path rawExtensionJarPath = extensionJarPath.path();
+        String extensionStartClass = runtimeExtensionStartClassResolver.resolve(rawExtensionJarPath);
         systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
-        Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(extensionJarPath);
+        Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(rawExtensionJarPath);
         systemProperties.put(
           "loader.path",
-          runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, extensionJarPath, executableJar)
+          runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, rawExtensionJarPath, executableJar)
         );
       });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
@@ -126,12 +129,10 @@ public class Seed4JCliLauncher {
 
   private RuntimeSelection runtimeSelection() {
     if (runtimeModeConfigurationRepository.readMode() == RuntimeMode.STANDARD) {
-      return new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+      return RuntimeSelection.standard();
     }
 
-    RuntimeConfiguration runtimeConfiguration = new RuntimeConfiguration(RuntimeMode.EXTENSION, cliHome.runtimeExtensionConfiguration());
-
-    return RuntimeSelection.resolve(runtimeConfiguration);
+    return runtimeExtensionSelectionRepository.activeRuntimeSelection();
   }
 
   @ExcludeFromGeneratedCodeCoverage(

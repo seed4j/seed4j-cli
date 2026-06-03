@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -17,7 +16,7 @@ class JavaProcessChildLauncherTest {
   void shouldBuildTheJavaCommandForStandardMode() {
     RecordingProcessExecutor processExecutor = new RecordingProcessExecutor();
     JavaProcessChildLauncher launcher = new JavaProcessChildLauncher(Path.of("/opt/jdk/bin/java"), processExecutor);
-    RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+    RuntimeSelection runtimeSelection = RuntimeSelection.standard();
     Map<String, String> systemProperties = new LinkedHashMap<>();
     systemProperties.put("seed4j.cli.runtime.child", "true");
     systemProperties.put("seed4j.cli.runtime.mode", "standard");

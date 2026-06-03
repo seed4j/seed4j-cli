@@ -1,5 +1,9 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
+import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionMetadata;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -8,8 +12,9 @@ import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
-record RuntimeMetadata(RuntimeDistributionId distributionId, RuntimeDistributionVersion distributionVersion) {
-  static RuntimeMetadata read(Path metadataPath) {
+final class RuntimeExtensionMetadataReader {
+
+  RuntimeExtensionMetadata read(Path metadataPath) {
     try (InputStream metadataInputStream = Files.newInputStream(metadataPath)) {
       Object loadedMetadata = new Yaml().load(metadataInputStream);
       if (!(loadedMetadata instanceof Map<?, ?> metadata)) {
@@ -18,7 +23,7 @@ record RuntimeMetadata(RuntimeDistributionId distributionId, RuntimeDistribution
 
       Map<?, ?> distribution = mapValue(metadata, "distribution", "distribution", metadataPath);
 
-      return new RuntimeMetadata(
+      return new RuntimeExtensionMetadata(
         new RuntimeDistributionId(stringValue(distribution, "id", "distribution.id", metadataPath)),
         new RuntimeDistributionVersion(stringValue(distribution, "version", "distribution.version", metadataPath))
       );

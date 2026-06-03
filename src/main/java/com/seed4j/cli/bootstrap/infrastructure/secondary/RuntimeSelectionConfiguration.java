@@ -17,9 +17,11 @@ class RuntimeSelectionConfiguration {
   RuntimeSelection runtimeSelection(RuntimeSelectionProperties runtimeSelectionProperties) {
     RuntimeMode runtimeMode = runtimeMode(runtimeSelectionProperties.getMode());
 
-    return new RuntimeSelection(
-      runtimeMode,
-      Optional.empty(),
+    if (runtimeMode == RuntimeMode.STANDARD) {
+      return RuntimeSelection.standard();
+    }
+
+    return RuntimeSelection.extensionWithoutJar(
       runtimeDistributionId(runtimeSelectionProperties.getDistribution().getId()),
       runtimeDistributionVersion(runtimeSelectionProperties.getDistribution().getVersion())
     );

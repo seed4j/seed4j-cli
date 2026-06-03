@@ -78,6 +78,11 @@ class PreSpringBootstrapRunnerTest {
         throw new IllegalStateException("Should not run the local CLI in this test.");
       }
     );
-    return new Seed4JCliLauncherFactory().create(runtimeEnvironment, runtimeModeConfigurationRepository, launcherDependencies);
+    return new Seed4JCliLauncherFactory().create(
+      runtimeEnvironment,
+      runtimeModeConfigurationRepository,
+      () -> com.seed4j.cli.bootstrap.domain.RuntimeSelection.standard(),
+      launcherDependencies
+    );
   }
 }

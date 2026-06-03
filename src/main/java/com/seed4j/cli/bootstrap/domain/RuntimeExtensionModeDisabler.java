@@ -1,6 +1,5 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 public class RuntimeExtensionModeDisabler {
@@ -13,12 +12,7 @@ public class RuntimeExtensionModeDisabler {
 
   public Path disable() {
     RuntimeModeChangePlan modeChangePlan = runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.STANDARD);
-
-    try {
-      modeChangePlan.apply();
-    } catch (IOException ioException) {
-      throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
-    }
+    modeChangePlan.apply();
 
     return modeChangePlan.configPath();
   }

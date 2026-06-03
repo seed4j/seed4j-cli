@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,8 +30,8 @@ class RuntimeExtensionInstallerTest {
   void shouldUsePreparedModeChangePlanToPersistExtensionModeAfterRuntimeArtifactInstallation() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     InvocationOrder invocationOrder = new InvocationOrder();
+    RecordingRuntimeExtensionPackageValidator runtimeExtensionPackageValidator = new RecordingRuntimeExtensionPackageValidator();
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       userHome.resolve(".config/seed4j-cli/config.yml"),
       new RuntimeModeConfigurationDocument(new LinkedHashMap<>()),
@@ -40,7 +41,7 @@ class RuntimeExtensionInstallerTest {
       invocationOrder
     );
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
-      runtimeExtensionConfiguration,
+      runtimeExtensionPackageValidator,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
@@ -54,7 +55,7 @@ class RuntimeExtensionInstallerTest {
     assertThat(runtimeModeConfigurationRepository.applyCalledAfterInstall()).isTrue();
     assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
     assertThat(runtimeExtensionArtifactsRepository.lastInstallRequest()).isEqualTo(request);
-    assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(runtimeExtensionConfiguration);
+    assertThat(runtimeExtensionPackageValidator.validatedJarPath()).isEqualTo(request.extensionJarPath());
     assertThat(installResult.configPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/config.yml"));
   }
 
@@ -272,15 +273,15 @@ class RuntimeExtensionInstallerTest {
   void shouldOrchestrateRuntimeArtifactInstallationAndModePersistenceThroughInjectedRepositories() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-installer-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
     RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
+    RecordingRuntimeExtensionPackageValidator runtimeExtensionPackageValidator = new RecordingRuntimeExtensionPackageValidator();
     RecordingRuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RecordingRuntimeModeConfigurationRepository(
       userHome.resolve(".config/seed4j-cli/config.yml"),
       currentConfiguration
     );
     RecordingRuntimeExtensionArtifactsRepository runtimeExtensionArtifactsRepository = new RecordingRuntimeExtensionArtifactsRepository();
     RuntimeExtensionInstaller installer = new RuntimeExtensionInstaller(
-      runtimeExtensionConfiguration,
+      runtimeExtensionPackageValidator,
       runtimeModeConfigurationRepository,
       runtimeExtensionArtifactsRepository
     );
@@ -296,10 +297,10 @@ class RuntimeExtensionInstallerTest {
     assertThat(runtimeModeConfigurationRepository.lastPersistedMode()).isEqualTo(RuntimeMode.EXTENSION);
     assertThat(runtimeExtensionArtifactsRepository.installCalls()).isEqualTo(1);
     assertThat(runtimeExtensionArtifactsRepository.lastInstallRequest()).isEqualTo(request);
-    assertThat(runtimeExtensionArtifactsRepository.lastRuntimeConfiguration()).isEqualTo(runtimeExtensionConfiguration);
+    assertThat(runtimeExtensionPackageValidator.validatedJarPath()).isEqualTo(request.extensionJarPath());
     assertThat(installResult.configPath()).isEqualTo(userHome.resolve(".config/seed4j-cli/config.yml"));
-    assertThat(installResult.extensionJarPath()).isEqualTo(runtimeExtensionConfiguration.jarPath());
-    assertThat(installResult.metadataPath()).isEqualTo(runtimeExtensionConfiguration.metadataPath());
+    assertThat(installResult.extensionJarPath()).isEqualTo(runtimeExtensionArtifactsRepository.installation().extensionJarPath());
+    assertThat(installResult.metadataPath()).isEqualTo(runtimeExtensionArtifactsRepository.installation().metadataPath());
   }
 
   private static RuntimeExtensionInstallRequest installRequest(Path extensionJarPath) {
@@ -355,13 +356,25 @@ class RuntimeExtensionInstallerTest {
   }
 
   private static RuntimeExtensionInstaller installer(Path userHome) {
-    RuntimeExtensionConfiguration runtimeExtensionConfiguration = new Seed4JCliHome(userHome).runtimeExtensionConfiguration();
-
     return new RuntimeExtensionInstaller(
-      runtimeExtensionConfiguration,
+      new JarRuntimeExtensionPackageValidator(),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
-      new FileSystemRuntimeExtensionArtifactsRepository()
+      new FileSystemRuntimeExtensionArtifactsRepository(new Seed4JCliHome(userHome))
     );
+  }
+
+  private static final class RecordingRuntimeExtensionPackageValidator implements RuntimeExtensionPackageValidator {
+
+    private RuntimeExtensionJarPath validatedJarPath;
+
+    @Override
+    public void validate(RuntimeExtensionJarPath extensionJarPath) {
+      validatedJarPath = extensionJarPath;
+    }
+
+    private RuntimeExtensionJarPath validatedJarPath() {
+      return validatedJarPath;
+    }
   }
 
   private static final class RecordingRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
@@ -444,9 +457,12 @@ class RuntimeExtensionInstallerTest {
   private static final class RecordingRuntimeExtensionArtifactsRepository implements RuntimeExtensionArtifactsRepository {
 
     private final InvocationOrder invocationOrder;
+    private final RuntimeExtensionArtifactsInstallation installation = new RuntimeExtensionArtifactsInstallation(
+      Path.of("runtime/active/extension.jar"),
+      Path.of("runtime/active/metadata.yml")
+    );
     private int installCalls;
     private RuntimeExtensionInstallRequest lastInstallRequest;
-    private RuntimeExtensionConfiguration lastRuntimeConfiguration;
 
     private RecordingRuntimeExtensionArtifactsRepository() {
       this(new InvocationOrder());
@@ -457,16 +473,16 @@ class RuntimeExtensionInstallerTest {
     }
 
     @Override
-    public boolean activeRuntimePresent(RuntimeExtensionConfiguration runtimeExtensionConfiguration) {
+    public boolean activeRuntimePresent() {
       return false;
     }
 
     @Override
-    public void install(RuntimeExtensionInstallRequest request, RuntimeExtensionConfiguration runtimeExtensionConfiguration) {
+    public RuntimeExtensionArtifactsInstallation install(RuntimeExtensionInstallRequest request) {
       installCalls = installCalls + 1;
       lastInstallRequest = request;
-      lastRuntimeConfiguration = runtimeExtensionConfiguration;
       invocationOrder.markInstall();
+      return installation;
     }
 
     private int installCalls() {
@@ -477,8 +493,8 @@ class RuntimeExtensionInstallerTest {
       return lastInstallRequest;
     }
 
-    private RuntimeExtensionConfiguration lastRuntimeConfiguration() {
-      return lastRuntimeConfiguration;
+    private RuntimeExtensionArtifactsInstallation installation() {
+      return installation;
     }
   }
 

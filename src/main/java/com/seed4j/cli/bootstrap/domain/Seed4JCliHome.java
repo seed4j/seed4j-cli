@@ -17,13 +17,6 @@ public record Seed4JCliHome(Path path) {
     return path.resolve(".config/seed4j-cli/config.yml");
   }
 
-  public RuntimeExtensionConfiguration runtimeExtensionConfiguration() {
-    return new RuntimeExtensionConfiguration(
-      path.resolve(".config/seed4j-cli/runtime/active/extension.jar"),
-      path.resolve(".config/seed4j-cli/runtime/active/metadata.yml")
-    );
-  }
-
   public Path runtimeCacheDirectory() {
     return path.resolve(".config/seed4j-cli/runtime/cache");
   }
