@@ -4,8 +4,9 @@ import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionSelectionRepository;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
@@ -42,9 +43,15 @@ public final class PreSpringBootstrapConfiguration {
   }
 
   private static Seed4JCliLauncher seed4jCliLauncher(PreSpringRuntimeEnvironment runtimeEnvironment) {
-    Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome());
-    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository = new FileSystemRuntimeExtensionSelectionRepository(
+      runtimeEnvironment.cliHome(),
+      new JarRuntimeExtensionPackageValidator()
+    );
+    return new Seed4JCliLauncher(
+      runtimeEnvironment.executablePath(),
+      (RuntimeModeConfigurationRepository) new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
+      runtimeExtensionSelectionRepository,
       new JavaProcessChildLauncher(
         runtimeEnvironment.javaExecutablePath(),
         new JavaChildProcessCommandExecutor(),
@@ -55,13 +62,8 @@ public final class PreSpringBootstrapConfiguration {
       localCliRunner,
       new FileSystemPackagedExecutableDetector(),
       new LogbackBootstrapDiagnostics(),
-      new SystemErrBootstrapOutput()
-    );
-    return launcherFactory.create(
-      runtimeEnvironment,
-      new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
-      new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
-      launcherDependencies
+      new SystemErrBootstrapOutput(),
+      runtimeEnvironment.childMode()
     );
   }
 }

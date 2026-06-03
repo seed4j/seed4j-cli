@@ -5,14 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class Seed4JCliLauncherFactoryTest {
+class Seed4JCliLauncherConstructionTest {
 
   @Test
   void shouldNotExposeLegacyRuntimeModeYamlHelpersInDomainPackage() {
@@ -29,23 +27,6 @@ class Seed4JCliLauncherFactoryTest {
     assertThatThrownBy(() ->
       Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, ChildRuntimeLauncher.class, LocalCliRunner.class)
     ).isExactlyInstanceOf(NoSuchMethodException.class);
-  }
-
-  @Test
-  void shouldKeepLauncherConstructionInternalToTheBootstrapPackage() throws NoSuchMethodException {
-    Constructor<Seed4JCliLauncher> constructor = Seed4JCliLauncher.class.getDeclaredConstructor(
-      Path.class,
-      RuntimeModeConfigurationRepository.class,
-      RuntimeExtensionSelectionRepository.class,
-      ChildRuntimeLauncher.class,
-      LocalCliRunner.class,
-      PackagedExecutableDetector.class,
-      BootstrapDiagnostics.class,
-      BootstrapOutput.class,
-      boolean.class
-    );
-
-    assertThat(Modifier.isPublic(constructor.getModifiers())).isFalse();
   }
 
   @Test
@@ -70,22 +51,18 @@ class Seed4JCliLauncherFactoryTest {
         return RuntimeMode.STANDARD;
       }
     };
-    Seed4JCliLauncherFactory factory = new Seed4JCliLauncherFactory();
-    Seed4JCliLauncherFactory.LauncherDependencies dependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+    Seed4JCliLauncher launcher = new Seed4JCliLauncher(
+      runtimeEnvironment.executablePath(),
+      runtimeModeConfigurationRepository,
+      RuntimeSelection::standard,
       childProcessLauncher,
       args -> {
         throw new IllegalStateException("Should not resolve local exit code in this test.");
       },
       executablePath -> true,
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
-    );
-
-    Seed4JCliLauncher launcher = factory.create(
-      runtimeEnvironment,
-      runtimeModeConfigurationRepository,
-      RuntimeSelection::standard,
-      dependencies
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      runtimeEnvironment.childMode()
     );
 
     int exitCode = launcher.launch(arguments("--version"));

@@ -8,10 +8,10 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncherFactory;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
@@ -70,7 +70,10 @@ class PreSpringBootstrapRunnerTest {
         return RuntimeMode.STANDARD;
       }
     };
-    Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
+    return new Seed4JCliLauncher(
+      runtimeEnvironment.executablePath(),
+      runtimeModeConfigurationRepository,
+      () -> RuntimeSelection.standard(),
       command -> {
         throw new IllegalStateException("Should not execute a child process in this test.");
       },
@@ -79,13 +82,8 @@ class PreSpringBootstrapRunnerTest {
       },
       executablePath -> true,
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
-    );
-    return new Seed4JCliLauncherFactory().create(
-      runtimeEnvironment,
-      runtimeModeConfigurationRepository,
-      () -> com.seed4j.cli.bootstrap.domain.RuntimeSelection.standard(),
-      launcherDependencies
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
+      runtimeEnvironment.childMode()
     );
   }
 }

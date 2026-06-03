@@ -14,7 +14,7 @@ public class Seed4JCliLauncher {
   private final BootstrapOutput bootstrapOutput;
   private final boolean childMode;
 
-  Seed4JCliLauncher(
+  public Seed4JCliLauncher(
     Path executableJar,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
