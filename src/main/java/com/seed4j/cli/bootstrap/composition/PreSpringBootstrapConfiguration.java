@@ -45,14 +45,17 @@ public final class PreSpringBootstrapConfiguration {
     Seed4JCliLauncherFactory launcherFactory = new Seed4JCliLauncherFactory();
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome());
     Seed4JCliLauncherFactory.LauncherDependencies launcherDependencies = new Seed4JCliLauncherFactory.LauncherDependencies(
-      new JavaProcessChildLauncher(runtimeEnvironment.javaExecutablePath(), new JavaChildProcessCommandExecutor()),
+      new JavaProcessChildLauncher(
+        runtimeEnvironment.javaExecutablePath(),
+        new JavaChildProcessCommandExecutor(),
+        new RuntimeExtensionStartClassResolver(),
+        new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),
+        new RuntimeExtensionLoaderPathResolver()
+      ),
       localCliRunner,
       new FileSystemPackagedExecutableDetector(),
       new LogbackBootstrapDiagnostics(),
-      new SystemErrBootstrapOutput(),
-      new RuntimeExtensionStartClassResolver(),
-      new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),
-      new RuntimeExtensionLoaderPathResolver()
+      new SystemErrBootstrapOutput()
     );
     return launcherFactory.create(
       runtimeEnvironment,

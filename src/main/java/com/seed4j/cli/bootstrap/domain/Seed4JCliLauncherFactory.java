@@ -3,14 +3,11 @@ package com.seed4j.cli.bootstrap.domain;
 public class Seed4JCliLauncherFactory {
 
   public record LauncherDependencies(
-    ChildProcessLauncher childProcessLauncher,
+    ChildRuntimeLauncher childRuntimeLauncher,
     LocalCliRunner localCliRunner,
     PackagedExecutableDetector packagedExecutableDetector,
     BootstrapDiagnostics bootstrapDiagnostics,
-    BootstrapOutput bootstrapOutput,
-    RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver,
-    RuntimeExtensionOverlayCache runtimeExtensionOverlayCache,
-    RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver
+    BootstrapOutput bootstrapOutput
   ) {}
 
   public Seed4JCliLauncher create(
@@ -24,14 +21,11 @@ public class Seed4JCliLauncherFactory {
       runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
       runtimeExtensionSelectionRepository,
-      dependencies.childProcessLauncher(),
+      dependencies.childRuntimeLauncher(),
       dependencies.localCliRunner(),
       dependencies.packagedExecutableDetector(),
       dependencies.bootstrapDiagnostics(),
       dependencies.bootstrapOutput(),
-      dependencies.runtimeExtensionStartClassResolver(),
-      dependencies.runtimeExtensionOverlayCache(),
-      dependencies.runtimeExtensionLoaderPathResolver(),
       runtimeEnvironment.childMode()
     );
   }

@@ -125,16 +125,7 @@ class Seed4JCliAppTest {
       },
       executablePath -> true,
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      extensionJarPath -> {
-        throw new IllegalStateException("Should not resolve start class in this test.");
-      },
-      extensionJarPath -> {
-        throw new IllegalStateException("Should not materialize overlay cache in this test.");
-      },
-      (overlayClassesPath, extensionJarPath, executableJarPath) -> {
-        throw new IllegalStateException("Should not resolve loader path in this test.");
-      }
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
     return new Seed4JCliLauncherFactory().create(
       runtimeEnvironment,

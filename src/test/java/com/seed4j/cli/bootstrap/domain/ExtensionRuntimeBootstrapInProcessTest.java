@@ -44,7 +44,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     ExtensionRuntimeFixture.install(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalCliRunner localCliRunner = localCliRunner(userHome);
-    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       new Seed4JCliHome(userHome),
       executableJar,
@@ -55,9 +55,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
       new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -95,7 +92,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
     ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalCliRunner localCliRunner = localCliRunner(userHome);
-    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       new Seed4JCliHome(userHome),
       executableJar,
@@ -106,9 +103,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
       new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -144,7 +138,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       ExtensionRuntimeFixture.installWithListExtensionModuleAndHiddenResourcesOverrides(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalCliRunner localCliRunner = localCliRunner(userHome);
-    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       new Seed4JCliHome(userHome),
       executableJar,
@@ -155,9 +149,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
       new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY);
@@ -189,7 +180,7 @@ class ExtensionRuntimeBootstrapInProcessTest {
       ExtensionRuntimeFixture.installWithListExtensionModuleAndLoggingOverrides(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalCliRunner localCliRunner = localCliRunner(userHome);
-    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(localCliRunner);
+    InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
       new Seed4JCliHome(userHome),
       executableJar,
@@ -200,9 +191,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
       new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver(),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome)),
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver(),
       false
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);
@@ -265,23 +253,61 @@ class ExtensionRuntimeBootstrapInProcessTest {
     return new FileSystemRuntimeExtensionSelectionRepository(new Seed4JCliHome(userHome), new JarRuntimeExtensionPackageValidator());
   }
 
-  private static final class InProcessChildProcessLauncher implements ChildProcessLauncher {
+  private static final class InProcessChildProcessLauncher implements ChildRuntimeLauncher {
 
     private final LocalCliRunner localCliRunner;
+    private final Seed4JCliHome cliHome;
 
-    private InProcessChildProcessLauncher(LocalCliRunner localCliRunner) {
+    private InProcessChildProcessLauncher(Seed4JCliHome cliHome, LocalCliRunner localCliRunner) {
+      this.cliHome = cliHome;
       this.localCliRunner = localCliRunner;
     }
 
     @Override
-    public int launch(JavaChildProcessRequest request) {
-      ScopedSystemProperties scopedSystemProperties = ScopedSystemProperties.capture(request.systemProperties().keySet());
+    public int launch(ChildRuntimeLaunchRequest request) {
+      Map<String, String> systemProperties = systemProperties(request);
+      ScopedSystemProperties scopedSystemProperties = ScopedSystemProperties.capture(systemProperties.keySet());
       try {
-        request.systemProperties().forEach(System::setProperty);
-        return localCliRunner.run(new Seed4JCliArguments(request.arguments().toArray(String[]::new)));
+        systemProperties.forEach(System::setProperty);
+        return localCliRunner.run(request.arguments());
       } finally {
         scopedSystemProperties.restore();
       }
+    }
+
+    private Map<String, String> systemProperties(ChildRuntimeLaunchRequest request) {
+      RuntimeSelection runtimeSelection = request.runtimeSelection();
+      Map<String, String> systemProperties = new LinkedHashMap<>();
+      systemProperties.put("seed4j.cli.runtime.child", "true");
+      systemProperties.put(RUNTIME_MODE_PROPERTY, runtimeSelection.mode().name().toLowerCase());
+      runtimeSelection.distributionId().ifPresent(distributionId -> systemProperties.put(DISTRIBUTION_ID_PROPERTY, distributionId.id()));
+      runtimeSelection
+        .distributionVersion()
+        .ifPresent(distributionVersion -> systemProperties.put(DISTRIBUTION_VERSION_PROPERTY, distributionVersion.version()));
+      runtimeSelection
+        .extensionJarPath()
+        .ifPresent(extensionJarPath -> {
+          Path rawExtensionJarPath = extensionJarPath.path();
+          systemProperties.put(
+            "seed4j.cli.runtime.extension.start-class",
+            new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
+          );
+          Path overlayClassesPath = new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache(cliHome).materialize(
+            rawExtensionJarPath
+          );
+          systemProperties.put(
+            LOADER_PATH_PROPERTY,
+            new com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver().resolve(
+              overlayClassesPath,
+              rawExtensionJarPath,
+              request.executableJar()
+            )
+          );
+        });
+      systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
+      systemProperties.put("logging.level.root", "ERROR");
+      systemProperties.put("spring.main.log-startup-info", "false");
+      return Map.copyOf(systemProperties);
     }
   }
 

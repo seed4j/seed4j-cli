@@ -27,7 +27,7 @@ class Seed4JCliLauncherFactoryTest {
   @Test
   void shouldNotExposeLegacyLauncherConstructorWithoutRuntimeModeConfigurationRepository() {
     assertThatThrownBy(() ->
-      Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, ChildProcessLauncher.class, LocalCliRunner.class)
+      Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, ChildRuntimeLauncher.class, LocalCliRunner.class)
     ).isExactlyInstanceOf(NoSuchMethodException.class);
   }
 
@@ -38,8 +38,11 @@ class Seed4JCliLauncherFactoryTest {
       Path.class,
       RuntimeModeConfigurationRepository.class,
       RuntimeExtensionSelectionRepository.class,
-      ChildProcessLauncher.class,
+      ChildRuntimeLauncher.class,
       LocalCliRunner.class,
+      PackagedExecutableDetector.class,
+      BootstrapDiagnostics.class,
+      BootstrapOutput.class,
       boolean.class
     );
 
@@ -76,16 +79,7 @@ class Seed4JCliLauncherFactoryTest {
       },
       executablePath -> true,
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      extensionJarPath -> {
-        throw new IllegalStateException("Should not resolve start class in this test.");
-      },
-      extensionJarPath -> {
-        throw new IllegalStateException("Should not materialize overlay cache in this test.");
-      },
-      (overlayClassesPath, extensionJarPath, executableJarPath) -> {
-        throw new IllegalStateException("Should not resolve loader path in this test.");
-      }
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     Seed4JCliLauncher launcher = factory.create(
@@ -99,23 +93,21 @@ class Seed4JCliLauncherFactoryTest {
 
     assertThat(exitCode).isEqualTo(37);
     assertThat(childProcessLauncher.request().executableJar()).isEqualTo(executableJar);
-    assertThat(childProcessLauncher.request().systemProperties())
-      .containsEntry("seed4j.cli.runtime.child", "true")
-      .containsEntry("seed4j.cli.runtime.mode", "standard");
-    assertThat(childProcessLauncher.request().arguments()).containsExactly("--version");
+    assertThat(childProcessLauncher.request().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(childProcessLauncher.request().arguments().asList()).containsExactly("--version");
   }
 
-  private static final class RecordingChildProcessLauncher implements ChildProcessLauncher {
+  private static final class RecordingChildProcessLauncher implements ChildRuntimeLauncher {
 
-    private JavaChildProcessRequest request;
+    private ChildRuntimeLaunchRequest request;
 
     @Override
-    public int launch(JavaChildProcessRequest request) {
+    public int launch(ChildRuntimeLaunchRequest request) {
       this.request = request;
       return 37;
     }
 
-    JavaChildProcessRequest request() {
+    ChildRuntimeLaunchRequest request() {
       return request;
     }
   }
