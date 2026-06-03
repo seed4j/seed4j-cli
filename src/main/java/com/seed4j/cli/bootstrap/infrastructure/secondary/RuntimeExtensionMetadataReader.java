@@ -29,12 +29,6 @@ final class RuntimeExtensionMetadataReader {
       );
     } catch (IOException | YAMLException exception) {
       throw InvalidRuntimeConfigurationException.technicalError(invalidMetadataMessage(metadataPath), exception);
-    } catch (RuntimeException runtimeException) {
-      if (runtimeException instanceof InvalidRuntimeConfigurationException invalidRuntimeConfigurationException) {
-        throw invalidRuntimeConfigurationException;
-      }
-
-      throw invalidMetadata(metadataPath);
     }
   }
 

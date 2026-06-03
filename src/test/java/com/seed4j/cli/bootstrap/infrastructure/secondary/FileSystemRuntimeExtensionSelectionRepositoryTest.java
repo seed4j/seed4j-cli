@@ -86,6 +86,88 @@ class FileSystemRuntimeExtensionSelectionRepositoryTest {
   }
 
   @Test
+  void shouldFailWhenActiveJarIsNotAValidJarFile() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    Files.writeString(extensionJarPath, "not a jar");
+    Files.writeString(metadataPath, metadata("company-extension", "1.0.0"));
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    assertThatThrownBy(repository::activeRuntimeSelection)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Invalid runtime jar file: " + extensionJarPath)
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
+  }
+
+  @Test
+  void shouldAcceptActiveJarWithBootInfClassesEntryWithoutTrailingSlash() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    createJar(extensionJarPath, "BOOT-INF/classes");
+    Files.writeString(metadataPath, metadata("company-extension", "1.0.0"));
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    RuntimeSelection runtimeSelection = repository.activeRuntimeSelection();
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionJarPath()).contains(
+      com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath.from(extensionJarPath.toString())
+    );
+  }
+
+  @Test
+  void shouldAcceptActiveJarWithBootInfClassesChildEntry() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    createJar(extensionJarPath, "BOOT-INF/classes/com/company/Extension.class");
+    Files.writeString(metadataPath, metadata("company-extension", "1.0.0"));
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    RuntimeSelection runtimeSelection = repository.activeRuntimeSelection();
+
+    assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(runtimeSelection.distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
+  }
+
+  @Test
+  void shouldFailWhenMetadataRootIsNotAMap() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    createFatJar(extensionJarPath);
+    Files.writeString(metadataPath, "- company-extension");
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    assertThatThrownBy(repository::activeRuntimeSelection)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessage("Invalid runtime metadata file: " + metadataPath);
+  }
+
+  @Test
+  void shouldFailWhenMetadataDistributionIsNotAMap() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    createFatJar(extensionJarPath);
+    Files.writeString(metadataPath, "distribution: company-extension");
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    assertThatThrownBy(repository::activeRuntimeSelection)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessage("Invalid distribution in runtime metadata file: " + metadataPath);
+  }
+
+  @Test
   void shouldFailWhenMetadataDistributionIdIsInvalid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
     Path extensionJarPath = activeExtensionJarPath(userHome);
@@ -105,6 +187,28 @@ class FileSystemRuntimeExtensionSelectionRepositoryTest {
     assertThatThrownBy(repository::activeRuntimeSelection)
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessage("Invalid distribution.id in runtime metadata file: " + metadataPath);
+  }
+
+  @Test
+  void shouldFailWhenMetadataDistributionVersionIsInvalid() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-selection-");
+    Path extensionJarPath = activeExtensionJarPath(userHome);
+    Path metadataPath = activeMetadataPath(userHome);
+    Files.createDirectories(extensionJarPath.getParent());
+    createFatJar(extensionJarPath);
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: company-extension
+        version: 1.0
+      """
+    );
+    FileSystemRuntimeExtensionSelectionRepository repository = repository(userHome);
+
+    assertThatThrownBy(repository::activeRuntimeSelection)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessage("Invalid distribution.version in runtime metadata file: " + metadataPath);
   }
 
   @Test
@@ -145,13 +249,20 @@ class FileSystemRuntimeExtensionSelectionRepositoryTest {
   }
 
   private static void createFatJar(Path jarPath) throws IOException {
+    createJar(jarPath, "BOOT-INF/", "BOOT-INF/classes/");
+  }
+
+  private static void createJar(Path jarPath, String... entries) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
-      jarOutputStream.closeEntry();
+      for (String entry : entries) {
+        jarOutputStream.putNextEntry(new JarEntry(entry));
+        if (!entry.endsWith("/")) {
+          jarOutputStream.write(new byte[] { 1 });
+        }
+        jarOutputStream.closeEntry();
+      }
     }
   }
 

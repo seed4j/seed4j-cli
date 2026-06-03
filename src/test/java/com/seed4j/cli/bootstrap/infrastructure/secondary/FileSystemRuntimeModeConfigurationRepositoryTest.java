@@ -64,4 +64,30 @@ class FileSystemRuntimeModeConfigurationRepositoryTest {
 
     assertThat(Files.readString(configPath)).isEqualTo("seed4j: [broken");
   }
+
+  @Test
+  void shouldFailDuringApplyWhenConfigurationCannotBeUpdated() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-runtime-mode-configuration-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: standard
+      """
+    );
+    FileSystemRuntimeModeConfigurationRepository repository = new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome));
+
+    RuntimeModeChangePlan modeChangePlan = repository.prepareModeChange(RuntimeMode.EXTENSION);
+    Files.delete(configPath);
+    Files.createDirectory(configPath);
+
+    assertThatThrownBy(modeChangePlan::apply)
+      .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
+      .hasMessageContaining("Could not update ~/.config/seed4j-cli/config.yml.")
+      .hasMessageContaining("Details:")
+      .hasCauseInstanceOf(IOException.class);
+  }
 }
