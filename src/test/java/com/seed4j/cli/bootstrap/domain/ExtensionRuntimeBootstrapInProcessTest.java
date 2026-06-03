@@ -46,7 +46,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
@@ -94,7 +93,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
@@ -140,7 +138,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
@@ -182,7 +179,6 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      new Seed4JCliHome(userHome),
       executableJar,
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),

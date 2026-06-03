@@ -17,7 +17,6 @@ public class Seed4JCliLauncherFactory {
     LauncherDependencies dependencies
   ) {
     return new Seed4JCliLauncher(
-      runtimeEnvironment.cliHome(),
       runtimeEnvironment.executablePath(),
       runtimeModeConfigurationRepository,
       runtimeExtensionSelectionRepository,

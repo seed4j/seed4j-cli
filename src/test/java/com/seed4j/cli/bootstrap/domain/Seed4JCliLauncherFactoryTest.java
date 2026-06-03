@@ -34,7 +34,6 @@ class Seed4JCliLauncherFactoryTest {
   @Test
   void shouldKeepLauncherConstructionInternalToTheBootstrapPackage() throws NoSuchMethodException {
     Constructor<Seed4JCliLauncher> constructor = Seed4JCliLauncher.class.getDeclaredConstructor(
-      Seed4JCliHome.class,
       Path.class,
       RuntimeModeConfigurationRepository.class,
       RuntimeExtensionSelectionRepository.class,

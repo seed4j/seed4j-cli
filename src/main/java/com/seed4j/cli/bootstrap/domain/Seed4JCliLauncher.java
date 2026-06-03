@@ -4,7 +4,6 @@ import java.nio.file.Path;
 
 public class Seed4JCliLauncher {
 
-  private final Seed4JCliHome cliHome;
   private final Path executableJar;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository;
@@ -16,7 +15,6 @@ public class Seed4JCliLauncher {
   private final boolean childMode;
 
   Seed4JCliLauncher(
-    Seed4JCliHome cliHome,
     Path executableJar,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
@@ -27,7 +25,6 @@ public class Seed4JCliLauncher {
     BootstrapOutput bootstrapOutput,
     boolean childMode
   ) {
-    this.cliHome = cliHome;
     this.executableJar = executableJar;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.runtimeExtensionSelectionRepository = runtimeExtensionSelectionRepository;
