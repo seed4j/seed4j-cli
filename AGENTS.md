@@ -11,9 +11,13 @@ Keep hexagonal boundaries explicit. `domain` contains business rules, business t
 
 `application` must not depend on concrete adapters, filesystem access, Spring configuration, `System.getProperty`, or classes in `..infrastructure..`. `infrastructure.primary` translates CLI, HTTP, and framework input into domain types and calls application services. `infrastructure.secondary` implements domain ports and encapsulates filesystem access, process execution, Spring Security, configuration loading, and other external mechanisms.
 
+Physical locations, runtime layouts, persisted configuration files, cache directories, generated file names, and other storage details are secondary infrastructure concerns. Do not model those details as concrete domain records just to pass filesystem locations through `primary`, `application`, or `domain`. If the domain needs to use something stored externally, model the need as a domain port named after the capability or business concept, and keep the concrete path/layout resolution inside `infrastructure.secondary`.
+
+A `Path` in the domain is acceptable only when it represents a user-visible or business-relevant value, such as an input project path, an artifact explicitly supplied by the user, or a path returned for CLI feedback. A `Path` is not acceptable in the domain when it represents hidden operational layout, such as where the CLI persists runtime metadata, active runtime files, caches, config internals, or adapter-managed storage. In those cases, expose domain concepts and ports instead, for example "active runtime extension", "runtime selection", or "install runtime artifacts", and let the secondary adapter decide which files implement them.
+
 `composition` and pre-Spring bootstrap code are manual composition roots needed before Spring is available. They may assemble primary, application, domain, and secondary objects, but they must stay explicit and must not become a shortcut for mixing layer responsibilities.
 
-`Seed4JCliHome` is the domain concept for paths derived from `user.home`. Read `user.home` only in Spring configuration or pre-Spring adapters, then pass the resulting domain type inward.
+`Seed4JCliHome` is the domain concept for paths derived from `user.home`. Read `user.home` only in Spring configuration or pre-Spring adapters, then pass the resulting domain type inward. Keep this exception narrow: `Seed4JCliHome` may represent the CLI home concept, but hidden operational layouts derived from it should normally be resolved inside secondary adapters, not exposed as separate domain records.
 
 ## Build, Test, and Development Commands
 
