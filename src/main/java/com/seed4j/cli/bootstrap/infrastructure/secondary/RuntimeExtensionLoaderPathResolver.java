@@ -317,13 +317,13 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
     );
   }
 
-  private static String mavenCoordinate(String groupId, String artifactId) {
-    return groupId + ":" + artifactId;
-  }
-
   private record MavenRuntimeLibraryMetadata(String groupId, String artifactId, String version) {
     private RuntimeLibraryIdentity logicalIdentity() {
-      return new RuntimeLibraryIdentity(mavenCoordinate(groupId, artifactId), version);
+      return new RuntimeLibraryIdentity(coordinate(), version);
+    }
+
+    private String coordinate() {
+      return groupId + ":" + artifactId;
     }
 
     private String expectedFileName() {
