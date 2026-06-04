@@ -97,6 +97,48 @@ class JavaProcessChildLauncherTest {
   }
 
   @Test
+  void shouldSetRootLoggingToErrorForExtensionModeWithoutDebug() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-");
+    Path executableJar = createEmptyJar(Files.createTempFile("seed4j-cli-", ".jar"));
+    Path extensionJar = createExtensionJarWithStartClass(userHome.resolve("extension.jar"));
+    RecordingProcessExecutor processExecutor = new RecordingProcessExecutor();
+    JavaProcessChildLauncher launcher = launcher(userHome, processExecutor);
+    RuntimeSelection runtimeSelection = RuntimeSelection.extension(
+      new RuntimeExtensionJarPath(extensionJar),
+      new RuntimeDistributionId("company-extension"),
+      new RuntimeDistributionVersion("1.0.0")
+    );
+    ChildRuntimeLaunchRequest request = new ChildRuntimeLaunchRequest(
+      executableJar,
+      runtimeSelection,
+      new Seed4JCliArguments(new String[] { "--version" }),
+      false
+    );
+
+    int exitCode = launcher.launch(request);
+
+    RuntimeExtensionCacheIdentity cacheIdentity = new RuntimeExtensionCacheIdentityResolver().resolve(extensionJar);
+    Path overlayClassesPath = userHome.resolve(".config/seed4j-cli/runtime/cache").resolve(cacheIdentity.value()).resolve("classes");
+    assertThat(exitCode).isEqualTo(19);
+    assertThat(processExecutor.command()).containsExactly(
+      "/opt/jdk/bin/java",
+      "-Dloader.path=" + overlayClassesPath,
+      "-Dlogging.config=classpath:seed4j-cli-logback-spring.xml",
+      "-Dlogging.level.root=ERROR",
+      "-Dseed4j.cli.runtime.child=true",
+      "-Dseed4j.cli.runtime.distribution.id=company-extension",
+      "-Dseed4j.cli.runtime.distribution.version=1.0.0",
+      "-Dseed4j.cli.runtime.extension.start-class=com.seed4j.extension.ExtensionApplication",
+      "-Dseed4j.cli.runtime.mode=extension",
+      "-Dspring.main.log-startup-info=false",
+      "-cp",
+      executableJar.toString(),
+      "org.springframework.boot.loader.launch.PropertiesLauncher",
+      "--version"
+    );
+  }
+
+  @Test
   void shouldFailBeforeExecutingProcessWhenExtensionStartClassIsMissing() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
     Path executableJar = createEmptyJar(Files.createTempFile("seed4j-cli-", ".jar"));

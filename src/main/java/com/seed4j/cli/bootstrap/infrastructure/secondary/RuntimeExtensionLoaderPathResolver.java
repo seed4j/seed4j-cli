@@ -128,17 +128,22 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
 
   private static RuntimeLibraryEntry strictRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
     String libraryFileName = libraryFileName(jarEntry.getName());
-    Optional<RuntimeLibraryIdentity> metadataIdentity = strictRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry, libraryFileName);
+    Optional<MavenRuntimeLibraryMetadata> metadata = strictRuntimeLibraryMetadataFromNestedJar(jarFile, jarEntry, libraryFileName);
+    Optional<RuntimeLibraryIdentity> metadataIdentity = metadata.map(MavenRuntimeLibraryMetadata::logicalIdentity);
     Optional<RuntimeLibraryIdentity> fileNameIdentity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
     RuntimeLibraryIdentityResolution identityResolution = RuntimeLibraryIdentityResolution.from(metadataIdentity, fileNameIdentity);
-    logOverrideIfNeeded(identityResolution, libraryFileName);
+    logOverrideIfNeeded(metadata, identityResolution, libraryFileName);
     return new RuntimeLibraryEntry(libraryFileName, identityResolution.effectiveIdentity());
   }
 
-  private static void logOverrideIfNeeded(RuntimeLibraryIdentityResolution identityResolution, String libraryFileName) {
-    identityResolution
-      .metadataIdentity()
-      .ifPresent(metadataLibraryIdentity ->
+  private static void logOverrideIfNeeded(
+    Optional<MavenRuntimeLibraryMetadata> metadata,
+    RuntimeLibraryIdentityResolution identityResolution,
+    String libraryFileName
+  ) {
+    metadata.ifPresent(mavenMetadata -> {
+      RuntimeLibraryIdentity metadataLibraryIdentity = mavenMetadata.logicalIdentity();
+      if (!mavenMetadata.expectedFileName().equals(libraryFileName)) {
         identityResolution
           .fileNameIdentity()
           .filter(inferredLibraryIdentity -> !metadataLibraryIdentity.equals(inferredLibraryIdentity))
@@ -151,15 +156,16 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
               inferredLibraryIdentity.coordinate(),
               inferredLibraryIdentity.version()
             )
-          )
-      );
+          );
+      }
+    });
   }
 
   private static RuntimeLibraryEntry lenientRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
     String libraryFileName = libraryFileName(jarEntry.getName());
-    Optional<RuntimeLibraryIdentity> libraryIdentity = lenientRuntimeLibraryIdentityFromNestedJar(jarFile, jarEntry).or(() ->
-      RuntimeLibraryIdentity.fromJarFileName(libraryFileName)
-    );
+    Optional<RuntimeLibraryIdentity> libraryIdentity = lenientRuntimeLibraryMetadataFromNestedJar(jarFile, jarEntry)
+      .map(MavenRuntimeLibraryMetadata::logicalIdentity)
+      .or(() -> RuntimeLibraryIdentity.fromJarFileName(libraryFileName));
     return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
   }
 
@@ -168,13 +174,13 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
-  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJar(
+  private static Optional<MavenRuntimeLibraryMetadata> strictRuntimeLibraryMetadataFromNestedJar(
     JarFile jarFile,
     JarEntry jarEntry,
     String libraryFileName
   ) {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
-      return strictRuntimeLibraryIdentityFromNestedJar(jarInputStream, libraryFileName);
+      return strictRuntimeLibraryMetadataFromNestedJar(jarInputStream, libraryFileName);
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError(
         "Could not inspect nested library metadata from " + jarEntry.getName() + ".",
@@ -184,9 +190,9 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
-  private static Optional<RuntimeLibraryIdentity> lenientRuntimeLibraryIdentityFromNestedJar(JarFile jarFile, JarEntry jarEntry) {
+  private static Optional<MavenRuntimeLibraryMetadata> lenientRuntimeLibraryMetadataFromNestedJar(JarFile jarFile, JarEntry jarEntry) {
     try (InputStream jarInputStream = jarFile.getInputStream(jarEntry)) {
-      return lenientRuntimeLibraryIdentityFromNestedJar(jarInputStream);
+      return lenientRuntimeLibraryMetadataFromNestedJar(jarInputStream);
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError(
         "Could not inspect nested library metadata from " + jarEntry.getName() + ".",
@@ -195,30 +201,30 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
     }
   }
 
-  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJar(
+  private static Optional<MavenRuntimeLibraryMetadata> strictRuntimeLibraryMetadataFromNestedJar(
     InputStream nestedJarInputStream,
     String libraryFileName
   ) {
-    return strictRuntimeLibraryIdentityFromNestedJarWithFallback(nestedJarInputStream, libraryFileName);
+    return strictRuntimeLibraryMetadataFromNestedJarWithFallback(nestedJarInputStream, libraryFileName);
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "Nested jar I/O failure paths are environment-dependent")
-  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJarWithFallback(
+  private static Optional<MavenRuntimeLibraryMetadata> strictRuntimeLibraryMetadataFromNestedJarWithFallback(
     InputStream nestedJarInputStream,
     String libraryFileName
   ) {
     try {
-      return strictRuntimeLibraryIdentityFromNestedJarInternal(nestedJarInputStream, libraryFileName);
+      return strictRuntimeLibraryMetadataFromNestedJarInternal(nestedJarInputStream, libraryFileName);
     } catch (IOException _) {
       return Optional.empty();
     }
   }
 
-  private static Optional<RuntimeLibraryIdentity> strictRuntimeLibraryIdentityFromNestedJarInternal(
+  private static Optional<MavenRuntimeLibraryMetadata> strictRuntimeLibraryMetadataFromNestedJarInternal(
     InputStream nestedJarInputStream,
     String libraryFileName
   ) throws IOException {
-    Set<RuntimeLibraryIdentity> resolvedLibraryIdentities = new LinkedHashSet<>();
+    Set<MavenRuntimeLibraryMetadata> resolvedLibraryMetadata = new LinkedHashSet<>();
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
         JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
@@ -229,27 +235,27 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
           continue;
         }
 
-        RuntimeLibraryIdentity runtimeLibraryIdentity = runtimeLibraryIdentityFromPomProperties(jarInputStream).orElseThrow(() ->
+        MavenRuntimeLibraryMetadata runtimeLibraryMetadata = runtimeLibraryMetadataFromPomProperties(jarInputStream).orElseThrow(() ->
           incompleteRuntimeLibraryMetadata(libraryFileName)
         );
-        resolvedLibraryIdentities.add(runtimeLibraryIdentity);
+        resolvedLibraryMetadata.add(runtimeLibraryMetadata);
       }
-      return strictSingleIdentityOrThrowConflict(resolvedLibraryIdentities, libraryFileName);
+      return strictSingleMetadataOrThrowConflict(resolvedLibraryMetadata, libraryFileName);
     }
   }
 
-  private static Optional<RuntimeLibraryIdentity> strictSingleIdentityOrThrowConflict(
-    Set<RuntimeLibraryIdentity> resolvedLibraryIdentities,
+  private static Optional<MavenRuntimeLibraryMetadata> strictSingleMetadataOrThrowConflict(
+    Set<MavenRuntimeLibraryMetadata> resolvedLibraryMetadata,
     String libraryFileName
   ) {
-    if (resolvedLibraryIdentities.size() > 1) {
-      throw conflictingRuntimeLibraryMetadata(libraryFileName, resolvedLibraryIdentities);
+    if (resolvedLibraryMetadata.size() > 1) {
+      throw conflictingRuntimeLibraryMetadata(libraryFileName, resolvedLibraryMetadata);
     }
 
-    return resolvedLibraryIdentities.stream().findFirst();
+    return resolvedLibraryMetadata.stream().findFirst();
   }
 
-  private static Optional<RuntimeLibraryIdentity> lenientRuntimeLibraryIdentityFromNestedJar(InputStream nestedJarInputStream) {
+  private static Optional<MavenRuntimeLibraryMetadata> lenientRuntimeLibraryMetadataFromNestedJar(InputStream nestedJarInputStream) {
     try (JarInputStream jarInputStream = new JarInputStream(nestedJarInputStream)) {
       for (
         JarEntry nestedJarEntry = jarInputStream.getNextJarEntry();
@@ -257,7 +263,7 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
         nestedJarEntry = jarInputStream.getNextJarEntry()
       ) {
         if (pomPropertiesEntry(nestedJarEntry)) {
-          return runtimeLibraryIdentityFromPomProperties(jarInputStream);
+          return runtimeLibraryMetadataFromPomProperties(jarInputStream);
         }
       }
       return Optional.empty();
@@ -270,21 +276,19 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
     return jarEntry.getName().startsWith(MAVEN_METADATA_DIRECTORY) && jarEntry.getName().endsWith(POM_PROPERTIES_SUFFIX);
   }
 
-  private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromPomProperties(InputStream pomPropertiesInputStream)
+  private static Optional<MavenRuntimeLibraryMetadata> runtimeLibraryMetadataFromPomProperties(InputStream pomPropertiesInputStream)
     throws IOException {
     Properties properties = new Properties();
     properties.load(pomPropertiesInputStream);
-    return runtimeLibraryIdentityFromPomProperties(properties);
+    return runtimeLibraryMetadataFromPomProperties(properties);
   }
 
-  private static Optional<RuntimeLibraryIdentity> runtimeLibraryIdentityFromPomProperties(Properties properties) {
+  private static Optional<MavenRuntimeLibraryMetadata> runtimeLibraryMetadataFromPomProperties(Properties properties) {
     Optional<String> groupId = propertyValue(properties, GROUP_ID_PROPERTY);
     Optional<String> artifactId = propertyValue(properties, ARTIFACT_ID_PROPERTY);
     Optional<String> version = propertyValue(properties, VERSION_PROPERTY);
     return groupId.flatMap(mavenGroup ->
-      artifactId.flatMap(artifact ->
-        version.map(libraryVersion -> new RuntimeLibraryIdentity(mavenCoordinate(mavenGroup, artifact), libraryVersion))
-      )
+      artifactId.flatMap(artifact -> version.map(libraryVersion -> new MavenRuntimeLibraryMetadata(mavenGroup, artifact, libraryVersion)))
     );
   }
 
@@ -300,10 +304,11 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
 
   private static InvalidRuntimeConfigurationException conflictingRuntimeLibraryMetadata(
     String libraryFileName,
-    Set<RuntimeLibraryIdentity> runtimeLibraryIdentities
+    Set<MavenRuntimeLibraryMetadata> runtimeLibraryMetadata
   ) {
-    String identities = runtimeLibraryIdentities
+    String identities = runtimeLibraryMetadata
       .stream()
+      .map(MavenRuntimeLibraryMetadata::logicalIdentity)
       .map(runtimeLibraryIdentity -> runtimeLibraryIdentity.coordinate() + ":" + runtimeLibraryIdentity.version())
       .sorted()
       .collect(Collectors.joining(", "));
@@ -314,5 +319,15 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
 
   private static String mavenCoordinate(String groupId, String artifactId) {
     return groupId + ":" + artifactId;
+  }
+
+  private record MavenRuntimeLibraryMetadata(String groupId, String artifactId, String version) {
+    private RuntimeLibraryIdentity logicalIdentity() {
+      return new RuntimeLibraryIdentity(mavenCoordinate(groupId, artifactId), version);
+    }
+
+    private String expectedFileName() {
+      return artifactId + "-" + version + ".jar";
+    }
   }
 }
