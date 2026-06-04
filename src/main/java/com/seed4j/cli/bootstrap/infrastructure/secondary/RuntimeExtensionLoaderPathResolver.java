@@ -141,9 +141,10 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
     RuntimeLibraryIdentityResolution identityResolution,
     String libraryFileName
   ) {
-    metadata.ifPresent(mavenMetadata -> {
-      RuntimeLibraryIdentity metadataLibraryIdentity = mavenMetadata.logicalIdentity();
-      if (!mavenMetadata.expectedFileName().equals(libraryFileName)) {
+    metadata
+      .filter(mavenMetadata -> !mavenMetadata.expectedFileName().equals(libraryFileName))
+      .ifPresent(mavenMetadata -> {
+        RuntimeLibraryIdentity metadataLibraryIdentity = mavenMetadata.logicalIdentity();
         identityResolution
           .fileNameIdentity()
           .filter(inferredLibraryIdentity -> !metadataLibraryIdentity.equals(inferredLibraryIdentity))
@@ -157,8 +158,7 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
               inferredLibraryIdentity.version()
             )
           );
-      }
-    });
+      });
   }
 
   private static RuntimeLibraryEntry lenientRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
