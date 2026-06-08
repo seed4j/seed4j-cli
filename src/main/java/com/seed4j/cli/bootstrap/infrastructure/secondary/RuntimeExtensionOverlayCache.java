@@ -19,7 +19,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
-public final class RuntimeExtensionOverlayCache implements com.seed4j.cli.bootstrap.domain.RuntimeExtensionOverlayCache {
+public final class RuntimeExtensionOverlayCache {
 
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH = "BOOT-INF/classes";
@@ -33,7 +33,6 @@ public final class RuntimeExtensionOverlayCache implements com.seed4j.cli.bootst
     this.cliHome = cliHome;
   }
 
-  @Override
   public Path materialize(Path extensionJarPath) {
     RuntimeExtensionCacheIdentity cacheIdentity = cacheIdentityResolver.resolve(extensionJarPath);
     Path cacheRootDirectoryPath = cliHome.runtimeCacheDirectory();

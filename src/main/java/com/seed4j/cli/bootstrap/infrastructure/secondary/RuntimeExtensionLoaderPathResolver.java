@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootstrap.domain.RuntimeExtensionLoaderPathResolver {
+public class RuntimeExtensionLoaderPathResolver {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
   private static final String BOOT_INF_LIB_DIRECTORY = "BOOT-INF/lib/";
@@ -34,7 +34,6 @@ public class RuntimeExtensionLoaderPathResolver implements com.seed4j.cli.bootst
   private static final String VERSION_PROPERTY = "version";
   private final RuntimeExtensionMissingLibrariesSelector missingLibrariesSelector = new RuntimeExtensionMissingLibrariesSelector();
 
-  @Override
   public String resolve(Path overlayClassesPath, Path extensionJarPath, Path executableJarPath) {
     List<RuntimeLibraryEntry> extensionLibraries = extensionLibraries(extensionJarPath);
     Set<RuntimeLibraryEntry> cliLibraries = Set.copyOf(cliLibraries(executableJarPath));

@@ -3,6 +3,7 @@ package com.seed4j.cli;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -284,6 +285,18 @@ class HexagonalArchTest {
     }
 
     @Test
+    void secondaryImplementedDomainPortsShouldBeUsedByDomainOrApplication() {
+      classes()
+        .that()
+        .resideInAPackage("..domain..")
+        .and()
+        .areInterfaces()
+        .should(beUsedByDomainOrApplicationWhenImplementedBySecondary())
+        .because("domain ports should model capabilities required by domain or application behavior, not adapter-internal seams")
+        .check(classes);
+    }
+
+    @Test
     void shouldNotDependOnApplication() {
       noClasses()
         .that()
@@ -385,6 +398,45 @@ class HexagonalArchTest {
         }
       }
     };
+  }
+
+  private static ArchCondition<JavaClass> beUsedByDomainOrApplicationWhenImplementedBySecondary() {
+    return new ArchCondition<>("be used by domain or application when implemented by secondary infrastructure") {
+      @Override
+      public void check(JavaClass item, ConditionEvents events) {
+        if (implementedBySecondary(item) && unusedByDomainOrApplication(item)) {
+          events.add(
+            SimpleConditionEvent.violated(
+              item,
+              item.getName() + " is implemented by secondary infrastructure but is not used by domain or application"
+            )
+          );
+        }
+      }
+    };
+  }
+
+  private static boolean implementedBySecondary(JavaClass item) {
+    return classes
+      .stream()
+      .filter(HexagonalArchTest::secondaryInfrastructureClass)
+      .anyMatch(secondaryClass -> secondaryClass.getAllRawInterfaces().contains(item));
+  }
+
+  private static boolean secondaryInfrastructureClass(JavaClass item) {
+    return item.getPackageName().contains(".infrastructure.secondary");
+  }
+
+  private static boolean unusedByDomainOrApplication(JavaClass item) {
+    return item
+      .getDirectDependenciesToSelf()
+      .stream()
+      .map(Dependency::getOriginClass)
+      .noneMatch(HexagonalArchTest::domainOrApplicationClass);
+  }
+
+  private static boolean domainOrApplicationClass(JavaClass item) {
+    return domainClass(item) || item.getPackageName().contains(".application");
   }
 
   private static boolean implementsDomainPort(JavaClass item) {

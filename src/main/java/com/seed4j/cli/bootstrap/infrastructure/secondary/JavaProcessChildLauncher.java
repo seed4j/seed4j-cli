@@ -2,7 +2,6 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
-import com.seed4j.cli.bootstrap.domain.ProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import java.nio.file.Path;
@@ -17,14 +16,14 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
   private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
 
   private final Path javaExecutable;
-  private final ProcessCommandExecutor processExecutor;
+  private final ChildProcessCommandExecutor processExecutor;
   private final RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver;
   private final RuntimeExtensionOverlayCache runtimeExtensionOverlayCache;
   private final RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver;
 
   public JavaProcessChildLauncher(
     Path javaExecutable,
-    ProcessCommandExecutor processExecutor,
+    ChildProcessCommandExecutor processExecutor,
     RuntimeExtensionStartClassResolver runtimeExtensionStartClassResolver,
     RuntimeExtensionOverlayCache runtimeExtensionOverlayCache,
     RuntimeExtensionLoaderPathResolver runtimeExtensionLoaderPathResolver

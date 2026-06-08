@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.domain.ProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionCacheIdentity;
@@ -209,7 +208,7 @@ class JavaProcessChildLauncherTest {
     return jarPath;
   }
 
-  private static final class RecordingProcessExecutor implements ProcessCommandExecutor {
+  private static final class RecordingProcessExecutor implements ChildProcessCommandExecutor {
 
     private List<String> command;
 

@@ -3,7 +3,6 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.File;
@@ -13,11 +12,10 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class CurrentProcessPreSpringRuntimeEnvironmentReader implements PreSpringRuntimeEnvironmentReader {
+public class CurrentProcessPreSpringRuntimeEnvironmentReader {
 
   private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
 
-  @Override
   public PreSpringRuntimeEnvironment current() {
     Path codeSourcePath = currentCodeSourcePath();
     return new PreSpringRuntimeEnvironment(

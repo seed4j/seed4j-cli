@@ -1,12 +1,11 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.domain.ProcessCommandExecutor;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.util.List;
 
-public class JavaChildProcessCommandExecutor implements ProcessCommandExecutor {
+public class JavaChildProcessCommandExecutor implements ChildProcessCommandExecutor {
 
   @Override
   public int execute(List<String> command) {

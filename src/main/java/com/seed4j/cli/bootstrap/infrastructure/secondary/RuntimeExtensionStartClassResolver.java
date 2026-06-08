@@ -6,9 +6,8 @@ import java.nio.file.Path;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-public final class RuntimeExtensionStartClassResolver implements com.seed4j.cli.bootstrap.domain.RuntimeExtensionStartClassResolver {
+public final class RuntimeExtensionStartClassResolver {
 
-  @Override
   public String resolve(Path extensionJarPath) {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
       Manifest manifest = extensionJarFile.getManifest();

@@ -104,6 +104,8 @@ This model doesn't depend on anything, and everything depends on it so it is tot
 
 Apart from the code used to make the business operations we'll find ports in the Domain Model. Ports are `interfaces` that are used to invert dependencies. As the Domain Model sometimes needs ports for some operations, they can only be there since the Domain doesn't depend on anything.
 
+A port belongs in the Domain Model only when domain or application behavior actually needs that capability. An interface implemented by secondary infrastructure but only consumed by other secondary infrastructure, composition wiring, or tests is not a domain port. Keep those adapter-internal seams in `infrastructure.secondary`, because putting them in `domain` makes technical layout and adapter design look like business language.
+
 ### Code in Application
 
 The application layer **MUST NOT CONTAIN ANY BUSINESS RULE**, its responsibilities are:
@@ -123,3 +125,5 @@ The primary part contains adapters for the code driving our domain. Example: cod
 ### Code in Secondary
 
 The secondary part is made of adapters implementing the ports from the domain. This part depends a lot on frameworks and its responsibility is to make the best possible use of the infrastructure our business needs.
+
+Secondary infrastructure can also define its own technical interfaces when it needs local seams for process execution, filesystem variants, framework wrappers, or deterministic tests. Those interfaces are not ports unless domain or application code depends on them.

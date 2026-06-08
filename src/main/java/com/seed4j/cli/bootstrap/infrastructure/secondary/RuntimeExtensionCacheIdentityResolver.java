@@ -10,11 +10,10 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public final class RuntimeExtensionCacheIdentityResolver implements com.seed4j.cli.bootstrap.domain.RuntimeExtensionCacheIdentityResolver {
+public final class RuntimeExtensionCacheIdentityResolver {
 
   private static final String CACHE_LAYOUT_VERSION = "overlay-v1";
 
-  @Override
   public RuntimeExtensionCacheIdentity resolve(Path extensionJarPath) {
     return new RuntimeExtensionCacheIdentity(CACHE_LAYOUT_VERSION + "-" + sha256(extensionJarPath));
   }
