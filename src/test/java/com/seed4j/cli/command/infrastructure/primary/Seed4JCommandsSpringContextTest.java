@@ -19,7 +19,7 @@ import org.springframework.context.annotation.FilterType;
 import picocli.CommandLine;
 
 @UnitTest
-class ExtensionInstallSpringContextTest {
+class Seed4JCommandsSpringContextTest {
 
   private static final String DISTRIBUTION_ID = "company-extension";
   private static final String DISTRIBUTION_VERSION = "1.0.0";
@@ -64,6 +64,52 @@ class ExtensionInstallSpringContextTest {
         assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
         assertThat(metadataPath).exists();
         assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+      });
+  }
+
+  @Test
+  void shouldShowStandardRuntimeInVersionOutputUsingSpringManagedCommandGraph() {
+    String[] args = { "--version" };
+
+    contextRunner.run(context -> {
+      Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getStandardOutput())
+          .contains("Runtime mode: standard")
+          .doesNotContain("Distribution ID")
+          .doesNotContain("Distribution version");
+      }
+    });
+  }
+
+  @Test
+  void shouldShowExtensionRuntimeDistributionInVersionOutputUsingSpringManagedCommandGraph() {
+    String[] args = { "--version" };
+
+    contextRunner
+      .withPropertyValues(
+        "seed4j.cli.runtime.mode=extension",
+        "seed4j.cli.runtime.distribution.id=" + DISTRIBUTION_ID,
+        "seed4j.cli.runtime.distribution.version=" + DISTRIBUTION_VERSION
+      )
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isZero();
+          assertThat(outputCaptor.getStandardOutput())
+            .contains("Runtime mode: extension")
+            .contains("Distribution ID: " + DISTRIBUTION_ID)
+            .contains("Distribution version: " + DISTRIBUTION_VERSION);
+        }
       });
   }
 
