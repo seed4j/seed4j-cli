@@ -3,9 +3,13 @@ package com.seed4j.cli;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.nio.file.Files;
@@ -162,6 +166,18 @@ class HexagonalArchTest {
   class Domain {
 
     @Test
+    void portsShouldBeNamedByBusinessCapability() {
+      classes()
+        .that()
+        .resideInAPackage("..domain..")
+        .and()
+        .areInterfaces()
+        .should(notHaveSimpleNameEndingWith("Port"))
+        .because("domain ports should be named by the business capability")
+        .check(classes);
+    }
+
+    @Test
     void shouldNotDependOnOutside() {
       classes()
         .that()
@@ -258,6 +274,16 @@ class HexagonalArchTest {
   class Secondary {
 
     @Test
+    void domainPortImplementationsShouldBeNamedByMechanismAndCapability() {
+      classes()
+        .that()
+        .resideInAPackage("..infrastructure.secondary..")
+        .should(notEndWithAdapterWhenImplementingDomainPort())
+        .because("secondary implementations of domain ports should use mechanism plus business capability names")
+        .check(classes);
+    }
+
+    @Test
     void shouldNotDependOnApplication() {
       noClasses()
         .that()
@@ -337,5 +363,35 @@ class HexagonalArchTest {
     private String[] businessContextsOrSharedKernelsPackages() {
       return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
     }
+  }
+
+  private static ArchCondition<JavaClass> notHaveSimpleNameEndingWith(String suffix) {
+    return new ArchCondition<>("not have simple name ending with " + suffix) {
+      @Override
+      public void check(JavaClass item, ConditionEvents events) {
+        if (item.getSimpleName().endsWith(suffix)) {
+          events.add(SimpleConditionEvent.violated(item, item.getName() + " ends with " + suffix));
+        }
+      }
+    };
+  }
+
+  private static ArchCondition<JavaClass> notEndWithAdapterWhenImplementingDomainPort() {
+    return new ArchCondition<>("not end with Adapter when implementing a domain port") {
+      @Override
+      public void check(JavaClass item, ConditionEvents events) {
+        if (item.getSimpleName().endsWith("Adapter") && implementsDomainPort(item)) {
+          events.add(SimpleConditionEvent.violated(item, item.getName() + " implements a domain port and ends with Adapter"));
+        }
+      }
+    };
+  }
+
+  private static boolean implementsDomainPort(JavaClass item) {
+    return item.getAllRawInterfaces().stream().anyMatch(HexagonalArchTest::domainClass);
+  }
+
+  private static boolean domainClass(JavaClass item) {
+    return item.getPackageName().startsWith(ROOT_PACKAGE) && item.getPackageName().contains(".domain");
   }
 }

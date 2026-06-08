@@ -1,5 +1,5 @@
 package com.seed4j.cli.command.domain;
 
-public interface RuntimeExtensionInstallationPort {
+public interface RuntimeExtensionInstaller {
   RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request);
 }

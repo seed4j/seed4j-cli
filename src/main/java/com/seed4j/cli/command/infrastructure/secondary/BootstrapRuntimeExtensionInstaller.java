@@ -7,16 +7,16 @@ import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeExtensionInsta
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
-import com.seed4j.cli.command.domain.RuntimeExtensionInstallationPort;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstaller;
 import com.seed4j.cli.shared.error.domain.Assert;
 import org.springframework.stereotype.Component;
 
 @Component
-public class BootstrapRuntimeExtensionInstallationAdapter implements RuntimeExtensionInstallationPort {
+public class BootstrapRuntimeExtensionInstaller implements RuntimeExtensionInstaller {
 
   private final JavaRuntimeExtensionInstaller runtimeExtensionInstaller;
 
-  public BootstrapRuntimeExtensionInstallationAdapter(JavaRuntimeExtensionInstaller runtimeExtensionInstaller) {
+  public BootstrapRuntimeExtensionInstaller(JavaRuntimeExtensionInstaller runtimeExtensionInstaller) {
     Assert.notNull("runtimeExtensionInstaller", runtimeExtensionInstaller);
 
     this.runtimeExtensionInstaller = runtimeExtensionInstaller;

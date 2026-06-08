@@ -8,7 +8,7 @@ import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationServ
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
-import com.seed4j.cli.command.domain.RuntimeExtensionInstallationPort;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstaller;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -139,11 +139,11 @@ class ExtensionInstallCommandTest {
   void shouldSendRuntimeExtensionCoordinatesToInstallApplicationWhenInstallCommandSucceeds() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    CapturingRuntimeExtensionInstallationPort runtimeExtensionInstallationPort = new CapturingRuntimeExtensionInstallationPort(
+    CapturingRuntimeExtensionInstaller runtimeExtensionInstaller = new CapturingRuntimeExtensionInstaller(
       installationResult(userHome, false)
     );
     ExtensionInstallCommand installCommand = new ExtensionInstallCommand(
-      new RuntimeExtensionInstallApplicationService(runtimeExtensionInstallationPort)
+      new RuntimeExtensionInstallApplicationService(runtimeExtensionInstaller)
     );
     ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
     String[] args = {
@@ -159,9 +159,9 @@ class ExtensionInstallCommandTest {
     int exitCode = commandLine.execute(args);
 
     assertThat(exitCode).isZero();
-    assertThat(runtimeExtensionInstallationPort.request.extensionJarPath()).isEqualTo(extensionJarPath.toString());
-    assertThat(runtimeExtensionInstallationPort.request.distributionId()).isEqualTo(DISTRIBUTION_ID);
-    assertThat(runtimeExtensionInstallationPort.request.distributionVersion()).isEqualTo(DISTRIBUTION_VERSION);
+    assertThat(runtimeExtensionInstaller.request.extensionJarPath()).isEqualTo(extensionJarPath.toString());
+    assertThat(runtimeExtensionInstaller.request.distributionId()).isEqualTo(DISTRIBUTION_ID);
+    assertThat(runtimeExtensionInstaller.request.distributionVersion()).isEqualTo(DISTRIBUTION_VERSION);
   }
 
   private static ExtensionInstallCommand installCommand(Path userHome) {
@@ -202,12 +202,12 @@ class ExtensionInstallCommandTest {
     return jarPath;
   }
 
-  private static final class CapturingRuntimeExtensionInstallationPort implements RuntimeExtensionInstallationPort {
+  private static final class CapturingRuntimeExtensionInstaller implements RuntimeExtensionInstaller {
 
     private final RuntimeExtensionInstallResult result;
     private RuntimeExtensionInstallRequest request;
 
-    private CapturingRuntimeExtensionInstallationPort(RuntimeExtensionInstallResult result) {
+    private CapturingRuntimeExtensionInstaller(RuntimeExtensionInstallResult result) {
       this.result = result;
     }
 

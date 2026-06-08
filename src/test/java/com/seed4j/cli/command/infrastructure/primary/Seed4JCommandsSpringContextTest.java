@@ -141,7 +141,7 @@ class Seed4JCommandsSpringContextTest {
           "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeDisplayApplicationService",
           "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeExtensionInstallApplicationService",
           "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeDisplayReader",
-          "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeExtensionInstallationAdapter",
+          "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeExtensionInstaller",
           "com\\.seed4j\\.cli\\.bootstrap\\.application\\.RuntimeExtensionApplicationService",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeExtensionInstaller",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeSelectionReader",
