@@ -19,11 +19,15 @@ import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartCl
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
 import com.seed4j.cli.shared.error.domain.Assert;
+import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 
 public final class PreSpringBootstrapConfiguration {
 
   private PreSpringBootstrapConfiguration() {}
 
+  @ExcludeFromGeneratedCodeCoverage(
+    reason = "Production bootstrap entry point reads current process environment and delegates to explicitly tested configuration"
+  )
   public static PreSpringBootstrapRunner preSpringBootstrapRunner() {
     CurrentProcessPreSpringRuntimeEnvironmentReader preSpringRuntimeEnvironmentReader =
       new CurrentProcessPreSpringRuntimeEnvironmentReader();

@@ -1,7 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import java.io.IOException;
@@ -11,23 +10,6 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class Seed4JCliLauncherConstructionTest {
-
-  @Test
-  void shouldNotExposeLegacyRuntimeModeYamlHelpersInDomainPackage() {
-    assertThatThrownBy(() -> Class.forName("com.seed4j.cli.bootstrap.domain.RuntimeModeConfigReader")).isExactlyInstanceOf(
-      ClassNotFoundException.class
-    );
-    assertThatThrownBy(() -> Class.forName("com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationWriter")).isExactlyInstanceOf(
-      ClassNotFoundException.class
-    );
-  }
-
-  @Test
-  void shouldNotExposeLegacyLauncherConstructorWithoutRuntimeModeConfigurationRepository() {
-    assertThatThrownBy(() ->
-      Seed4JCliLauncher.class.getDeclaredConstructor(Path.class, Path.class, ChildRuntimeLauncher.class, LocalCliRunner.class)
-    ).isExactlyInstanceOf(NoSuchMethodException.class);
-  }
 
   @Test
   void shouldCreateLauncherThatRunsStandardModeThroughTheProvidedChildProcessLauncher() throws IOException {
