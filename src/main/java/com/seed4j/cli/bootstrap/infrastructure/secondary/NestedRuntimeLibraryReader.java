@@ -108,20 +108,19 @@ final class NestedRuntimeLibraryReader {
     Optional<MavenRuntimeLibraryMetadata> metadata = strictRuntimeLibraryMetadataFromNestedJar(jarFile, jarEntry, libraryFileName);
     Optional<RuntimeLibraryIdentity> metadataIdentity = metadata.map(MavenRuntimeLibraryMetadata::logicalIdentity);
     Optional<RuntimeLibraryIdentity> fileNameIdentity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
-    logOverrideIfNeeded(metadata, metadataIdentity, fileNameIdentity, libraryFileName);
+    logOverrideIfNeeded(metadata, fileNameIdentity, libraryFileName);
     return new RuntimeLibraryEntry(libraryFileName, metadataIdentity.or(() -> fileNameIdentity));
   }
 
   private static void logOverrideIfNeeded(
     Optional<MavenRuntimeLibraryMetadata> metadata,
-    Optional<RuntimeLibraryIdentity> metadataIdentity,
     Optional<RuntimeLibraryIdentity> fileNameIdentity,
     String libraryFileName
   ) {
     metadata
       .filter(mavenMetadata -> !mavenMetadata.expectedFileName().equals(libraryFileName))
-      .flatMap(mavenMetadata -> metadataIdentity)
-      .ifPresent(metadataLibraryIdentity ->
+      .ifPresent(mavenMetadata -> {
+        RuntimeLibraryIdentity metadataLibraryIdentity = mavenMetadata.logicalIdentity();
         fileNameIdentity
           .filter(inferredLibraryIdentity -> !metadataLibraryIdentity.equals(inferredLibraryIdentity))
           .ifPresent(inferredLibraryIdentity ->
@@ -133,8 +132,8 @@ final class NestedRuntimeLibraryReader {
               inferredLibraryIdentity.coordinate(),
               inferredLibraryIdentity.version()
             )
-          )
-      );
+          );
+      });
   }
 
   private static RuntimeLibraryEntry lenientRuntimeLibraryEntry(JarFile jarFile, JarEntry jarEntry) {
