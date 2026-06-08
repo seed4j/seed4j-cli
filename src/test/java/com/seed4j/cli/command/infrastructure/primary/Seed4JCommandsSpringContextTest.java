@@ -68,6 +68,48 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
+  void shouldReturnNonZeroAndShowObjectiveErrorWhenRuntimeConfigIsInvalidUsingSpringManagedCommandGraph() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-spring-context-");
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: 42
+      """
+    );
+    String[] args = {
+      "extension",
+      "install",
+      extensionJarPath.toString(),
+      "--distribution-id",
+      DISTRIBUTION_ID,
+      "--distribution-version",
+      DISTRIBUTION_VERSION,
+    };
+
+    contextRunner
+      .withPropertyValues("user.home=" + userHome)
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isNotZero();
+          assertThat(outputCaptor.getStandardError())
+            .contains("Invalid ~/.config/seed4j-cli/config.yml")
+            .contains("seed4j.runtime.mode must be a string");
+          assertThat(outputCaptor.getStandardOutput()).doesNotContain("Extension runtime installed successfully.");
+        }
+      });
+  }
+
+  @Test
   void shouldShowStandardRuntimeInVersionOutputUsingSpringManagedCommandGraph() {
     String[] args = { "--version" };
 
