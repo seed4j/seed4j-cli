@@ -1,8 +1,8 @@
 package com.seed4j.cli.bootstrap.infrastructure.primary;
 
+import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
-import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.Optional;
@@ -11,17 +11,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class JavaRuntimeSelectionReader {
 
-  private final RuntimeSelection runtimeSelection;
+  private final RuntimeExtensionApplicationService runtimeExtensionApplicationService;
 
-  public JavaRuntimeSelectionReader(RuntimeSelection runtimeSelection) {
-    Assert.notNull("runtimeSelection", runtimeSelection);
+  public JavaRuntimeSelectionReader(RuntimeExtensionApplicationService runtimeExtensionApplicationService) {
+    Assert.notNull("runtimeExtensionApplicationService", runtimeExtensionApplicationService);
 
-    this.runtimeSelection = runtimeSelection;
+    this.runtimeExtensionApplicationService = runtimeExtensionApplicationService;
   }
 
   public JavaRuntimeSelection activeRuntimeSelection() {
+    RuntimeSelection runtimeSelection = runtimeExtensionApplicationService.activeRuntimeSelection();
+
     return new JavaRuntimeSelection(
-      runtimeSelection.mode() == RuntimeMode.EXTENSION,
+      runtimeSelection.extensionMode(),
       runtimeSelection.distributionId().map(RuntimeDistributionId::id),
       runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::version)
     );

@@ -15,6 +15,7 @@ class RuntimeSelectionTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.standard();
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(runtimeSelection.extensionMode()).isFalse();
     assertThat(runtimeSelection.extensionJarPath()).isEmpty();
     assertThat(runtimeSelection.distributionId()).isEmpty();
     assertThat(runtimeSelection.distributionVersion()).isEmpty();
@@ -29,6 +30,7 @@ class RuntimeSelectionTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.extension(extensionJarPath, distributionId, distributionVersion);
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionMode()).isTrue();
     assertThat(runtimeSelection.extensionJarPath()).contains(extensionJarPath);
     assertThat(runtimeSelection.distributionId()).contains(distributionId);
     assertThat(runtimeSelection.distributionVersion()).contains(distributionVersion);
@@ -42,6 +44,7 @@ class RuntimeSelectionTest {
     RuntimeSelection runtimeSelection = RuntimeSelection.extensionWithoutJar(Optional.of(distributionId), Optional.of(distributionVersion));
 
     assertThat(runtimeSelection.mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(runtimeSelection.extensionMode()).isTrue();
     assertThat(runtimeSelection.extensionJarPath()).isEmpty();
     assertThat(runtimeSelection.distributionId()).contains(distributionId);
     assertThat(runtimeSelection.distributionVersion()).contains(distributionVersion);

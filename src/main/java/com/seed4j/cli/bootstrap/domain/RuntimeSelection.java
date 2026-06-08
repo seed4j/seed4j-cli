@@ -31,4 +31,8 @@ public record RuntimeSelection(
   ) {
     return new RuntimeSelection(RuntimeMode.EXTENSION, Optional.empty(), distributionId, distributionVersion);
   }
+
+  public boolean extensionMode() {
+    return mode == RuntimeMode.EXTENSION;
+  }
 }
