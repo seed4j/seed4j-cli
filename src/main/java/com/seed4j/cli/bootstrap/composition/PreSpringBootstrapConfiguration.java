@@ -2,10 +2,7 @@ package com.seed4j.cli.bootstrap.composition;
 
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionSelectionRepository;
-import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
@@ -43,15 +40,10 @@ public final class PreSpringBootstrapConfiguration {
   }
 
   private static Seed4JCliLauncher seed4jCliLauncher(PreSpringRuntimeEnvironment runtimeEnvironment) {
-    LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome());
-    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository = new FileSystemRuntimeExtensionSelectionRepository(
-      runtimeEnvironment.cliHome(),
-      new JarRuntimeExtensionPackageValidator()
-    );
     return new Seed4JCliLauncher(
       runtimeEnvironment.executablePath(),
-      (RuntimeModeConfigurationRepository) new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
-      runtimeExtensionSelectionRepository,
+      new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
+      new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
       new JavaProcessChildLauncher(
         runtimeEnvironment.javaExecutablePath(),
         new JavaChildProcessCommandExecutor(),
@@ -59,7 +51,7 @@ public final class PreSpringBootstrapConfiguration {
         new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),
         new RuntimeExtensionLoaderPathResolver()
       ),
-      localCliRunner,
+      new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome()),
       new FileSystemPackagedExecutableDetector(),
       new LogbackBootstrapDiagnostics(),
       new SystemErrBootstrapOutput(),
