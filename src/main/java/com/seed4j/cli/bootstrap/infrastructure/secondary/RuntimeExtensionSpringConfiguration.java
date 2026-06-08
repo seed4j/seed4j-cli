@@ -1,7 +1,6 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionModeEnabler;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionPackageValidator;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
@@ -39,13 +38,5 @@ class RuntimeExtensionSpringConfiguration {
     RuntimeExtensionPackageValidator runtimeExtensionPackageValidator
   ) {
     return new FileSystemRuntimeExtensionSelectionRepository(cliHome, runtimeExtensionPackageValidator);
-  }
-
-  @Bean
-  RuntimeExtensionModeEnabler runtimeExtensionModeEnabler(
-    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
-    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository
-  ) {
-    return new RuntimeExtensionModeEnabler(runtimeExtensionSelectionRepository, runtimeModeConfigurationRepository);
   }
 }
