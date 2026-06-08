@@ -120,21 +120,20 @@ final class NestedRuntimeLibraryReader {
   ) {
     metadata
       .filter(mavenMetadata -> !mavenMetadata.expectedFileName().equals(libraryFileName))
-      .ifPresent(mavenMetadata ->
-        metadataIdentity.ifPresent(metadataLibraryIdentity ->
-          fileNameIdentity
-            .filter(inferredLibraryIdentity -> !metadataLibraryIdentity.equals(inferredLibraryIdentity))
-            .ifPresent(inferredLibraryIdentity ->
-              LOGGER.debug(
-                "Using pom.properties identity {}:{} for '{}' instead of file name inferred identity {}:{}",
-                metadataLibraryIdentity.coordinate(),
-                metadataLibraryIdentity.version(),
-                libraryFileName,
-                inferredLibraryIdentity.coordinate(),
-                inferredLibraryIdentity.version()
-              )
+      .flatMap(mavenMetadata -> metadataIdentity)
+      .ifPresent(metadataLibraryIdentity ->
+        fileNameIdentity
+          .filter(inferredLibraryIdentity -> !metadataLibraryIdentity.equals(inferredLibraryIdentity))
+          .ifPresent(inferredLibraryIdentity ->
+            LOGGER.debug(
+              "Using pom.properties identity {}:{} for '{}' instead of file name inferred identity {}:{}",
+              metadataLibraryIdentity.coordinate(),
+              metadataLibraryIdentity.version(),
+              libraryFileName,
+              inferredLibraryIdentity.coordinate(),
+              inferredLibraryIdentity.version()
             )
-        )
+          )
       );
   }
 
