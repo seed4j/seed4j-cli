@@ -82,7 +82,7 @@ class ExtensionInstallSpringContextTest {
 
   @Configuration
   @ComponentScan(
-    basePackages = { "com.seed4j.cli.command.infrastructure.primary", "com.seed4j.cli.bootstrap" },
+    basePackages = { "com.seed4j.cli.command", "com.seed4j.cli.bootstrap" },
     useDefaultFilters = false,
     includeFilters = {
       @ComponentScan.Filter(
@@ -92,7 +92,13 @@ class ExtensionInstallSpringContextTest {
       @ComponentScan.Filter(
         type = FilterType.REGEX,
         pattern = {
+          "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeDisplayApplicationService",
+          "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeExtensionInstallApplicationService",
+          "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeDisplayReader",
+          "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeExtensionInstallationAdapter",
           "com\\.seed4j\\.cli\\.bootstrap\\.application\\.RuntimeExtensionApplicationService",
+          "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeExtensionInstaller",
+          "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeSelectionReader",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.secondary\\.RuntimeExtensionSpringConfiguration",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.secondary\\.RuntimeSelectionConfiguration",
         }

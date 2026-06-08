@@ -1,12 +1,9 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
-import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
-import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
+import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -20,11 +17,11 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private static final String DISTRIBUTION_ID_OPTION = "--distribution-id";
   private static final String DISTRIBUTION_VERSION_OPTION = "--distribution-version";
 
-  private final RuntimeExtensionApplicationService runtimeExtensionApplicationService;
+  private final RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService;
   private final CommandSpec commandSpec;
 
-  ExtensionInstallCommand(RuntimeExtensionApplicationService runtimeExtensionApplicationService) {
-    this.runtimeExtensionApplicationService = runtimeExtensionApplicationService;
+  ExtensionInstallCommand(RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService) {
+    this.runtimeExtensionInstallApplicationService = runtimeExtensionInstallApplicationService;
     this.commandSpec = buildCommandSpec();
   }
 
@@ -41,18 +38,14 @@ class ExtensionInstallCommand implements Callable<Integer> {
     String extensionJarPath = commandSpec.positionalParameters().getFirst().getValue();
     String distributionId = commandSpec.findOption(DISTRIBUTION_ID_OPTION).getValue();
     String distributionVersion = commandSpec.findOption(DISTRIBUTION_VERSION_OPTION).getValue();
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      RuntimeExtensionJarPath.from(extensionJarPath),
-      new RuntimeDistributionId(distributionId),
-      new RuntimeDistributionVersion(distributionVersion)
-    );
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, distributionId, distributionVersion);
 
     try {
-      RuntimeExtensionInstallResult installationResult = runtimeExtensionApplicationService.install(request);
+      RuntimeExtensionInstallResult installationResult = runtimeExtensionInstallApplicationService.install(request);
       printSuccess(installationResult);
       return ExitCode.OK;
-    } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
-      System.err.println(runtimeConfigurationException.getMessage());
+    } catch (RuntimeExtensionInstallationException exception) {
+      System.err.println(exception.getMessage());
       return ExitCode.SOFTWARE;
     }
   }

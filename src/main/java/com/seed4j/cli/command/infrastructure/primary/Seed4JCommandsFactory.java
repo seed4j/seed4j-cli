@@ -1,9 +1,8 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
-import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
-import com.seed4j.cli.bootstrap.domain.RuntimeMode;
-import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
+import com.seed4j.cli.command.domain.RuntimeDisplay;
+import com.seed4j.cli.command.domain.RuntimeModeDisplay;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,18 +19,18 @@ class Seed4JCommandsFactory {
   private final List<Seed4JCommand> seed4JCommands;
   private final String projectCliVersion;
   private final String projectSeed4JVersion;
-  private final RuntimeSelection runtimeSelection;
+  private final RuntimeDisplayApplicationService runtimeDisplayApplicationService;
 
   public Seed4JCommandsFactory(
     List<Seed4JCommand> seed4JCommands,
     @Value("${project.version:}") String projectCliVersion,
     @Value("${project.seed4j-version:}") String projectSeed4JVersion,
-    RuntimeSelection runtimeSelection
+    RuntimeDisplayApplicationService runtimeDisplayApplicationService
   ) {
     this.seed4JCommands = seed4JCommands;
     this.projectCliVersion = projectCliVersion;
     this.projectSeed4JVersion = projectSeed4JVersion;
-    this.runtimeSelection = runtimeSelection;
+    this.runtimeDisplayApplicationService = runtimeDisplayApplicationService;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -54,13 +53,14 @@ class Seed4JCommandsFactory {
   private String versionOutput() {
     String resolvedCliVersion = resolvedVersion(projectCliVersion, UNKNOWN_VERSION);
     String resolvedSeed4JVersion = resolvedVersion(projectSeed4JVersion, resolvedCliVersion);
+    RuntimeDisplay runtimeDisplay = runtimeDisplayApplicationService.activeRuntime();
 
     String commonOutput = """
       Seed4J CLI v%s
       Seed4J version: %s
-      Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeSelection.mode().name().toLowerCase());
+      Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay.mode().name().toLowerCase());
 
-    if (runtimeSelection.mode() != RuntimeMode.EXTENSION) {
+    if (runtimeDisplay.mode() != RuntimeModeDisplay.EXTENSION) {
       return commonOutput;
     }
 
@@ -69,8 +69,8 @@ class Seed4JCommandsFactory {
     Distribution ID: %s
     Distribution version: %s""".formatted(
         commonOutput,
-        runtimeSelection.distributionId().map(RuntimeDistributionId::id).orElse(UNKNOWN_VERSION),
-        runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::version).orElse(UNKNOWN_VERSION)
+        runtimeDisplay.distributionId().orElse(UNKNOWN_VERSION),
+        runtimeDisplay.distributionVersion().orElse(UNKNOWN_VERSION)
       );
   }
 

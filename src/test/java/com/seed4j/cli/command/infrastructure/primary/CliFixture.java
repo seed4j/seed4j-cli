@@ -1,11 +1,9 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.application.RuntimeExtensionApplicationService;
-import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
+import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
+import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.domain.RuntimeDisplay;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -46,48 +44,41 @@ class CliFixture {
   }
 
   static CommandLine commandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
-    return commandLine(modules, projects, standardRuntimeSelection(), "1", "2");
+    return commandLine(modules, projects, RuntimeDisplay.standard(), "1", "2");
   }
 
   static CommandLine commandLine(
     Seed4JModulesApplicationService modules,
     ProjectsApplicationService projects,
-    RuntimeSelection runtimeSelection
+    RuntimeDisplay runtimeDisplay
   ) {
-    return commandLine(modules, projects, runtimeSelection, "1", "2");
+    return commandLine(modules, projects, runtimeDisplay, "1", "2");
   }
 
   static CommandLine commandLine(
     Seed4JModulesApplicationService modules,
     ProjectsApplicationService projects,
-    RuntimeSelection runtimeSelection,
+    RuntimeDisplay runtimeDisplay,
     String projectCliVersion,
     String projectSeed4JVersion
   ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
-    Path userHome = Path.of(System.getProperty("user.home"));
-    Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
-    RuntimeExtensionApplicationService runtimeExtensionApplicationService = new RuntimeExtensionApplicationService(
-      new JarRuntimeExtensionPackageValidator(),
-      new FileSystemRuntimeModeConfigurationRepository(cliHome),
-      new FileSystemRuntimeExtensionArtifactsRepository(cliHome)
+    RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService = new RuntimeExtensionInstallApplicationService(
+      request -> new RuntimeExtensionInstallResult(Path.of("extension.jar"), Path.of("metadata.yml"), Path.of("config.yml"), false)
     );
-    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionApplicationService);
+    ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionInstallApplicationService);
     ExtensionCommand extensionCommand = new ExtensionCommand(extensionInstallCommand);
+    RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
       List.of(listModulesCommand, applyModuleCommand, extensionCommand),
       projectCliVersion,
       projectSeed4JVersion,
-      runtimeSelection
+      runtimeDisplayApplicationService
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
-  }
-
-  private static RuntimeSelection standardRuntimeSelection() {
-    return RuntimeSelection.standard();
   }
 }

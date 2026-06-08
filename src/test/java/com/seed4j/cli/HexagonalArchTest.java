@@ -16,12 +16,12 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.stereotype.Component;
 
 @UnitTest
 class HexagonalArchTest {
 
   private static final String ROOT_PACKAGE = "com.seed4j.cli";
-  private static final String COMMAND_CONTEXT = ROOT_PACKAGE.concat(".command");
   private static final String COMPOSITION_PACKAGES = ROOT_PACKAGE.concat(".bootstrap.composition..");
 
   private static final JavaClasses classes = new ClassFileImporter()
@@ -115,31 +115,30 @@ class HexagonalArchTest {
 
     @Test
     void shouldNotDependOnOtherBoundedContextDomains() {
-      Stream.concat(businessContexts.stream().filter(context -> !COMMAND_CONTEXT.equals(context)), sharedKernels.stream()).forEach(
-        context ->
-          noClasses()
-            .that()
-            .resideInAnyPackage(context + "..")
-            .should()
-            .dependOnClassesThat()
-            .resideInAnyPackage(otherBusinessContextsDomains(context))
-            .because("contexts can only depend on domain classes in the same context or shared kernels")
-            .check(classes)
+      Stream.concat(businessContexts.stream(), sharedKernels.stream()).forEach(context ->
+        noClasses()
+          .that()
+          .resideInAnyPackage(context + "..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(otherBusinessContextsDomains(context))
+          .because("contexts can only depend on domain classes in the same context or shared kernels")
+          .check(classes)
       );
     }
 
     @Test
-    void commandNonPrimaryAdaptersShouldNotDependOnOtherBoundedContextDomains() {
-      noClasses()
-        .that()
-        .resideInAPackage(COMMAND_CONTEXT + "..")
-        .and()
-        .resideOutsideOfPackage(COMMAND_CONTEXT + ".infrastructure.primary..")
-        .should()
-        .dependOnClassesThat()
-        .resideInAnyPackage(otherBusinessContextsDomains(COMMAND_CONTEXT))
-        .because("only command primary adapters translate CLI input and output with bootstrap domain concepts")
-        .check(classes);
+    void shouldNotDependOnOtherBoundedContextApplications() {
+      Stream.concat(businessContexts.stream(), sharedKernels.stream()).forEach(context ->
+        noClasses()
+          .that()
+          .resideInAnyPackage(context + "..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(otherBusinessContextsApplications(context))
+          .because("bounded contexts must communicate through adapters instead of another context's application layer")
+          .check(classes)
+      );
     }
 
     private String[] otherBusinessContextsDomains(String context) {
@@ -147,6 +146,14 @@ class HexagonalArchTest {
         .stream()
         .filter(other -> !context.equals(other))
         .map(name -> name + ".domain..")
+        .toArray(String[]::new);
+    }
+
+    private String[] otherBusinessContextsApplications(String context) {
+      return businessContexts
+        .stream()
+        .filter(other -> !context.equals(other))
+        .map(name -> name + ".application..")
         .toArray(String[]::new);
     }
   }
@@ -227,6 +234,22 @@ class HexagonalArchTest {
         .dependOnClassesThat()
         .resideInAPackage("..secondary..")
         .because("primary adapters should not interact directly with secondary adapters")
+        .check(classes);
+    }
+
+    @Test
+    void javaSpringPrimaryAdaptersShouldOnlyBeAccessedBySecondaryAdapters() {
+      classes()
+        .that()
+        .resideInAPackage("..infrastructure.primary..")
+        .and()
+        .haveSimpleNameStartingWith("Java")
+        .and()
+        .areAnnotatedWith(Component.class)
+        .should()
+        .onlyHaveDependentClassesThat()
+        .resideInAPackage("..infrastructure.secondary..")
+        .because("Java primary adapters are cross-context entry points and should be called from secondary adapters")
         .check(classes);
     }
   }
