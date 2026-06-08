@@ -46,15 +46,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
@@ -93,15 +92,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
       Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
@@ -138,15 +136,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -179,15 +176,14 @@ class ExtensionRuntimeBootstrapInProcessTest {
     LocalCliRunner localCliRunner = localCliRunner(userHome);
     InProcessChildProcessLauncher childProcessLauncher = new InProcessChildProcessLauncher(new Seed4JCliHome(userHome), localCliRunner);
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
     assertThat(jarEntries(fixturePaths.extensionJarPath())).contains(EXTENSION_APPLICATION_YML_ENTRY, EXTENSION_LOGBACK_ENTRY);
     ScopedSystemProperties baselineProperties = ScopedSystemProperties.capture(
@@ -309,6 +305,20 @@ class ExtensionRuntimeBootstrapInProcessTest {
 
   private static Seed4JCliArguments arguments(String... values) {
     return new Seed4JCliArguments(values);
+  }
+
+  private static Seed4JCliRuntime seed4jCliRuntime(Path executableJar, boolean childRuntime) {
+    return new Seed4JCliRuntime() {
+      @Override
+      public Path executableJar() {
+        return executableJar;
+      }
+
+      @Override
+      public boolean childRuntime() {
+        return childRuntime;
+      }
+    };
   }
 
   private record CliLaunchResult(int exitCode, String output) {}

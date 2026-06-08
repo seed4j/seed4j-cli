@@ -3,13 +3,11 @@ package com.seed4j.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliRuntime;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -83,7 +81,22 @@ class Seed4JCliAppTest {
     private String[] arguments;
 
     private RecordingPreSpringBootstrapRunner(int exitCode) {
-      super(new PreSpringBootstrapApplicationService(seed4jCliLauncher()));
+      super(
+        new PreSpringBootstrapApplicationService(
+          seed4jCliRuntime(),
+          runtimeModeConfigurationRepository(),
+          RuntimeSelection::standard,
+          command -> {
+            throw new IllegalStateException("Should not execute a child process in this test.");
+          },
+          args -> {
+            throw new IllegalStateException("Should not run the local CLI in this test.");
+          },
+          executablePath -> true,
+          () -> {},
+          new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
+        )
+      );
       this.exitCode = exitCode;
     }
 
@@ -98,14 +111,8 @@ class Seed4JCliAppTest {
     }
   }
 
-  private static Seed4JCliLauncher seed4jCliLauncher() {
-    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
-      new Seed4JCliHome(Path.of("/home/user")),
-      Path.of("/tmp/seed4j-cli.jar"),
-      true,
-      Path.of("/tmp/jdk/bin/java")
-    );
-    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository = new RuntimeModeConfigurationRepository() {
+  private static RuntimeModeConfigurationRepository runtimeModeConfigurationRepository() {
+    return new RuntimeModeConfigurationRepository() {
       @Override
       public RuntimeModeChangePlan prepareModeChange(RuntimeMode targetMode) {
         throw new UnsupportedOperationException("Not required in this test.");
@@ -116,20 +123,19 @@ class Seed4JCliAppTest {
         return RuntimeMode.STANDARD;
       }
     };
-    return new Seed4JCliLauncher(
-      runtimeEnvironment.executablePath(),
-      runtimeModeConfigurationRepository,
-      () -> RuntimeSelection.standard(),
-      command -> {
-        throw new IllegalStateException("Should not execute a child process in this test.");
-      },
-      args -> {
-        throw new IllegalStateException("Should not run the local CLI in this test.");
-      },
-      executablePath -> true,
-      () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      runtimeEnvironment.childMode()
-    );
+  }
+
+  private static Seed4JCliRuntime seed4jCliRuntime() {
+    return new Seed4JCliRuntime() {
+      @Override
+      public Path executableJar() {
+        return Path.of("/tmp/seed4j-cli.jar");
+      }
+
+      @Override
+      public boolean childRuntime() {
+        return true;
+      }
+    };
   }
 }

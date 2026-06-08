@@ -52,7 +52,7 @@ class Seed4JCliLauncherConstructionTest {
       }
     };
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      runtimeEnvironment.executablePath(),
+      seed4jCliRuntime(runtimeEnvironment.executablePath(), runtimeEnvironment.childMode()),
       runtimeModeConfigurationRepository,
       RuntimeSelection::standard,
       childProcessLauncher,
@@ -61,8 +61,7 @@ class Seed4JCliLauncherConstructionTest {
       },
       executablePath -> true,
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      runtimeEnvironment.childMode()
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -90,5 +89,19 @@ class Seed4JCliLauncherConstructionTest {
 
   private static Seed4JCliArguments arguments(String... values) {
     return new Seed4JCliArguments(values);
+  }
+
+  private static Seed4JCliRuntime seed4jCliRuntime(Path executableJar, boolean childRuntime) {
+    return new Seed4JCliRuntime() {
+      @Override
+      public Path executableJar() {
+        return executableJar;
+      }
+
+      @Override
+      public boolean childRuntime() {
+        return childRuntime;
+      }
+    };
   }
 }

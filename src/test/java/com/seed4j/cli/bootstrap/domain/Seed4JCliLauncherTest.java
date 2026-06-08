@@ -40,15 +40,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       runtimeModeConfigurationRepository,
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -84,15 +83,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version", "--debug"));
@@ -125,15 +123,14 @@ class Seed4JCliLauncherTest {
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     RecordingBootstrapDiagnostics bootstrapDiagnostics = new RecordingBootstrapDiagnostics();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       executablePath -> true,
       bootstrapDiagnostics,
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version", "--debug"));
@@ -149,15 +146,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableLocation,
+      seed4jCliRuntime(executableLocation, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -188,15 +184,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableLocation,
+      seed4jCliRuntime(executableLocation, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -213,15 +208,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableLocation,
+      seed4jCliRuntime(executableLocation, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -241,15 +235,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableLocation,
+      seed4jCliRuntime(executableLocation, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -268,15 +261,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -301,15 +293,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -326,15 +317,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), true),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      true
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -355,15 +345,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -393,15 +382,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -434,15 +422,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -466,15 +453,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -493,15 +479,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      createExecutableJar(),
+      seed4jCliRuntime(createExecutableJar(), false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -518,15 +503,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -547,15 +531,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -587,15 +570,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -632,15 +614,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -673,15 +654,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -713,15 +693,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     int exitCode = launcher.launch(arguments("--version"));
@@ -752,15 +731,14 @@ class Seed4JCliLauncherTest {
     RecordingChildProcessLauncher childProcessLauncher = new RecordingChildProcessLauncher();
     RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
     Seed4JCliLauncher launcher = new Seed4JCliLauncher(
-      executableJar,
+      seed4jCliRuntime(executableJar, false),
       new FileSystemRuntimeModeConfigurationRepository(new Seed4JCliHome(userHome)),
       runtimeExtensionSelectionRepository(userHome),
       childProcessLauncher,
       localCliRunner,
       new com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector(),
       () -> {},
-      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput(),
-      false
+      new com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput()
     );
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -967,6 +945,20 @@ class Seed4JCliLauncherTest {
 
   private static Path createExecutableJar() throws IOException {
     return Files.createTempFile("seed4j-cli-", ".jar");
+  }
+
+  private static Seed4JCliRuntime seed4jCliRuntime(Path executableJar, boolean childRuntime) {
+    return new Seed4JCliRuntime() {
+      @Override
+      public Path executableJar() {
+        return executableJar;
+      }
+
+      @Override
+      public boolean childRuntime() {
+        return childRuntime;
+      }
+    };
   }
 
   private static Seed4JCliArguments arguments(String... values) {

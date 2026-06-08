@@ -1,10 +1,8 @@
 package com.seed4j.cli.bootstrap.domain;
 
-import java.nio.file.Path;
-
 public class Seed4JCliLauncher {
 
-  private final Path executableJar;
+  private final Seed4JCliRuntime seed4jCliRuntime;
   private final RuntimeModeConfigurationRepository runtimeModeConfigurationRepository;
   private final RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository;
   private final ChildRuntimeLauncher childRuntimeLauncher;
@@ -12,20 +10,18 @@ public class Seed4JCliLauncher {
   private final PackagedExecutableDetector packagedExecutableDetector;
   private final BootstrapDiagnostics bootstrapDiagnostics;
   private final BootstrapOutput bootstrapOutput;
-  private final boolean childMode;
 
   public Seed4JCliLauncher(
-    Path executableJar,
+    Seed4JCliRuntime seed4jCliRuntime,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
     RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
     ChildRuntimeLauncher childRuntimeLauncher,
     LocalCliRunner localCliRunner,
     PackagedExecutableDetector packagedExecutableDetector,
     BootstrapDiagnostics bootstrapDiagnostics,
-    BootstrapOutput bootstrapOutput,
-    boolean childMode
+    BootstrapOutput bootstrapOutput
   ) {
-    this.executableJar = executableJar;
+    this.seed4jCliRuntime = seed4jCliRuntime;
     this.runtimeModeConfigurationRepository = runtimeModeConfigurationRepository;
     this.runtimeExtensionSelectionRepository = runtimeExtensionSelectionRepository;
     this.childRuntimeLauncher = childRuntimeLauncher;
@@ -33,11 +29,10 @@ public class Seed4JCliLauncher {
     this.packagedExecutableDetector = packagedExecutableDetector;
     this.bootstrapDiagnostics = bootstrapDiagnostics;
     this.bootstrapOutput = bootstrapOutput;
-    this.childMode = childMode;
   }
 
   public int launch(Seed4JCliArguments arguments) {
-    if (childMode) {
+    if (seed4jCliRuntime.childRuntime()) {
       return localCliRunner.run(arguments);
     }
 
@@ -71,11 +66,11 @@ public class Seed4JCliLauncher {
   }
 
   private boolean notRunningFromARegularJar() {
-    return !packagedExecutableDetector.packagedExecutable(executableJar);
+    return !packagedExecutableDetector.packagedExecutable(seed4jCliRuntime.executableJar());
   }
 
   private ChildRuntimeLaunchRequest childRuntimeLaunchRequest(RuntimeSelection runtimeSelection, Seed4JCliArguments arguments) {
-    return new ChildRuntimeLaunchRequest(executableJar, runtimeSelection, arguments, arguments.contains("--debug"));
+    return new ChildRuntimeLaunchRequest(seed4jCliRuntime.executableJar(), runtimeSelection, arguments, arguments.contains("--debug"));
   }
 
   private RuntimeSelection runtimeSelection() {

@@ -3,7 +3,6 @@ package com.seed4j.cli.bootstrap.composition;
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
@@ -13,6 +12,7 @@ import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPack
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaProcessChildLauncher;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.LogbackBootstrapDiagnostics;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.PreSpringRuntimeEnvironmentSeed4JCliRuntime;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver;
@@ -34,14 +34,7 @@ public final class PreSpringBootstrapConfiguration {
   static PreSpringBootstrapRunner preSpringBootstrapRunner(PreSpringRuntimeEnvironment runtimeEnvironment) {
     Assert.notNull("runtimeEnvironment", runtimeEnvironment);
     PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
-      seed4jCliLauncher(runtimeEnvironment)
-    );
-    return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
-  }
-
-  private static Seed4JCliLauncher seed4jCliLauncher(PreSpringRuntimeEnvironment runtimeEnvironment) {
-    return new Seed4JCliLauncher(
-      runtimeEnvironment.executablePath(),
+      new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
       new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
       new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
       new JavaProcessChildLauncher(
@@ -54,8 +47,8 @@ public final class PreSpringBootstrapConfiguration {
       new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome()),
       new FileSystemPackagedExecutableDetector(),
       new LogbackBootstrapDiagnostics(),
-      new SystemErrBootstrapOutput(),
-      runtimeEnvironment.childMode()
+      new SystemErrBootstrapOutput()
     );
+    return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
   }
 }
