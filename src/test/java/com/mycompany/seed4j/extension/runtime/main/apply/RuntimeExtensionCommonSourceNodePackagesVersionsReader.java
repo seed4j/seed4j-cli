@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap.domain.runtimeextension.apply;
+package com.mycompany.seed4j.extension.runtime.main.apply;
 
 import static com.seed4j.module.domain.nodejs.Seed4JNodePackagesVersionSource.COMMON;
 

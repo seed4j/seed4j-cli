@@ -1,0 +1,518 @@
+package com.seed4j.cli.bootstrap.infrastructure.primary;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.seed4j.cli.SystemOutputCaptor;
+import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
+import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
+import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
+import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.PreSpringRuntimeEnvironmentSeed4JCliRuntime;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+
+@UnitTest
+class ExtensionRuntimeBootstrapPrimaryTest {
+
+  private static final String RUNTIME_MODE_PROPERTY = "seed4j.cli.runtime.mode";
+  private static final String DISTRIBUTION_ID_PROPERTY = "seed4j.cli.runtime.distribution.id";
+  private static final String DISTRIBUTION_VERSION_PROPERTY = "seed4j.cli.runtime.distribution.version";
+  private static final String LOADER_PATH_PROPERTY = "loader.path";
+  private static final String BASELINE_RUNTIME_MODE = "baseline-mode";
+  private static final String EXTENSION_ONLY_SLUG = "runtime-extension-list-only";
+  private static final String CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG = "runtime-extension-custom-package-list-only";
+  private static final String CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE = "gradle-java";
+  private static final String EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG = "runtime-extension-apply-shared-context";
+  private static final String SPRING_BOOT_BANNER_MARKER = " :: Spring Boot :: ";
+  private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
+  private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
+  private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
+  private static final Pattern MODULE_LINE_PATTERN = Pattern.compile("^\\s{2}(\\S+)\\s{2,}.+$");
+  private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
+
+  @Test
+  void shouldExecuteVersionCommandInExtensionModeThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-version-primary-");
+    ExtensionRuntimeFixture.install(userHome);
+    PreSpringBootstrapRunner runner = runner(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult versionLaunch = launchCapturingOutput(runner, "--version");
+
+      assertThat(versionLaunch.exitCode()).isZero();
+      assertThat(versionLaunch.output())
+        .contains("Runtime mode: extension")
+        .contains("Distribution ID: company-extension")
+        .contains("Distribution version: 1.0.0");
+      assertBaselineRuntimePropertiesRestored();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldKeepStandardCatalogAndAddOnlyExtensionSlugsThroughThePreSpringPrimaryRunner() throws IOException {
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-catalog-primary-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-catalog-primary-");
+    Path customPackageExtensionUserHome = Files.createTempDirectory("seed4j-cli-custom-extension-catalog-primary-");
+    ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
+    ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(customPackageExtensionUserHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult standardResult = launchCapturingOutput(runner(standardUserHome), "list");
+      CliLaunchResult extensionResult = launchCapturingOutput(runner(extensionUserHome), "list");
+      CliLaunchResult customPackageExtensionResult = launchCapturingOutput(runner(customPackageExtensionUserHome), "list");
+
+      List<String> standardSlugs = moduleSlugs(standardResult.output());
+      List<String> extensionSlugs = moduleSlugs(extensionResult.output());
+      Set<String> addedSlugs = setDifference(Set.copyOf(extensionSlugs), Set.copyOf(standardSlugs));
+      Set<String> removedSlugs = setDifference(Set.copyOf(standardSlugs), Set.copyOf(extensionSlugs));
+      assertThat(standardResult.exitCode()).isZero();
+      assertThat(extensionResult.exitCode()).isZero();
+      assertThat(customPackageExtensionResult.exitCode()).isZero();
+      assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
+      assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
+      assertThat(addedSlugs).containsExactly(EXTENSION_ONLY_SLUG);
+      assertThat(removedSlugs).isEmpty();
+      assertThat(moduleSlugs(customPackageExtensionResult.output())).contains(CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
+      assertBaselineRuntimePropertiesRestored();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldKeepCoreModulesVisibleWhenExtensionPublishesHiddenResourceOverridesThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-hidden-resources-primary-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndHiddenResourcesOverrides(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult listLaunch = launchCapturingOutput(runner(userHome), "list");
+
+      assertThat(listLaunch.exitCode()).isZero();
+      assertThat(listLaunch.output()).contains(EXTENSION_ONLY_SLUG).contains(CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE);
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldKeepOperationalOutputCleanWhenExtensionPublishesLoggingOverridesThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-logging-primary-");
+    ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
+    PreSpringBootstrapRunner runner = runner(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult versionLaunch = launchCapturingOutput(runner, "--version");
+      CliLaunchResult listLaunch = launchCapturingOutput(runner, "list");
+
+      assertThat(versionLaunch.exitCode()).isZero();
+      assertThat(versionLaunch.output())
+        .contains("Runtime mode: extension")
+        .contains("Distribution ID: company-extension")
+        .contains("Distribution version: 1.0.0")
+        .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+        .doesNotContain(STARTUP_INFO_MARKER)
+        .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+        .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER)
+        .doesNotContain("Missing watchable .xml or .properties files")
+        .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL");
+      assertThat(listLaunch.exitCode()).isZero();
+      assertThat(listLaunch.output())
+        .contains(EXTENSION_ONLY_SLUG)
+        .doesNotContain(SPRING_BOOT_BANNER_MARKER)
+        .doesNotContain(STARTUP_INFO_MARKER)
+        .doesNotContain(EXTENSION_LOGBACK_OVERRIDE_MARKER)
+        .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER)
+        .doesNotContain("Missing watchable .xml or .properties files")
+        .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL");
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldApplyExtensionModuleUsingSharedRuntimeResourcesThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-primary-");
+    Path projectPath = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-project-primary-");
+    ExtensionRuntimeFixture.installWithApplyExtensionModuleUsingSharedRuntimeOverrides(userHome);
+    PreSpringBootstrapRunner runner = runner(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult initResult = applyInit(runner, projectPath);
+      CliLaunchResult extensionModuleApplyResult = launchCapturingOutput(
+        runner,
+        "apply",
+        EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG,
+        "--project-path",
+        projectPath.toString(),
+        "--no-commit"
+      );
+
+      assertThat(initResult.exitCode()).isZero();
+      assertThat(extensionModuleApplyResult.exitCode())
+        .withFailMessage("Expected extension apply module command to succeed but got output:%n%s", extensionModuleApplyResult.output())
+        .isZero();
+      assertThat(projectPath.resolve("package.json")).exists();
+      assertThat(projectPath.resolve(".prettierrc")).exists();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldFailBeforeChildRuntimeWhenExtensionRuntimeJarIsFlatThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-invalid-extension-primary-");
+    ExtensionRuntimeFixture.installWithFlatJar(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult versionLaunch = launchCapturingOutput(runner(userHome), "--version");
+
+      assertThat(versionLaunch.exitCode()).isNotZero();
+      assertThat(versionLaunch.output()).contains("BOOT-INF/classes");
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  private static CliLaunchResult applyInit(PreSpringBootstrapRunner runner, Path projectPath) {
+    return launchCapturingOutput(
+      runner,
+      "apply",
+      "init",
+      "--project-path",
+      projectPath.toString(),
+      "--base-name",
+      "sampleapp",
+      "--project-name",
+      "Sample App",
+      "--no-commit",
+      "--node-package-manager",
+      "npm"
+    );
+  }
+
+  private static PreSpringBootstrapRunner runner(Path userHome) throws IOException {
+    Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
+    Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
+    LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(TestSeed4JCliApp.class, cliHome);
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(cliHome, executableJar, false, javaExecutablePath());
+    PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
+      new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
+      new FileSystemRuntimeModeConfigurationRepository(cliHome),
+      new FileSystemRuntimeExtensionSelectionRepository(cliHome, new JarRuntimeExtensionPackageValidator()),
+      new InProcessChildRuntimeLauncher(cliHome, localCliRunner),
+      localCliRunner,
+      new FileSystemPackagedExecutableDetector(),
+      () -> {},
+      new SystemErrBootstrapOutput()
+    );
+    return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
+  }
+
+  private static Path javaExecutablePath() {
+    return Path.of(System.getProperty("java.home"), "bin", "java");
+  }
+
+  private static CliLaunchResult launchCapturingOutput(PreSpringBootstrapRunner runner, String... arguments) {
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = runner.exitCodeFor(arguments);
+      return new CliLaunchResult(exitCode, outputCaptor.getOutput());
+    }
+  }
+
+  private static ScopedSystemProperties capturedRuntimeProperties() {
+    return ScopedSystemProperties.capture(
+      Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
+    );
+  }
+
+  private static void setBaselineRuntimeProperties() {
+    System.setProperty(RUNTIME_MODE_PROPERTY, BASELINE_RUNTIME_MODE);
+    System.clearProperty(DISTRIBUTION_ID_PROPERTY);
+    System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
+    System.clearProperty(LOADER_PATH_PROPERTY);
+  }
+
+  private static void assertBaselineRuntimePropertiesRestored() {
+    assertThat(System.getProperty(RUNTIME_MODE_PROPERTY)).isEqualTo(BASELINE_RUNTIME_MODE);
+    assertThat(System.getProperty(DISTRIBUTION_ID_PROPERTY)).isNull();
+    assertThat(System.getProperty(DISTRIBUTION_VERSION_PROPERTY)).isNull();
+    assertThat(System.getProperty(LOADER_PATH_PROPERTY)).isNull();
+  }
+
+  private static List<String> moduleSlugs(String output) {
+    return output.lines().map(ExtensionRuntimeBootstrapPrimaryTest::moduleSlugFromLine).flatMap(Optional::stream).toList();
+  }
+
+  private static Optional<String> moduleSlugFromLine(String line) {
+    Matcher moduleLineMatcher = MODULE_LINE_PATTERN.matcher(line);
+    if (!moduleLineMatcher.matches()) {
+      return Optional.empty();
+    }
+
+    String candidateSlug = moduleLineMatcher.group(1);
+    if (!MODULE_SLUG_PATTERN.matcher(candidateSlug).matches()) {
+      return Optional.empty();
+    }
+
+    return Optional.of(candidateSlug);
+  }
+
+  private static Set<String> setDifference(Set<String> sourceSlugs, Set<String> slugsToExclude) {
+    Set<String> remainingSlugs = new LinkedHashSet<>();
+    for (String sourceSlug : sourceSlugs) {
+      if (!slugsToExclude.contains(sourceSlug)) {
+        remainingSlugs.add(sourceSlug);
+      }
+    }
+    return remainingSlugs;
+  }
+
+  private static final class InProcessChildRuntimeLauncher implements ChildRuntimeLauncher {
+
+    private final Seed4JCliHome cliHome;
+    private final LocalCliRunner localCliRunner;
+
+    private InProcessChildRuntimeLauncher(Seed4JCliHome cliHome, LocalCliRunner localCliRunner) {
+      this.cliHome = cliHome;
+      this.localCliRunner = localCliRunner;
+    }
+
+    @Override
+    public int launch(ChildRuntimeLaunchRequest request) {
+      Map<String, String> systemProperties = systemProperties(request);
+      ScopedSystemProperties scopedSystemProperties = ScopedSystemProperties.capture(systemProperties.keySet());
+      Thread currentThread = Thread.currentThread();
+      ClassLoader originalContextClassLoader = currentThread.getContextClassLoader();
+      URLClassLoader childRuntimeClassLoader = childRuntimeClassLoader(request, originalContextClassLoader);
+      try {
+        currentThread.setContextClassLoader(childRuntimeClassLoader);
+        systemProperties.forEach(System::setProperty);
+        return localCliRunner.run(request.arguments());
+      } finally {
+        currentThread.setContextClassLoader(originalContextClassLoader);
+        closeQuietly(childRuntimeClassLoader);
+        scopedSystemProperties.restore();
+      }
+    }
+
+    private Map<String, String> systemProperties(ChildRuntimeLaunchRequest request) {
+      RuntimeSelection runtimeSelection = request.runtimeSelection();
+      Map<String, String> systemProperties = new LinkedHashMap<>();
+      systemProperties.put("seed4j.cli.runtime.child", "true");
+      systemProperties.put(RUNTIME_MODE_PROPERTY, runtimeSelection.mode().name().toLowerCase());
+      runtimeSelection.distributionId().ifPresent(distributionId -> systemProperties.put(DISTRIBUTION_ID_PROPERTY, distributionId.id()));
+      runtimeSelection
+        .distributionVersion()
+        .ifPresent(distributionVersion -> systemProperties.put(DISTRIBUTION_VERSION_PROPERTY, distributionVersion.version()));
+      runtimeSelection
+        .extensionJarPath()
+        .ifPresent(extensionJarPath -> {
+          Path rawExtensionJarPath = extensionJarPath.path();
+          systemProperties.put(
+            "seed4j.cli.runtime.extension.start-class",
+            new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
+          );
+          Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
+          systemProperties.put(
+            LOADER_PATH_PROPERTY,
+            new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar())
+          );
+        });
+      systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
+      systemProperties.put("logging.level.root", "ERROR");
+      systemProperties.put("spring.main.log-startup-info", "false");
+      return Map.copyOf(systemProperties);
+    }
+
+    private URLClassLoader childRuntimeClassLoader(ChildRuntimeLaunchRequest request, ClassLoader parentClassLoader) {
+      return request
+        .runtimeSelection()
+        .extensionJarPath()
+        .map(extensionJarPath -> childRuntimeClassLoader(request, extensionJarPath.path(), parentClassLoader))
+        .orElseGet(() -> new URLClassLoader(new URL[0], parentClassLoader));
+    }
+
+    private URLClassLoader childRuntimeClassLoader(
+      ChildRuntimeLaunchRequest request,
+      Path rawExtensionJarPath,
+      ClassLoader parentClassLoader
+    ) {
+      try {
+        Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
+        return new RuntimeExtensionClassLoader(
+          new URL[] { overlayClassesPath.toUri().toURL(), rawExtensionJarPath.toUri().toURL(), request.executableJar().toUri().toURL() },
+          parentClassLoader
+        );
+      } catch (MalformedURLException malformedURLException) {
+        throw new IllegalStateException(
+          "Could not create child runtime classloader for extension jar: " + rawExtensionJarPath,
+          malformedURLException
+        );
+      }
+    }
+
+    private void closeQuietly(URLClassLoader childRuntimeClassLoader) {
+      try {
+        childRuntimeClassLoader.close();
+      } catch (IOException ignored) {
+        // Closing the test classloader must not mask the launch result.
+      }
+    }
+  }
+
+  private static final class RuntimeExtensionClassLoader extends URLClassLoader {
+
+    private static final String FIXTURE_CLASS_PREFIX = "com.mycompany.seed4j.extension.runtime.";
+    private static final String FIXTURE_RESOURCE_PREFIX = "com/mycompany/seed4j/extension/runtime/";
+    private static final String GENERATOR_RESOURCE_PREFIX = "generator/";
+
+    private RuntimeExtensionClassLoader(URL[] urls, ClassLoader parent) {
+      super(urls, parent);
+    }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+      synchronized (getClassLoadingLock(name)) {
+        Class<?> loadedClass = findLoadedClass(name);
+        if (loadedClass == null) {
+          loadedClass = loadClassFromExtensionOrParent(name);
+        }
+        if (resolve) {
+          resolveClass(loadedClass);
+        }
+        return loadedClass;
+      }
+    }
+
+    private Class<?> loadClassFromExtensionOrParent(String name) throws ClassNotFoundException {
+      if (name.startsWith(FIXTURE_CLASS_PREFIX)) {
+        return findClass(name);
+      }
+
+      return super.loadClass(name, false);
+    }
+
+    @Override
+    public URL getResource(String name) {
+      if (extensionResourceLookup(name)) {
+        URL extensionResource = findResource(name);
+        if (extensionResource != null) {
+          return extensionResource;
+        }
+      }
+
+      return super.getResource(name);
+    }
+
+    @Override
+    public Enumeration<URL> getResources(String name) throws IOException {
+      if (!extensionResourceLookup(name)) {
+        return super.getResources(name);
+      }
+
+      List<URL> resources = new ArrayList<>();
+      Enumeration<URL> extensionResources = findResources(name);
+      while (extensionResources.hasMoreElements()) {
+        resources.add(extensionResources.nextElement());
+      }
+      Enumeration<URL> parentResources = super.getResources(name);
+      while (parentResources.hasMoreElements()) {
+        resources.add(parentResources.nextElement());
+      }
+      return Collections.enumeration(resources);
+    }
+
+    private boolean extensionResourceLookup(String name) {
+      return name.startsWith(FIXTURE_RESOURCE_PREFIX) || name.startsWith(GENERATOR_RESOURCE_PREFIX);
+    }
+  }
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  @ComponentScan(
+    basePackages = "com.seed4j.cli",
+    excludeFilters = @ComponentScan.Filter(
+      type = FilterType.REGEX,
+      pattern = "com\\.seed4j\\.cli\\.bootstrap\\.domain\\.runtimeextension\\..*"
+    )
+  )
+  public static class TestSeed4JCliApp {}
+
+  private record CliLaunchResult(int exitCode, String output) {}
+
+  private record ScopedSystemProperties(Map<String, Optional<String>> originalValues) {
+    private static ScopedSystemProperties capture(Set<String> propertyKeys) {
+      Map<String, Optional<String>> capturedValues = new LinkedHashMap<>();
+      for (String propertyKey : propertyKeys) {
+        capturedValues.put(propertyKey, Optional.ofNullable(System.getProperty(propertyKey)));
+      }
+      return new ScopedSystemProperties(Map.copyOf(capturedValues));
+    }
+
+    private void restore() {
+      for (Map.Entry<String, Optional<String>> originalValue : originalValues.entrySet()) {
+        String propertyKey = originalValue.getKey();
+        Optional<String> propertyValue = originalValue.getValue();
+        if (propertyValue.isPresent()) {
+          System.setProperty(propertyKey, propertyValue.orElseThrow());
+        } else {
+          System.clearProperty(propertyKey);
+        }
+      }
+    }
+  }
+}

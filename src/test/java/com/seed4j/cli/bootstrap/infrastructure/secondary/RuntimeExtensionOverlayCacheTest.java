@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.bootstrap.domain.ExtensionRuntimeFixture;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,7 +34,7 @@ class RuntimeExtensionOverlayCacheTest {
       .startsWith(userHome.resolve(".config/seed4j-cli/runtime/cache"))
       .endsWith(Path.of("classes"));
     assertThat(
-      overlayClassesPath.resolve("com/seed4j/cli/bootstrap/domain/runtimeextension/list/RuntimeExtensionListOnlyModuleSlug.class")
+      overlayClassesPath.resolve("com/mycompany/seed4j/extension/runtime/main/list/RuntimeExtensionListOnlyModuleSlug.class")
     ).exists();
   }
 

@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap.domain.runtimeextension.list;
+package com.mycompany.seed4j.extension.runtime.main.list;
 
 import com.seed4j.module.domain.Seed4JModule;
 import com.seed4j.module.domain.properties.Seed4JModuleProperties;

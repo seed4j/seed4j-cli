@@ -2,11 +2,12 @@ package com.seed4j.cli.bootstrap.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyApplicationService;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleConfiguration;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleFactory;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleSlug;
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;

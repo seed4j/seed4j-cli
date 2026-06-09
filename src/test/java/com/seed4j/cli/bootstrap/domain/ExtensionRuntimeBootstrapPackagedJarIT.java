@@ -3,6 +3,7 @@ package com.seed4j.cli.bootstrap.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

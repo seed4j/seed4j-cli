@@ -3,6 +3,7 @@ package com.seed4j.cli.bootstrap.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -35,16 +36,21 @@ class ExtensionRuntimeBootstrapApplyPackagedJarIT {
     PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
 
     String standardPackageJson = Files.readString(standardProjectPath.resolve("package.json"));
-    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
 
     assertThat(standardInitResult.finished()).isTrue();
     assertThat(standardInitResult.exitCode()).isZero();
     assertThat(extensionInitResult.finished()).isTrue();
-    assertThat(extensionInitResult.exitCode()).isZero();
+    assertThat(extensionInitResult.exitCode())
+      .withFailMessage("Expected extension init command to succeed but got output:%n%s", extensionInitResult.output())
+      .isZero();
     assertThat(standardPrettierResult.finished()).isTrue();
     assertThat(standardPrettierResult.exitCode()).isZero();
     assertThat(extensionPrettierResult.finished()).isTrue();
-    assertThat(extensionPrettierResult.exitCode()).isZero();
+    assertThat(extensionPrettierResult.exitCode())
+      .withFailMessage("Expected extension prettier command to succeed but got output:%n%s", extensionPrettierResult.output())
+      .isZero();
+
+    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
     assertThat(standardPackageJson).doesNotContain("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
     assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
   }

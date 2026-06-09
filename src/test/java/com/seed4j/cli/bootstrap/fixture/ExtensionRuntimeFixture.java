@@ -1,19 +1,22 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.fixture;
 
+import com.mycompany.seed4j.extension.runtime.fixture.RuntimeExtensionApplySharedApplication;
+import com.mycompany.seed4j.extension.runtime.fixture.RuntimeExtensionCommonSourceApplication;
+import com.mycompany.seed4j.extension.runtime.fixture.RuntimeExtensionListApplication;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionApplication;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyApplicationService;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleConfiguration;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleFactory;
 import com.mycompany.seed4j.extension.runtime.list.MyCompanyRuntimeExtensionListOnlyModuleSlug;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextApplicationService;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleConfiguration;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleFactory;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionApplySharedContextModuleSlug;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.apply.RuntimeExtensionCommonSourceNodePackagesVersionsReader;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyApplicationService;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleConfiguration;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleFactory;
-import com.seed4j.cli.bootstrap.domain.runtimeextension.list.RuntimeExtensionListOnlyModuleSlug;
+import com.mycompany.seed4j.extension.runtime.main.apply.RuntimeExtensionApplySharedContextApplicationService;
+import com.mycompany.seed4j.extension.runtime.main.apply.RuntimeExtensionApplySharedContextModuleConfiguration;
+import com.mycompany.seed4j.extension.runtime.main.apply.RuntimeExtensionApplySharedContextModuleFactory;
+import com.mycompany.seed4j.extension.runtime.main.apply.RuntimeExtensionApplySharedContextModuleSlug;
+import com.mycompany.seed4j.extension.runtime.main.apply.RuntimeExtensionCommonSourceNodePackagesVersionsReader;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyApplicationService;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleConfiguration;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleFactory;
+import com.mycompany.seed4j.extension.runtime.main.list.RuntimeExtensionListOnlyModuleSlug;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -42,11 +45,30 @@ public final class ExtensionRuntimeFixture {
   private static final String BOOT_INF_DIRECTORY = "BOOT-INF/";
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CONFIG_DIRECTORY = "BOOT-INF/classes/config/";
+  private static final String BOOT_INF_DEPENDENCIES_DIRECTORY = "BOOT-INF/classes/generator/dependencies/";
+  private static final String BOOT_INF_COMMON_DEPENDENCIES_DIRECTORY = "BOOT-INF/classes/generator/dependencies/common/";
   private static final String BOOT_INF_GENERATOR_DIRECTORY = "BOOT-INF/classes/generator/";
   private static final String BOOT_INF_PRETTIER_DIRECTORY = "BOOT-INF/classes/generator/prettier/";
   private static final String EXTENSION_APPLICATION_YML_ENTRY = "BOOT-INF/classes/config/application.yml";
   private static final String EXTENSION_LOGBACK_ENTRY = "BOOT-INF/classes/logback-spring.xml";
+  private static final String EXTENSION_COMMON_DEPENDENCIES_ENTRY = "BOOT-INF/classes/generator/dependencies/common/package.json";
   private static final String EXTENSION_PRETTIER_TEMPLATE_ENTRY = "BOOT-INF/classes/generator/prettier/.prettierrc.mustache";
+  private static final String EXTENSION_COMMON_DEPENDENCIES_OVERRIDE = """
+    {
+      "dependencies": {
+        "@prettier/plugin-xml": "3.4.2",
+        "husky": "9.1.7",
+        "lint-staged": "16.2.7",
+        "node": "24.12.0",
+        "npm": "11.7.0",
+        "prettier": "3.6.2",
+        "prettier-plugin-gherkin": "3.1.3",
+        "prettier-plugin-java": "2.7.7",
+        "prettier-plugin-organize-imports": "4.3.0",
+        "prettier-plugin-packagejson": "2.5.20"
+      }
+    }
+    """;
   private static final String EXTENSION_PRETTIER_TEMPLATE_OVERRIDE = """
     # seed4j-extension-template-override
 
@@ -103,8 +125,13 @@ public final class ExtensionRuntimeFixture {
     </configuration>
     """;
   private static final String FLAT_CLASS_ENTRY = "com/seed4j/cli/runtime/FlatExtensionMarker.class";
-  private static final String EXTENSION_START_CLASS = RuntimeExtensionListOnlyModuleConfiguration.class.getName();
+  private static final String EXTENSION_START_CLASS = RuntimeExtensionListApplication.class.getName();
+  private static final String COMMON_SOURCE_EXTENSION_START_CLASS = RuntimeExtensionCommonSourceApplication.class.getName();
+  private static final String APPLY_SHARED_EXTENSION_START_CLASS = RuntimeExtensionApplySharedApplication.class.getName();
   private static final String CUSTOM_PACKAGE_EXTENSION_START_CLASS = MyCompanyRuntimeExtensionApplication.class.getName();
+  private static final List<Class<?>> LIST_EXTENSION_APPLICATION_CLASSES = List.of(RuntimeExtensionListApplication.class);
+  private static final List<Class<?>> COMMON_SOURCE_EXTENSION_APPLICATION_CLASSES = List.of(RuntimeExtensionCommonSourceApplication.class);
+  private static final List<Class<?>> APPLY_SHARED_EXTENSION_APPLICATION_CLASSES = List.of(RuntimeExtensionApplySharedApplication.class);
   private static final List<Class<?>> LIST_EXTENSION_MODULE_CLASSES = List.of(
     RuntimeExtensionListOnlyModuleSlug.class,
     RuntimeExtensionListOnlyModuleFactory.class,
@@ -130,39 +157,39 @@ public final class ExtensionRuntimeFixture {
 
   private ExtensionRuntimeFixture() {}
 
-  static ExtensionRuntimeFixturePaths install(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths install(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createMinimalJar);
   }
 
-  static ExtensionRuntimeFixturePaths installWithListExtensionModule(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithListExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJar);
   }
 
-  static ExtensionRuntimeFixturePaths installWithApplyCommonSourceOverrideExtensionModule(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithApplyCommonSourceOverrideExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithCommonSourceOverride);
   }
 
-  static ExtensionRuntimeFixturePaths installWithApplyExtensionModuleUsingSharedRuntimeOverrides(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithApplyExtensionModuleUsingSharedRuntimeOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithApplySharedRuntimeOverrides);
   }
 
-  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndLoggingOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithLoggingOverrides);
   }
 
-  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndRegressionOverrides(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndRegressionOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithRegressionOverrides);
   }
 
-  static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndHiddenResourcesOverrides(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithListExtensionModuleAndHiddenResourcesOverrides(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createListExtensionModuleJarWithHiddenResourcesOverrides);
   }
 
-  static ExtensionRuntimeFixturePaths installWithFlatJar(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithFlatJar(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createFlatJar);
   }
 
-  static ExtensionRuntimeFixturePaths installWithCustomPackageListExtensionModule(Path userHome) throws IOException {
+  public static ExtensionRuntimeFixturePaths installWithCustomPackageListExtensionModule(Path userHome) throws IOException {
     return install(userHome, ExtensionRuntimeFixture::createCustomPackageListExtensionModuleJar);
   }
 
@@ -193,6 +220,9 @@ public final class ExtensionRuntimeFixture {
       addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
       addedEntries.add(BOOT_INF_DIRECTORY);
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      for (Class<?> applicationClass : LIST_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
@@ -200,38 +230,55 @@ public final class ExtensionRuntimeFixture {
     return jarPath;
   }
 
-  static Path createListExtensionModuleJarWithCommonSourceOverride(Path jarPath) throws IOException {
-    Manifest manifest = manifestWithStartClass();
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      Set<String> addedEntries = new HashSet<>();
-      addedEntries.add(JarFile.MANIFEST_NAME);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
-      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
-      addedEntries.add(BOOT_INF_DIRECTORY);
-      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
-      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
-        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
-      }
-      for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
-        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
-      }
-    }
-    return jarPath;
-  }
-
-  static Path createListExtensionModuleJarWithApplySharedRuntimeOverrides(Path jarPath) throws IOException {
-    Manifest manifest = manifestWithStartClass();
+  public static Path createListExtensionModuleJarWithCommonSourceOverride(Path jarPath) throws IOException {
+    Manifest manifest = manifestWithStartClass(COMMON_SOURCE_EXTENSION_START_CLASS);
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
       addedEntries.add(JarFile.MANIFEST_NAME);
       addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
       addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
       addDirectoryEntry(jarOutputStream, BOOT_INF_GENERATOR_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DEPENDENCIES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_COMMON_DEPENDENCIES_DIRECTORY);
+      addedEntries.add(BOOT_INF_DIRECTORY);
+      addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
+      addedEntries.add(BOOT_INF_GENERATOR_DIRECTORY);
+      addedEntries.add(BOOT_INF_DEPENDENCIES_DIRECTORY);
+      addedEntries.add(BOOT_INF_COMMON_DEPENDENCIES_DIRECTORY);
+      for (Class<?> applicationClass : COMMON_SOURCE_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
+      for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
+      }
+      for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
+      }
+      addTextEntry(jarOutputStream, EXTENSION_COMMON_DEPENDENCIES_ENTRY, EXTENSION_COMMON_DEPENDENCIES_OVERRIDE);
+    }
+    return jarPath;
+  }
+
+  public static Path createListExtensionModuleJarWithApplySharedRuntimeOverrides(Path jarPath) throws IOException {
+    Manifest manifest = manifestWithStartClass(APPLY_SHARED_EXTENSION_START_CLASS);
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      Set<String> addedEntries = new HashSet<>();
+      addedEntries.add(JarFile.MANIFEST_NAME);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_GENERATOR_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_DEPENDENCIES_DIRECTORY);
+      addDirectoryEntry(jarOutputStream, BOOT_INF_COMMON_DEPENDENCIES_DIRECTORY);
       addDirectoryEntry(jarOutputStream, BOOT_INF_PRETTIER_DIRECTORY);
       addedEntries.add(BOOT_INF_DIRECTORY);
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       addedEntries.add(BOOT_INF_GENERATOR_DIRECTORY);
+      addedEntries.add(BOOT_INF_DEPENDENCIES_DIRECTORY);
+      addedEntries.add(BOOT_INF_COMMON_DEPENDENCIES_DIRECTORY);
       addedEntries.add(BOOT_INF_PRETTIER_DIRECTORY);
+      for (Class<?> applicationClass : APPLY_SHARED_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
@@ -241,12 +288,13 @@ public final class ExtensionRuntimeFixture {
       for (Class<?> overrideClass : APPLY_COMMON_SOURCE_OVERRIDE_EXTENSION_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, overrideClass, addedEntries);
       }
+      addTextEntry(jarOutputStream, EXTENSION_COMMON_DEPENDENCIES_ENTRY, EXTENSION_COMMON_DEPENDENCIES_OVERRIDE);
       addTextEntry(jarOutputStream, EXTENSION_PRETTIER_TEMPLATE_ENTRY, EXTENSION_PRETTIER_TEMPLATE_OVERRIDE);
     }
     return jarPath;
   }
 
-  static Path createCustomPackageListExtensionModuleJar(Path jarPath) throws IOException {
+  public static Path createCustomPackageListExtensionModuleJar(Path jarPath) throws IOException {
     Manifest manifest = manifestWithStartClass(CUSTOM_PACKAGE_EXTENSION_START_CLASS);
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
@@ -262,7 +310,7 @@ public final class ExtensionRuntimeFixture {
     return jarPath;
   }
 
-  static Path createListExtensionModuleJarWithLoggingOverrides(Path jarPath) throws IOException {
+  public static Path createListExtensionModuleJarWithLoggingOverrides(Path jarPath) throws IOException {
     Manifest manifest = manifestWithStartClass();
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
@@ -273,6 +321,9 @@ public final class ExtensionRuntimeFixture {
       addedEntries.add(BOOT_INF_DIRECTORY);
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> applicationClass : LIST_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
@@ -282,7 +333,7 @@ public final class ExtensionRuntimeFixture {
     return jarPath;
   }
 
-  static Path createListExtensionModuleJarWithRegressionOverrides(Path jarPath) throws IOException {
+  public static Path createListExtensionModuleJarWithRegressionOverrides(Path jarPath) throws IOException {
     Manifest manifest = manifestWithStartClass();
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
@@ -293,6 +344,9 @@ public final class ExtensionRuntimeFixture {
       addedEntries.add(BOOT_INF_DIRECTORY);
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> applicationClass : LIST_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
@@ -302,7 +356,7 @@ public final class ExtensionRuntimeFixture {
     return jarPath;
   }
 
-  static Path createListExtensionModuleJarWithHiddenResourcesOverrides(Path jarPath) throws IOException {
+  public static Path createListExtensionModuleJarWithHiddenResourcesOverrides(Path jarPath) throws IOException {
     Manifest manifest = manifestWithStartClass();
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
       Set<String> addedEntries = new HashSet<>();
@@ -313,6 +367,9 @@ public final class ExtensionRuntimeFixture {
       addedEntries.add(BOOT_INF_DIRECTORY);
       addedEntries.add(BOOT_INF_CLASSES_DIRECTORY);
       addedEntries.add(BOOT_INF_CONFIG_DIRECTORY);
+      for (Class<?> applicationClass : LIST_EXTENSION_APPLICATION_CLASSES) {
+        addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, applicationClass, addedEntries);
+      }
       for (Class<?> moduleClass : LIST_EXTENSION_MODULE_CLASSES) {
         addClassAndNestedClasses(jarOutputStream, BOOT_INF_CLASSES_DIRECTORY, moduleClass, addedEntries);
       }
@@ -420,5 +477,5 @@ public final class ExtensionRuntimeFixture {
     Path create(Path jarPath) throws IOException;
   }
 
-  record ExtensionRuntimeFixturePaths(Path configFilePath, Path metadataPath, Path extensionJarPath) {}
+  public record ExtensionRuntimeFixturePaths(Path configFilePath, Path metadataPath, Path extensionJarPath) {}
 }
