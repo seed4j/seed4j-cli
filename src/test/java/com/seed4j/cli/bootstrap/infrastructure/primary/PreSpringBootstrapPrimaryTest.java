@@ -5,13 +5,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
+import com.seed4j.cli.bootstrap.domain.BootstrapDiagnostics;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
+import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
+import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
@@ -39,13 +46,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 
 @UnitTest
-class ExtensionRuntimeBootstrapPrimaryTest {
+class PreSpringBootstrapPrimaryTest {
 
   private static final String RUNTIME_MODE_PROPERTY = "seed4j.cli.runtime.mode";
   private static final String DISTRIBUTION_ID_PROPERTY = "seed4j.cli.runtime.distribution.id";
@@ -226,6 +237,183 @@ class ExtensionRuntimeBootstrapPrimaryTest {
     }
   }
 
+  @Test
+  void shouldLaunchTheStandardChildRuntimeWithArgumentsThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-standard-child-primary-");
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isZero();
+    assertThat(fixture.childLaunchRequest()).isNotNull();
+    assertThat(fixture.childLaunchRequest().executableJar()).isEqualTo(fixture.executablePath());
+    assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionId()).isEmpty();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionVersion()).isEmpty();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().extensionJarPath()).isEmpty();
+    assertThat(fixture.childLaunchRequest().arguments().asList()).containsExactly("--version");
+    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldIgnoreLegacyRuntimeConfigPathThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-legacy-config-primary-");
+    Path legacyConfigPath = userHome.resolve(".config/seed4j-cli.yml");
+    Files.createDirectories(legacyConfigPath.getParent());
+    Files.writeString(
+      legacyConfigPath,
+      """
+      seed4j:
+        runtime:
+          mode: extension
+      """
+    );
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isZero();
+    assertThat(fixture.childLaunchRequest()).isNotNull();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("standardModeConfigurationContents")
+  void shouldLaunchTheStandardChildRuntimeWhenConfigDoesNotSelectExtensionModeThroughThePreSpringPrimaryRunner(
+    String scenarioName,
+    String configContent
+  ) throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-standard-config-primary-");
+    writeRuntimeConfiguration(userHome, configContent);
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isZero();
+    assertThat(fixture.childLaunchRequest()).isNotNull();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionId()).isEmpty();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionVersion()).isEmpty();
+    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldLaunchTheExtensionChildRuntimeWithActiveDistributionThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-child-primary-");
+    ExtensionRuntimeFixturePaths extensionPaths = ExtensionRuntimeFixture.install(userHome);
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isZero();
+    assertThat(fixture.childLaunchRequest()).isNotNull();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionId()).contains(new RuntimeDistributionId("company-extension"));
+    assertThat(fixture.childLaunchRequest().runtimeSelection().distributionVersion()).contains(new RuntimeDistributionVersion("1.0.0"));
+    assertThat(fixture.childLaunchRequest().runtimeSelection().extensionJarPath()).contains(
+      new RuntimeExtensionJarPath(extensionPaths.extensionJarPath())
+    );
+    assertThat(fixture.childLaunchRequest().arguments().asList()).containsExactly("--version");
+    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldPropagateDebugToExtensionChildRuntimeAndParentDiagnosticsThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-debug-primary-");
+    ExtensionRuntimeFixture.install(userHome);
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version", "--debug");
+
+    assertThat(launch.exitCode()).isZero();
+    assertThat(fixture.childLaunchRequest()).isNotNull();
+    assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.EXTENSION);
+    assertThat(fixture.childLaunchRequest().debug()).isTrue();
+    assertThat(fixture.debugLoggingEnabled()).isTrue();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldRunStandardModeLocallyOutsidePackagedJarThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-standard-local-primary-");
+    Path executableDirectory = Files.createTempDirectory("seed4j-cli-classes-primary-");
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.withExecutablePath(userHome, executableDirectory, false);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isEqualTo(12);
+    assertThat(launch.output()).contains("not running from a packaged CLI JAR");
+    assertThat(fixture.localRunArguments()).containsExactly("--version");
+    assertThat(fixture.childLaunchRequest()).isNull();
+  }
+
+  @Test
+  void shouldRunLocallyWhenAlreadyExecutingAsAChildRuntimeThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-child-mode-primary-");
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.withExecutablePath(
+      userHome,
+      Files.createTempFile("seed4j-cli-", ".jar"),
+      true
+    );
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isEqualTo(12);
+    assertThat(fixture.localRunArguments()).containsExactly("--version");
+    assertThat(fixture.childLaunchRequest()).isNull();
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("invalidRuntimeConfigurationContents")
+  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationIsInvalidThroughThePreSpringPrimaryRunner(
+    String scenarioName,
+    String configContent
+  ) throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-invalid-config-primary-");
+    writeRuntimeConfiguration(userHome, configContent);
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isNotZero();
+    assertThat(launch.output()).isNotBlank();
+    assertThat(fixture.childLaunchRequest()).isNull();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationCannotBeReadThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-unreadable-config-primary-");
+    Files.createDirectories(runtimeConfigurationPath(userHome));
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isNotZero();
+    assertThat(launch.output()).isNotBlank();
+    assertThat(fixture.childLaunchRequest()).isNull();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
+  @Test
+  void shouldFailBeforeChildRuntimeWhenExtensionModeRunsOutsidePackagedJarThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-local-primary-");
+    ExtensionRuntimeFixture.install(userHome);
+    Path executableDirectory = Files.createTempDirectory("seed4j-cli-extension-classes-primary-");
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.withExecutablePath(userHome, executableDirectory, false);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isNotZero();
+    assertThat(launch.output()).contains("Extension mode requires running the packaged CLI JAR");
+    assertThat(fixture.childLaunchRequest()).isNull();
+    assertThat(fixture.localRunArguments()).isEmpty();
+  }
+
   private static CliLaunchResult applyInit(PreSpringBootstrapRunner runner, Path projectPath) {
     return launchCapturingOutput(
       runner,
@@ -240,6 +428,87 @@ class ExtensionRuntimeBootstrapPrimaryTest {
       "--no-commit",
       "--node-package-manager",
       "npm"
+    );
+  }
+
+  private static Stream<Arguments> invalidRuntimeConfigurationContents() {
+    return Stream.of(
+      Arguments.of(
+        "extension mode selected without runtime artifacts",
+        """
+        seed4j:
+          runtime:
+            mode: extension
+        """
+      ),
+      Arguments.of(
+        "runtime mode has an invalid value",
+        """
+        seed4j:
+          runtime:
+            mode: corporate
+        """
+      ),
+      Arguments.of(
+        "external config root is not a map",
+        """
+        - seed4j
+        - runtime
+        """
+      ),
+      Arguments.of(
+        "seed4j root is not a map",
+        """
+        seed4j: 123
+        """
+      ),
+      Arguments.of(
+        "runtime mode is not a string",
+        """
+        seed4j:
+          runtime:
+            mode:
+              - standard
+        """
+      )
+    );
+  }
+
+  private static Stream<Arguments> standardModeConfigurationContents() {
+    return Stream.of(
+      Arguments.of(
+        "runtime mode explicitly set to standard",
+        """
+        seed4j:
+          runtime:
+            mode: standard
+        """
+      ),
+      Arguments.of(
+        "config file exists without runtime.mode",
+        """
+        seed4j:
+          hidden-resources:
+            slugs:
+              - gradle-java
+        """
+      ),
+      Arguments.of(
+        "runtime section exists without mode",
+        """
+        seed4j:
+          runtime:
+            extension:
+              fail-on-invalid: true
+        """
+      ),
+      Arguments.of(
+        "config file exists without seed4j section",
+        """
+        feature-flags:
+          experimental: true
+        """
+      )
     );
   }
 
@@ -259,6 +528,16 @@ class ExtensionRuntimeBootstrapPrimaryTest {
       new SystemErrBootstrapOutput()
     );
     return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);
+  }
+
+  private static void writeRuntimeConfiguration(Path userHome, String content) throws IOException {
+    Path configPath = runtimeConfigurationPath(userHome);
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(configPath, content);
+  }
+
+  private static Path runtimeConfigurationPath(Path userHome) {
+    return userHome.resolve(".config/seed4j-cli/config.yml");
   }
 
   private static Path javaExecutablePath() {
@@ -293,7 +572,7 @@ class ExtensionRuntimeBootstrapPrimaryTest {
   }
 
   private static List<String> moduleSlugs(String output) {
-    return output.lines().map(ExtensionRuntimeBootstrapPrimaryTest::moduleSlugFromLine).flatMap(Optional::stream).toList();
+    return output.lines().map(PreSpringBootstrapPrimaryTest::moduleSlugFromLine).flatMap(Optional::stream).toList();
   }
 
   private static Optional<String> moduleSlugFromLine(String line) {
@@ -318,6 +597,127 @@ class ExtensionRuntimeBootstrapPrimaryTest {
       }
     }
     return remainingSlugs;
+  }
+
+  private static final class PrimaryBootstrapFixture {
+
+    private final Path executablePath;
+    private final RecordingChildRuntimeLauncher childRuntimeLauncher;
+    private final RecordingLocalCliRunner localCliRunner;
+    private final RecordingBootstrapDiagnostics bootstrapDiagnostics;
+    private final PreSpringBootstrapRunner runner;
+
+    private PrimaryBootstrapFixture(
+      Path executablePath,
+      RecordingChildRuntimeLauncher childRuntimeLauncher,
+      RecordingLocalCliRunner localCliRunner,
+      RecordingBootstrapDiagnostics bootstrapDiagnostics,
+      PreSpringBootstrapRunner runner
+    ) {
+      this.executablePath = executablePath;
+      this.childRuntimeLauncher = childRuntimeLauncher;
+      this.localCliRunner = localCliRunner;
+      this.bootstrapDiagnostics = bootstrapDiagnostics;
+      this.runner = runner;
+    }
+
+    private static PrimaryBootstrapFixture packaged(Path userHome) throws IOException {
+      return withExecutablePath(userHome, Files.createTempFile("seed4j-cli-", ".jar"), false);
+    }
+
+    private static PrimaryBootstrapFixture withExecutablePath(Path userHome, Path executablePath, boolean childMode) {
+      Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
+      RecordingChildRuntimeLauncher childRuntimeLauncher = new RecordingChildRuntimeLauncher();
+      RecordingLocalCliRunner localCliRunner = new RecordingLocalCliRunner();
+      RecordingBootstrapDiagnostics bootstrapDiagnostics = new RecordingBootstrapDiagnostics();
+      PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+        cliHome,
+        executablePath,
+        childMode,
+        javaExecutablePath()
+      );
+      PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
+        new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
+        new FileSystemRuntimeModeConfigurationRepository(cliHome),
+        new FileSystemRuntimeExtensionSelectionRepository(cliHome, new JarRuntimeExtensionPackageValidator()),
+        childRuntimeLauncher,
+        localCliRunner,
+        new FileSystemPackagedExecutableDetector(),
+        bootstrapDiagnostics,
+        new SystemErrBootstrapOutput()
+      );
+      return new PrimaryBootstrapFixture(
+        executablePath,
+        childRuntimeLauncher,
+        localCliRunner,
+        bootstrapDiagnostics,
+        new PreSpringBootstrapRunner(preSpringBootstrapApplicationService)
+      );
+    }
+
+    private PreSpringBootstrapRunner runner() {
+      return runner;
+    }
+
+    private Path executablePath() {
+      return executablePath;
+    }
+
+    private ChildRuntimeLaunchRequest childLaunchRequest() {
+      return childRuntimeLauncher.request();
+    }
+
+    private List<String> localRunArguments() {
+      return localCliRunner.arguments();
+    }
+
+    private boolean debugLoggingEnabled() {
+      return bootstrapDiagnostics.enabled();
+    }
+  }
+
+  private static final class RecordingChildRuntimeLauncher implements ChildRuntimeLauncher {
+
+    private ChildRuntimeLaunchRequest request;
+
+    @Override
+    public int launch(ChildRuntimeLaunchRequest request) {
+      this.request = request;
+      return 0;
+    }
+
+    private ChildRuntimeLaunchRequest request() {
+      return request;
+    }
+  }
+
+  private static final class RecordingLocalCliRunner implements LocalCliRunner {
+
+    private List<String> arguments = List.of();
+
+    @Override
+    public int run(Seed4JCliArguments arguments) {
+      this.arguments = arguments.asList();
+      return 12;
+    }
+
+    private List<String> arguments() {
+      return arguments;
+    }
+  }
+
+  private static final class RecordingBootstrapDiagnostics implements BootstrapDiagnostics {
+
+    private boolean enabled;
+
+    @Override
+    public void enableDebugLogging() {
+      enabled = true;
+    }
+
+    private boolean enabled() {
+      return enabled;
+    }
   }
 
   private static final class InProcessChildRuntimeLauncher implements ChildRuntimeLauncher {
