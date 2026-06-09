@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
 
 @UnitTest
 class ExtensionRuntimeBootstrapPrimaryTest {
@@ -483,13 +482,7 @@ class ExtensionRuntimeBootstrapPrimaryTest {
 
   @SpringBootConfiguration
   @EnableAutoConfiguration
-  @ComponentScan(
-    basePackages = "com.seed4j.cli",
-    excludeFilters = @ComponentScan.Filter(
-      type = FilterType.REGEX,
-      pattern = "com\\.seed4j\\.cli\\.bootstrap\\.domain\\.runtimeextension\\..*"
-    )
-  )
+  @ComponentScan(basePackages = "com.seed4j.cli")
   public static class TestSeed4JCliApp {}
 
   private record CliLaunchResult(int exitCode, String output) {}
