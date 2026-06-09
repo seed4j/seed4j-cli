@@ -7,30 +7,36 @@ import com.seed4j.cli.UnitTest;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @UnitTest
 class RuntimeExtensionMissingLibrariesSelectorTest {
 
-  @Test
-  void shouldReportExplicitNonComparableVersionReasonWhenFailingFast() {
+  @ParameterizedTest
+  @ValueSource(strings = { "v1.2.0", "V1.2.0" })
+  void shouldKeepCliRuntimeLibraryWhenVersionMatchesAfterNormalizingVPrefix(String extensionVersion) {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("shared-lib-2.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "2.0.0")))
+      new RuntimeLibraryEntry(
+        "shared-lib-" + extensionVersion + ".jar",
+        Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", extensionVersion))
+      )
     );
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("shared-lib-RELEASE.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "RELEASE")))
+      new RuntimeLibraryEntry("shared-lib-1.2.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2.0")))
     );
 
-    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
-      .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("com.acme:shared-lib")
-      .hasMessageContaining("RELEASE")
-      .hasMessageContaining("2.0.0")
-      .hasMessageContaining("not safely comparable");
+    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
+
+    assertThat(missingLibraries).isEmpty();
   }
 
   @Test
-  void shouldKeepCliRuntimeLibraryWhenCliVersionWinsOverOlderExtensionVersion() {
+  void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderNumericVersionForSameCoordinate() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
         "logback-classic-1.5.22.jar",
@@ -43,6 +49,7 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
         Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.32"))
       )
     );
+
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
     assertThat(missingLibraries).isEmpty();
@@ -63,67 +70,12 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   }
 
   @Test
-  void shouldFailFastWhenCliVersionIsNonComparableAndExtensionRequiresNumericVersion() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("shared-lib-2.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "2.0.0")))
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("shared-lib-RELEASE.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "RELEASE")))
-    );
-
-    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
-      .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("com.acme:shared-lib")
-      .hasMessageContaining("RELEASE")
-      .hasMessageContaining("2.0.0");
-  }
-
-  @Test
-  void shouldFailFastWhenExtensionVersionTokenIsUppercaseVAndNonComparable() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "shared-lib-V999999999999999999999999999999.jar",
-        Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "V999999999999999999999999999999"))
-      )
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("shared-lib-1.0.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
-    );
-
-    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
-      .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("com.acme:shared-lib")
-      .hasMessageContaining("1.0.0")
-      .hasMessageContaining("V999999999999999999999999999999");
-  }
-
-  @Test
-  void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderVersionForSameCoordinate() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "logback-classic-1.5.22.jar",
-        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.22"))
-      )
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "logback-classic-1.5.32.jar",
-        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.32"))
-      )
-    );
-
-    List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
-
-    assertThat(missingLibraries).isEmpty();
-  }
-
-  @Test
   void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderFinalQualifiedVersionForSameCoordinate() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry("hibernate-core-7.2.0.Final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.0.Final")))
     );
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("hibernate-core-7.2.12.Final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.12.Final")))
+      new RuntimeLibraryEntry("hibernate-core-7.2.12.final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.12.final")))
     );
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
@@ -151,73 +103,110 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
     assertThat(missingLibraries).isEmpty();
   }
 
-  @Test
-  void shouldFailFastWhenQualifiedVersionCannotBeComparedWithReleaseToken() {
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("notSafelyComparableVersionScenarios")
+  void shouldFailFastWhenVersionsAreNotSafelyComparable(String scenarioName, NotSafelyComparableVersionScenario scenario) {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
       new RuntimeLibraryEntry(
-        "hibernate-core-7.2.12.Final.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.12.Final"))
+        scenario.extensionFileName(),
+        Optional.of(new RuntimeLibraryIdentity(scenario.coordinate(), scenario.extensionVersion()))
       )
     );
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "hibernate-core-RELEASE.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "RELEASE"))
-      )
+      new RuntimeLibraryEntry(scenario.cliFileName(), Optional.of(new RuntimeLibraryIdentity(scenario.coordinate(), scenario.cliVersion())))
     );
 
     assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("org.hibernate.orm:hibernate-core")
-      .hasMessageContaining("7.2.12.Final")
-      .hasMessageContaining("RELEASE")
+      .hasMessageContaining(scenario.coordinate())
+      .hasMessageContaining(scenario.cliVersion())
+      .hasMessageContaining(scenario.extensionVersionSnippet())
       .hasMessageContaining("not safely comparable");
   }
 
-  @Test
-  void shouldFailFastWhenQualifiedVersionsUseDifferentQualifierFamilies() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "hibernate-core-7.2.12.Final.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.12.Final"))
-      )
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "hibernate-core-7.2.13.CR.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "7.2.13.CR"))
-      )
-    );
+  private static Stream<Arguments> notSafelyComparableVersionScenarios() {
+    String malformedNumericVersion = "1.".repeat(2500);
+    String malformedQualifiedVersion = "1.".repeat(2500) + "1-";
 
-    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
-      .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("org.hibernate.orm:hibernate-core")
-      .hasMessageContaining("7.2.12.Final")
-      .hasMessageContaining("7.2.13.CR")
-      .hasMessageContaining("not safely comparable");
-  }
-
-  @Test
-  void shouldFailFastWhenQualifiedVersionHasNumericSegmentOutsideIntegerRange() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "hibernate-core-999999999999999999999999.Final.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "999999999999999999999999.Final"))
+    return Stream.of(
+      Arguments.of(
+        "release token cannot be compared with numeric version",
+        new NotSafelyComparableVersionScenario(
+          "shared-lib-2.0.0.jar",
+          "com.acme:shared-lib",
+          "2.0.0",
+          "shared-lib-RELEASE.jar",
+          "RELEASE",
+          "2.0.0"
+        )
+      ),
+      Arguments.of(
+        "numeric segment outside integer range cannot be compared",
+        new NotSafelyComparableVersionScenario(
+          "shared-lib-999999999999999999999999999.jar",
+          "com.acme:shared-lib",
+          "999999999999999999999999999",
+          "shared-lib-1.0.0.jar",
+          "1.0.0",
+          "999999999999999999999999999"
+        )
+      ),
+      Arguments.of(
+        "qualified version cannot be compared with release token",
+        new NotSafelyComparableVersionScenario(
+          "hibernate-core-7.2.12.Final.jar",
+          "org.hibernate.orm:hibernate-core",
+          "7.2.12.Final",
+          "hibernate-core-RELEASE.jar",
+          "RELEASE",
+          "7.2.12.Final"
+        )
+      ),
+      Arguments.of(
+        "qualified versions with different qualifier families cannot be compared",
+        new NotSafelyComparableVersionScenario(
+          "hibernate-core-7.2.12.Final.jar",
+          "org.hibernate.orm:hibernate-core",
+          "7.2.12.Final",
+          "hibernate-core-7.2.13.CR.jar",
+          "7.2.13.CR",
+          "7.2.12.Final"
+        )
+      ),
+      Arguments.of(
+        "qualified version with numeric segment outside integer range cannot be compared",
+        new NotSafelyComparableVersionScenario(
+          "shared-lib-999999999999999999999999999.Final.jar",
+          "com.acme:shared-lib",
+          "999999999999999999999999999.Final",
+          "shared-lib-1.0.0-final.jar",
+          "1.0.0-final",
+          "999999999999999999999999999.Final"
+        )
+      ),
+      Arguments.of(
+        "malformed numeric version cannot be compared",
+        new NotSafelyComparableVersionScenario(
+          "shared-lib-malformed.jar",
+          "com.acme:shared-lib",
+          malformedNumericVersion,
+          "shared-lib-1.0.0.jar",
+          "1.0.0",
+          "1."
+        )
+      ),
+      Arguments.of(
+        "malformed qualified version cannot be compared",
+        new NotSafelyComparableVersionScenario(
+          "shared-lib-malformed-qualified.jar",
+          "com.acme:shared-lib",
+          malformedQualifiedVersion,
+          "shared-lib-1.0.0-final.jar",
+          "1.0.0-final",
+          "1."
+        )
       )
     );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "hibernate-core-RELEASE.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.hibernate.orm:hibernate-core", "RELEASE"))
-      )
-    );
-
-    assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
-      .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("org.hibernate.orm:hibernate-core")
-      .hasMessageContaining("999999999999999999999999.Final")
-      .hasMessageContaining("RELEASE")
-      .hasMessageContaining("not safely comparable");
   }
 
   @Test
@@ -330,7 +319,9 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
     assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
-      .hasMessageContaining("shared-lib");
+      .hasMessageContaining("shared-lib")
+      .hasMessageContaining("1.0.0")
+      .hasMessageContaining("2.0.0");
   }
 
   @Test
@@ -357,4 +348,13 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
     assertThat(missingLibraries).containsExactly("shared-lib-custom.jar");
   }
+
+  private record NotSafelyComparableVersionScenario(
+    String extensionFileName,
+    String coordinate,
+    String extensionVersion,
+    String cliFileName,
+    String cliVersion,
+    String extensionVersionSnippet
+  ) {}
 }
