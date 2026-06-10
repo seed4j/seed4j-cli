@@ -2,8 +2,10 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -69,7 +71,14 @@ class CliFixture {
       request -> new RuntimeExtensionInstallResult(Path.of("extension.jar"), Path.of("metadata.yml"), Path.of("config.yml"), false)
     );
     ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionInstallApplicationService);
-    ExtensionCommand extensionCommand = new ExtensionCommand(extensionInstallCommand);
+    RuntimeExtensionModeApplicationService runtimeExtensionModeApplicationService = new RuntimeExtensionModeApplicationService(
+      new RuntimeExtensionModeSwitcherStub()
+    );
+    ExtensionCommand extensionCommand = new ExtensionCommand(
+      extensionInstallCommand,
+      new ExtensionEnableCommand(runtimeExtensionModeApplicationService),
+      new ExtensionDisableCommand(runtimeExtensionModeApplicationService)
+    );
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
@@ -80,5 +89,18 @@ class CliFixture {
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
+  }
+
+  private static final class RuntimeExtensionModeSwitcherStub implements com.seed4j.cli.command.domain.RuntimeExtensionModeSwitcher {
+
+    @Override
+    public RuntimeExtensionModeSwitchResult enable() {
+      return new RuntimeExtensionModeSwitchResult(Path.of("config.yml"));
+    }
+
+    @Override
+    public RuntimeExtensionModeSwitchResult disable() {
+      return new RuntimeExtensionModeSwitchResult(Path.of("config.yml"));
+    }
   }
 }

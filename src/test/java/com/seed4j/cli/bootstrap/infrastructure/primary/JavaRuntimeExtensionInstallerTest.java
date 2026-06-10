@@ -13,6 +13,7 @@ import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeExtensionInsta
 import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeExtensionInstaller.JavaRuntimeExtensionInstallationException;
 import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeExtensionInstaller.JavaRuntimeExtensionInstallationRequest;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionArtifactsRepository;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
 import java.io.IOException;
@@ -201,6 +202,7 @@ class JavaRuntimeExtensionInstallerTest {
       new JarRuntimeExtensionPackageValidator(),
       new FileSystemRuntimeModeConfigurationRepository(cliHome),
       new FileSystemRuntimeExtensionArtifactsRepository(cliHome),
+      new FileSystemRuntimeExtensionSelectionRepository(cliHome, new JarRuntimeExtensionPackageValidator()),
       RuntimeSelection.standard()
     );
 

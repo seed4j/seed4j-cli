@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.SystemOutputCaptor;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstaller;
+import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,17 +28,16 @@ class ExtensionInstallCommandTest {
   private static final String DISTRIBUTION_VERSION = "1.0.0";
 
   @Test
-  void shouldListInstallSubcommandWhenShowingExtensionHelp() {
+  void shouldListExtensionSubcommandsWhenShowingExtensionHelp() {
     Path userHome = Path.of(System.getProperty("user.home"));
-    ExtensionInstallCommand installCommand = installCommand(userHome);
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(userHome);
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
       CommandLine commandLine = new CommandLine(extensionCommand.spec());
       int exitCode = commandLine.execute("--help");
 
       assertThat(exitCode).isZero();
-      assertThat(outputCaptor.getStandardOutput()).contains("install");
+      assertThat(outputCaptor.getStandardOutput()).contains("install").contains("enable").contains("disable");
     }
   }
 
@@ -44,8 +45,7 @@ class ExtensionInstallCommandTest {
   void shouldInstallExtensionRuntimeAndPrintRuntimePathsAndValidationHintsWhenInputsAreValid() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionInstallCommand installCommand = installCommand(userHome);
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(userHome);
     String[] args = {
       "install",
       extensionJarPath.toString(),
@@ -75,7 +75,7 @@ class ExtensionInstallCommandTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     ExtensionInstallCommand installCommand = installCommand(installationResult(userHome, true));
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
     String[] args = {
       "install",
       extensionJarPath.toString(),
@@ -99,7 +99,7 @@ class ExtensionInstallCommandTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
     ExtensionInstallCommand installCommand = installCommandThrowing("Could not read ~/.config/seed4j-cli/config.yml. Details: broken");
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
     String[] args = {
       "install",
       extensionJarPath.toString(),
@@ -122,8 +122,7 @@ class ExtensionInstallCommandTest {
   void shouldShowRequiredOptionLabelsWhenDistributionOptionsAreMissing() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionInstallCommand installCommand = installCommand(userHome);
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(userHome);
     String[] args = { "install", extensionJarPath.toString() };
 
     try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
@@ -145,7 +144,7 @@ class ExtensionInstallCommandTest {
     ExtensionInstallCommand installCommand = new ExtensionInstallCommand(
       new RuntimeExtensionInstallApplicationService(runtimeExtensionInstaller)
     );
-    ExtensionCommand extensionCommand = new ExtensionCommand(installCommand);
+    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
     String[] args = {
       "install",
       extensionJarPath.toString(),
@@ -166,6 +165,22 @@ class ExtensionInstallCommandTest {
 
   private static ExtensionInstallCommand installCommand(Path userHome) {
     return installCommand(installationResult(userHome, false));
+  }
+
+  private static ExtensionCommand extensionCommand(Path userHome) {
+    return extensionCommand(installCommand(userHome), userHome);
+  }
+
+  private static ExtensionCommand extensionCommand(ExtensionInstallCommand installCommand, Path userHome) {
+    RuntimeExtensionModeApplicationService modeApplicationService = new RuntimeExtensionModeApplicationService(
+      new RuntimeExtensionModeSwitcherStub(userHome)
+    );
+
+    return new ExtensionCommand(
+      installCommand,
+      new ExtensionEnableCommand(modeApplicationService),
+      new ExtensionDisableCommand(modeApplicationService)
+    );
   }
 
   private static ExtensionInstallCommand installCommand(RuntimeExtensionInstallResult installationResult) {
@@ -216,6 +231,25 @@ class ExtensionInstallCommandTest {
       this.request = request;
 
       return result;
+    }
+  }
+
+  private static final class RuntimeExtensionModeSwitcherStub implements com.seed4j.cli.command.domain.RuntimeExtensionModeSwitcher {
+
+    private final Path userHome;
+
+    private RuntimeExtensionModeSwitcherStub(Path userHome) {
+      this.userHome = userHome;
+    }
+
+    @Override
+    public RuntimeExtensionModeSwitchResult enable() {
+      return new RuntimeExtensionModeSwitchResult(userHome.resolve(".config/seed4j-cli/config.yml"));
+    }
+
+    @Override
+    public RuntimeExtensionModeSwitchResult disable() {
+      return new RuntimeExtensionModeSwitchResult(userHome.resolve(".config/seed4j-cli/config.yml"));
     }
   }
 }

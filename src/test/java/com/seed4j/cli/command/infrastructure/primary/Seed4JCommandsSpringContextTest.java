@@ -68,6 +68,154 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
+  void shouldEnableExtensionRuntimeUsingSpringManagedCommandGraph() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-enable-spring-context-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeJarPath.getParent());
+    Files.writeString(
+      configPath,
+      """
+      seed4j:
+        runtime:
+          mode: standard
+      """
+    );
+    createFatJar(runtimeJarPath);
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+      """
+    );
+    String[] args = { "extension", "enable" };
+
+    contextRunner
+      .withPropertyValues("user.home=" + userHome)
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isZero();
+          assertThat(outputCaptor.getStandardOutput())
+            .contains("Extension runtime enabled successfully.")
+            .contains("Config: " + configPath);
+        }
+
+        assertThat(Files.readString(configPath)).contains("mode: extension");
+      });
+  }
+
+  @Test
+  void shouldReturnNonZeroAndNotChangeConfigWhenEnablingInvalidExtensionRuntimeUsingSpringManagedCommandGraph() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-enable-spring-context-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Files.createDirectories(configPath.getParent());
+    Files.createDirectories(runtimeJarPath.getParent());
+    String originalConfig = """
+      seed4j:
+        runtime:
+          mode: standard
+      """;
+    Files.writeString(configPath, originalConfig);
+    createFatJar(runtimeJarPath);
+    String[] args = { "extension", "enable" };
+
+    contextRunner
+      .withPropertyValues("user.home=" + userHome)
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isNotZero();
+          assertThat(outputCaptor.getStandardError()).contains("Invalid runtime metadata file");
+          assertThat(outputCaptor.getStandardOutput()).doesNotContain("Extension runtime enabled successfully.");
+        }
+
+        assertThat(Files.readString(configPath)).isEqualTo(originalConfig);
+      });
+  }
+
+  @Test
+  void shouldDisableExtensionRuntimeAndPreserveArtifactsUsingSpringManagedCommandGraph() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-disable-spring-context-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Path runtimeJarPath = userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(runtimeJarPath.getParent());
+    createFatJar(runtimeJarPath);
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: company-extension
+        version: 1.0.0
+      """
+    );
+    byte[] runtimeJarContentBeforeDisable = Files.readAllBytes(runtimeJarPath);
+    String metadataContentBeforeDisable = Files.readString(metadataPath);
+    String[] args = { "extension", "disable" };
+
+    contextRunner
+      .withPropertyValues("user.home=" + userHome)
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isZero();
+          assertThat(outputCaptor.getStandardOutput())
+            .contains("Extension runtime disabled successfully.")
+            .contains("Config: " + configPath);
+        }
+
+        assertThat(configPath).exists();
+        assertThat(Files.readString(configPath)).contains("mode: standard");
+        assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(runtimeJarContentBeforeDisable);
+        assertThat(Files.readString(metadataPath)).isEqualTo(metadataContentBeforeDisable);
+      });
+  }
+
+  @Test
+  void shouldReturnNonZeroAndPreserveInvalidConfigWhenDisablingUsingSpringManagedCommandGraph() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-disable-spring-context-");
+    Path configPath = userHome.resolve(".config/seed4j-cli/config.yml");
+    Files.createDirectories(configPath.getParent());
+    Files.writeString(configPath, "seed4j: [broken");
+    String[] args = { "extension", "disable" };
+
+    contextRunner
+      .withPropertyValues("user.home=" + userHome)
+      .run(context -> {
+        Seed4JCommandsFactory commandsFactory = context.getBean(Seed4JCommandsFactory.class);
+
+        try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+          CommandLine commandLine = new CommandLine(commandsFactory.buildCommandSpec());
+          int exitCode = commandLine.execute(args);
+
+          assertThat(exitCode).isNotZero();
+          assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
+          assertThat(outputCaptor.getStandardOutput()).doesNotContain("Extension runtime disabled successfully.");
+        }
+
+        assertThat(Files.readString(configPath)).isEqualTo("seed4j: [broken");
+      });
+  }
+
+  @Test
   void shouldReturnNonZeroAndShowObjectiveErrorWhenRuntimeConfigIsInvalidUsingSpringManagedCommandGraph() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-spring-context-");
     Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
@@ -175,17 +323,26 @@ class Seed4JCommandsSpringContextTest {
     includeFilters = {
       @ComponentScan.Filter(
         type = FilterType.ASSIGNABLE_TYPE,
-        classes = { Seed4JCommandsFactory.class, ExtensionCommand.class, ExtensionInstallCommand.class }
+        classes = {
+          Seed4JCommandsFactory.class,
+          ExtensionCommand.class,
+          ExtensionInstallCommand.class,
+          ExtensionEnableCommand.class,
+          ExtensionDisableCommand.class,
+        }
       ),
       @ComponentScan.Filter(
         type = FilterType.REGEX,
         pattern = {
           "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeDisplayApplicationService",
           "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeExtensionInstallApplicationService",
+          "com\\.seed4j\\.cli\\.command\\.application\\.RuntimeExtensionModeApplicationService",
           "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeDisplayReader",
           "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeExtensionInstaller",
+          "com\\.seed4j\\.cli\\.command\\.infrastructure\\.secondary\\.BootstrapRuntimeExtensionModeSwitcher",
           "com\\.seed4j\\.cli\\.bootstrap\\.application\\.RuntimeExtensionApplicationService",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeExtensionInstaller",
+          "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeExtensionModeSwitcher",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.primary\\.JavaRuntimeSelectionReader",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.secondary\\.RuntimeExtensionSpringConfiguration",
           "com\\.seed4j\\.cli\\.bootstrap\\.infrastructure\\.secondary\\.RuntimeSelectionConfiguration",

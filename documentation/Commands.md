@@ -10,6 +10,8 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [List Available Modules](#list-available-modules)
   - [Apply a Module](#apply-a-module)
   - [Install a Runtime Extension](#install-a-runtime-extension)
+  - [Enable a Runtime Extension](#enable-a-runtime-extension)
+  - [Disable a Runtime Extension](#disable-a-runtime-extension)
 - [Project Creation Workflow Example](#project-creation-workflow-example)
 - [Options and Parameters](#options-and-parameters)
   - [Parameters Reuse](#parameter-reuse)
@@ -146,6 +148,54 @@ Fail-fast behavior:
 
 - returns non-zero exit code when the extension JAR layout is invalid
 - returns non-zero exit code when `~/.config/seed4j-cli/config.yml` is invalid
+
+### Enable a Runtime Extension
+
+To switch the CLI runtime mode to the active extension runtime:
+
+```bash
+seed4j extension enable
+```
+
+Behavior:
+
+- validates the active runtime files before changing the mode
+- writes `seed4j.runtime.mode: extension` in `~/.config/seed4j-cli/config.yml`
+- preserves other existing config keys when the YAML is valid
+- returns non-zero exit code and leaves the config unchanged when active runtime artifacts are invalid
+
+On success, the command prints:
+
+```text
+Extension runtime enabled successfully.
+Config: /home/user/.config/seed4j-cli/config.yml
+```
+
+### Disable a Runtime Extension
+
+To switch the CLI runtime mode back to the standard runtime:
+
+```bash
+seed4j extension disable
+```
+
+Behavior:
+
+- writes `seed4j.runtime.mode: standard` in `~/.config/seed4j-cli/config.yml`
+- creates `~/.config/seed4j-cli/config.yml` when missing
+- preserves other existing config keys when the YAML is valid
+- does not remove `~/.config/seed4j-cli/runtime/active/extension.jar`
+- does not remove `~/.config/seed4j-cli/runtime/active/metadata.yml`
+- returns non-zero exit code and leaves the config unchanged when `~/.config/seed4j-cli/config.yml` is invalid
+
+On success, the command prints:
+
+```text
+Extension runtime disabled successfully.
+Config: /home/user/.config/seed4j-cli/config.yml
+```
+
+MVP limitation: `seed4j extension disable` runs through the normal CLI bootstrap. If `seed4j.runtime.mode: extension` already makes the launcher fail before commands are created, this command cannot recover automatically yet. Use a valid config file or edit `~/.config/seed4j-cli/config.yml` manually to set `seed4j.runtime.mode: standard`. A launcher bypass recovery path is intentionally left for a later implementation.
 
 ## Project Creation Workflow Example
 
@@ -299,6 +349,12 @@ If `seed4j.runtime.mode` is not declared, Seed4J CLI falls back to `standard`.
 - creates `~/.config/seed4j-cli/config.yml` when missing
 - preserves other existing config keys when the YAML is valid
 
+`seed4j extension enable` and `seed4j extension disable` config note:
+
+- `enable` validates the active runtime extension before writing `extension` mode
+- `disable` writes `standard` mode without deleting active runtime extension files
+- both commands fail fast without rewriting invalid YAML/config content
+
 `--debug` runtime note:
 
 - `--debug` is a CLI flag (no value required) shown in `seed4j --help`
@@ -333,6 +389,9 @@ seed4j extension install target/<your-extension-artifact>.jar \
 # 3) validate extension runtime loading
 seed4j --version
 seed4j list
+
+# Optional) switch back to standard mode without deleting active extension files
+seed4j extension disable
 ```
 
 The install command creates or replaces these runtime files:
