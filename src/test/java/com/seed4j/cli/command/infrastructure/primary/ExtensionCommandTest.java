@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
 @UnitTest
-class ExtensionInstallCommandTest {
+class ExtensionCommandTest {
 
   private static final String DISTRIBUTION_ID = "company-extension";
   private static final String DISTRIBUTION_VERSION = "1.0.0";
