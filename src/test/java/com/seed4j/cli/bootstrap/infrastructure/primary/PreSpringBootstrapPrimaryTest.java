@@ -101,12 +101,10 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldKeepStandardCatalogAndAddOnlyExtensionSlugsThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlugThroughThePreSpringPrimaryRunner() throws IOException {
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-catalog-primary-");
     Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-catalog-primary-");
-    Path customPackageExtensionUserHome = Files.createTempDirectory("seed4j-cli-custom-extension-catalog-primary-");
     ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
-    ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(customPackageExtensionUserHome);
     ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
 
     try {
@@ -114,7 +112,6 @@ class PreSpringBootstrapPrimaryTest {
 
       CliLaunchResult standardResult = launchCapturingOutput(runner(standardUserHome), "list");
       CliLaunchResult extensionResult = launchCapturingOutput(runner(extensionUserHome), "list");
-      CliLaunchResult customPackageExtensionResult = launchCapturingOutput(runner(customPackageExtensionUserHome), "list");
 
       List<String> standardSlugs = moduleSlugs(standardResult.output());
       List<String> extensionSlugs = moduleSlugs(extensionResult.output());
@@ -122,12 +119,29 @@ class PreSpringBootstrapPrimaryTest {
       Set<String> removedSlugs = setDifference(Set.copyOf(standardSlugs), Set.copyOf(extensionSlugs));
       assertThat(standardResult.exitCode()).isZero();
       assertThat(extensionResult.exitCode()).isZero();
-      assertThat(customPackageExtensionResult.exitCode()).isZero();
       assertThat(standardSlugs).doesNotContain(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
       assertThat(extensionSlugs).contains(EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
       assertThat(addedSlugs).containsExactly(EXTENSION_ONLY_SLUG);
       assertThat(removedSlugs).isEmpty();
-      assertThat(moduleSlugs(customPackageExtensionResult.output())).contains(CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
+      assertBaselineRuntimePropertiesRestored();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldListCustomPackageExtensionOnlySlugThroughThePreSpringPrimaryRunner() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-custom-extension-catalog-primary-");
+    ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult listLaunch = launchCapturingOutput(runner(userHome), "list");
+
+      assertThat(listLaunch.exitCode()).isZero();
+      assertThat(moduleSlugs(listLaunch.output())).contains(CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG).doesNotHaveDuplicates();
       assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
