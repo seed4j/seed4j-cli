@@ -850,8 +850,8 @@ class PreSpringBootstrapPrimaryTest {
     ) {
       try {
         Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
-        return new RuntimeExtensionClassLoader(
-          childRuntimeUrls(overlayClassesPath, rawExtensionJarPath, request.executableJar()),
+        return new ChildFirstRuntimeExtensionResourceClassLoader(
+          childRuntimeAndTestClasspathUrls(overlayClassesPath, rawExtensionJarPath, request.executableJar()),
           parentClassLoader
         );
       } catch (MalformedURLException malformedURLException) {
@@ -862,7 +862,8 @@ class PreSpringBootstrapPrimaryTest {
       }
     }
 
-    private URL[] childRuntimeUrls(Path overlayClassesPath, Path rawExtensionJarPath, Path executableJarPath) throws MalformedURLException {
+    private URL[] childRuntimeAndTestClasspathUrls(Path overlayClassesPath, Path rawExtensionJarPath, Path executableJarPath)
+      throws MalformedURLException {
       List<URL> urls = new ArrayList<>();
       urls.add(overlayClassesPath.toUri().toURL());
       urls.add(rawExtensionJarPath.toUri().toURL());
@@ -884,14 +885,14 @@ class PreSpringBootstrapPrimaryTest {
     }
   }
 
-  private static final class RuntimeExtensionClassLoader extends URLClassLoader {
+  private static final class ChildFirstRuntimeExtensionResourceClassLoader extends URLClassLoader {
 
     private static final String FIXTURE_CLASS_PREFIX = "com.mycompany.seed4j.extension.runtime.";
-    private static final String PROJECT_FILES_CLASS = "com.seed4j.module.infrastructure.secondary.FileSystemProjectFiles";
+    private static final String CLASS_ANCHORED_PROJECT_FILES_READER = "com.seed4j.module.infrastructure.secondary.FileSystemProjectFiles";
     private static final String FIXTURE_RESOURCE_PREFIX = "com/mycompany/seed4j/extension/runtime/";
     private static final String GENERATOR_RESOURCE_PREFIX = "generator/";
 
-    private RuntimeExtensionClassLoader(URL[] urls, ClassLoader parent) {
+    private ChildFirstRuntimeExtensionResourceClassLoader(URL[] urls, ClassLoader parent) {
       super(urls, parent);
     }
 
@@ -909,16 +910,24 @@ class PreSpringBootstrapPrimaryTest {
       }
     }
 
-    private Class<?> loadClassFromExtensionOrParent(String name) throws ClassNotFoundException {
-      if (extensionClassLookup(name)) {
-        return findClass(name);
+    private Class<?> loadClassFromExtensionOrParent(String className) throws ClassNotFoundException {
+      if (childFirstClass(className)) {
+        return findClass(className);
       }
 
-      return super.loadClass(name, false);
+      return super.loadClass(className, false);
     }
 
-    private boolean extensionClassLookup(String name) {
-      return name.startsWith(FIXTURE_CLASS_PREFIX) || PROJECT_FILES_CLASS.equals(name);
+    private boolean childFirstClass(String className) {
+      return extensionFixtureClass(className) || classAnchoredResourceReader(className);
+    }
+
+    private boolean extensionFixtureClass(String className) {
+      return className.startsWith(FIXTURE_CLASS_PREFIX);
+    }
+
+    private boolean classAnchoredResourceReader(String className) {
+      return CLASS_ANCHORED_PROJECT_FILES_READER.equals(className);
     }
 
     @Override
