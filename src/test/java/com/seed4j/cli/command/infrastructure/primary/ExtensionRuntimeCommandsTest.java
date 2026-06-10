@@ -25,7 +25,7 @@ import picocli.CommandLine;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-class Seed4JCommandsSpringContextTest {
+class ExtensionRuntimeCommandsTest {
 
   private static final String DISTRIBUTION_ID = "company-extension";
   private static final String DISTRIBUTION_VERSION = "1.0.0";
@@ -45,7 +45,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldInstallExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+  void shouldInstallExtensionRuntime(CapturedOutput output) throws IOException {
     Path extensionJarPath = createFatJar(USER_HOME.resolve("company-extension.jar"));
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
@@ -73,7 +73,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldReplaceActiveExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+  void shouldReplaceActiveExtensionRuntime(CapturedOutput output) throws IOException {
     Path extensionJarPath = createFatJar(
       USER_HOME.resolve("company-extension.jar"),
       "BOOT-INF/classes/com/company/New.class",
@@ -110,7 +110,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldEnableExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+  void shouldEnableExtensionRuntime(CapturedOutput output) throws IOException {
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
@@ -143,8 +143,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldReturnNonZeroAndNotChangeConfigWhenEnablingInvalidExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output)
-    throws IOException {
+  void shouldReturnNonZeroAndNotChangeConfigWhenEnablingInvalidExtensionRuntime(CapturedOutput output) throws IOException {
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Files.createDirectories(configPath.getParent());
@@ -167,7 +166,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldDisableExtensionRuntimeAndPreserveArtifactsUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+  void shouldDisableExtensionRuntimeAndPreserveArtifacts(CapturedOutput output) throws IOException {
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
@@ -196,7 +195,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldReturnNonZeroAndPreserveInvalidConfigWhenDisablingUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+  void shouldReturnNonZeroAndPreserveInvalidConfigWhenDisabling(CapturedOutput output) throws IOException {
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
     Files.writeString(configPath, "seed4j: [broken");
@@ -211,8 +210,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldReturnNonZeroAndShowObjectiveErrorWhenRuntimeConfigIsInvalidUsingSpringManagedCommandGraph(CapturedOutput output)
-    throws IOException {
+  void shouldReturnNonZeroAndShowObjectiveErrorWhenRuntimeConfigIsInvalid(CapturedOutput output) throws IOException {
     Path extensionJarPath = createFatJar(USER_HOME.resolve("company-extension.jar"));
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Files.createDirectories(configPath.getParent());
@@ -242,7 +240,7 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
-  void shouldShowStandardRuntimeInVersionOutputUsingSpringManagedCommandGraph(CapturedOutput output) {
+  void shouldShowStandardRuntimeInVersionOutput(CapturedOutput output) {
     String[] args = { "--version" };
 
     int exitCode = commandLine().execute(args);
