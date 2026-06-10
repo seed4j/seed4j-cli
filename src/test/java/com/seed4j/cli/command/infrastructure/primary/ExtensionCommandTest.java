@@ -10,7 +10,9 @@ import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstaller;
+import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchException;
 import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitcher;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +20,8 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
@@ -41,126 +45,234 @@ class ExtensionCommandTest {
     }
   }
 
-  @Test
-  void shouldInstallExtensionRuntimeAndPrintRuntimePathsAndValidationHintsWhenInputsAreValid() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
-    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionCommand extensionCommand = extensionCommand(userHome);
-    String[] args = {
-      "install",
-      extensionJarPath.toString(),
-      "--distribution-id",
-      DISTRIBUTION_ID,
-      "--distribution-version",
-      DISTRIBUTION_VERSION,
-    };
+  @Nested
+  @DisplayName("install")
+  class Install {
 
-    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      CommandLine commandLine = new CommandLine(extensionCommand.spec());
-      int exitCode = commandLine.execute(args);
+    @Test
+    void shouldInstallExtensionRuntimeAndPrintRuntimePathsAndValidationHintsWhenInputsAreValid() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+      Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+      ExtensionCommand extensionCommand = extensionCommand(userHome);
+      String[] args = {
+        "install",
+        extensionJarPath.toString(),
+        "--distribution-id",
+        DISTRIBUTION_ID,
+        "--distribution-version",
+        DISTRIBUTION_VERSION,
+      };
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getStandardOutput())
+          .contains("Extension runtime installed")
+          .contains("Runtime jar: " + userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar"))
+          .contains("Metadata: " + userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml"))
+          .contains("Config: " + userHome.resolve(".config/seed4j-cli/config.yml"))
+          .contains("seed4j --version")
+          .contains("seed4j list");
+      }
+    }
+
+    @Test
+    void shouldWarnRuntimeReplacementWhenInstallApplicationReportsReplacement() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+      Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+      ExtensionInstallCommand installCommand = installCommand(installationResult(userHome, true));
+      ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
+      String[] args = {
+        "install",
+        extensionJarPath.toString(),
+        "--distribution-id",
+        DISTRIBUTION_ID,
+        "--distribution-version",
+        DISTRIBUTION_VERSION,
+      };
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getStandardOutput()).contains("Replaced active runtime extension.");
+      }
+    }
+
+    @Test
+    void shouldReturnNonZeroAndShowObjectiveErrorWhenConfigIsInvalid() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+      Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+      ExtensionInstallCommand installCommand = installCommandThrowing("Could not read ~/.config/seed4j-cli/config.yml. Details: broken");
+      ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
+      String[] args = {
+        "install",
+        extensionJarPath.toString(),
+        "--distribution-id",
+        DISTRIBUTION_ID,
+        "--distribution-version",
+        DISTRIBUTION_VERSION,
+      };
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isNotZero();
+        assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
+      }
+    }
+
+    @Test
+    void shouldShowRequiredOptionLabelsWhenDistributionOptionsAreMissing() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+      Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+      ExtensionCommand extensionCommand = extensionCommand(userHome);
+      String[] args = { "install", extensionJarPath.toString() };
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isEqualTo(2);
+        assertThat(outputCaptor.getStandardError()).contains("'--distribution-id=<id*>'").contains("'--distribution-version=<version*>'");
+      }
+    }
+
+    @Test
+    void shouldSendRuntimeExtensionCoordinatesToInstallApplicationWhenInstallCommandSucceeds() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
+      Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
+      CapturingRuntimeExtensionInstaller runtimeExtensionInstaller = new CapturingRuntimeExtensionInstaller(
+        installationResult(userHome, false)
+      );
+      ExtensionInstallCommand installCommand = new ExtensionInstallCommand(
+        new RuntimeExtensionInstallApplicationService(runtimeExtensionInstaller)
+      );
+      ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
+      String[] args = {
+        "install",
+        extensionJarPath.toString(),
+        "--distribution-id",
+        DISTRIBUTION_ID,
+        "--distribution-version",
+        DISTRIBUTION_VERSION,
+      };
+
+      int exitCode;
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        exitCode = commandLine.execute(args);
+
+        assertThat(outputCaptor.getStandardOutput()).contains("Extension runtime installed successfully.");
+      }
 
       assertThat(exitCode).isZero();
-      assertThat(outputCaptor.getStandardOutput())
-        .contains("Extension runtime installed")
-        .contains("Runtime jar: " + userHome.resolve(".config/seed4j-cli/runtime/active/extension.jar"))
-        .contains("Metadata: " + userHome.resolve(".config/seed4j-cli/runtime/active/metadata.yml"))
-        .contains("Config: " + userHome.resolve(".config/seed4j-cli/config.yml"))
-        .contains("seed4j --version")
-        .contains("seed4j list");
+      assertThat(runtimeExtensionInstaller.request.extensionJarPath()).isEqualTo(extensionJarPath.toString());
+      assertThat(runtimeExtensionInstaller.request.distributionId()).isEqualTo(DISTRIBUTION_ID);
+      assertThat(runtimeExtensionInstaller.request.distributionVersion()).isEqualTo(DISTRIBUTION_VERSION);
     }
   }
 
-  @Test
-  void shouldWarnRuntimeReplacementWhenInstallApplicationReportsReplacement() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
-    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionInstallCommand installCommand = installCommand(installationResult(userHome, true));
-    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
-    String[] args = {
-      "install",
-      extensionJarPath.toString(),
-      "--distribution-id",
-      DISTRIBUTION_ID,
-      "--distribution-version",
-      DISTRIBUTION_VERSION,
-    };
+  @Nested
+  @DisplayName("enable")
+  class Enable {
 
-    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      CommandLine commandLine = new CommandLine(extensionCommand.spec());
-      int exitCode = commandLine.execute(args);
+    @Test
+    void shouldEnableExtensionRuntimeAndPrintConfigPath() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-enable-command-");
+      RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher = runtimeExtensionModeSwitcher(userHome);
+      ExtensionCommand extensionCommand = extensionCommand(installCommand(userHome), runtimeExtensionModeSwitcher);
+      String[] args = { "enable" };
 
-      assertThat(exitCode).isZero();
-      assertThat(outputCaptor.getStandardOutput()).contains("Replaced active runtime extension.");
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getStandardOutput())
+          .contains("Extension runtime enabled successfully.")
+          .contains("Config: " + userHome.resolve(".config/seed4j-cli/config.yml"));
+      }
+
+      assertThat(runtimeExtensionModeSwitcher.enableCalled).isTrue();
+      assertThat(runtimeExtensionModeSwitcher.disableCalled).isFalse();
+    }
+
+    @Test
+    void shouldReturnNonZeroAndShowObjectiveErrorWhenEnableFails() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-enable-command-");
+      RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher = runtimeExtensionModeSwitcher(userHome);
+      runtimeExtensionModeSwitcher.enableException = new RuntimeExtensionModeSwitchException("Invalid runtime metadata file", null);
+      ExtensionCommand extensionCommand = extensionCommand(installCommand(userHome), runtimeExtensionModeSwitcher);
+      String[] args = { "enable" };
+
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isNotZero();
+        assertThat(outputCaptor.getStandardError()).contains("Invalid runtime metadata file");
+        assertThat(outputCaptor.getStandardOutput()).doesNotContain("Extension runtime enabled successfully.");
+      }
+
+      assertThat(runtimeExtensionModeSwitcher.enableCalled).isTrue();
+      assertThat(runtimeExtensionModeSwitcher.disableCalled).isFalse();
     }
   }
 
-  @Test
-  void shouldReturnNonZeroAndShowObjectiveErrorWhenConfigIsInvalid() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
-    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionInstallCommand installCommand = installCommandThrowing("Could not read ~/.config/seed4j-cli/config.yml. Details: broken");
-    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
-    String[] args = {
-      "install",
-      extensionJarPath.toString(),
-      "--distribution-id",
-      DISTRIBUTION_ID,
-      "--distribution-version",
-      DISTRIBUTION_VERSION,
-    };
+  @Nested
+  @DisplayName("disable")
+  class Disable {
 
-    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      CommandLine commandLine = new CommandLine(extensionCommand.spec());
-      int exitCode = commandLine.execute(args);
+    @Test
+    void shouldDisableExtensionRuntimeAndPrintConfigPath() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-disable-command-");
+      RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher = runtimeExtensionModeSwitcher(userHome);
+      ExtensionCommand extensionCommand = extensionCommand(installCommand(userHome), runtimeExtensionModeSwitcher);
+      String[] args = { "disable" };
 
-      assertThat(exitCode).isNotZero();
-      assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
+
+        assertThat(exitCode).isZero();
+        assertThat(outputCaptor.getStandardOutput())
+          .contains("Extension runtime disabled successfully.")
+          .contains("Config: " + userHome.resolve(".config/seed4j-cli/config.yml"));
+      }
+
+      assertThat(runtimeExtensionModeSwitcher.enableCalled).isFalse();
+      assertThat(runtimeExtensionModeSwitcher.disableCalled).isTrue();
     }
-  }
 
-  @Test
-  void shouldShowRequiredOptionLabelsWhenDistributionOptionsAreMissing() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
-    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    ExtensionCommand extensionCommand = extensionCommand(userHome);
-    String[] args = { "install", extensionJarPath.toString() };
+    @Test
+    void shouldReturnNonZeroAndShowObjectiveErrorWhenDisableFails() throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-extension-disable-command-");
+      RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher = runtimeExtensionModeSwitcher(userHome);
+      runtimeExtensionModeSwitcher.disableException = new RuntimeExtensionModeSwitchException(
+        "Could not read ~/.config/seed4j-cli/config.yml. Details: broken",
+        null
+      );
+      ExtensionCommand extensionCommand = extensionCommand(installCommand(userHome), runtimeExtensionModeSwitcher);
+      String[] args = { "disable" };
 
-    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
-      CommandLine commandLine = new CommandLine(extensionCommand.spec());
-      int exitCode = commandLine.execute(args);
+      try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+        CommandLine commandLine = new CommandLine(extensionCommand.spec());
+        int exitCode = commandLine.execute(args);
 
-      assertThat(exitCode).isEqualTo(2);
-      assertThat(outputCaptor.getStandardError()).contains("'--distribution-id=<id*>'").contains("'--distribution-version=<version*>'");
+        assertThat(exitCode).isNotZero();
+        assertThat(outputCaptor.getStandardError()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
+        assertThat(outputCaptor.getStandardOutput()).doesNotContain("Extension runtime disabled successfully.");
+      }
+
+      assertThat(runtimeExtensionModeSwitcher.enableCalled).isFalse();
+      assertThat(runtimeExtensionModeSwitcher.disableCalled).isTrue();
     }
-  }
-
-  @Test
-  void shouldSendRuntimeExtensionCoordinatesToInstallApplicationWhenInstallCommandSucceeds() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-extension-install-command-");
-    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"));
-    CapturingRuntimeExtensionInstaller runtimeExtensionInstaller = new CapturingRuntimeExtensionInstaller(
-      installationResult(userHome, false)
-    );
-    ExtensionInstallCommand installCommand = new ExtensionInstallCommand(
-      new RuntimeExtensionInstallApplicationService(runtimeExtensionInstaller)
-    );
-    ExtensionCommand extensionCommand = extensionCommand(installCommand, userHome);
-    String[] args = {
-      "install",
-      extensionJarPath.toString(),
-      "--distribution-id",
-      DISTRIBUTION_ID,
-      "--distribution-version",
-      DISTRIBUTION_VERSION,
-    };
-
-    CommandLine commandLine = new CommandLine(extensionCommand.spec());
-    int exitCode = commandLine.execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(runtimeExtensionInstaller.request.extensionJarPath()).isEqualTo(extensionJarPath.toString());
-    assertThat(runtimeExtensionInstaller.request.distributionId()).isEqualTo(DISTRIBUTION_ID);
-    assertThat(runtimeExtensionInstaller.request.distributionVersion()).isEqualTo(DISTRIBUTION_VERSION);
   }
 
   private static ExtensionInstallCommand installCommand(Path userHome) {
@@ -172,8 +284,15 @@ class ExtensionCommandTest {
   }
 
   private static ExtensionCommand extensionCommand(ExtensionInstallCommand installCommand, Path userHome) {
+    return extensionCommand(installCommand, runtimeExtensionModeSwitcher(userHome));
+  }
+
+  private static ExtensionCommand extensionCommand(
+    ExtensionInstallCommand installCommand,
+    RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher
+  ) {
     RuntimeExtensionModeApplicationService modeApplicationService = new RuntimeExtensionModeApplicationService(
-      new RuntimeExtensionModeSwitcherStub(userHome)
+      runtimeExtensionModeSwitcher
     );
 
     return new ExtensionCommand(
@@ -202,6 +321,10 @@ class ExtensionCommandTest {
       userHome.resolve(".config/seed4j-cli/config.yml"),
       runtimeReplaced
     );
+  }
+
+  private static RuntimeExtensionModeSwitcherStub runtimeExtensionModeSwitcher(Path userHome) {
+    return new RuntimeExtensionModeSwitcherStub(userHome.resolve(".config/seed4j-cli/config.yml"));
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {
@@ -234,22 +357,36 @@ class ExtensionCommandTest {
     }
   }
 
-  private static final class RuntimeExtensionModeSwitcherStub implements com.seed4j.cli.command.domain.RuntimeExtensionModeSwitcher {
+  private static final class RuntimeExtensionModeSwitcherStub implements RuntimeExtensionModeSwitcher {
 
-    private final Path userHome;
+    private final Path configPath;
+    private RuntimeExtensionModeSwitchException enableException;
+    private RuntimeExtensionModeSwitchException disableException;
+    private boolean enableCalled;
+    private boolean disableCalled;
 
-    private RuntimeExtensionModeSwitcherStub(Path userHome) {
-      this.userHome = userHome;
+    private RuntimeExtensionModeSwitcherStub(Path configPath) {
+      this.configPath = configPath;
     }
 
     @Override
     public RuntimeExtensionModeSwitchResult enable() {
-      return new RuntimeExtensionModeSwitchResult(userHome.resolve(".config/seed4j-cli/config.yml"));
+      enableCalled = true;
+      if (enableException != null) {
+        throw enableException;
+      }
+
+      return new RuntimeExtensionModeSwitchResult(configPath);
     }
 
     @Override
     public RuntimeExtensionModeSwitchResult disable() {
-      return new RuntimeExtensionModeSwitchResult(userHome.resolve(".config/seed4j-cli/config.yml"));
+      disableCalled = true;
+      if (disableException != null) {
+        throw disableException;
+      }
+
+      return new RuntimeExtensionModeSwitchResult(configPath);
     }
   }
 }
