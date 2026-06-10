@@ -1,4 +1,4 @@
-package com.seed4j.cli.bootstrap.domain;
+package com.seed4j.cli.bootstrap.infrastructure.primary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,83 +15,38 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class ExtensionRuntimeBootstrapApplyPackagedJarIT {
+class ExtensionRuntimeBootstrapApplyPackagedJarSmokeIT {
 
-  private static final String OVERRIDDEN_PRETTIER_VERSION = "3.6.2";
-  private static final String OVERRIDDEN_PRETTIER_TEMPLATE_MARKER = "seed4j-extension-template-override";
   private static final String EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG = "runtime-extension-apply-shared-context";
 
   @Test
-  void shouldOverrideCorePrettierDependencyVersionsWhenExtensionCollidesOnCommonSource() throws IOException, InterruptedException {
+  void shouldApplyExtensionModuleThroughThePackagedJar() throws IOException, InterruptedException {
     Path packagedCliJar = packagedCliJar();
-    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-common-standard-");
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-common-extension-");
-    ExtensionRuntimeFixture.installWithApplyCommonSourceOverrideExtensionModule(extensionUserHome);
-    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-standard-project-");
-    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-extension-project-");
-
-    PackagedRunResult standardInitResult = runApplyInit(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
-    PackagedRunResult standardPrettierResult = runApplyPrettier(packagedCliJar, standardUserHome, standardProjectPath);
-    PackagedRunResult extensionPrettierResult = runApplyPrettier(packagedCliJar, extensionUserHome, extensionProjectPath);
-
-    String standardPackageJson = Files.readString(standardProjectPath.resolve("package.json"));
-
-    assertThat(standardInitResult.finished()).isTrue();
-    assertThat(standardInitResult.exitCode()).isZero();
-    assertThat(extensionInitResult.finished()).isTrue();
-    assertThat(extensionInitResult.exitCode())
-      .withFailMessage("Expected extension init command to succeed but got output:%n%s", extensionInitResult.output())
-      .isZero();
-    assertThat(standardPrettierResult.finished()).isTrue();
-    assertThat(standardPrettierResult.exitCode()).isZero();
-    assertThat(extensionPrettierResult.finished()).isTrue();
-    assertThat(extensionPrettierResult.exitCode())
-      .withFailMessage("Expected extension prettier command to succeed but got output:%n%s", extensionPrettierResult.output())
-      .isZero();
-
-    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
-    assertThat(standardPackageJson).doesNotContain("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
-    assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
-  }
-
-  @Test
-  void shouldApplyExtensionModuleUsingTheSameGlobalRuntimeReadersAndResources() throws IOException, InterruptedException {
-    Path packagedCliJar = packagedCliJar();
-    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-extension-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-smoke-extension-");
+    Path projectPath = Files.createTempDirectory("seed4j-cli-apply-smoke-project-");
     ExtensionRuntimeFixture.installWithApplyExtensionModuleUsingSharedRuntimeOverrides(extensionUserHome);
-    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-project-");
 
-    PackagedRunResult extensionInitResult = runApplyInit(packagedCliJar, extensionUserHome, extensionProjectPath);
+    PackagedRunResult initResult = runApplyInit(packagedCliJar, extensionUserHome, projectPath);
     PackagedRunResult extensionModuleApplyResult = runApplyWithoutBaseNameAndProjectName(
       packagedCliJar,
       extensionUserHome,
-      extensionProjectPath,
+      projectPath,
       EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG
     );
 
-    assertThat(extensionInitResult.finished()).isTrue();
-    assertThat(extensionInitResult.exitCode()).isZero();
+    assertThat(initResult.finished()).isTrue();
+    assertThat(initResult.exitCode()).isZero();
     assertThat(extensionModuleApplyResult.finished()).isTrue();
     assertThat(extensionModuleApplyResult.exitCode())
       .withFailMessage("Expected extension apply module command to succeed but got output:%n%s", extensionModuleApplyResult.output())
       .isZero();
-
-    String extensionPackageJson = Files.readString(extensionProjectPath.resolve("package.json"));
-    String extensionPrettierConfiguration = Files.readString(extensionProjectPath.resolve(".prettierrc"));
-
-    assertThat(extensionPackageJson).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
-    assertThat(extensionPrettierConfiguration).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+    assertThat(projectPath.resolve("package.json")).exists();
+    assertThat(projectPath.resolve(".prettierrc")).exists();
   }
 
   private static PackagedRunResult runApplyInit(Path packagedCliJar, Path userHome, Path projectPath)
     throws IOException, InterruptedException {
     return runApply(packagedCliJar, userHome, projectPath, "init", "--node-package-manager", "npm");
-  }
-
-  private static PackagedRunResult runApplyPrettier(Path packagedCliJar, Path userHome, Path projectPath)
-    throws IOException, InterruptedException {
-    return runApply(packagedCliJar, userHome, projectPath, "prettier");
   }
 
   private static PackagedRunResult runApplyWithoutBaseNameAndProjectName(

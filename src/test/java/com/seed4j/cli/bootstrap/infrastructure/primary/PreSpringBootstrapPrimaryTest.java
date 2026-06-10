@@ -29,6 +29,7 @@ import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlay
 import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -67,6 +68,8 @@ class PreSpringBootstrapPrimaryTest {
   private static final String CUSTOM_PACKAGE_EXTENSION_ONLY_SLUG = "runtime-extension-custom-package-list-only";
   private static final String CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE = "gradle-java";
   private static final String EXTENSION_SHARED_RUNTIME_APPLY_MODULE_SLUG = "runtime-extension-apply-shared-context";
+  private static final String OVERRIDDEN_PRETTIER_VERSION = "3.6.2";
+  private static final String OVERRIDDEN_PRETTIER_TEMPLATE_MARKER = "seed4j-extension-template-override";
   private static final String SPRING_BOOT_BANNER_MARKER = " :: Spring Boot :: ";
   private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
   private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
@@ -212,8 +215,44 @@ class PreSpringBootstrapPrimaryTest {
       assertThat(extensionModuleApplyResult.exitCode())
         .withFailMessage("Expected extension apply module command to succeed but got output:%n%s", extensionModuleApplyResult.output())
         .isZero();
-      assertThat(projectPath.resolve("package.json")).exists();
-      assertThat(projectPath.resolve(".prettierrc")).exists();
+      assertThat(Files.readString(projectPath.resolve("package.json"))).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
+      assertThat(Files.readString(projectPath.resolve(".prettierrc"))).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
+  void shouldOverrideCorePrettierDependencyVersionsOnlyInExtensionModeThroughThePreSpringPrimaryRunner() throws IOException {
+    Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-common-standard-primary-");
+    Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-common-extension-primary-");
+    Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-standard-project-primary-");
+    Path extensionProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-extension-project-primary-");
+    ExtensionRuntimeFixture.installWithApplyCommonSourceOverrideExtensionModule(extensionUserHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult standardInitResult = applyInit(runner(standardUserHome), standardProjectPath);
+      CliLaunchResult extensionInitResult = applyInit(runner(extensionUserHome), extensionProjectPath);
+      CliLaunchResult standardPrettierResult = applyPrettier(runner(standardUserHome), standardProjectPath);
+      CliLaunchResult extensionPrettierResult = applyPrettier(runner(extensionUserHome), extensionProjectPath);
+
+      assertThat(standardInitResult.exitCode()).isZero();
+      assertThat(extensionInitResult.exitCode())
+        .withFailMessage("Expected extension init command to succeed but got output:%n%s", extensionInitResult.output())
+        .isZero();
+      assertThat(standardPrettierResult.exitCode()).isZero();
+      assertThat(extensionPrettierResult.exitCode())
+        .withFailMessage("Expected extension prettier command to succeed but got output:%n%s", extensionPrettierResult.output())
+        .isZero();
+      assertThat(Files.readString(standardProjectPath.resolve("package.json"))).doesNotContain(
+        "\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\""
+      );
+      assertThat(Files.readString(extensionProjectPath.resolve("package.json"))).contains(
+        "\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\""
+      );
     } finally {
       baselineProperties.restore();
     }
@@ -415,20 +454,34 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   private static CliLaunchResult applyInit(PreSpringBootstrapRunner runner, Path projectPath) {
-    return launchCapturingOutput(
-      runner,
-      "apply",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--base-name",
-      "sampleapp",
-      "--project-name",
-      "Sample App",
-      "--no-commit",
-      "--node-package-manager",
-      "npm"
+    return apply(runner, projectPath, "init", "--node-package-manager", "npm");
+  }
+
+  private static CliLaunchResult applyPrettier(PreSpringBootstrapRunner runner, Path projectPath) {
+    return apply(runner, projectPath, "prettier");
+  }
+
+  private static CliLaunchResult apply(
+    PreSpringBootstrapRunner runner,
+    Path projectPath,
+    String moduleSlug,
+    String... additionalArguments
+  ) {
+    List<String> arguments = new ArrayList<>(
+      List.of(
+        "apply",
+        moduleSlug,
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "sampleapp",
+        "--project-name",
+        "Sample App",
+        "--no-commit"
+      )
     );
+    arguments.addAll(List.of(additionalArguments));
+    return launchCapturingOutput(runner, arguments.toArray(String[]::new));
   }
 
   private static Stream<Arguments> invalidRuntimeConfigurationContents() {
@@ -793,7 +846,7 @@ class PreSpringBootstrapPrimaryTest {
       try {
         Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
         return new RuntimeExtensionClassLoader(
-          new URL[] { overlayClassesPath.toUri().toURL(), rawExtensionJarPath.toUri().toURL(), request.executableJar().toUri().toURL() },
+          childRuntimeUrls(overlayClassesPath, rawExtensionJarPath, request.executableJar()),
           parentClassLoader
         );
       } catch (MalformedURLException malformedURLException) {
@@ -802,6 +855,19 @@ class PreSpringBootstrapPrimaryTest {
           malformedURLException
         );
       }
+    }
+
+    private URL[] childRuntimeUrls(Path overlayClassesPath, Path rawExtensionJarPath, Path executableJarPath) throws MalformedURLException {
+      List<URL> urls = new ArrayList<>();
+      urls.add(overlayClassesPath.toUri().toURL());
+      urls.add(rawExtensionJarPath.toUri().toURL());
+      urls.add(executableJarPath.toUri().toURL());
+      for (String classPathEntry : System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator))) {
+        if (!classPathEntry.isBlank()) {
+          urls.add(Path.of(classPathEntry).toUri().toURL());
+        }
+      }
+      return urls.toArray(URL[]::new);
     }
 
     private void closeQuietly(URLClassLoader childRuntimeClassLoader) {
@@ -816,6 +882,7 @@ class PreSpringBootstrapPrimaryTest {
   private static final class RuntimeExtensionClassLoader extends URLClassLoader {
 
     private static final String FIXTURE_CLASS_PREFIX = "com.mycompany.seed4j.extension.runtime.";
+    private static final String PROJECT_FILES_CLASS = "com.seed4j.module.infrastructure.secondary.FileSystemProjectFiles";
     private static final String FIXTURE_RESOURCE_PREFIX = "com/mycompany/seed4j/extension/runtime/";
     private static final String GENERATOR_RESOURCE_PREFIX = "generator/";
 
@@ -838,11 +905,15 @@ class PreSpringBootstrapPrimaryTest {
     }
 
     private Class<?> loadClassFromExtensionOrParent(String name) throws ClassNotFoundException {
-      if (name.startsWith(FIXTURE_CLASS_PREFIX)) {
+      if (extensionClassLookup(name)) {
         return findClass(name);
       }
 
       return super.loadClass(name, false);
+    }
+
+    private boolean extensionClassLookup(String name) {
+      return name.startsWith(FIXTURE_CLASS_PREFIX) || PROJECT_FILES_CLASS.equals(name);
     }
 
     @Override
