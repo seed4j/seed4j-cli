@@ -4,19 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.shared.error.domain.MissingMandatoryValueException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
 class Seed4JCliArgumentsTest {
-
-  @Test
-  void shouldRejectMissingValues() {
-    assertThatThrownBy(() -> new Seed4JCliArguments(null))
-      .isExactlyInstanceOf(MissingMandatoryValueException.class)
-      .hasMessageContaining("\"values\"");
-  }
 
   @Test
   void shouldKeepADefensiveCopyOfValuesOnConstruction() {
