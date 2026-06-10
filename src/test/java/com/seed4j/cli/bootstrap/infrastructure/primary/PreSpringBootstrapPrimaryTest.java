@@ -78,7 +78,7 @@ class PreSpringBootstrapPrimaryTest {
   private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
   @Test
-  void shouldExecuteVersionCommandInExtensionModeThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldExecuteVersionCommandInExtensionMode() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-version-primary-");
     ExtensionRuntimeFixture.install(userHome);
     PreSpringBootstrapRunner runner = runner(userHome);
@@ -101,7 +101,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlugThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlug() throws IOException {
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-standard-catalog-primary-");
     Path extensionUserHome = Files.createTempDirectory("seed4j-cli-extension-catalog-primary-");
     ExtensionRuntimeFixture.installWithListExtensionModule(extensionUserHome);
@@ -130,7 +130,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldListCustomPackageExtensionOnlySlugThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldListCustomPackageExtensionOnlySlug() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-custom-extension-catalog-primary-");
     ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(userHome);
     ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
@@ -149,7 +149,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldKeepCoreModulesVisibleWhenExtensionPublishesHiddenResourceOverridesThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldKeepCoreModulesVisibleWhenExtensionPublishesHiddenResourceOverrides() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-hidden-resources-primary-");
     ExtensionRuntimeFixture.installWithListExtensionModuleAndHiddenResourcesOverrides(userHome);
     ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
@@ -168,7 +168,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldKeepOperationalOutputCleanWhenExtensionPublishesLoggingOverridesThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldKeepOperationalOutputCleanWhenExtensionPublishesLoggingOverrides() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-logging-primary-");
     ExtensionRuntimeFixture.installWithListExtensionModuleAndRegressionOverrides(userHome);
     PreSpringBootstrapRunner runner = runner(userHome);
@@ -207,7 +207,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldApplyExtensionModuleUsingSharedRuntimeResourcesThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldApplyExtensionModuleUsingSharedRuntimeResources() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-primary-");
     Path projectPath = Files.createTempDirectory("seed4j-cli-apply-shared-runtime-project-primary-");
     ExtensionRuntimeFixture.installWithApplyExtensionModuleUsingSharedRuntimeOverrides(userHome);
@@ -240,7 +240,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldOverrideCorePrettierDependencyVersionsOnlyInExtensionModeThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldOverrideCorePrettierDependencyVersionsOnlyInExtensionMode() throws IOException {
     Path standardUserHome = Files.createTempDirectory("seed4j-cli-apply-common-standard-primary-");
     Path extensionUserHome = Files.createTempDirectory("seed4j-cli-apply-common-extension-primary-");
     Path standardProjectPath = Files.createTempDirectory("seed4j-cli-apply-common-standard-project-primary-");
@@ -277,7 +277,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldFailBeforeChildRuntimeWhenExtensionRuntimeJarIsFlatThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldFailBeforeChildRuntimeWhenExtensionRuntimeJarIsFlat() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-invalid-extension-primary-");
     ExtensionRuntimeFixture.installWithFlatJar(userHome);
     ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
@@ -296,7 +296,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldLaunchTheStandardChildRuntimeWithArgumentsThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldLaunchTheStandardChildRuntimeWithArguments() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-standard-child-primary-");
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
 
@@ -315,7 +315,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldIgnoreLegacyRuntimeConfigPathThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldIgnoreLegacyRuntimeConfigPath() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-legacy-config-primary-");
     Path legacyConfigPath = userHome.resolve(".config/seed4j-cli.yml");
     Files.createDirectories(legacyConfigPath.getParent());
@@ -339,10 +339,8 @@ class PreSpringBootstrapPrimaryTest {
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("standardModeConfigurationContents")
-  void shouldLaunchTheStandardChildRuntimeWhenConfigDoesNotSelectExtensionModeThroughThePreSpringPrimaryRunner(
-    String scenarioName,
-    String configContent
-  ) throws IOException {
+  void shouldLaunchTheStandardChildRuntimeWhenConfigDoesNotSelectExtensionMode(String scenarioName, String configContent)
+    throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-standard-config-primary-");
     writeRuntimeConfiguration(userHome, configContent);
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
@@ -359,7 +357,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldLaunchTheExtensionChildRuntimeWithActiveDistributionThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldLaunchTheExtensionChildRuntimeWithActiveDistribution() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-child-primary-");
     ExtensionRuntimeFixturePaths extensionPaths = ExtensionRuntimeFixture.install(userHome);
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
@@ -380,7 +378,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldPropagateDebugToExtensionChildRuntimeAndParentDiagnosticsThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldPropagateDebugToExtensionChildRuntimeAndParentDiagnostics() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-debug-primary-");
     ExtensionRuntimeFixture.install(userHome);
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
@@ -396,7 +394,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldRunStandardModeLocallyOutsidePackagedJarThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldRunStandardModeLocallyOutsidePackagedJar() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-standard-local-primary-");
     Path executableDirectory = Files.createTempDirectory("seed4j-cli-classes-primary-");
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.withExecutablePath(userHome, executableDirectory, false);
@@ -410,7 +408,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldRunLocallyWhenAlreadyExecutingAsAChildRuntimeThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldRunLocallyWhenAlreadyExecutingAsAChildRuntime() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-child-mode-primary-");
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.withExecutablePath(
       userHome,
@@ -427,10 +425,7 @@ class PreSpringBootstrapPrimaryTest {
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("invalidRuntimeConfigurationContents")
-  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationIsInvalidThroughThePreSpringPrimaryRunner(
-    String scenarioName,
-    String configContent
-  ) throws IOException {
+  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationIsInvalid(String scenarioName, String configContent) throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-invalid-config-primary-");
     writeRuntimeConfiguration(userHome, configContent);
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
@@ -444,7 +439,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationCannotBeReadThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldFailBeforeChildRuntimeWhenRuntimeConfigurationCannotBeRead() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-unreadable-config-primary-");
     Files.createDirectories(runtimeConfigurationPath(userHome));
     PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
@@ -458,7 +453,7 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
-  void shouldFailBeforeChildRuntimeWhenExtensionModeRunsOutsidePackagedJarThroughThePreSpringPrimaryRunner() throws IOException {
+  void shouldFailBeforeChildRuntimeWhenExtensionModeRunsOutsidePackagedJar() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-extension-local-primary-");
     ExtensionRuntimeFixture.install(userHome);
     Path executableDirectory = Files.createTempDirectory("seed4j-cli-extension-classes-primary-");
