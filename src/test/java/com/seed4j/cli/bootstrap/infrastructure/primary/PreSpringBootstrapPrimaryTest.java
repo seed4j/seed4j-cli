@@ -147,6 +147,7 @@ class PreSpringBootstrapPrimaryTest {
 
       assertThat(listLaunch.exitCode()).isZero();
       assertThat(listLaunch.output()).contains(EXTENSION_ONLY_SLUG).contains(CORE_SLUG_THAT_EXTENSION_TRIES_TO_HIDE);
+      assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
     }
@@ -185,6 +186,7 @@ class PreSpringBootstrapPrimaryTest {
         .doesNotContain(EXTENSION_APPLICATION_OVERRIDE_MARKER)
         .doesNotContain("Missing watchable .xml or .properties files")
         .doesNotContain("Watching .xml files requires that the main configuration file is reachable as a URL");
+      assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
     }
@@ -217,6 +219,7 @@ class PreSpringBootstrapPrimaryTest {
         .isZero();
       assertThat(Files.readString(projectPath.resolve("package.json"))).contains("\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\"");
       assertThat(Files.readString(projectPath.resolve(".prettierrc"))).contains(OVERRIDDEN_PRETTIER_TEMPLATE_MARKER);
+      assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
     }
@@ -253,6 +256,7 @@ class PreSpringBootstrapPrimaryTest {
       assertThat(Files.readString(extensionProjectPath.resolve("package.json"))).contains(
         "\"prettier\": \"" + OVERRIDDEN_PRETTIER_VERSION + "\""
       );
+      assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
     }
@@ -271,6 +275,7 @@ class PreSpringBootstrapPrimaryTest {
 
       assertThat(versionLaunch.exitCode()).isNotZero();
       assertThat(versionLaunch.output()).contains("BOOT-INF/classes");
+      assertBaselineRuntimePropertiesRestored();
     } finally {
       baselineProperties.restore();
     }
