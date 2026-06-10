@@ -73,6 +73,43 @@ class Seed4JCommandsSpringContextTest {
   }
 
   @Test
+  void shouldReplaceActiveExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
+    Path extensionJarPath = createFatJar(
+      USER_HOME.resolve("company-extension.jar"),
+      "BOOT-INF/classes/com/company/New.class",
+      new byte[] { 2, 3 }
+    );
+    Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
+    Path metadataPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
+    Files.createDirectories(runtimeJarPath.getParent());
+    createFatJar(runtimeJarPath, "BOOT-INF/classes/com/company/Legacy.class", new byte[] { 1 });
+    Files.writeString(
+      metadataPath,
+      """
+      distribution:
+        id: legacy-extension
+        version: 0.9.0
+      """
+    );
+    String[] args = {
+      "extension",
+      "install",
+      extensionJarPath.toString(),
+      "--distribution-id",
+      DISTRIBUTION_ID,
+      "--distribution-version",
+      DISTRIBUTION_VERSION,
+    };
+
+    int exitCode = commandLine().execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output.getOut()).contains("Replaced active runtime extension.").contains("Extension runtime installed successfully.");
+    assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
+    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+  }
+
+  @Test
   void shouldEnableExtensionRuntimeUsingSpringManagedCommandGraph(CapturedOutput output) throws IOException {
     Path configPath = USER_HOME.resolve(".config/seed4j-cli/config.yml");
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
@@ -219,6 +256,10 @@ class Seed4JCommandsSpringContextTest {
   }
 
   private static Path createFatJar(Path jarPath) throws IOException {
+    return createFatJar(jarPath, "BOOT-INF/classes/", new byte[] {});
+  }
+
+  private static Path createFatJar(Path jarPath, String additionalEntryName, byte[] additionalEntryContent) throws IOException {
     Manifest manifest = new Manifest();
     manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
     try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
@@ -226,6 +267,11 @@ class Seed4JCommandsSpringContextTest {
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
       jarOutputStream.closeEntry();
+      if (!"BOOT-INF/classes/".equals(additionalEntryName)) {
+        jarOutputStream.putNextEntry(new JarEntry(additionalEntryName));
+        jarOutputStream.write(additionalEntryContent);
+        jarOutputStream.closeEntry();
+      }
     }
 
     return jarPath;
