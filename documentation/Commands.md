@@ -250,7 +250,8 @@ After this basic setup, you can add more specific modules based on your project 
 Most commands accept additional options and parameters:
 
 - `--project-path=<projectpath>`: Specifies the project directory (defaults to current directory)
-- `--[no-]commit`: Whether to commit changes to git (defaults to true)
+- `--[no-]commit`: Initializes Git if needed and commits generated changes (defaults to true). `--no-commit` skips both Git
+  initialization and commit.
 - `--debug`: Enables runtime bootstrap diagnostics (mainly for `extension` mode runtime troubleshooting)
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)

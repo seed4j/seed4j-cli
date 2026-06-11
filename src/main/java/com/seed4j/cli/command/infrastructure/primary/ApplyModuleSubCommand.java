@@ -71,7 +71,13 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .build()
     );
 
-    spec.addOption(OptionSpec.builder(COMMIT_OPTION).description("Commit changes").negatable(true).type(Boolean.class).build());
+    spec.addOption(
+      OptionSpec.builder(COMMIT_OPTION)
+        .description("Initialize Git if needed and commit generated changes; --no-commit skips Git init and commit")
+        .negatable(true)
+        .type(Boolean.class)
+        .build()
+    );
 
     properties
       .stream()
