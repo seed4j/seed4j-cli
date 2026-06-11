@@ -16,6 +16,14 @@ LLMs can read the same CLI help and still apply different safety heuristics. For
 
 Text help is advisory. MCP tool schemas can make intent harder to misread by using explicit fields, enums, defaults, validation, and structured errors. That said, if a model can still call the CLI directly, the CLI itself must continue to be safe and clear for machine callers.
 
+## CLI and MCP Boundary
+
+Seed4J CLI is the organic, zero-setup entry point for humans, scripts, CI, Docker, documentation examples, and LLMs that have terminal access. It should stay simple, local, scriptable, and useful without requiring an MCP-compatible host.
+
+Seed4J MCP is the structured integration path for agents running in MCP-compatible clients. It is the better home for rich planning workflows, prompts, resources, schema-driven tool calls, previews, and guided validation.
+
+Do not duplicate MCP workflows in the CLI just to make a textual version of the same agent experience. Add CLI features when they improve the terminal-native experience or provide clear zero-setup value. When both surfaces need the same concept or rule, keep the contract aligned and move shared behavior into a common core when practical.
+
 ## CLI Guidance
 
 - Prefer commands and options that represent user intent rather than implementation details.
