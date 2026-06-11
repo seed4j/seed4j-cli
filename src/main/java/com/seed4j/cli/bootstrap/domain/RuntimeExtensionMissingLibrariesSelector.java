@@ -69,9 +69,7 @@ public final class RuntimeExtensionMissingLibrariesSelector {
     );
 
     return switch (versionComparison) {
-      case EXTENSION_OLDER -> {
-        yield Optional.empty();
-      }
+      case EXTENSION_OLDER -> Optional.empty();
       case SAME_VERSION -> Optional.empty();
       case EXTENSION_NEWER -> Optional.of(
         "Extension runtime library conflict detected for coordinate '"
