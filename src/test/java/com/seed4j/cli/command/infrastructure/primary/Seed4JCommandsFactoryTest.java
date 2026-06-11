@@ -187,6 +187,18 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldExplainCommitOptionInitializesGitAndNoCommitSkipsGit(CapturedOutput output) {
+      String[] args = { "apply", "init", "--help" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("Initialize Git if needed and commit generated changes")
+        .contains("--no-commit skips Git init and commit");
+    }
+
+    @Test
     void shouldApplyInitModuleWithRequiredOptions() throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = {
