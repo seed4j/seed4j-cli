@@ -21,14 +21,9 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   @ValueSource(strings = { "v1.2.0", "V1.2.0" })
   void shouldKeepCliRuntimeLibraryWhenVersionMatchesAfterNormalizingVPrefix(String extensionVersion) {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "shared-lib-" + extensionVersion + ".jar",
-        Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", extensionVersion))
-      )
+      libraryEntry("shared-lib-" + extensionVersion + ".jar", "com.acme:shared-lib", extensionVersion)
     );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("shared-lib-1.2.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2.0")))
-    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("shared-lib-1.2.0.jar", "com.acme:shared-lib", "1.2.0"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -38,17 +33,9 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   @Test
   void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderNumericVersionForSameCoordinate() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "logback-classic-1.5.22.jar",
-        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.22"))
-      )
+      libraryEntry("logback-classic-1.5.22.jar", "ch.qos.logback:logback-classic", "1.5.22")
     );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "logback-classic-1.5.32.jar",
-        Optional.of(new RuntimeLibraryIdentity("ch.qos.logback:logback-classic", "1.5.32"))
-      )
-    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("logback-classic-1.5.32.jar", "ch.qos.logback:logback-classic", "1.5.32"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -57,12 +44,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldKeepCliRuntimeLibraryWhenVersionsDifferOnlyByTrailingZeroSegments() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("shared-lib-1.2.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2")))
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("shared-lib-1.2.0.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.2.0")))
-    );
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(libraryEntry("shared-lib-1.2.jar", "com.acme:shared-lib", "1.2"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("shared-lib-1.2.0.jar", "com.acme:shared-lib", "1.2.0"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -71,12 +54,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldKeepCliRuntimeLibraryWhenExtensionUsesOlderFinalQualifiedVersionForSameCoordinate() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("hibernate-core-7.2.0.Final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.0.Final")))
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("hibernate-core-7.2.12.final.jar", Optional.of(new RuntimeLibraryIdentity("hibernate-core", "7.2.12.final")))
-    );
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(libraryEntry("hibernate-core-7.2.0.Final.jar", "hibernate-core", "7.2.0.Final"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("hibernate-core-7.2.12.final.jar", "hibernate-core", "7.2.12.final"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -86,16 +65,10 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   @Test
   void shouldNotFailWhenCoordinateHasSameNonNumericVersionInCliAndExtension() {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        "org.eclipse.jgit-7.5.0.202512021534-r.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r"))
-      )
+      libraryEntry("org.eclipse.jgit-7.5.0.202512021534-r.jar", "org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r")
     );
     Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(
-        "org.eclipse.jgit-7.5.0.202512021534-r.jar",
-        Optional.of(new RuntimeLibraryIdentity("org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r"))
-      )
+      libraryEntry("org.eclipse.jgit-7.5.0.202512021534-r.jar", "org.eclipse.jgit:org.eclipse.jgit", "7.5.0.202512021534-r")
     );
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
@@ -107,14 +80,9 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
   @MethodSource("notSafelyComparableVersionScenarios")
   void shouldFailFastWhenVersionsAreNotSafelyComparable(String scenarioName, NotSafelyComparableVersionScenario scenario) {
     List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry(
-        scenario.extensionFileName(),
-        Optional.of(new RuntimeLibraryIdentity(scenario.coordinate(), scenario.extensionVersion()))
-      )
+      libraryEntry(scenario.extensionFileName(), scenario.coordinate(), scenario.extensionVersion())
     );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry(scenario.cliFileName(), Optional.of(new RuntimeLibraryIdentity(scenario.coordinate(), scenario.cliVersion())))
-    );
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry(scenario.cliFileName(), scenario.coordinate(), scenario.cliVersion()));
 
     assertThatThrownBy(() -> new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries))
       .isInstanceOf(InvalidRuntimeConfigurationException.class)
@@ -229,12 +197,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldClassifyLibraryAsPresentWhenIdentityMatchesCliEvenWithDifferentFileName() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("extension-shaded.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("cli-renamed.jar", Optional.of(new RuntimeLibraryIdentity("com.acme:shared-lib", "1.0.0")))
-    );
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(libraryEntry("extension-shaded.jar", "com.acme:shared-lib", "1.0.0"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("cli-renamed.jar", "com.acme:shared-lib", "1.0.0"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -243,12 +207,8 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
 
   @Test
   void shouldClassifyLibraryAsMissingWhenIdentityDiffersWithoutCoordinateVersionConflict() {
-    List<RuntimeLibraryEntry> extensionLibraries = List.of(
-      new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.extension:bundle", "2.0.0")))
-    );
-    Set<RuntimeLibraryEntry> cliLibraries = Set.of(
-      new RuntimeLibraryEntry("bundle-all.jar", Optional.of(new RuntimeLibraryIdentity("com.cli:bundle", "1.0.0")))
-    );
+    List<RuntimeLibraryEntry> extensionLibraries = List.of(libraryEntry("bundle-all.jar", "com.extension:bundle", "2.0.0"));
+    Set<RuntimeLibraryEntry> cliLibraries = Set.of(libraryEntry("bundle-all.jar", "com.cli:bundle", "1.0.0"));
 
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
@@ -347,6 +307,13 @@ class RuntimeExtensionMissingLibrariesSelectorTest {
     List<String> missingLibraries = new RuntimeExtensionMissingLibrariesSelector().select(extensionLibraries, cliLibraries);
 
     assertThat(missingLibraries).containsExactly("shared-lib-custom.jar");
+  }
+
+  private static RuntimeLibraryEntry libraryEntry(String fileName, String coordinate, String version) {
+    return new RuntimeLibraryEntry(
+      new RuntimeLibraryFileName(fileName),
+      Optional.of(new RuntimeLibraryIdentity(new RuntimeLibraryCoordinate(coordinate), new RuntimeLibraryVersion(version)))
+    );
   }
 
   private record NotSafelyComparableVersionScenario(

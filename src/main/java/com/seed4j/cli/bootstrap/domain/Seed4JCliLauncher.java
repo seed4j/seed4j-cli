@@ -68,11 +68,16 @@ public class Seed4JCliLauncher {
   }
 
   private boolean notRunningFromARegularJar() {
-    return !packagedExecutableDetector.packagedExecutable(seed4jCliRuntime.executableJar());
+    return !packagedExecutableDetector.packagedExecutable(seed4jCliRuntime.executableJar().path());
   }
 
   private ChildRuntimeLaunchRequest childRuntimeLaunchRequest(RuntimeSelection runtimeSelection, Seed4JCliArguments arguments) {
-    return new ChildRuntimeLaunchRequest(seed4jCliRuntime.executableJar(), runtimeSelection, arguments, arguments.contains("--debug"));
+    return new ChildRuntimeLaunchRequest(
+      seed4jCliRuntime.executableJar(),
+      runtimeSelection,
+      arguments,
+      BootstrapDebugMode.from(arguments.contains("--debug"))
+    );
   }
 
   private RuntimeSelection runtimeSelection() {

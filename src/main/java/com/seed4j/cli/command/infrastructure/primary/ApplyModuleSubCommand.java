@@ -79,22 +79,20 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .build()
     );
 
-    properties
-      .stream()
-      .forEach(property ->
-        spec.addOption(
-          OptionSpec.builder(toDashedFormat(property.key()))
-            .description(
-              "%s%s".formatted(
-                property.description().map(Seed4JPropertyDescription::get).orElse(""),
-                property.isMandatory() ? " (required)" : ""
-              )
+    properties.stream().forEach(property ->
+      spec.addOption(
+        OptionSpec.builder(toDashedFormat(property.key()))
+          .description(
+            "%s%s".formatted(
+              property.description().map(Seed4JPropertyDescription::get).orElse(""),
+              property.isMandatory() ? " (required)" : ""
             )
-            .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
-            .type(toOptionType(property.type()))
-            .build()
-        )
-      );
+          )
+          .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
+          .type(toOptionType(property.type()))
+          .build()
+      )
+    );
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")

@@ -39,9 +39,9 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
       PreSpringRuntimeEnvironment environment = reader.current();
 
       assertThat(environment.cliHome()).isEqualTo(new Seed4JCliHome(userHomePath));
-      assertThat(environment.executablePath()).isEqualTo(executableJarPath);
-      assertThat(environment.childMode()).isTrue();
-      assertThat(environment.javaExecutablePath()).isEqualTo(expectedJavaExecutablePath);
+      assertThat(environment.executablePath().path()).isEqualTo(executableJarPath);
+      assertThat(environment.processMode().child()).isTrue();
+      assertThat(environment.javaExecutablePath().path()).isEqualTo(expectedJavaExecutablePath);
     } finally {
       restoreSystemProperty("user.home", originalUserHome);
       restoreSystemProperty("user.dir", originalUserDir);

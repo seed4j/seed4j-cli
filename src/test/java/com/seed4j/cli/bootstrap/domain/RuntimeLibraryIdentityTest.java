@@ -15,7 +15,9 @@ class RuntimeLibraryIdentityTest {
 
     Optional<RuntimeLibraryIdentity> identity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
 
-    assertThat(identity).contains(new RuntimeLibraryIdentity("shared-lib", "RELEASE"));
+    assertThat(identity).contains(
+      new RuntimeLibraryIdentity(new RuntimeLibraryCoordinate("shared-lib"), new RuntimeLibraryVersion("RELEASE"))
+    );
   }
 
   @Test
@@ -24,7 +26,9 @@ class RuntimeLibraryIdentityTest {
 
     Optional<RuntimeLibraryIdentity> identity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
 
-    assertThat(identity).contains(new RuntimeLibraryIdentity("shared-lib", "v1.2.3"));
+    assertThat(identity).contains(
+      new RuntimeLibraryIdentity(new RuntimeLibraryCoordinate("shared-lib"), new RuntimeLibraryVersion("v1.2.3"))
+    );
   }
 
   @Test

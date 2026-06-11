@@ -4,6 +4,7 @@ import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,7 +48,7 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
       .sorted(Map.Entry.comparingByKey())
       .forEach(property -> command.add("-D" + property.getKey() + "=" + property.getValue()));
     command.add("-cp");
-    command.add(javaRequest.executableJar().toString());
+    command.add(javaRequest.executableJar().path().toString());
     command.add(javaRequest.mainClass());
     command.addAll(javaRequest.arguments());
     return processExecutor.execute(List.copyOf(command));
@@ -64,21 +65,19 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
     runtimeSelection
       .distributionVersion()
       .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion.version()));
-    runtimeSelection
-      .extensionJarPath()
-      .ifPresent(extensionJarPath -> {
-        Path rawExtensionJarPath = extensionJarPath.path();
-        String extensionStartClass = runtimeExtensionStartClassResolver.resolve(rawExtensionJarPath);
-        systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
-        Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(rawExtensionJarPath);
-        systemProperties.put(
-          "loader.path",
-          runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar())
-        );
-      });
+    runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> {
+      Path rawExtensionJarPath = extensionJarPath.path();
+      String extensionStartClass = runtimeExtensionStartClassResolver.resolve(rawExtensionJarPath);
+      systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
+      Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(rawExtensionJarPath);
+      systemProperties.put(
+        "loader.path",
+        runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
+      );
+    });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
-      if (request.debug()) {
+      if (request.debug().enabled()) {
         systemProperties.put("logging.level.com.seed4j.cli.bootstrap.domain", "DEBUG");
       } else {
         systemProperties.put("logging.level.root", "ERROR");
@@ -95,7 +94,7 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
   }
 
   private record JavaChildProcessRequest(
-    Path executableJar,
+    Seed4JCliExecutablePath executableJar,
     String mainClass,
     Map<String, String> systemProperties,
     List<String> arguments

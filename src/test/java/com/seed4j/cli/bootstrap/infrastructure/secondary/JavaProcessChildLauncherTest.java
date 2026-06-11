@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.bootstrap.domain.BootstrapDebugMode;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
@@ -12,6 +13,7 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionCacheIdentity;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,10 +34,10 @@ class JavaProcessChildLauncherTest {
     JavaProcessChildLauncher launcher = launcher(Path.of("/tmp/seed4j-cli-home"), processExecutor);
     RuntimeSelection runtimeSelection = RuntimeSelection.standard();
     ChildRuntimeLaunchRequest request = new ChildRuntimeLaunchRequest(
-      Path.of("/opt/seed4j/seed4j-cli.jar"),
+      new Seed4JCliExecutablePath(Path.of("/opt/seed4j/seed4j-cli.jar")),
       runtimeSelection,
       new Seed4JCliArguments(new String[] { "--version" }),
-      false
+      BootstrapDebugMode.DISABLED
     );
 
     int exitCode = launcher.launch(request);
@@ -65,10 +67,10 @@ class JavaProcessChildLauncherTest {
       new RuntimeDistributionVersion("1.0.0")
     );
     ChildRuntimeLaunchRequest request = new ChildRuntimeLaunchRequest(
-      executableJar,
+      new Seed4JCliExecutablePath(executableJar),
       runtimeSelection,
       new Seed4JCliArguments(new String[] { "--version", "--debug" }),
-      true
+      BootstrapDebugMode.ENABLED
     );
 
     int exitCode = launcher.launch(request);
@@ -108,10 +110,10 @@ class JavaProcessChildLauncherTest {
       new RuntimeDistributionVersion("1.0.0")
     );
     ChildRuntimeLaunchRequest request = new ChildRuntimeLaunchRequest(
-      executableJar,
+      new Seed4JCliExecutablePath(executableJar),
       runtimeSelection,
       new Seed4JCliArguments(new String[] { "--version" }),
-      false
+      BootstrapDebugMode.DISABLED
     );
 
     int exitCode = launcher.launch(request);
@@ -150,10 +152,10 @@ class JavaProcessChildLauncherTest {
       new RuntimeDistributionVersion("1.0.0")
     );
     ChildRuntimeLaunchRequest request = new ChildRuntimeLaunchRequest(
-      executableJar,
+      new Seed4JCliExecutablePath(executableJar),
       runtimeSelection,
       new Seed4JCliArguments(new String[] { "--version" }),
-      false
+      BootstrapDebugMode.DISABLED
     );
 
     assertThatThrownBy(() -> launcher.launch(request))

@@ -69,16 +69,17 @@ class ExtensionRuntimeCommandsTest {
     assertThat(runtimeJarPath).exists();
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
     assertThat(metadataPath).exists();
-    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+    assertThat(Files.readString(metadataPath))
+      .contains("id: " + DISTRIBUTION_ID)
+      .contains("version: " + DISTRIBUTION_VERSION);
   }
 
   @Test
   void shouldReplaceActiveExtensionRuntime(CapturedOutput output) throws IOException {
-    Path extensionJarPath = createFatJar(
-      USER_HOME.resolve("company-extension.jar"),
-      "BOOT-INF/classes/com/company/New.class",
-      new byte[] { 2, 3 }
-    );
+    Path extensionJarPath = createFatJar(USER_HOME.resolve("company-extension.jar"), "BOOT-INF/classes/com/company/New.class", new byte[] {
+      2,
+      3,
+    });
     Path runtimeJarPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/extension.jar");
     Path metadataPath = USER_HOME.resolve(".config/seed4j-cli/runtime/active/metadata.yml");
     Files.createDirectories(runtimeJarPath.getParent());
@@ -106,7 +107,9 @@ class ExtensionRuntimeCommandsTest {
     assertThat(exitCode).isZero();
     assertThat(output.getOut()).contains("Replaced active runtime extension.").contains("Extension runtime installed successfully.");
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
-    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+    assertThat(Files.readString(metadataPath))
+      .contains("id: " + DISTRIBUTION_ID)
+      .contains("version: " + DISTRIBUTION_VERSION);
   }
 
   @Test
@@ -138,7 +141,9 @@ class ExtensionRuntimeCommandsTest {
     int exitCode = commandLine().execute(args);
 
     assertThat(exitCode).isZero();
-    assertThat(output.getOut()).contains("Extension runtime enabled successfully.").contains("Config: " + configPath);
+    assertThat(output.getOut())
+      .contains("Extension runtime enabled successfully.")
+      .contains("Config: " + configPath);
     assertThat(Files.readString(configPath)).contains("mode: extension");
   }
 
@@ -187,7 +192,9 @@ class ExtensionRuntimeCommandsTest {
     int exitCode = commandLine().execute(args);
 
     assertThat(exitCode).isZero();
-    assertThat(output.getOut()).contains("Extension runtime disabled successfully.").contains("Config: " + configPath);
+    assertThat(output.getOut())
+      .contains("Extension runtime disabled successfully.")
+      .contains("Config: " + configPath);
     assertThat(configPath).exists();
     assertThat(Files.readString(configPath)).contains("mode: standard");
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(runtimeJarContentBeforeDisable);

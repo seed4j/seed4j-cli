@@ -42,7 +42,7 @@ public final class PreSpringBootstrapConfiguration {
       new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
       new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
       new JavaProcessChildLauncher(
-        runtimeEnvironment.javaExecutablePath(),
+        runtimeEnvironment.javaExecutablePath().path(),
         new JavaChildProcessCommandExecutor(),
         new RuntimeExtensionStartClassResolver(),
         new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),

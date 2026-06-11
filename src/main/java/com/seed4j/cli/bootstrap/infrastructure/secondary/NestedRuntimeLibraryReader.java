@@ -1,8 +1,11 @@
 package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.RuntimeLibraryCoordinate;
 import com.seed4j.cli.bootstrap.domain.RuntimeLibraryEntry;
+import com.seed4j.cli.bootstrap.domain.RuntimeLibraryFileName;
 import com.seed4j.cli.bootstrap.domain.RuntimeLibraryIdentity;
+import com.seed4j.cli.bootstrap.domain.RuntimeLibraryVersion;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -109,7 +112,7 @@ final class NestedRuntimeLibraryReader {
     Optional<RuntimeLibraryIdentity> metadataIdentity = metadata.map(MavenRuntimeLibraryMetadata::logicalIdentity);
     Optional<RuntimeLibraryIdentity> fileNameIdentity = RuntimeLibraryIdentity.fromJarFileName(libraryFileName);
     logOverrideIfNeeded(metadata, fileNameIdentity, libraryFileName);
-    return new RuntimeLibraryEntry(libraryFileName, metadataIdentity.or(() -> fileNameIdentity));
+    return new RuntimeLibraryEntry(new RuntimeLibraryFileName(libraryFileName), metadataIdentity.or(() -> fileNameIdentity));
   }
 
   private static void logOverrideIfNeeded(
@@ -126,11 +129,11 @@ final class NestedRuntimeLibraryReader {
           .ifPresent(inferredLibraryIdentity ->
             LOGGER.debug(
               "Using pom.properties identity {}:{} for '{}' instead of file name inferred identity {}:{}",
-              metadataLibraryIdentity.coordinate(),
-              metadataLibraryIdentity.version(),
+              metadataLibraryIdentity.coordinate().value(),
+              metadataLibraryIdentity.version().value(),
               libraryFileName,
-              inferredLibraryIdentity.coordinate(),
-              inferredLibraryIdentity.version()
+              inferredLibraryIdentity.coordinate().value(),
+              inferredLibraryIdentity.version().value()
             )
           );
       });
@@ -141,7 +144,7 @@ final class NestedRuntimeLibraryReader {
     Optional<RuntimeLibraryIdentity> libraryIdentity = lenientRuntimeLibraryMetadataFromNestedJar(jarFile, jarEntry)
       .map(MavenRuntimeLibraryMetadata::logicalIdentity)
       .or(() -> RuntimeLibraryIdentity.fromJarFileName(libraryFileName));
-    return new RuntimeLibraryEntry(libraryFileName, libraryIdentity);
+    return new RuntimeLibraryEntry(new RuntimeLibraryFileName(libraryFileName), libraryIdentity);
   }
 
   private static String libraryFileName(String entryName) {
@@ -284,7 +287,7 @@ final class NestedRuntimeLibraryReader {
     String identities = runtimeLibraryMetadata
       .stream()
       .map(MavenRuntimeLibraryMetadata::logicalIdentity)
-      .map(runtimeLibraryIdentity -> runtimeLibraryIdentity.coordinate() + ":" + runtimeLibraryIdentity.version())
+      .map(runtimeLibraryIdentity -> runtimeLibraryIdentity.coordinate().value() + ":" + runtimeLibraryIdentity.version().value())
       .sorted()
       .collect(Collectors.joining(", "));
     return new InvalidRuntimeConfigurationException(
@@ -294,7 +297,7 @@ final class NestedRuntimeLibraryReader {
 
   private record MavenRuntimeLibraryMetadata(String groupId, String artifactId, String version) {
     private RuntimeLibraryIdentity logicalIdentity() {
-      return new RuntimeLibraryIdentity(coordinate(), version);
+      return new RuntimeLibraryIdentity(new RuntimeLibraryCoordinate(coordinate()), new RuntimeLibraryVersion(version));
     }
 
     private String coordinate() {

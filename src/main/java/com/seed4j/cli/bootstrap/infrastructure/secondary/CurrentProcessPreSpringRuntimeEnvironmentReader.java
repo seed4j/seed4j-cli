@@ -2,7 +2,10 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
+import com.seed4j.cli.bootstrap.domain.JavaExecutablePath;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeProcessMode;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.File;
@@ -20,14 +23,16 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader {
     Path codeSourcePath = currentCodeSourcePath();
     return new PreSpringRuntimeEnvironment(
       Seed4JCliHome.from(System.getProperty("user.home")),
-      resolveExecutablePath(
-        codeSourcePath,
-        System.getProperty("sun.java.command", ""),
-        System.getProperty("java.class.path", ""),
-        Path.of(System.getProperty("user.dir"))
+      new Seed4JCliExecutablePath(
+        resolveExecutablePath(
+          codeSourcePath,
+          System.getProperty("sun.java.command", ""),
+          System.getProperty("java.class.path", ""),
+          Path.of(System.getProperty("user.dir"))
+        )
       ),
-      Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY)),
-      Path.of(System.getProperty("java.home"), "bin", "java")
+      RuntimeProcessMode.from(Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY))),
+      new JavaExecutablePath(Path.of(System.getProperty("java.home"), "bin", "java"))
     );
   }
 

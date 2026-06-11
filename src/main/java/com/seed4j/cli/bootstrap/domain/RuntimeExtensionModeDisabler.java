@@ -14,6 +14,6 @@ public class RuntimeExtensionModeDisabler {
     RuntimeModeChangePlan modeChangePlan = runtimeModeConfigurationRepository.prepareModeChange(RuntimeMode.STANDARD);
     modeChangePlan.apply();
 
-    return modeChangePlan.configPath();
+    return modeChangePlan.configPath().path();
   }
 }

@@ -1,9 +1,12 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.domain.RuntimeDistributionId;
+import com.seed4j.cli.command.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
+import com.seed4j.cli.command.domain.RuntimeExtensionJarPath;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -38,7 +41,11 @@ class ExtensionInstallCommand implements Callable<Integer> {
     String extensionJarPath = commandSpec.positionalParameters().getFirst().getValue();
     String distributionId = commandSpec.findOption(DISTRIBUTION_ID_OPTION).getValue();
     String distributionVersion = commandSpec.findOption(DISTRIBUTION_VERSION_OPTION).getValue();
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, distributionId, distributionVersion);
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
+      new RuntimeExtensionJarPath(extensionJarPath),
+      new RuntimeDistributionId(distributionId),
+      new RuntimeDistributionVersion(distributionVersion)
+    );
 
     try {
       RuntimeExtensionInstallResult installationResult = runtimeExtensionInstallApplicationService.install(request);
@@ -82,13 +89,13 @@ class ExtensionInstallCommand implements Callable<Integer> {
   }
 
   private void printSuccess(RuntimeExtensionInstallResult installationResult) {
-    if (installationResult.runtimeReplaced()) {
+    if (installationResult.replacementStatus().replaced()) {
       System.out.println("Replaced active runtime extension.");
     }
     System.out.println("Extension runtime installed successfully.");
-    System.out.printf("Runtime jar: %s%n", installationResult.extensionJarPath());
-    System.out.printf("Metadata: %s%n", installationResult.metadataPath());
-    System.out.printf("Config: %s%n", installationResult.configPath());
+    System.out.printf("Runtime jar: %s%n", installationResult.extensionJarPath().path());
+    System.out.printf("Metadata: %s%n", installationResult.metadataPath().path());
+    System.out.printf("Config: %s%n", installationResult.configPath().path());
     System.out.println("Validate installation with:");
     System.out.println("  seed4j --version");
     System.out.println("  seed4j list");

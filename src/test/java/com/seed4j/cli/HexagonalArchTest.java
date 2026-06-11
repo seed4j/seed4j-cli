@@ -13,6 +13,8 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.RecordComponent;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -95,7 +97,9 @@ class HexagonalArchTest {
   }
 
   private static Path rootPackagePath() {
-    return Stream.of(ROOT_PACKAGE.split("\\.")).map(Path::of).reduce(Path.of("src", "main", "java"), Path::resolve);
+    return Stream.of(ROOT_PACKAGE.split("\\."))
+      .map(Path::of)
+      .reduce(Path.of("src", "main", "java"), Path::resolve);
   }
 
   private static Function<Path, String> toPackageInfoName() {
@@ -214,6 +218,18 @@ class HexagonalArchTest {
           .because("domain code may model Path values but must not perform filesystem operations")
           .check(classes)
       );
+    }
+
+    @Test
+    void domainAggregatesShouldUseValueObjectsForBusinessConcepts() {
+      classes()
+        .that()
+        .resideInAPackage("..domain..")
+        .and()
+        .areNotInterfaces()
+        .should(notExposeMultipleRawConceptValues())
+        .because("domain aggregates should expose Value Objects instead of multiple raw business values")
+        .check(classes);
     }
 
     private String[] authorizedDomainPackages() {
@@ -374,7 +390,9 @@ class HexagonalArchTest {
     }
 
     private String[] businessContextsOrSharedKernelsPackages() {
-      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
+      return Stream.of(businessContextsPackages, sharedKernelsPackages)
+        .flatMap(Collection::stream)
+        .toArray(String[]::new);
     }
   }
 
@@ -414,6 +432,60 @@ class HexagonalArchTest {
         }
       }
     };
+  }
+
+  private static ArchCondition<JavaClass> notExposeMultipleRawConceptValues() {
+    return new ArchCondition<>("not expose multiple raw concept values") {
+      @Override
+      public void check(JavaClass item, ConditionEvents events) {
+        if (notRecord(item)) {
+          return;
+        }
+
+        List<String> rawConceptComponents = rawConceptComponentNames(item);
+        if (rawConceptComponents.size() > 1) {
+          events.add(
+            SimpleConditionEvent.violated(
+              item,
+              item.getName() + " exposes multiple raw concept values: " + String.join(", ", rawConceptComponents)
+            )
+          );
+        }
+      }
+    };
+  }
+
+  private static boolean notRecord(JavaClass item) {
+    return !item.reflect().isRecord();
+  }
+
+  private static List<String> rawConceptComponentNames(JavaClass item) {
+    return Stream.of(item.reflect().getRecordComponents())
+      .filter(HexagonalArchTest::rawConceptComponent)
+      .map(RecordComponent::getName)
+      .toList();
+  }
+
+  private static boolean rawConceptComponent(RecordComponent component) {
+    Class<?> type = component.getType();
+
+    return (
+      type.isPrimitive()
+      || type.equals(String.class)
+      || type.equals(String[].class)
+      || type.equals(Path.class)
+      || optionalRawConcept(component.getGenericType())
+    );
+  }
+
+  private static boolean optionalRawConcept(Type type) {
+    String typeName = type.getTypeName();
+
+    return (
+      typeName.equals("java.util.Optional<java.lang.String>")
+      || typeName.equals("java.util.Optional<java.nio.file.Path>")
+      || typeName.equals("java.util.Optional<java.lang.Boolean>")
+    );
   }
 
   private static boolean implementedBySecondary(JavaClass item) {

@@ -39,10 +39,10 @@ public class JavaRuntimeExtensionInstaller {
     }
 
     return new JavaRuntimeExtensionInstallation(
-      result.extensionJarPath(),
-      result.metadataPath(),
-      result.configPath(),
-      result.runtimeReplaced()
+      result.extensionJarPath().path(),
+      result.metadataPath().path(),
+      result.configPath().path(),
+      result.replacementStatus().replaced()
     );
   }
 
