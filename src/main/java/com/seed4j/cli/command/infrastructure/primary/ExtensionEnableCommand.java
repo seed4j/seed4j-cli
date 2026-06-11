@@ -1,49 +1,35 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
-import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchException;
-import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
-import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
 
 @Component
 class ExtensionEnableCommand implements Callable<Integer> {
 
-  private final RuntimeExtensionModeApplicationService runtimeExtensionModeApplicationService;
-  private final CommandSpec commandSpec;
+  private final RuntimeExtensionModeCommand command;
 
   ExtensionEnableCommand(RuntimeExtensionModeApplicationService runtimeExtensionModeApplicationService) {
-    this.runtimeExtensionModeApplicationService = runtimeExtensionModeApplicationService;
-    this.commandSpec = buildCommandSpec();
+    this.command = new RuntimeExtensionModeCommand(
+      this,
+      "enable",
+      "Enable active runtime extension",
+      "Extension runtime enabled successfully.",
+      runtimeExtensionModeApplicationService::enable
+    );
   }
 
   CommandSpec spec() {
-    return commandSpec;
+    return command.spec();
   }
 
   String name() {
-    return "enable";
+    return command.name();
   }
 
   @Override
   public Integer call() {
-    try {
-      RuntimeExtensionModeSwitchResult switchResult = runtimeExtensionModeApplicationService.enable();
-      System.out.println("Extension runtime enabled successfully.");
-      System.out.printf("Config: %s%n", switchResult.configPath());
-      return ExitCode.OK;
-    } catch (RuntimeExtensionModeSwitchException exception) {
-      System.err.println(exception.getMessage());
-      return ExitCode.SOFTWARE;
-    }
-  }
-
-  private CommandSpec buildCommandSpec() {
-    CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("enable").mixinStandardHelpOptions(true);
-    spec.usageMessage().description("Enable active runtime extension");
-
-    return spec;
+    return command.call();
   }
 }
