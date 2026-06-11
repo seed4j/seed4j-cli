@@ -59,6 +59,8 @@ Avoid ambiguous negative options for important behavior when possible. If a nega
 
 MCP may be added later as a structured intent layer over the CLI, especially for LLM clients, but it should complement a well-designed CLI rather than replace it. For the detailed rationale and future design guidance, see `.agent/LLM_DESIGN_DECISIONS.md`.
 
+Do not turn the CLI into a textual clone of `seed4j-mcp`. Keep the CLI simple, local, scriptable, and usable from any terminal; reserve rich planning workflows, prompts, resources, schemas, previews, and guided validation for MCP or for explicitly structured CLI features with clear zero-setup value.
+
 ## Sonar and Cleanup Learnings
 
 For Sonar-specific cleanup patterns and the validated local Sonar workflow used in this repository, see `.agent/SONAR_LEARNINGS.md`.
