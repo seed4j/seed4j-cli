@@ -40,21 +40,11 @@ class RuntimeExtensionLoaderPathResolverTest {
       Files.createTempFile("seed4j-extension-", ".jar"),
       List.of(new LibraryWithPomCoordinates("shared-lib-1.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
     );
-    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
-    Level previousLevel = logger.getLevel();
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    logger.setLevel(Level.DEBUG);
-
-    try {
+    List<ILoggingEvent> logEvents = captureSecondaryInfrastructureDebugLogs(() -> {
       new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
-    } finally {
-      logger.detachAppender(appender);
-      logger.setLevel(previousLevel);
-    }
+    });
 
-    assertThat(appender.list)
+    assertThat(logEvents)
       .extracting(ILoggingEvent::getFormattedMessage)
       .noneMatch(message -> message.contains("Using pom.properties identity"));
   }
@@ -70,21 +60,11 @@ class RuntimeExtensionLoaderPathResolverTest {
       Files.createTempFile("seed4j-extension-", ".jar"),
       List.of(new LibraryWithPomCoordinates("com.acme:shared-lib-1.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
     );
-    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
-    Level previousLevel = logger.getLevel();
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    logger.setLevel(Level.DEBUG);
-
-    try {
+    List<ILoggingEvent> logEvents = captureSecondaryInfrastructureDebugLogs(() -> {
       new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
-    } finally {
-      logger.detachAppender(appender);
-      logger.setLevel(previousLevel);
-    }
+    });
 
-    assertThat(appender.list)
+    assertThat(logEvents)
       .extracting(ILoggingEvent::getFormattedMessage)
       .noneMatch(message -> message.contains("Using pom.properties identity"));
   }
@@ -100,21 +80,11 @@ class RuntimeExtensionLoaderPathResolverTest {
       Files.createTempFile("seed4j-extension-", ".jar"),
       List.of(new LibraryWithPomCoordinates("shared-lib-2.0.0.jar", "com.acme", "shared-lib", "1.0.0"))
     );
-    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
-    Level previousLevel = logger.getLevel();
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    logger.setLevel(Level.DEBUG);
-
-    try {
+    List<ILoggingEvent> logEvents = captureSecondaryInfrastructureDebugLogs(() -> {
       new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
-    } finally {
-      logger.detachAppender(appender);
-      logger.setLevel(previousLevel);
-    }
+    });
 
-    assertThat(appender.list)
+    assertThat(logEvents)
       .extracting(ILoggingEvent::getFormattedMessage)
       .anyMatch(message -> message.contains("shared-lib-2.0.0.jar") && message.contains("com.acme:shared-lib:1.0.0"));
   }
@@ -311,21 +281,11 @@ class RuntimeExtensionLoaderPathResolverTest {
       Files.createTempFile("seed4j-extension-", ".jar"),
       List.of("shared-lib-1.0.0.jar", "missing-lib-2.0.0.jar")
     );
-    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
-    Level previousLevel = logger.getLevel();
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    logger.setLevel(Level.DEBUG);
-
-    try {
+    List<ILoggingEvent> logEvents = captureSecondaryInfrastructureDebugLogs(() -> {
       new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, extensionJarPath, executableJarPath);
-    } finally {
-      logger.detachAppender(appender);
-      logger.setLevel(previousLevel);
-    }
+    });
 
-    assertThat(appender.list)
+    assertThat(logEvents)
       .extracting(ILoggingEvent::getFormattedMessage)
       .anyMatch(message -> message.contains("missing-lib-2.0.0.jar"));
   }
@@ -430,6 +390,24 @@ class RuntimeExtensionLoaderPathResolverTest {
 
       assertThat(pomPropertiesEntry).isNotNull();
     }
+  }
+
+  private static List<ILoggingEvent> captureSecondaryInfrastructureDebugLogs(Runnable action) {
+    Logger logger = (Logger) LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class.getPackageName());
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+
+    try {
+      action.run();
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    return appender.list;
   }
 
   private static Path createJarWithBootInfLibraries(Path jarPath, List<String> libraryFileNames) throws IOException {
