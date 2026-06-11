@@ -49,6 +49,16 @@ Recent history follows Conventional Commits with scopes, for example `feat(boots
 
 The CLI loads external overrides from `~/.config/seed4j-cli/config.yml`; document any new configuration keys in both code and `README.md`. If you change command flow or boundaries, update the relevant files in `documentation/`, especially the hexagonal architecture and commands guides.
 
+## LLM-First CLI Design
+
+Seed4J CLI is intended to be used by LLM agents as well as humans. Design CLI behavior, help text, examples, and errors to reduce model interpretation variance.
+
+CLI help must be clear, prescriptive, and machine-friendly, but help text alone is not considered enough for reliable LLM behavior. Prefer intent-shaped commands, explicit defaults, structured output, dry-run or plan modes, and validation errors that tell the caller the safe next action.
+
+Avoid ambiguous negative options for important behavior when possible. If a negative option exists, document when to use it and when not to use it. For project initialization, the normal Seed4J behavior is to initialize Git if needed and create the Seed4J commit; `--no-commit` is only for callers that explicitly do not want Seed4J to create a Git repository or commit.
+
+MCP may be added later as a structured intent layer over the CLI, especially for LLM clients, but it should complement a well-designed CLI rather than replace it. For the detailed rationale and future design guidance, see `.agent/LLM_DESIGN_DECISIONS.md`.
+
 ## Sonar and Cleanup Learnings
 
 For Sonar-specific cleanup patterns and the validated local Sonar workflow used in this repository, see `.agent/SONAR_LEARNINGS.md`.
