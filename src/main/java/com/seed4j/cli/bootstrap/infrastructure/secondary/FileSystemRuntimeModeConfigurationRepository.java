@@ -4,10 +4,10 @@ import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeChangePlan;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationDocument;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
-import java.nio.file.Path;
 
 public class FileSystemRuntimeModeConfigurationRepository implements RuntimeModeConfigurationRepository {
 
@@ -26,26 +26,26 @@ public class FileSystemRuntimeModeConfigurationRepository implements RuntimeMode
 
   @Override
   public RuntimeMode readMode() {
-    return runtimeModeConfigReader.runtimeMode(configPath());
+    return runtimeModeConfigReader.runtimeMode(configPath().path());
   }
 
-  private Path configPath() {
-    return cliHome.configPath();
+  private RuntimeModeConfigurationPath configPath() {
+    return new RuntimeModeConfigurationPath(cliHome.configPath());
   }
 
   private RuntimeModeConfigurationDocument currentConfiguration() {
-    return runtimeModeConfigReader.configuration(configPath());
+    return runtimeModeConfigReader.configuration(configPath().path());
   }
 
   private record FileSystemRuntimeModeChangePlan(
-    Path configPath,
+    RuntimeModeConfigurationPath configPath,
     RuntimeModeConfigurationDocument currentConfiguration,
     RuntimeMode targetMode
   ) implements RuntimeModeChangePlan {
     @Override
     public void apply() {
       try {
-        RuntimeModeConfigurationWriter.writeMode(configPath, currentConfiguration, targetMode);
+        RuntimeModeConfigurationWriter.writeMode(configPath.path(), currentConfiguration, targetMode);
       } catch (IOException ioException) {
         throw InvalidRuntimeConfigurationException.technicalError("Could not update ~/.config/seed4j-cli/config.yml.", ioException);
       }

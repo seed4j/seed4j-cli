@@ -4,6 +4,8 @@ import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeSelectionReade
 import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeSelectionReader.JavaRuntimeSelection;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.RuntimeDisplayReader;
+import com.seed4j.cli.command.domain.RuntimeDistributionId;
+import com.seed4j.cli.command.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.shared.error.domain.Assert;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +25,10 @@ class BootstrapRuntimeDisplayReader implements RuntimeDisplayReader {
     JavaRuntimeSelection runtimeSelection = runtimeSelectionReader.activeRuntimeSelection();
 
     if (runtimeSelection.extension()) {
-      return RuntimeDisplay.extension(runtimeSelection.distributionId(), runtimeSelection.distributionVersion());
+      return RuntimeDisplay.extension(
+        runtimeSelection.distributionId().map(RuntimeDistributionId::new),
+        runtimeSelection.distributionVersion().map(RuntimeDistributionVersion::new)
+      );
     }
 
     return RuntimeDisplay.standard();

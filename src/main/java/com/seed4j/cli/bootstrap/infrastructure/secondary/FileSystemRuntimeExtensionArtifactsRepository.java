@@ -4,6 +4,8 @@ import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsInstallation;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsRepository;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
+import com.seed4j.cli.bootstrap.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
@@ -36,7 +38,10 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
       Files.createDirectories(runtimeDirectoryPath);
       replacePathWithSource(request.extensionJarPath().path(), extensionJarPath());
       replacePathWithContent(metadataContent(request), metadataPath());
-      return new RuntimeExtensionArtifactsInstallation(extensionJarPath(), metadataPath());
+      return new RuntimeExtensionArtifactsInstallation(
+        new RuntimeExtensionJarPath(extensionJarPath()),
+        new RuntimeExtensionMetadataPath(metadataPath())
+      );
     } catch (IOException ioException) {
       throw InvalidRuntimeConfigurationException.technicalError("Could not install runtime extension.", ioException);
     }

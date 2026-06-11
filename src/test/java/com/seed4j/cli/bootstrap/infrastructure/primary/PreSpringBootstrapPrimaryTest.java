@@ -8,14 +8,17 @@ import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService
 import com.seed4j.cli.bootstrap.domain.BootstrapDiagnostics;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
+import com.seed4j.cli.bootstrap.domain.JavaExecutablePath;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionId;
 import com.seed4j.cli.bootstrap.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeMode;
+import com.seed4j.cli.bootstrap.domain.RuntimeProcessMode;
 import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
 import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture.ExtensionRuntimeFixturePaths;
@@ -304,13 +307,13 @@ class PreSpringBootstrapPrimaryTest {
 
     assertThat(launch.exitCode()).isZero();
     assertThat(fixture.childLaunchRequest()).isNotNull();
-    assertThat(fixture.childLaunchRequest().executableJar()).isEqualTo(fixture.executablePath());
+    assertThat(fixture.childLaunchRequest().executableJar().path()).isEqualTo(fixture.executablePath());
     assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
     assertThat(fixture.childLaunchRequest().runtimeSelection().distributionId()).isEmpty();
     assertThat(fixture.childLaunchRequest().runtimeSelection().distributionVersion()).isEmpty();
     assertThat(fixture.childLaunchRequest().runtimeSelection().extensionJarPath()).isEmpty();
     assertThat(fixture.childLaunchRequest().arguments().asList()).containsExactly("--version");
-    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.childLaunchRequest().debug().enabled()).isFalse();
     assertThat(fixture.localRunArguments()).isEmpty();
   }
 
@@ -352,7 +355,7 @@ class PreSpringBootstrapPrimaryTest {
     assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.STANDARD);
     assertThat(fixture.childLaunchRequest().runtimeSelection().distributionId()).isEmpty();
     assertThat(fixture.childLaunchRequest().runtimeSelection().distributionVersion()).isEmpty();
-    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.childLaunchRequest().debug().enabled()).isFalse();
     assertThat(fixture.localRunArguments()).isEmpty();
   }
 
@@ -373,7 +376,7 @@ class PreSpringBootstrapPrimaryTest {
       new RuntimeExtensionJarPath(extensionPaths.extensionJarPath())
     );
     assertThat(fixture.childLaunchRequest().arguments().asList()).containsExactly("--version");
-    assertThat(fixture.childLaunchRequest().debug()).isFalse();
+    assertThat(fixture.childLaunchRequest().debug().enabled()).isFalse();
     assertThat(fixture.localRunArguments()).isEmpty();
   }
 
@@ -388,7 +391,7 @@ class PreSpringBootstrapPrimaryTest {
     assertThat(launch.exitCode()).isZero();
     assertThat(fixture.childLaunchRequest()).isNotNull();
     assertThat(fixture.childLaunchRequest().runtimeSelection().mode()).isEqualTo(RuntimeMode.EXTENSION);
-    assertThat(fixture.childLaunchRequest().debug()).isTrue();
+    assertThat(fixture.childLaunchRequest().debug().enabled()).isTrue();
     assertThat(fixture.debugLoggingEnabled()).isTrue();
     assertThat(fixture.localRunArguments()).isEmpty();
   }
@@ -583,7 +586,12 @@ class PreSpringBootstrapPrimaryTest {
     Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
     Path executableJar = Files.createTempFile("seed4j-cli-", ".jar");
     LocalCliRunner localCliRunner = new SpringBootLocalCliRunner(TestSeed4JCliApp.class, cliHome);
-    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(cliHome, executableJar, false, javaExecutablePath());
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+      cliHome,
+      new Seed4JCliExecutablePath(executableJar),
+      RuntimeProcessMode.PARENT,
+      new JavaExecutablePath(javaExecutablePath())
+    );
     PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
       new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
       new FileSystemRuntimeModeConfigurationRepository(cliHome),
@@ -699,9 +707,9 @@ class PreSpringBootstrapPrimaryTest {
       RecordingBootstrapDiagnostics bootstrapDiagnostics = new RecordingBootstrapDiagnostics();
       PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
         cliHome,
-        executablePath,
-        childMode,
-        javaExecutablePath()
+        new Seed4JCliExecutablePath(executablePath),
+        RuntimeProcessMode.from(childMode),
+        new JavaExecutablePath(javaExecutablePath())
       );
       PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
         new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
@@ -824,20 +832,18 @@ class PreSpringBootstrapPrimaryTest {
       runtimeSelection
         .distributionVersion()
         .ifPresent(distributionVersion -> systemProperties.put(DISTRIBUTION_VERSION_PROPERTY, distributionVersion.version()));
-      runtimeSelection
-        .extensionJarPath()
-        .ifPresent(extensionJarPath -> {
-          Path rawExtensionJarPath = extensionJarPath.path();
-          systemProperties.put(
-            "seed4j.cli.runtime.extension.start-class",
-            new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
-          );
-          Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
-          systemProperties.put(
-            LOADER_PATH_PROPERTY,
-            new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar())
-          );
-        });
+      runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> {
+        Path rawExtensionJarPath = extensionJarPath.path();
+        systemProperties.put(
+          "seed4j.cli.runtime.extension.start-class",
+          new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
+        );
+        Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
+        systemProperties.put(
+          LOADER_PATH_PROPERTY,
+          new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
+        );
+      });
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");
       systemProperties.put("spring.main.log-startup-info", "false");
@@ -860,7 +866,7 @@ class PreSpringBootstrapPrimaryTest {
       try {
         Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
         return new ChildFirstRuntimeExtensionResourceClassLoader(
-          childRuntimeAndTestClasspathUrls(overlayClassesPath, rawExtensionJarPath, request.executableJar()),
+          childRuntimeAndTestClasspathUrls(overlayClassesPath, rawExtensionJarPath, request.executableJar().path()),
           parentClassLoader
         );
       } catch (MalformedURLException malformedURLException) {

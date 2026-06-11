@@ -7,7 +7,11 @@ import com.seed4j.cli.bootstrap.infrastructure.primary.JavaRuntimeExtensionInsta
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstalledJarPath;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstaller;
+import com.seed4j.cli.command.domain.RuntimeExtensionMetadataPath;
+import com.seed4j.cli.command.domain.RuntimeExtensionReplacementStatus;
+import com.seed4j.cli.command.domain.RuntimeModeConfigurationPath;
 import com.seed4j.cli.shared.error.domain.Assert;
 import org.springframework.stereotype.Component;
 
@@ -28,14 +32,18 @@ public class BootstrapRuntimeExtensionInstaller implements RuntimeExtensionInsta
 
     try {
       JavaRuntimeExtensionInstallation installation = runtimeExtensionInstaller.install(
-        new JavaRuntimeExtensionInstallationRequest(request.extensionJarPath(), request.distributionId(), request.distributionVersion())
+        new JavaRuntimeExtensionInstallationRequest(
+          request.extensionJarPath().value(),
+          request.distributionId().value(),
+          request.distributionVersion().value()
+        )
       );
 
       return new RuntimeExtensionInstallResult(
-        installation.extensionJarPath(),
-        installation.metadataPath(),
-        installation.configPath(),
-        installation.runtimeReplaced()
+        new RuntimeExtensionInstalledJarPath(installation.extensionJarPath()),
+        new RuntimeExtensionMetadataPath(installation.metadataPath()),
+        new RuntimeModeConfigurationPath(installation.configPath()),
+        RuntimeExtensionReplacementStatus.from(installation.runtimeReplaced())
       );
     } catch (JavaRuntimeExtensionInstallationException exception) {
       throw new RuntimeExtensionInstallationException(exception.getMessage(), exception);

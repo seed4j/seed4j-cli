@@ -19,7 +19,5 @@ The first parameter is the name of the parameter (used in the exception message)
 You can also use the `Assert` class with types specific checks:
 
 ```java
-Assert.field("name", name)
-  .notBlank()
-  .maxLength(150);
+Assert.field("name", name).notBlank().maxLength(150);
 ```

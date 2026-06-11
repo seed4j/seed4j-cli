@@ -24,6 +24,6 @@ public class RuntimeExtensionModeEnabler {
     runtimeExtensionSelectionRepository.activeRuntimeSelection();
     modeChangePlan.apply();
 
-    return modeChangePlan.configPath();
+    return modeChangePlan.configPath().path();
   }
 }

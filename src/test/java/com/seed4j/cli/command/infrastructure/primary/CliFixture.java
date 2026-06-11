@@ -5,7 +5,11 @@ import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationServ
 import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstalledJarPath;
+import com.seed4j.cli.command.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionReplacementStatus;
+import com.seed4j.cli.command.domain.RuntimeModeConfigurationPath;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -68,7 +72,13 @@ class CliFixture {
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
     RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService = new RuntimeExtensionInstallApplicationService(
-      request -> new RuntimeExtensionInstallResult(Path.of("extension.jar"), Path.of("metadata.yml"), Path.of("config.yml"), false)
+      request ->
+        new RuntimeExtensionInstallResult(
+          new RuntimeExtensionInstalledJarPath(Path.of("extension.jar")),
+          new RuntimeExtensionMetadataPath(Path.of("metadata.yml")),
+          new RuntimeModeConfigurationPath(Path.of("config.yml")),
+          RuntimeExtensionReplacementStatus.NEW_INSTALLATION
+        )
     );
     ExtensionInstallCommand extensionInstallCommand = new ExtensionInstallCommand(runtimeExtensionInstallApplicationService);
     RuntimeExtensionModeApplicationService runtimeExtensionModeApplicationService = new RuntimeExtensionModeApplicationService(

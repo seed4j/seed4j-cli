@@ -54,7 +54,7 @@ There is another **AWESOME** compilation time feedback coming not directly from 
 
 With just those two you can totally fix lots of mistakes with `firstname` and `lastname` inversions in method parameters: if you send the wrong one it just won't compile!
 
-In this CLI, use that idea as an incremental rule: new or changed domain/application code should expose business concepts through Value Objects instead of passing several raw values with business meaning. Primary adapters can still receive raw CLI or framework values, but they are responsible for translating those values into domain types before calling application services.
+In this CLI, domain/application code should expose business concepts through Value Objects instead of passing several raw values with business meaning. Primary adapters can still receive raw CLI or framework values, but they are responsible for translating those values into domain types before calling application services.
 
 A Value Object can be a small record wrapping a raw value, such as a `String` or `Path`, when the raw value is the representation of a single concept. Give that type the validation, normalization, and naming that belong to the concept. Avoid domain aggregate records with multiple raw components like `String id, String version` when those components can be named and protected as domain types.
 

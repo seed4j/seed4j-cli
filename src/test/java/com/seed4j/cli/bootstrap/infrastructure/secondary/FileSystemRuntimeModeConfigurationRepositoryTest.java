@@ -40,7 +40,7 @@ class FileSystemRuntimeModeConfigurationRepositoryTest {
     modeChangePlan.apply();
 
     String persistedConfiguration = Files.readString(configPath);
-    assertThat(modeChangePlan.configPath()).isEqualTo(configPath);
+    assertThat(modeChangePlan.configPath().path()).isEqualTo(configPath);
     assertThat(persistedConfiguration)
       .contains("mode: extension")
       .contains("hidden-resources")

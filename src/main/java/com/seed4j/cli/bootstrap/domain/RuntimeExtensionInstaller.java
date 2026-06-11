@@ -24,7 +24,9 @@ public class RuntimeExtensionInstaller {
 
   public RuntimeExtensionInstallResult install(RuntimeExtensionInstallRequest request) {
     RuntimeModeChangePlan modeChangePlan = validateInstallRequest(request);
-    boolean runtimeReplaced = runtimeExtensionArtifactsRepository.activeRuntimePresent();
+    RuntimeExtensionReplacementStatus replacementStatus = RuntimeExtensionReplacementStatus.from(
+      runtimeExtensionArtifactsRepository.activeRuntimePresent()
+    );
     RuntimeExtensionArtifactsInstallation installation = runtimeExtensionArtifactsRepository.install(request);
     modeChangePlan.apply();
 
@@ -32,7 +34,7 @@ public class RuntimeExtensionInstaller {
       installation.extensionJarPath(),
       installation.metadataPath(),
       modeChangePlan.configPath(),
-      runtimeReplaced
+      replacementStatus
     );
   }
 

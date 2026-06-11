@@ -418,7 +418,10 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldRenderVersionOutputUsingProjectBuildMetadata(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(Optional.of("company-extension"), Optional.of("1.0.0"));
+      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(
+        Optional.of(new com.seed4j.cli.command.domain.RuntimeDistributionId("company-extension")),
+        Optional.of(new com.seed4j.cli.command.domain.RuntimeDistributionVersion("1.0.0"))
+      );
 
       int exitCode = commandLine(modules, projects, runtimeDisplay, "9.9.9", "8.8.8").execute(args);
 
@@ -462,7 +465,10 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldShowRuntimeModeAndDistributionInVersionOutput(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(Optional.of("company-extension"), Optional.of("1.0.0"));
+      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(
+        Optional.of(new com.seed4j.cli.command.domain.RuntimeDistributionId("company-extension")),
+        Optional.of(new com.seed4j.cli.command.domain.RuntimeDistributionVersion("1.0.0"))
+      );
 
       int exitCode = commandLine(modules, projects, runtimeDisplay).execute(args);
 

@@ -4,7 +4,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public record RuntimeLibraryIdentity(String coordinate, String version) {
+public record RuntimeLibraryIdentity(RuntimeLibraryCoordinate coordinate, RuntimeLibraryVersion version) {
   private static final Pattern LIBRARY_COORDINATE_AND_VERSION_PATTERN = Pattern.compile(
     "^(.+)-(\\d[0-9A-Za-z.]*|v\\d[0-9A-Za-z.]*|RELEASE)\\.jar$"
   );
@@ -23,8 +23,8 @@ public record RuntimeLibraryIdentity(String coordinate, String version) {
       return Optional.empty();
     }
 
-    String coordinate = matcher.group(1);
-    String version = matcher.group(2);
+    RuntimeLibraryCoordinate coordinate = new RuntimeLibraryCoordinate(matcher.group(1));
+    RuntimeLibraryVersion version = new RuntimeLibraryVersion(matcher.group(2));
     return Optional.of(new RuntimeLibraryIdentity(coordinate, version));
   }
 

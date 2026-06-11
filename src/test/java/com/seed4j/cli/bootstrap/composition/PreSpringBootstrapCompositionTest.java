@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.ComponentTest;
 import com.seed4j.cli.SystemOutputCaptor;
+import com.seed4j.cli.bootstrap.domain.JavaExecutablePath;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeProcessMode;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.io.IOException;
@@ -27,9 +30,9 @@ class PreSpringBootstrapCompositionTest {
     createStandardRuntimeConfiguration();
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       new Seed4JCliHome(userHome),
-      executablePath,
-      false,
-      Path.of("unused-java")
+      new Seed4JCliExecutablePath(executablePath),
+      RuntimeProcessMode.PARENT,
+      new JavaExecutablePath(Path.of("unused-java"))
     );
     PreSpringBootstrapRunner runner = PreSpringBootstrapConfiguration.preSpringBootstrapRunner(runtimeEnvironment);
 

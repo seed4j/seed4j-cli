@@ -71,17 +71,6 @@ class HexagonalArchTest {
     java.nio.file.StandardCopyOption.class,
     java.nio.file.FileAlreadyExistsException.class
   );
-  private static final Collection<String> existingDomainPrimitiveAggregates = List.of(
-    "com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest",
-    "com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment",
-    "com.seed4j.cli.bootstrap.domain.RuntimeExtensionArtifactsInstallation",
-    "com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult",
-    "com.seed4j.cli.bootstrap.domain.RuntimeExtensionMissingLibrariesSelector$RuntimeExtensionLibraryDecision",
-    "com.seed4j.cli.bootstrap.domain.RuntimeLibraryIdentity",
-    "com.seed4j.cli.command.domain.RuntimeDisplay",
-    "com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest",
-    "com.seed4j.cli.command.domain.RuntimeExtensionInstallResult"
-  );
 
   private static Collection<String> buildPackagesPatterns(Collection<String> packages) {
     return packages
@@ -108,7 +97,9 @@ class HexagonalArchTest {
   }
 
   private static Path rootPackagePath() {
-    return Stream.of(ROOT_PACKAGE.split("\\.")).map(Path::of).reduce(Path.of("src", "main", "java"), Path::resolve);
+    return Stream.of(ROOT_PACKAGE.split("\\."))
+      .map(Path::of)
+      .reduce(Path.of("src", "main", "java"), Path::resolve);
   }
 
   private static Function<Path, String> toPackageInfoName() {
@@ -230,14 +221,14 @@ class HexagonalArchTest {
     }
 
     @Test
-    void changedDomainAggregatesShouldUseValueObjectsForBusinessConcepts() {
+    void domainAggregatesShouldUseValueObjectsForBusinessConcepts() {
       classes()
         .that()
         .resideInAPackage("..domain..")
         .and()
         .areNotInterfaces()
-        .should(notExposeMultipleRawConceptValuesUnlessExistingException())
-        .because("new or changed domain aggregates should expose Value Objects instead of multiple raw business values")
+        .should(notExposeMultipleRawConceptValues())
+        .because("domain aggregates should expose Value Objects instead of multiple raw business values")
         .check(classes);
     }
 
@@ -399,7 +390,9 @@ class HexagonalArchTest {
     }
 
     private String[] businessContextsOrSharedKernelsPackages() {
-      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
+      return Stream.of(businessContextsPackages, sharedKernelsPackages)
+        .flatMap(Collection::stream)
+        .toArray(String[]::new);
     }
   }
 
@@ -441,11 +434,11 @@ class HexagonalArchTest {
     };
   }
 
-  private static ArchCondition<JavaClass> notExposeMultipleRawConceptValuesUnlessExistingException() {
-    return new ArchCondition<>("not expose multiple raw concept values unless it is an existing exception") {
+  private static ArchCondition<JavaClass> notExposeMultipleRawConceptValues() {
+    return new ArchCondition<>("not expose multiple raw concept values") {
       @Override
       public void check(JavaClass item, ConditionEvents events) {
-        if (notRecord(item) || existingDomainPrimitiveAggregates.contains(item.getName())) {
+        if (notRecord(item)) {
           return;
         }
 

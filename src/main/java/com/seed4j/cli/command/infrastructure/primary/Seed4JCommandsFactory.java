@@ -2,6 +2,8 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
+import com.seed4j.cli.command.domain.RuntimeDistributionId;
+import com.seed4j.cli.command.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.command.domain.RuntimeModeDisplay;
 import java.util.List;
 import java.util.Optional;
@@ -68,10 +70,10 @@ class Seed4JCommandsFactory {
     %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
-        commonOutput,
-        runtimeDisplay.distributionId().orElse(UNKNOWN_VERSION),
-        runtimeDisplay.distributionVersion().orElse(UNKNOWN_VERSION)
-      );
+      commonOutput,
+      runtimeDisplay.distributionId().map(RuntimeDistributionId::value).orElse(UNKNOWN_VERSION),
+      runtimeDisplay.distributionVersion().map(RuntimeDistributionVersion::value).orElse(UNKNOWN_VERSION)
+    );
   }
 
   private static String resolvedVersion(String primaryValue, String defaultValue) {
