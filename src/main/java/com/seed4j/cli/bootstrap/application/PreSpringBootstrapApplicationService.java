@@ -16,6 +16,8 @@ public class PreSpringBootstrapApplicationService {
 
   private final Seed4JCliLauncher seed4jCliLauncher;
 
+  // Pre-Spring bootstrap is composed manually because Spring is not available yet.
+  @SuppressWarnings("java:S107")
   public PreSpringBootstrapApplicationService(
     Seed4JCliRuntime seed4jCliRuntime,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
