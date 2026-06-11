@@ -54,6 +54,10 @@ There is another **AWESOME** compilation time feedback coming not directly from 
 
 With just those two you can totally fix lots of mistakes with `firstname` and `lastname` inversions in method parameters: if you send the wrong one it just won't compile!
 
+In this CLI, use that idea as an incremental rule: new or changed domain/application code should expose business concepts through Value Objects instead of passing several raw values with business meaning. Primary adapters can still receive raw CLI or framework values, but they are responsible for translating those values into domain types before calling application services.
+
+A Value Object can be a small record wrapping a raw value, such as a `String` or `Path`, when the raw value is the representation of a single concept. Give that type the validation, normalization, and naming that belong to the concept. Avoid domain aggregate records with multiple raw components like `String id, String version` when those components can be named and protected as domain types.
+
 Then, a little bit slower than compilation, comes automated tests. As seen earlier this architecture eases testing so you'll be able to get fast (counting in seconds here) and reliable feedback from tests.
 
 We said earlier that pairs feedbacks were the fastest ones but what about business experts feedback? Using "classic" (Controller, Service, Repository) architecture we have to build a whole "thing" to hope for a business expert feedback. Here, the Domain Model code is so close to the business that it's really easy to sit at a screen with a business expert and to get feedback from that! Of course, you'll probably have to explain some "coding stuff" BUT you will be able to get feedback from the business expert on any given piece of algorithm really early!
