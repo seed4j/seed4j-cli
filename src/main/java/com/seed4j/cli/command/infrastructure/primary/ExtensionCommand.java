@@ -7,9 +7,17 @@ import picocli.CommandLine.Model.CommandSpec;
 class ExtensionCommand implements Seed4JCommand {
 
   private final ExtensionInstallCommand extensionInstallCommand;
+  private final ExtensionEnableCommand extensionEnableCommand;
+  private final ExtensionDisableCommand extensionDisableCommand;
 
-  ExtensionCommand(ExtensionInstallCommand extensionInstallCommand) {
+  ExtensionCommand(
+    ExtensionInstallCommand extensionInstallCommand,
+    ExtensionEnableCommand extensionEnableCommand,
+    ExtensionDisableCommand extensionDisableCommand
+  ) {
     this.extensionInstallCommand = extensionInstallCommand;
+    this.extensionEnableCommand = extensionEnableCommand;
+    this.extensionDisableCommand = extensionDisableCommand;
   }
 
   @Override
@@ -17,6 +25,8 @@ class ExtensionCommand implements Seed4JCommand {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(this).name("extension").mixinStandardHelpOptions(true);
     spec.usageMessage().description("Manage runtime extensions");
     spec.addSubcommand(extensionInstallCommand.name(), extensionInstallCommand.spec());
+    spec.addSubcommand(extensionEnableCommand.name(), extensionEnableCommand.spec());
+    spec.addSubcommand(extensionDisableCommand.name(), extensionDisableCommand.spec());
 
     return spec;
   }

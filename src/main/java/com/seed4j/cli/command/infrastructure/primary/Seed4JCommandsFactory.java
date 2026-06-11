@@ -1,8 +1,9 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
+import com.seed4j.cli.command.domain.RuntimeDisplay;
+import com.seed4j.cli.command.domain.RuntimeModeDisplay;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -12,29 +13,24 @@ import picocli.CommandLine.Model.OptionSpec;
 @Component
 class Seed4JCommandsFactory {
 
-  private static final String CLI_VERSION_PROPERTY = "seed4j.cli.version";
-  private static final String SEED4J_VERSION_PROPERTY = "seed4j.cli.seed4j.version";
   private static final String DEBUG_OPTION = "--debug";
   private static final String UNKNOWN_VERSION = "unknown";
 
   private final List<Seed4JCommand> seed4JCommands;
-  private final String version;
-  private final String seed4JVersion;
-  private final RuntimeSelectionProvider runtimeSelectionProvider;
-  private final RuntimeSystemProperties runtimeSystemProperties;
+  private final String projectCliVersion;
+  private final String projectSeed4JVersion;
+  private final RuntimeDisplayApplicationService runtimeDisplayApplicationService;
 
   public Seed4JCommandsFactory(
     List<Seed4JCommand> seed4JCommands,
-    @Value("${project.version:}") String version,
-    @Value("${project.seed4j-version:}") String seed4JVersion,
-    RuntimeSelectionProvider runtimeSelectionProvider,
-    RuntimeSystemProperties runtimeSystemProperties
+    @Value("${project.version:}") String projectCliVersion,
+    @Value("${project.seed4j-version:}") String projectSeed4JVersion,
+    RuntimeDisplayApplicationService runtimeDisplayApplicationService
   ) {
     this.seed4JCommands = seed4JCommands;
-    this.version = version;
-    this.seed4JVersion = seed4JVersion;
-    this.runtimeSelectionProvider = runtimeSelectionProvider;
-    this.runtimeSystemProperties = runtimeSystemProperties;
+    this.projectCliVersion = projectCliVersion;
+    this.projectSeed4JVersion = projectSeed4JVersion;
+    this.runtimeDisplayApplicationService = runtimeDisplayApplicationService;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -55,29 +51,31 @@ class Seed4JCommandsFactory {
   }
 
   private String versionOutput() {
-    RuntimeSelection runtimeSelection = runtimeSelectionProvider.runtimeSelection();
-    Map<String, String> systemProperties = runtimeSystemProperties.values();
-    String resolvedCliVersion = resolvedVersion(systemProperties.get(CLI_VERSION_PROPERTY), version, UNKNOWN_VERSION);
-    String resolvedSeed4JVersion = resolvedVersion(systemProperties.get(SEED4J_VERSION_PROPERTY), seed4JVersion, resolvedCliVersion);
+    String resolvedCliVersion = resolvedVersion(projectCliVersion, UNKNOWN_VERSION);
+    String resolvedSeed4JVersion = resolvedVersion(projectSeed4JVersion, resolvedCliVersion);
+    RuntimeDisplay runtimeDisplay = runtimeDisplayApplicationService.activeRuntime();
+
+    String commonOutput = """
+      Seed4J CLI v%s
+      Seed4J version: %s
+      Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay.mode().name().toLowerCase());
+
+    if (runtimeDisplay.mode() != RuntimeModeDisplay.EXTENSION) {
+      return commonOutput;
+    }
 
     return """
-    Seed4J CLI v%s
-    Seed4J version: %s
-    Runtime mode: %s
+    %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
-        resolvedCliVersion,
-        resolvedSeed4JVersion,
-        runtimeSelection.mode().name().toLowerCase(),
-        runtimeSelection.distributionId().orElse("standard"),
-        runtimeSelection.distributionVersion().orElse(resolvedCliVersion)
+        commonOutput,
+        runtimeDisplay.distributionId().orElse(UNKNOWN_VERSION),
+        runtimeDisplay.distributionVersion().orElse(UNKNOWN_VERSION)
       );
   }
 
-  private static String resolvedVersion(String prioritizedValue, String fallbackValue, String defaultValue) {
-    return nonBlank(prioritizedValue)
-      .or(() -> nonBlank(fallbackValue))
-      .orElse(defaultValue);
+  private static String resolvedVersion(String primaryValue, String defaultValue) {
+    return nonBlank(primaryValue).orElse(defaultValue);
   }
 
   private static Optional<String> nonBlank(String candidateValue) {

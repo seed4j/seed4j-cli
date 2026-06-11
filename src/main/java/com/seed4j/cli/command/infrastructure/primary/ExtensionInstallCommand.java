@@ -1,12 +1,10 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallRequest;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstallResult;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionInstaller;
-import java.nio.file.Path;
+import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallRequest;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallResult;
+import com.seed4j.cli.command.domain.RuntimeExtensionInstallationException;
 import java.util.concurrent.Callable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Model.CommandSpec;
@@ -19,11 +17,11 @@ class ExtensionInstallCommand implements Callable<Integer> {
   private static final String DISTRIBUTION_ID_OPTION = "--distribution-id";
   private static final String DISTRIBUTION_VERSION_OPTION = "--distribution-version";
 
-  private final RuntimeExtensionInstaller runtimeExtensionInstaller;
+  private final RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService;
   private final CommandSpec commandSpec;
 
-  ExtensionInstallCommand(@Value("${user.home}") String userHomePath) {
-    this.runtimeExtensionInstaller = new RuntimeExtensionInstaller(Path.of(userHomePath));
+  ExtensionInstallCommand(RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService) {
+    this.runtimeExtensionInstallApplicationService = runtimeExtensionInstallApplicationService;
     this.commandSpec = buildCommandSpec();
   }
 
@@ -40,18 +38,14 @@ class ExtensionInstallCommand implements Callable<Integer> {
     String extensionJarPath = commandSpec.positionalParameters().getFirst().getValue();
     String distributionId = commandSpec.findOption(DISTRIBUTION_ID_OPTION).getValue();
     String distributionVersion = commandSpec.findOption(DISTRIBUTION_VERSION_OPTION).getValue();
-    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(
-      Path.of(extensionJarPath),
-      distributionId,
-      distributionVersion
-    );
+    RuntimeExtensionInstallRequest request = new RuntimeExtensionInstallRequest(extensionJarPath, distributionId, distributionVersion);
 
     try {
-      RuntimeExtensionInstallResult installationResult = runtimeExtensionInstaller.install(request);
-      printSuccess(installationResult.runtimeReplaced());
+      RuntimeExtensionInstallResult installationResult = runtimeExtensionInstallApplicationService.install(request);
+      printSuccess(installationResult);
       return ExitCode.OK;
-    } catch (InvalidRuntimeConfigurationException runtimeConfigurationException) {
-      System.err.println(runtimeConfigurationException.getMessage());
+    } catch (RuntimeExtensionInstallationException exception) {
+      System.err.println(exception.getMessage());
       return ExitCode.SOFTWARE;
     }
   }
@@ -87,11 +81,14 @@ class ExtensionInstallCommand implements Callable<Integer> {
     return spec;
   }
 
-  private void printSuccess(boolean runtimeReplaced) {
-    if (runtimeReplaced) {
+  private void printSuccess(RuntimeExtensionInstallResult installationResult) {
+    if (installationResult.runtimeReplaced()) {
       System.out.println("Replaced active runtime extension.");
     }
     System.out.println("Extension runtime installed successfully.");
+    System.out.printf("Runtime jar: %s%n", installationResult.extensionJarPath());
+    System.out.printf("Metadata: %s%n", installationResult.metadataPath());
+    System.out.printf("Config: %s%n", installationResult.configPath());
     System.out.println("Validate installation with:");
     System.out.println("  seed4j --version");
     System.out.println("  seed4j list");

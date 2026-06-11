@@ -1,6 +1,6 @@
 package com.seed4j.cli.bootstrap.domain;
 
 @FunctionalInterface
-interface LocalCliRunner {
-  int run(String[] args);
+public interface LocalCliRunner {
+  int run(Seed4JCliArguments arguments);
 }

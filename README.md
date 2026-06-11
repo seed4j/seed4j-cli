@@ -114,12 +114,23 @@ To install or replace the active extension runtime:
 seed4j extension install target/<your-extension-artifact>.jar --distribution-id my-company-extension --distribution-version 1.0.0
 ```
 
+The install command validates the artifact, writes the active runtime files, and enables extension mode. You can also switch modes explicitly:
+
+```bash
+seed4j extension enable
+seed4j extension disable
+```
+
+`enable` validates the active extension runtime before writing `mode: extension`. `disable` writes `mode: standard`, creates the config file when missing, and leaves the active extension JAR and metadata in place.
+
 After installation, validate runtime activation with:
 
 ```bash
 seed4j --version
 seed4j list
 ```
+
+Current limitation: `seed4j extension disable` uses the normal CLI bootstrap. It cannot recover automatically if a broken extension-mode configuration prevents the launcher from creating commands; in that case, set `seed4j.runtime.mode: standard` manually in `~/.config/seed4j-cli/config.yml`.
 
 <!-- seed4j-needle-startupCommand -->
 

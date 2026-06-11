@@ -1,0 +1,79 @@
+package com.seed4j.cli.bootstrap.infrastructure.secondary;
+
+import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
+import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
+import com.seed4j.cli.shared.error.domain.Assert;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+
+public final class SpringBootLocalCliRunner implements LocalCliRunner {
+
+  private static final String SPRING_CONFIG_TEMPLATE = "spring.config.location=classpath:/config/,file:%s";
+  private static final String RUNTIME_EXTENSION_START_CLASS_PROPERTY = "seed4j.cli.runtime.extension.start-class";
+  private static final String SPRING_MAIN_SOURCES_TEMPLATE = "spring.main.sources=%s";
+
+  private final SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory;
+  private final SpringBootExitCodeResolver springBootExitCodeResolver;
+  private final Seed4JCliHome cliHome;
+  private final RuntimeExtensionStartClassReader runtimeExtensionStartClassReader;
+
+  public SpringBootLocalCliRunner(Class<?> applicationClass, Seed4JCliHome cliHome) {
+    this(
+      () -> new SpringApplicationBuilderAdapter(new SpringApplicationBuilder(applicationClass)),
+      new SpringBootExitCodeResolver(),
+      cliHome,
+      () -> System.getProperty(RUNTIME_EXTENSION_START_CLASS_PROPERTY)
+    );
+  }
+
+  SpringBootLocalCliRunner(
+    SpringApplicationBuilderOperationsFactory springApplicationBuilderOperationsFactory,
+    SpringBootExitCodeResolver springBootExitCodeResolver,
+    Seed4JCliHome cliHome,
+    RuntimeExtensionStartClassReader runtimeExtensionStartClassReader
+  ) {
+    Assert.notNull("springApplicationBuilderOperationsFactory", springApplicationBuilderOperationsFactory);
+    Assert.notNull("springBootExitCodeResolver", springBootExitCodeResolver);
+    Assert.notNull("cliHome", cliHome);
+    Assert.notNull("runtimeExtensionStartClassReader", runtimeExtensionStartClassReader);
+    this.springApplicationBuilderOperationsFactory = springApplicationBuilderOperationsFactory;
+    this.springBootExitCodeResolver = springBootExitCodeResolver;
+    this.cliHome = cliHome;
+    this.runtimeExtensionStartClassReader = runtimeExtensionStartClassReader;
+  }
+
+  @Override
+  public int run(Seed4JCliArguments arguments) {
+    SpringApplicationBuilderOperations springApplicationBuilderOperations = springApplicationBuilderOperationsFactory.create();
+    Path configPath = cliHome.configPath();
+
+    if (Files.exists(configPath)) {
+      springApplicationBuilderOperations.properties(SPRING_CONFIG_TEMPLATE.formatted(configPath));
+    }
+
+    extensionStartClass().ifPresent(startClass ->
+      springApplicationBuilderOperations.properties(SPRING_MAIN_SOURCES_TEMPLATE.formatted(startClass))
+    );
+
+    SpringApplicationContextAdapter context = springApplicationBuilderOperations
+      .bannerModeOff()
+      .webNone()
+      .lazyInitialization(true)
+      .run(arguments.values());
+    return springBootExitCodeResolver.resolve(context);
+  }
+
+  private Optional<String> extensionStartClass() {
+    return Optional.ofNullable(runtimeExtensionStartClassReader.current())
+      .map(String::trim)
+      .filter(startClass -> !startClass.isEmpty());
+  }
+
+  @FunctionalInterface
+  interface RuntimeExtensionStartClassReader {
+    String current();
+  }
+}

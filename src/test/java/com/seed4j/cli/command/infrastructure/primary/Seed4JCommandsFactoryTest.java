@@ -5,8 +5,7 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
-import com.seed4j.cli.bootstrap.domain.RuntimeMode;
-import com.seed4j.cli.bootstrap.domain.RuntimeSelection;
+import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -14,7 +13,6 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -406,23 +404,11 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldPreferDedicatedRuntimeVersionSystemPropertiesWhenRenderingVersionOutput(CapturedOutput output) {
+    void shouldRenderVersionOutputUsingProjectBuildMetadata(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(
-        RuntimeMode.EXTENSION,
-        Optional.of(Path.of("company-extension.jar")),
-        Optional.of("company-extension"),
-        Optional.of("1.0.0")
-      );
+      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(Optional.of("company-extension"), Optional.of("1.0.0"));
 
-      int exitCode = commandLine(
-        modules,
-        projects,
-        runtimeSelection,
-        Map.of("seed4j.cli.version", "9.9.9", "seed4j.cli.seed4j.version", "8.8.8"),
-        "fallback-cli-version",
-        "fallback-seed4j-version"
-      ).execute(args);
+      int exitCode = commandLine(modules, projects, runtimeDisplay, "9.9.9", "8.8.8").execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("Seed4J CLI v9.9.9").contains("Seed4J version: 8.8.8");
@@ -431,17 +417,19 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldUseSafeFallbackWhenNoVersionMetadataIsAvailable(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(RuntimeMode.STANDARD, Optional.empty(), Optional.empty(), Optional.empty());
+      RuntimeDisplay runtimeDisplay = RuntimeDisplay.standard();
 
-      int exitCode = commandLine(modules, projects, runtimeSelection, Map.of(), "", "").execute(args);
+      int exitCode = commandLine(modules, projects, runtimeDisplay, "", "").execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
         .contains("Seed4J CLI vunknown")
         .contains("Seed4J version: unknown")
-        .contains("Distribution version: unknown")
+        .contains("Runtime mode: standard")
         .doesNotContain("vnull")
-        .doesNotContain("version: null");
+        .doesNotContain("version: null")
+        .doesNotContain("Distribution ID")
+        .doesNotContain("Distribution version");
     }
 
     @Test
@@ -451,23 +439,25 @@ class Seed4JCommandsFactoryTest {
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
+      assertThat(output)
+        .contains("Seed4J CLI v1")
+        .contains("Seed4J version: 2")
+        .contains("Runtime mode: standard")
+        .doesNotContain("Distribution ID")
+        .doesNotContain("Distribution version");
     }
 
     @Test
     void shouldShowRuntimeModeAndDistributionInVersionOutput(CapturedOutput output) {
       String[] args = { "--version" };
-      RuntimeSelection runtimeSelection = new RuntimeSelection(
-        RuntimeMode.EXTENSION,
-        Optional.of(Path.of("company-extension.jar")),
-        Optional.of("company-extension"),
-        Optional.of("1.0.0")
-      );
+      RuntimeDisplay runtimeDisplay = RuntimeDisplay.extension(Optional.of("company-extension"), Optional.of("1.0.0"));
 
-      int exitCode = commandLine(modules, projects, runtimeSelection).execute(args);
+      int exitCode = commandLine(modules, projects, runtimeDisplay).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
+        .contains("Seed4J CLI v1")
+        .contains("Seed4J version: 2")
         .contains("Runtime mode: extension")
         .contains("Distribution ID: company-extension")
         .contains("Distribution version: 1.0.0");
