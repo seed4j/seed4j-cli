@@ -888,7 +888,7 @@ class PreSpringBootstrapPrimaryTest {
     private void closeQuietly(URLClassLoader childRuntimeClassLoader) {
       try {
         childRuntimeClassLoader.close();
-      } catch (IOException ignored) {
+      } catch (IOException _) {
         // Closing the test classloader must not mask the launch result.
       }
     }

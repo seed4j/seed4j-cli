@@ -23,7 +23,7 @@ import org.mockito.MockedStatic;
 class RuntimeModeConfigurationWriterTest {
 
   @Test
-  void shouldDeleteTemporaryFileAndRethrowWhenWritingTemporaryContentFails() throws IOException {
+  void shouldDeleteTemporaryFileAndRethrowWhenWritingTemporaryContentFails() {
     Path configPath = Path.of("/tmp/seed4j-cli/config.yml");
     RuntimeModeConfigurationDocument currentConfiguration = new RuntimeModeConfigurationDocument(new LinkedHashMap<>());
     AtomicReference<Path> temporaryPath = new AtomicReference<>();

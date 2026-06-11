@@ -24,7 +24,7 @@ final class NestedRuntimeLibraryReader {
 
   static final String BOOT_INF_LIB_DIRECTORY = "BOOT-INF/lib/";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeExtensionLoaderPathResolver.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(NestedRuntimeLibraryReader.class);
   private static final String MAVEN_METADATA_DIRECTORY = "META-INF/maven/";
   private static final String POM_PROPERTIES_SUFFIX = "/pom.properties";
   private static final String GROUP_ID_PROPERTY = "groupId";
