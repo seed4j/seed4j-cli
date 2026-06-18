@@ -12,9 +12,7 @@ import picocli.CommandLine.Model.OptionSpec;
 class BashCompletionScriptGenerator {
 
   public String generate(CommandSpec rootCommand) {
-    Map<String, String> candidatesByPath = new TreeMap<>();
-    Map<String, String> valueOptionsByPath = new TreeMap<>();
-    collectCandidates(rootCommand, "", candidatesByPath, valueOptionsByPath);
+    CompletionCandidates candidates = collectCandidates(rootCommand, "");
 
     return """
     # bash completion for seed4j
@@ -58,15 +56,12 @@ class BashCompletionScriptGenerator {
     }
 
     complete -F _seed4j_completion seed4j
-    """.formatted(caseStatements(candidatesByPath), caseStatements(valueOptionsByPath));
+    """.formatted(caseStatements(candidates.candidatesByPath()), caseStatements(candidates.valueOptionsByPath()));
   }
 
-  private void collectCandidates(
-    CommandSpec command,
-    String path,
-    Map<String, String> candidatesByPath,
-    Map<String, String> valueOptionsByPath
-  ) {
+  private CompletionCandidates collectCandidates(CommandSpec command, String path) {
+    Map<String, String> candidatesByPath = new TreeMap<>();
+    Map<String, String> valueOptionsByPath = new TreeMap<>();
     List<String> candidates = new ArrayList<>();
     candidates.addAll(visibleSubcommandNames(command));
     candidates.addAll(optionNames(command));
@@ -74,9 +69,13 @@ class BashCompletionScriptGenerator {
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
 
-    visibleSubcommands(command).forEach((name, subcommand) ->
-      collectCandidates(subcommand, childPath(path, name), candidatesByPath, valueOptionsByPath)
-    );
+    visibleSubcommands(command).forEach((name, subcommand) -> {
+      CompletionCandidates childCandidates = collectCandidates(subcommand, childPath(path, name));
+      candidatesByPath.putAll(childCandidates.candidatesByPath());
+      valueOptionsByPath.putAll(childCandidates.valueOptionsByPath());
+    });
+
+    return new CompletionCandidates(candidatesByPath, valueOptionsByPath);
   }
 
   private List<String> visibleSubcommandNames(CommandSpec command) {
@@ -144,4 +143,6 @@ class BashCompletionScriptGenerator {
   private String quote(String value) {
     return "'" + value.replace("'", "'\"'\"'") + "'";
   }
+
+  private record CompletionCandidates(Map<String, String> candidatesByPath, Map<String, String> valueOptionsByPath) {}
 }
