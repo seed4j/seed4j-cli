@@ -1,10 +1,10 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Model.OptionSpec;
@@ -62,9 +62,7 @@ class BashCompletionScriptGenerator {
   private CompletionCandidates collectCandidates(CommandSpec command, String path) {
     Map<String, String> candidatesByPath = new TreeMap<>();
     Map<String, String> valueOptionsByPath = new TreeMap<>();
-    List<String> candidates = new ArrayList<>();
-    candidates.addAll(subcommandNames(command));
-    candidates.addAll(optionNames(command));
+    List<String> candidates = Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).toList();
 
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
@@ -83,10 +81,11 @@ class BashCompletionScriptGenerator {
   }
 
   private Map<String, CommandSpec> subcommandsByName(CommandSpec command) {
-    Map<String, CommandSpec> subcommandsByName = new TreeMap<>();
-    command.subcommands().forEach((name, subcommand) -> subcommandsByName.put(name, subcommand.getCommandSpec()));
-
-    return subcommandsByName;
+    return command
+      .subcommands()
+      .entrySet()
+      .stream()
+      .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getCommandSpec(), (left, right) -> right, TreeMap::new));
   }
 
   private List<String> optionNames(CommandSpec command) {
@@ -128,12 +127,11 @@ class BashCompletionScriptGenerator {
   }
 
   private String caseStatements(Map<String, String> candidatesByPath) {
-    StringBuilder statements = new StringBuilder();
-    candidatesByPath.forEach((path, candidates) ->
-      statements.append("    ").append(quote(path)).append(") printf '%s' ").append(quote(candidates)).append(" ;;\n")
-    );
-
-    return statements.toString();
+    return candidatesByPath
+      .entrySet()
+      .stream()
+      .map(entry -> "    %s) printf '%%s' %s ;;\n".formatted(quote(entry.getKey()), quote(entry.getValue())))
+      .collect(Collectors.joining());
   }
 
   private String quote(String value) {
