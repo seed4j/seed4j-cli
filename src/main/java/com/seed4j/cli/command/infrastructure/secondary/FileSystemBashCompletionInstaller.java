@@ -9,17 +9,20 @@ import com.seed4j.cli.shared.error.domain.Assert;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Repository;
 
+@Repository
 class FileSystemBashCompletionInstaller implements BashCompletionInstaller {
 
   private static final Path COMPLETION_SCRIPT_PATH = Path.of(".local/share/bash-completion/completions/seed4j");
 
   private final Path userHome;
 
-  FileSystemBashCompletionInstaller(Path userHome) {
-    Assert.notNull("userHome", userHome);
+  FileSystemBashCompletionInstaller(@Value("${user.home}") String userHomePath) {
+    Assert.notBlank("userHomePath", userHomePath);
 
-    this.userHome = userHome;
+    userHome = Path.of(userHomePath);
   }
 
   @Override

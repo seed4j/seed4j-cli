@@ -21,7 +21,7 @@ class FileSystemBashCompletionInstallerTest {
     Path installedScript = userHome.resolve(".local/share/bash-completion/completions/seed4j");
     Files.createDirectories(installedScript.getParent());
     Files.writeString(installedScript, "stale completion");
-    FileSystemBashCompletionInstaller installer = new FileSystemBashCompletionInstaller(userHome);
+    FileSystemBashCompletionInstaller installer = new FileSystemBashCompletionInstaller(userHome.toString());
 
     BashCompletionInstallationResult result = installer.install(new BashCompletionScript("complete -F _seed4j seed4j\n"));
 
@@ -34,7 +34,7 @@ class FileSystemBashCompletionInstallerTest {
     Path userHome = Files.createTempDirectory("seed4j-cli-bash-completion-");
     Files.createDirectories(userHome.resolve(".local/share"));
     Files.writeString(userHome.resolve(".local/share/bash-completion"), "not a directory");
-    FileSystemBashCompletionInstaller installer = new FileSystemBashCompletionInstaller(userHome);
+    FileSystemBashCompletionInstaller installer = new FileSystemBashCompletionInstaller(userHome.toString());
 
     assertThatThrownBy(() -> installer.install(new BashCompletionScript("complete -F _seed4j seed4j\n")))
       .isExactlyInstanceOf(BashCompletionInstallationException.class)
