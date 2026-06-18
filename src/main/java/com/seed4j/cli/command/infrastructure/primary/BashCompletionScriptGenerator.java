@@ -63,13 +63,13 @@ class BashCompletionScriptGenerator {
     Map<String, String> candidatesByPath = new TreeMap<>();
     Map<String, String> valueOptionsByPath = new TreeMap<>();
     List<String> candidates = new ArrayList<>();
-    candidates.addAll(visibleSubcommandNames(command));
+    candidates.addAll(subcommandNames(command));
     candidates.addAll(optionNames(command));
 
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
 
-    visibleSubcommands(command).forEach((name, subcommand) -> {
+    subcommandsByName(command).forEach((name, subcommand) -> {
       CompletionCandidates childCandidates = collectCandidates(subcommand, childPath(path, name));
       candidatesByPath.putAll(childCandidates.candidatesByPath());
       valueOptionsByPath.putAll(childCandidates.valueOptionsByPath());
@@ -78,19 +78,15 @@ class BashCompletionScriptGenerator {
     return new CompletionCandidates(candidatesByPath, valueOptionsByPath);
   }
 
-  private List<String> visibleSubcommandNames(CommandSpec command) {
-    return visibleSubcommands(command).keySet().stream().toList();
+  private List<String> subcommandNames(CommandSpec command) {
+    return subcommandsByName(command).keySet().stream().toList();
   }
 
-  private Map<String, CommandSpec> visibleSubcommands(CommandSpec command) {
-    Map<String, CommandSpec> visibleSubcommands = new TreeMap<>();
-    command.subcommands().forEach((name, subcommand) -> {
-      if (!subcommand.getCommandSpec().usageMessage().hidden()) {
-        visibleSubcommands.put(name, subcommand.getCommandSpec());
-      }
-    });
+  private Map<String, CommandSpec> subcommandsByName(CommandSpec command) {
+    Map<String, CommandSpec> subcommandsByName = new TreeMap<>();
+    command.subcommands().forEach((name, subcommand) -> subcommandsByName.put(name, subcommand.getCommandSpec()));
 
-    return visibleSubcommands;
+    return subcommandsByName;
   }
 
   private List<String> optionNames(CommandSpec command) {

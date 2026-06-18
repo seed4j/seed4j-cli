@@ -11,7 +11,7 @@ import picocli.CommandLine.Model.OptionSpec;
 class BashCompletionScriptGeneratorTest {
 
   @Test
-  void shouldGenerateStaticBashCandidatesFromVisibleCommandTree() {
+  void shouldGenerateStaticBashCandidatesFromCommandTree() {
     CommandSpec root = CommandSpec.create().name("seed4j");
     root.addOption(OptionSpec.builder("--debug").type(Boolean.class).build());
     CommandSpec apply = CommandSpec.create().name("apply");
@@ -19,11 +19,8 @@ class BashCompletionScriptGeneratorTest {
     init.addOption(OptionSpec.builder("--project-path").type(String.class).build());
     init.addOption(OptionSpec.builder("--commit").type(Boolean.class).negatable(true).build());
     init.addOption(OptionSpec.builder("--environment").type(String.class).paramLabel("<dev|prod>").build());
-    CommandSpec hidden = CommandSpec.create().name("hidden-module");
-    hidden.usageMessage().hidden(true);
 
     apply.addSubcommand("init", init);
-    apply.addSubcommand("hidden-module", hidden);
     root.addSubcommand("apply", apply);
     root.addSubcommand("list", CommandSpec.create().name("list"));
 
@@ -38,7 +35,6 @@ class BashCompletionScriptGeneratorTest {
       .contains("_seed4j_value_options_for_path()")
       .contains("'apply init') printf '%s' '--environment --project-path'")
       .contains("*\" $prev \"*) return 0 ;;")
-      .doesNotContain("hidden-module")
       .doesNotContain("dev|prod");
   }
 }
