@@ -124,11 +124,14 @@ Install it for the current user:
 ```bash
 mkdir -p ~/.local/share/bash-completion/completions
 seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+source ~/.local/share/bash-completion/completions/seed4j
 ```
+
+The `source` command loads completion in the terminal session that is already open. Without it, open a new terminal so Bash loads the generated script during startup.
 
 The script completes visible command names, nested subcommands, `apply` module slugs, option names, and negated option names such as `--no-commit`. It does not complete option values.
 
-The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime.
+The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 
 ### Install a Runtime Extension
 
