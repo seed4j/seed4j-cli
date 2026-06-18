@@ -133,6 +133,25 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
+  void shouldCompleteExtensionOnlySlugInExtensionMode() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-extension-completion-primary-");
+    ExtensionRuntimeFixture.installWithListExtensionModule(userHome);
+    ScopedSystemProperties baselineProperties = capturedRuntimeProperties();
+
+    try {
+      setBaselineRuntimeProperties();
+
+      CliLaunchResult completionLaunch = launchCapturingOutput(runner(userHome), "completion", "bash");
+
+      assertThat(completionLaunch.exitCode()).isZero();
+      assertThat(completionLaunch.output()).contains(EXTENSION_ONLY_SLUG);
+      assertBaselineRuntimePropertiesRestored();
+    } finally {
+      baselineProperties.restore();
+    }
+  }
+
+  @Test
   void shouldListCustomPackageExtensionOnlySlug() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-custom-extension-catalog-primary-");
     ExtensionRuntimeFixture.installWithCustomPackageListExtensionModule(userHome);

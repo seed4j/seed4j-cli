@@ -74,6 +74,30 @@ class Seed4JCommandsFactoryTest {
     assertThat(output).contains("Manage runtime extensions").contains("install").contains("Install active runtime extension");
   }
 
+  @Test
+  void shouldPrintBashCompletionScript(CapturedOutput output) {
+    String[] args = { "completion", "bash" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output)
+      .contains("_seed4j_completion()")
+      .contains("complete -F _seed4j_completion seed4j")
+      .contains("list")
+      .contains("apply")
+      .contains("extension")
+      .contains("completion")
+      .contains("bash")
+      .contains("init")
+      .contains("prettier")
+      .contains("--project-path")
+      .contains("--commit")
+      .contains("--no-commit")
+      .contains("--base-name")
+      .contains("--project-name");
+  }
+
   @Nested
   @DisplayName("list")
   class ListModules {

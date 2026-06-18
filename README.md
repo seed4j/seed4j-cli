@@ -108,6 +108,15 @@ seed4j --version
 
 This prints both the Seed4J CLI version and the bundled Seed4J version.
 
+To install Bash completion for the active runtime:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+```
+
+The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration.
+
 To install or replace the active extension runtime:
 
 ```bash

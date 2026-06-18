@@ -89,10 +89,11 @@ class CliFixture {
       new ExtensionEnableCommand(runtimeExtensionModeApplicationService),
       new ExtensionDisableCommand(runtimeExtensionModeApplicationService)
     );
+    CompletionCommand completionCommand = new CompletionCommand(new BashCompletionCommand());
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand, extensionCommand),
+      List.of(listModulesCommand, applyModuleCommand, extensionCommand, completionCommand),
       projectCliVersion,
       projectSeed4JVersion,
       runtimeDisplayApplicationService
