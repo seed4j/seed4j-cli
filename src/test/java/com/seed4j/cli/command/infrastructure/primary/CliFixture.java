@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.application.BashCompletionInstallApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
@@ -68,6 +69,38 @@ class CliFixture {
     String projectCliVersion,
     String projectSeed4JVersion
   ) {
+    return commandLine(
+      modules,
+      projects,
+      runtimeDisplay,
+      projectCliVersion,
+      projectSeed4JVersion,
+      new BashCompletionInstallApplicationService(script ->
+        new com.seed4j.cli.command.domain.BashCompletionInstallationResult(
+          new com.seed4j.cli.command.domain.BashCompletionInstallationPath(
+            Path.of(System.getProperty("user.home")).resolve(".local/share/bash-completion/completions/seed4j")
+          )
+        )
+      )
+    );
+  }
+
+  static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    BashCompletionInstallApplicationService bashCompletionInstallApplicationService
+  ) {
+    return commandLine(modules, projects, RuntimeDisplay.standard(), "1", "2", bashCompletionInstallApplicationService);
+  }
+
+  private static CommandLine commandLine(
+    Seed4JModulesApplicationService modules,
+    ProjectsApplicationService projects,
+    RuntimeDisplay runtimeDisplay,
+    String projectCliVersion,
+    String projectSeed4JVersion,
+    BashCompletionInstallApplicationService bashCompletionInstallApplicationService
+  ) {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
@@ -89,7 +122,7 @@ class CliFixture {
       new ExtensionEnableCommand(runtimeExtensionModeApplicationService),
       new ExtensionDisableCommand(runtimeExtensionModeApplicationService)
     );
-    CompletionCommand completionCommand = new CompletionCommand(new BashCompletionCommand());
+    CompletionCommand completionCommand = new CompletionCommand(new BashCompletionCommand(bashCompletionInstallApplicationService));
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(

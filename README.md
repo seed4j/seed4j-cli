@@ -111,12 +111,18 @@ This prints both the Seed4J CLI version and the bundled Seed4J version.
 To install Bash completion for the active runtime:
 
 ```bash
-mkdir -p ~/.local/share/bash-completion/completions
-seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+seed4j completion bash --install
 source ~/.local/share/bash-completion/completions/seed4j
 ```
 
 The `source` command loads completion in the terminal session that is already open. Without it, open a new terminal so Bash loads the generated script during startup.
+
+To inspect or install the script manually, redirect the generated output:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+```
 
 The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration, then run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 

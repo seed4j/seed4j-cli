@@ -122,12 +122,18 @@ seed4j completion bash
 Install it for the current user:
 
 ```bash
-mkdir -p ~/.local/share/bash-completion/completions
-seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+seed4j completion bash --install
 source ~/.local/share/bash-completion/completions/seed4j
 ```
 
 The `source` command loads completion in the terminal session that is already open. Without it, open a new terminal so Bash loads the generated script during startup.
+
+To inspect or install the script manually, redirect the generated output:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+```
 
 The script completes available command names, nested subcommands, `apply` module slugs, option names, and negated option names such as `--no-commit`. It does not complete option values.
 
