@@ -109,7 +109,7 @@ class BashCompletionScriptGenerator {
 
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
-    Map<String, List<String>> valueCandidatesByPathAndOption = new TreeMap<>(valueCandidatesByPathAndOption(command, path));
+    Map<String, List<String>> valueCandidatesByPathAndOption = valueCandidatesByPathAndOption(command, path);
 
     return new CompletionCandidates(candidatesByPath, valueOptionsByPath, valueCandidatesByPathAndOption);
   }
@@ -151,17 +151,12 @@ class BashCompletionScriptGenerator {
   }
 
   private Map<String, List<String>> valueCandidatesByPathAndOption(CommandSpec command, String path) {
-    Map<String, List<String>> valueCandidates = new TreeMap<>();
-
-    command
+    return command
       .options()
       .stream()
       .filter(option -> option.completionCandidates() != null)
-      .forEach(option ->
-        Arrays.stream(option.names()).forEach(name -> valueCandidates.put(pathAndOption(path, name), completionCandidates(option)))
-      );
-
-    return valueCandidates;
+      .flatMap(option -> Arrays.stream(option.names()).map(name -> Map.entry(pathAndOption(path, name), completionCandidates(option))))
+      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (left, right) -> right, TreeMap::new));
   }
 
   private List<String> completionCandidates(OptionSpec option) {
