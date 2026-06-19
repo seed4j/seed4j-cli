@@ -93,6 +93,16 @@ class BashCompletionScriptGenerator {
   }
 
   private CompletionCandidates collectCandidates(CommandSpec command, String path) {
+    return Stream.concat(
+      Stream.of(currentCandidates(command, path)),
+      subcommandsByName(command)
+        .entrySet()
+        .stream()
+        .map(entry -> collectCandidates(entry.getValue(), childPath(path, entry.getKey())))
+    ).reduce(CompletionCandidates.empty(), CompletionCandidates::merge);
+  }
+
+  private CompletionCandidates currentCandidates(CommandSpec command, String path) {
     Map<String, String> candidatesByPath = new TreeMap<>();
     Map<String, String> valueOptionsByPath = new TreeMap<>();
     List<String> candidates = Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).toList();
@@ -100,13 +110,6 @@ class BashCompletionScriptGenerator {
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
     Map<String, List<String>> valueCandidatesByPathAndOption = new TreeMap<>(valueCandidatesByPathAndOption(command, path));
-
-    subcommandsByName(command).forEach((name, subcommand) -> {
-      CompletionCandidates childCandidates = collectCandidates(subcommand, childPath(path, name));
-      candidatesByPath.putAll(childCandidates.candidatesByPath());
-      valueOptionsByPath.putAll(childCandidates.valueOptionsByPath());
-      valueCandidatesByPathAndOption.putAll(childCandidates.valueCandidatesByPathAndOption());
-    });
 
     return new CompletionCandidates(candidatesByPath, valueOptionsByPath, valueCandidatesByPathAndOption);
   }
@@ -232,5 +235,21 @@ class BashCompletionScriptGenerator {
     Map<String, String> candidatesByPath,
     Map<String, String> valueOptionsByPath,
     Map<String, List<String>> valueCandidatesByPathAndOption
-  ) {}
+  ) {
+    private static CompletionCandidates empty() {
+      return new CompletionCandidates(new TreeMap<>(), new TreeMap<>(), new TreeMap<>());
+    }
+
+    private CompletionCandidates merge(CompletionCandidates other) {
+      Map<String, String> mergedCandidatesByPath = new TreeMap<>(candidatesByPath);
+      Map<String, String> mergedValueOptionsByPath = new TreeMap<>(valueOptionsByPath);
+      Map<String, List<String>> mergedValueCandidatesByPathAndOption = new TreeMap<>(valueCandidatesByPathAndOption);
+
+      mergedCandidatesByPath.putAll(other.candidatesByPath());
+      mergedValueOptionsByPath.putAll(other.valueOptionsByPath());
+      mergedValueCandidatesByPathAndOption.putAll(other.valueCandidatesByPathAndOption());
+
+      return new CompletionCandidates(mergedCandidatesByPath, mergedValueOptionsByPath, mergedValueCandidatesByPathAndOption);
+    }
+  }
 }
