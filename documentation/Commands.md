@@ -137,7 +137,7 @@ seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
 
 The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI or module metadata. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`, and `seed4j apply init --node-package-manager <TAB>` can suggest `npm`.
 
-To generate the older command and option-only script, disable value completion:
+To generate a completion script without option value candidates, disable value completion:
 
 ```bash
 seed4j completion bash --no-complete-values

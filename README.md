@@ -126,7 +126,7 @@ seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
 
 The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration, then run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 
-By default, Bash completion includes static option value candidates when Seed4J module metadata declares a default value. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`. To generate the older command and option-only script, use:
+By default, Bash completion includes static option value candidates when Seed4J module metadata declares a default value. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`. To generate a script without option value suggestions, use:
 
 ```bash
 seed4j completion bash --no-complete-values --install

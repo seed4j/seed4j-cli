@@ -47,7 +47,7 @@ class BashCompletionCommand implements Callable<Integer> {
     );
     spec.addOption(
       OptionSpec.builder(NO_COMPLETE_VALUES_OPTION)
-        .description("Preserve command and option-only completion without option value candidates")
+        .description("Generate Bash completion without option value candidates")
         .type(Boolean.class)
         .defaultValue("false")
         .build()

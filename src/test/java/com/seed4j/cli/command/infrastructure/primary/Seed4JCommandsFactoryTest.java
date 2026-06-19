@@ -74,52 +74,73 @@ class Seed4JCommandsFactoryTest {
     assertThat(output).contains("Manage runtime extensions").contains("install").contains("Install active runtime extension");
   }
 
-  @Test
-  void shouldPrintBashCompletionScript(CapturedOutput output) {
-    String[] args = { "completion", "bash" };
+  @Nested
+  @DisplayName("completion")
+  class Completion {
 
-    int exitCode = commandLine(modules, projects).execute(args);
+    @Test
+    void shouldPrintBashCompletionScript(CapturedOutput output) {
+      String[] args = { "completion", "bash" };
 
-    assertThat(exitCode).isZero();
-    assertThat(output)
-      .contains("_seed4j_completion()")
-      .contains("complete -F _seed4j_completion seed4j")
-      .contains("list")
-      .contains("apply")
-      .contains("extension")
-      .contains("completion")
-      .contains("bash")
-      .contains("init")
-      .contains("prettier")
-      .contains("--project-path")
-      .contains("--commit")
-      .contains("--no-commit")
-      .contains("--base-name")
-      .contains("--project-name");
-  }
+      int exitCode = commandLine(modules, projects).execute(args);
 
-  @Test
-  void shouldPrintBashCompletionScriptWithModuleDefaultValueCandidates(CapturedOutput output) {
-    String[] args = { "completion", "bash" };
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("_seed4j_completion()")
+        .contains("complete -F _seed4j_completion seed4j")
+        .contains("list")
+        .contains("apply")
+        .contains("extension")
+        .contains("completion")
+        .contains("bash")
+        .contains("init")
+        .contains("prettier")
+        .contains("--project-path")
+        .contains("--commit")
+        .contains("--no-commit")
+        .contains("--base-name")
+        .contains("--project-name");
+    }
 
-    int exitCode = commandLine(modules, projects).execute(args);
+    @Test
+    void shouldPrintBashCompletionScriptWithModuleDefaultValueCandidates(CapturedOutput output) {
+      String[] args = { "completion", "bash" };
 
-    assertThat(exitCode).isZero();
-    assertThat(output)
-      .contains("Seed4J Sample Application")
-      .contains("seed4jSampleApplication")
-      .contains("npm")
-      .contains("'apply init\t--project-path') printf '%s\\n' '.'");
-  }
+      int exitCode = commandLine(modules, projects).execute(args);
 
-  @Test
-  void shouldPrintBashCompletionScriptWithoutValueCandidatesWhenDisabled(CapturedOutput output) {
-    String[] args = { "completion", "bash", "--no-complete-values" };
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("Seed4J Sample Application")
+        .contains("seed4jSampleApplication")
+        .contains("npm")
+        .contains("'apply init\t--project-path') printf '%s\\n' '.'");
+    }
 
-    int exitCode = commandLine(modules, projects).execute(args);
+    @Test
+    void shouldPrintBashCompletionScriptWithoutValueCandidatesWhenDisabled(CapturedOutput output) {
+      String[] args = { "completion", "bash", "--no-complete-values" };
 
-    assertThat(exitCode).isZero();
-    assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+    }
+
+    @Test
+    void shouldDescribeNoCompleteValuesAsGeneratingCompletionWithoutValueCandidates(CapturedOutput output) {
+      String[] args = { "completion", "bash", "--help" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("--no-complete-values")
+        .contains("Generate Bash completion without option value")
+        .contains("candidates")
+        .doesNotContain("older")
+        .doesNotContain("legacy")
+        .doesNotContain("Preserve command and option-only completion");
+    }
   }
 
   @Nested
