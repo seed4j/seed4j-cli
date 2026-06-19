@@ -95,12 +95,11 @@ class BashCompletionScriptGenerator {
   private CompletionCandidates collectCandidates(CommandSpec command, String path) {
     Map<String, String> candidatesByPath = new TreeMap<>();
     Map<String, String> valueOptionsByPath = new TreeMap<>();
-    Map<String, List<String>> valueCandidatesByPathAndOption = new TreeMap<>();
     List<String> candidates = Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).toList();
 
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
-    valueCandidatesByPathAndOption.putAll(valueCandidatesByPathAndOption(command, path));
+    Map<String, List<String>> valueCandidatesByPathAndOption = new TreeMap<>(valueCandidatesByPathAndOption(command, path));
 
     subcommandsByName(command).forEach((name, subcommand) -> {
       CompletionCandidates childCandidates = collectCandidates(subcommand, childPath(path, name));
