@@ -67,6 +67,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .description("Project Path Folder")
         .paramLabel("<projectpath>")
         .defaultValue(".")
+        .completionCandidates(List.of("."))
         .type(String.class)
         .build()
     );
@@ -90,9 +91,17 @@ class ApplyModuleSubCommand implements Callable<Integer> {
           )
           .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
           .type(toOptionType(property.type()))
+          .completionCandidates(completionCandidates(property))
           .build()
       )
     );
+  }
+
+  private List<String> completionCandidates(Seed4JModulePropertyDefinition property) {
+    return property
+      .defaultValue()
+      .map(defaultValue -> List.of(defaultValue.get()))
+      .orElse(List.of());
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")

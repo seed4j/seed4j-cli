@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +13,13 @@ import picocli.CommandLine.Model.OptionSpec;
 class BashCompletionScriptGenerator {
 
   private static final String BASH_NEWLINE = "\n";
+  private static final String OPTION_CANDIDATE_SEPARATOR = "\t";
 
   public String generate(CommandSpec rootCommand) {
+    return generate(rootCommand, true);
+  }
+
+  public String generate(CommandSpec rootCommand, boolean completeValues) {
     CompletionCandidates candidates = collectCandidates(rootCommand, "");
 
     return """
@@ -29,11 +35,18 @@ class BashCompletionScriptGenerator {
       case "$1" in
     %s\
         *) printf '%%s' '' ;;
+        esac
+    }
+
+    _seed4j_value_candidates_for_option() {
+      case "$1"$'\\t'"$2" in
+    %s\
+        *) printf '%%s' '' ;;
       esac
     }
 
     _seed4j_completion() {
-      local cur prev word path candidates value_options
+      local cur prev word path candidates value_options value_candidates option value_prefix candidate
       COMPREPLY=()
       cur="${COMP_WORDS[COMP_CWORD]}"
       prev="${COMP_WORDS[COMP_CWORD - 1]}"
@@ -49,6 +62,19 @@ class BashCompletionScriptGenerator {
       done
 
       value_options="$(_seed4j_value_options_for_path "$path")"
+    %s\
+      if [[ "$cur" == --*=* ]]; then
+        option="${cur%%%%=*}"
+        value_prefix="${cur#*=}"
+        value_candidates="$(_seed4j_value_candidates_for_option "$path" "$option")"
+        if [[ -n "$value_candidates" ]]; then
+          while IFS= read -r candidate; do
+            [[ "$candidate" == "$value_prefix"* ]] && COMPREPLY+=("$option=$candidate")
+          done <<< "$value_candidates"
+          return 0
+        fi
+      fi
+
       case " $value_options " in
         *" $prev "*) return 0 ;;
       esac
@@ -58,24 +84,32 @@ class BashCompletionScriptGenerator {
     }
 
     complete -F _seed4j_completion seed4j
-    """.formatted(caseStatements(candidates.candidatesByPath()), caseStatements(candidates.valueOptionsByPath()));
+    """.formatted(
+      caseStatements(candidates.candidatesByPath()),
+      caseStatements(candidates.valueOptionsByPath()),
+      valueCandidateCaseStatements(completeValues ? candidates.valueCandidatesByPathAndOption() : Map.of()),
+      separatedValueCompletion(completeValues)
+    );
   }
 
   private CompletionCandidates collectCandidates(CommandSpec command, String path) {
     Map<String, String> candidatesByPath = new TreeMap<>();
     Map<String, String> valueOptionsByPath = new TreeMap<>();
+    Map<String, List<String>> valueCandidatesByPathAndOption = new TreeMap<>();
     List<String> candidates = Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).toList();
 
     candidatesByPath.put(path, String.join(" ", candidates));
     valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
+    valueCandidatesByPathAndOption.putAll(valueCandidatesByPathAndOption(command, path));
 
     subcommandsByName(command).forEach((name, subcommand) -> {
       CompletionCandidates childCandidates = collectCandidates(subcommand, childPath(path, name));
       candidatesByPath.putAll(childCandidates.candidatesByPath());
       valueOptionsByPath.putAll(childCandidates.valueOptionsByPath());
+      valueCandidatesByPathAndOption.putAll(childCandidates.valueCandidatesByPathAndOption());
     });
 
-    return new CompletionCandidates(candidatesByPath, valueOptionsByPath);
+    return new CompletionCandidates(candidatesByPath, valueOptionsByPath, valueCandidatesByPathAndOption);
   }
 
   private List<String> subcommandNames(CommandSpec command) {
@@ -114,6 +148,27 @@ class BashCompletionScriptGenerator {
       .toList();
   }
 
+  private Map<String, List<String>> valueCandidatesByPathAndOption(CommandSpec command, String path) {
+    Map<String, List<String>> valueCandidates = new TreeMap<>();
+
+    command
+      .options()
+      .stream()
+      .filter(option -> option.completionCandidates() != null)
+      .forEach(option ->
+        Arrays.stream(option.names()).forEach(name -> valueCandidates.put(pathAndOption(path, name), completionCandidates(option)))
+      );
+
+    return valueCandidates;
+  }
+
+  private List<String> completionCandidates(OptionSpec option) {
+    List<String> candidates = new ArrayList<>();
+    option.completionCandidates().forEach(candidates::add);
+
+    return candidates;
+  }
+
   private boolean requiresValue(OptionSpec option) {
     Class<?> type = option.type();
 
@@ -128,6 +183,10 @@ class BashCompletionScriptGenerator {
     return path + " " + childName;
   }
 
+  private String pathAndOption(String path, String option) {
+    return path + OPTION_CANDIDATE_SEPARATOR + option;
+  }
+
   private String caseStatements(Map<String, String> candidatesByPath) {
     return candidatesByPath
       .entrySet()
@@ -136,9 +195,43 @@ class BashCompletionScriptGenerator {
       .collect(Collectors.joining());
   }
 
+  private String valueCandidateCaseStatements(Map<String, List<String>> valueCandidatesByPathAndOption) {
+    return valueCandidatesByPathAndOption
+      .entrySet()
+      .stream()
+      .filter(entry -> !entry.getValue().isEmpty())
+      .map(entry -> "    %s) printf '%%s\\n' %s ;;%s".formatted(quote(entry.getKey()), quotedValues(entry.getValue()), BASH_NEWLINE))
+      .collect(Collectors.joining());
+  }
+
+  private String quotedValues(List<String> values) {
+    return values.stream().map(this::quote).collect(Collectors.joining(" "));
+  }
+
+  private String separatedValueCompletion(boolean completeValues) {
+    if (!completeValues) {
+      return "";
+    }
+
+    return """
+      value_candidates="$(_seed4j_value_candidates_for_option "$path" "$prev")"
+      if [[ -n "$value_candidates" ]]; then
+        while IFS= read -r candidate; do
+          [[ "$candidate" == "$cur"* ]] && COMPREPLY+=("$candidate")
+        done <<< "$value_candidates"
+        return 0
+      fi
+
+    """;
+  }
+
   private String quote(String value) {
     return "'" + value.replace("'", "'\"'\"'") + "'";
   }
 
-  private record CompletionCandidates(Map<String, String> candidatesByPath, Map<String, String> valueOptionsByPath) {}
+  private record CompletionCandidates(
+    Map<String, String> candidatesByPath,
+    Map<String, String> valueOptionsByPath,
+    Map<String, List<String>> valueCandidatesByPathAndOption
+  ) {}
 }

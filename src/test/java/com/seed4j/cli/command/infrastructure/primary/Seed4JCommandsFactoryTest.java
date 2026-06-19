@@ -98,6 +98,30 @@ class Seed4JCommandsFactoryTest {
       .contains("--project-name");
   }
 
+  @Test
+  void shouldPrintBashCompletionScriptWithModuleDefaultValueCandidates(CapturedOutput output) {
+    String[] args = { "completion", "bash" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output)
+      .contains("Seed4J Sample Application")
+      .contains("seed4jSampleApplication")
+      .contains("npm")
+      .contains("'apply init\t--project-path') printf '%s\\n' '.'");
+  }
+
+  @Test
+  void shouldPrintBashCompletionScriptWithoutValueCandidatesWhenDisabled(CapturedOutput output) {
+    String[] args = { "completion", "bash", "--no-complete-values" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+  }
+
   @Nested
   @DisplayName("list")
   class ListModules {
