@@ -127,19 +127,18 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldDescribeNoCompleteValuesAsGeneratingCompletionWithoutValueCandidates(CapturedOutput output) {
+    void shouldShowBashCompletionOptionsInHelp(CapturedOutput output) {
       String[] args = { "completion", "bash", "--help" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
+        .contains("--install")
+        .contains("Install Bash completion script")
         .contains("--no-complete-values")
         .contains("Generate Bash completion without option value")
-        .contains("candidates")
-        .doesNotContain("older")
-        .doesNotContain("legacy")
-        .doesNotContain("Preserve command and option-only completion");
+        .contains("candidates");
     }
   }
 
