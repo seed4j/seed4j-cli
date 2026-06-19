@@ -99,7 +99,8 @@ class Seed4JCommandsFactoryTest {
         .contains("--commit")
         .contains("--no-commit")
         .contains("--base-name")
-        .contains("--project-name");
+        .contains("--project-name")
+        .doesNotContain("--complete-values");
     }
 
     @Test
@@ -127,6 +128,16 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldRejectRemovedCompleteValuesOption(CapturedOutput output) {
+      String[] args = { "completion", "bash", "--complete-values=false" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output).contains("Unknown option: '--complete-values=false'");
+    }
+
+    @Test
     void shouldShowBashCompletionOptionsInHelp(CapturedOutput output) {
       String[] args = { "completion", "bash", "--help" };
 
@@ -138,7 +149,8 @@ class Seed4JCommandsFactoryTest {
         .contains("Install Bash completion script")
         .contains("--no-complete-values")
         .contains("Generate Bash completion without option value")
-        .contains("candidates");
+        .contains("candidates")
+        .doesNotContain("--complete-values");
     }
   }
 

@@ -49,7 +49,7 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldCompleteOptionValueCandidateAsSingleSuggestionWhenOptionValueIsNext() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidate());
+    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of("Seed4J Sample Application")));
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
 
@@ -58,7 +58,7 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldCompleteOptionValueCandidateWhenValueIsAssignedWithEquals() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidate());
+    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of("Seed4J Sample Application")));
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name=");
 
@@ -67,20 +67,30 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldSkipOptionValueCandidatesWhenValueCompletionIsDisabled() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidate(), false);
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      false
+    );
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
 
     assertThat(completions).isEmpty();
   }
 
-  private CommandSpec commandWithProjectNameCandidate() {
+  @Test
+  void shouldNotSuggestOptionValuesWhenOptionHasEmptyCandidates() throws IOException, InterruptedException {
+    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of()));
+
+    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
+
+    assertThat(completions).isEmpty();
+  }
+
+  private CommandSpec commandWithProjectNameCandidates(List<String> candidates) {
     CommandSpec root = CommandSpec.create().name("seed4j");
     CommandSpec apply = CommandSpec.create().name("apply");
     CommandSpec init = CommandSpec.create().name("init");
-    init.addOption(
-      OptionSpec.builder("--project-name").type(String.class).completionCandidates(List.of("Seed4J Sample Application")).build()
-    );
+    init.addOption(OptionSpec.builder("--project-name").type(String.class).completionCandidates(candidates).build());
     apply.addSubcommand("init", init);
     root.addSubcommand("apply", apply);
 
