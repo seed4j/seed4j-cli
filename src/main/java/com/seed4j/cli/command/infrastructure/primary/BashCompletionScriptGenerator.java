@@ -11,6 +11,8 @@ import picocli.CommandLine.Model.OptionSpec;
 
 class BashCompletionScriptGenerator {
 
+  private static final String BASH_NEWLINE = "\n";
+
   public String generate(CommandSpec rootCommand) {
     CompletionCandidates candidates = collectCandidates(rootCommand, "");
 
@@ -130,7 +132,7 @@ class BashCompletionScriptGenerator {
     return candidatesByPath
       .entrySet()
       .stream()
-      .map(entry -> "    %s) printf '%%s' %s ;;\n".formatted(quote(entry.getKey()), quote(entry.getValue())))
+      .map(entry -> "    %s) printf '%%s' %s ;;%s".formatted(quote(entry.getKey()), quote(entry.getValue()), BASH_NEWLINE))
       .collect(Collectors.joining());
   }
 
