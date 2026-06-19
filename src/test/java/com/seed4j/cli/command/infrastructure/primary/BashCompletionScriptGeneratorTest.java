@@ -33,7 +33,7 @@ class BashCompletionScriptGeneratorTest {
     root.addSubcommand("apply", apply);
     root.addSubcommand("list", CommandSpec.create().name("list"));
 
-    String script = new BashCompletionScriptGenerator().generate(root);
+    String script = new BashCompletionScriptGenerator().generate(root, BashCompletionValueCompletion.ENABLED);
 
     assertThat(script)
       .contains("_seed4j_completion()")
@@ -49,7 +49,10 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldCompleteOptionValueCandidateAsSingleSuggestionWhenOptionValueIsNext() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of("Seed4J Sample Application")));
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      BashCompletionValueCompletion.ENABLED
+    );
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
 
@@ -58,7 +61,10 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldCompleteOptionValueCandidateWhenValueIsAssignedWithEquals() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of("Seed4J Sample Application")));
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      BashCompletionValueCompletion.ENABLED
+    );
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name=");
 
@@ -69,7 +75,7 @@ class BashCompletionScriptGeneratorTest {
   void shouldSkipOptionValueCandidatesWhenValueCompletionIsDisabled() throws IOException, InterruptedException {
     String script = new BashCompletionScriptGenerator().generate(
       commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
-      false
+      BashCompletionValueCompletion.DISABLED
     );
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
@@ -79,7 +85,10 @@ class BashCompletionScriptGeneratorTest {
 
   @Test
   void shouldNotSuggestOptionValuesWhenOptionHasEmptyCandidates() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(commandWithProjectNameCandidates(List.of()));
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of()),
+      BashCompletionValueCompletion.ENABLED
+    );
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
 

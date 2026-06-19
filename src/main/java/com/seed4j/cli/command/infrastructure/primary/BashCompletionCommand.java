@@ -55,7 +55,7 @@ class BashCompletionCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    String script = new BashCompletionScriptGenerator().generate(commandSpec.root(), completeValues());
+    String script = new BashCompletionScriptGenerator().generate(commandSpec.root(), valueCompletion());
     Boolean install = commandSpec.findOption(INSTALL_OPTION).getValue();
 
     if (Boolean.TRUE.equals(install)) {
@@ -77,9 +77,9 @@ class BashCompletionCommand implements Callable<Integer> {
     return ExitCode.OK;
   }
 
-  private boolean completeValues() {
+  private BashCompletionValueCompletion valueCompletion() {
     Boolean noCompleteValues = commandSpec.findOption(NO_COMPLETE_VALUES_OPTION).getValue();
 
-    return !Boolean.TRUE.equals(noCompleteValues);
+    return BashCompletionValueCompletion.from(!Boolean.TRUE.equals(noCompleteValues));
   }
 }

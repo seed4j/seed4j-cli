@@ -15,11 +15,7 @@ class BashCompletionScriptGenerator {
   private static final String BASH_NEWLINE = "\n";
   private static final String OPTION_CANDIDATE_SEPARATOR = "\t";
 
-  public String generate(CommandSpec rootCommand) {
-    return generate(rootCommand, true);
-  }
-
-  public String generate(CommandSpec rootCommand, boolean completeValues) {
+  public String generate(CommandSpec rootCommand, BashCompletionValueCompletion valueCompletion) {
     CompletionCandidates candidates = collectCandidates(rootCommand, "");
 
     return """
@@ -87,8 +83,8 @@ class BashCompletionScriptGenerator {
     """.formatted(
       caseStatements(candidates.candidatesByPath()),
       caseStatements(candidates.valueOptionsByPath()),
-      valueCandidateCaseStatements(completeValues ? candidates.valueCandidatesByPathAndOption() : Map.of()),
-      separatedValueCompletion(completeValues)
+      valueCandidateCaseStatements(valueCompletion.enabled() ? candidates.valueCandidatesByPathAndOption() : Map.of()),
+      separatedValueCompletion(valueCompletion)
     );
   }
 
@@ -203,8 +199,8 @@ class BashCompletionScriptGenerator {
     return values.stream().map(this::quote).collect(Collectors.joining(" "));
   }
 
-  private String separatedValueCompletion(boolean completeValues) {
-    if (!completeValues) {
+  private String separatedValueCompletion(BashCompletionValueCompletion valueCompletion) {
+    if (!valueCompletion.enabled()) {
       return "";
     }
 
