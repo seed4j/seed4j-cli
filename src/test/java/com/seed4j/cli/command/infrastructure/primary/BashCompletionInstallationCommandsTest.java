@@ -45,6 +45,33 @@ class BashCompletionInstallationCommandsTest {
   }
 
   @Test
+  void shouldInstallBashCompletionScriptWithoutValueCandidatesWhenDisabled() {
+    BashCompletionInstallerStub installer = new BashCompletionInstallerStub();
+    BashCompletionInstallApplicationService installApplicationService = new BashCompletionInstallApplicationService(installer);
+
+    int exitCode = commandLine(modules, projects, installApplicationService).execute(
+      "completion",
+      "bash",
+      "--install",
+      "--no-complete-values"
+    );
+
+    assertThat(exitCode).isZero();
+    assertThat(installer.installedScript().content()).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+  }
+
+  @Test
+  void shouldInstallBashCompletionScriptWithValueCandidatesByDefault() {
+    BashCompletionInstallerStub installer = new BashCompletionInstallerStub();
+    BashCompletionInstallApplicationService installApplicationService = new BashCompletionInstallApplicationService(installer);
+
+    int exitCode = commandLine(modules, projects, installApplicationService).execute("completion", "bash", "--install");
+
+    assertThat(exitCode).isZero();
+    assertThat(installer.installedScript().content()).contains("Seed4J Sample Application");
+  }
+
+  @Test
   void shouldReportBashCompletionInstallationFailureWithoutSuccessInstruction(CapturedOutput output) {
     BashCompletionInstallerStub installer = new BashCompletionInstallerStub();
     installer.failInstallation();

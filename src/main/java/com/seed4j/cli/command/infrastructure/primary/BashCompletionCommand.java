@@ -15,6 +15,7 @@ class BashCompletionCommand implements Callable<Integer> {
 
   private static final String INSTALLATION_INSTRUCTION = "source ~/.local/share/bash-completion/completions/seed4j";
   private static final String INSTALL_OPTION = "--install";
+  private static final String NO_COMPLETE_VALUES_OPTION = "--no-complete-values";
 
   private final BashCompletionInstallApplicationService installApplicationService;
 
@@ -36,6 +37,13 @@ class BashCompletionCommand implements Callable<Integer> {
         .defaultValue("false")
         .build()
     );
+    spec.addOption(
+      OptionSpec.builder(NO_COMPLETE_VALUES_OPTION)
+        .description("Generate Bash completion without option value candidates")
+        .type(Boolean.class)
+        .defaultValue("false")
+        .build()
+    );
     commandSpec = spec;
 
     return spec;
@@ -47,7 +55,7 @@ class BashCompletionCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    String script = new BashCompletionScriptGenerator().generate(commandSpec.root());
+    String script = new BashCompletionScriptGenerator().generate(commandSpec.root(), valueCompletion());
     Boolean install = commandSpec.findOption(INSTALL_OPTION).getValue();
 
     if (Boolean.TRUE.equals(install)) {
@@ -67,5 +75,11 @@ class BashCompletionCommand implements Callable<Integer> {
     System.out.print(script);
 
     return ExitCode.OK;
+  }
+
+  private BashCompletionValueCompletion valueCompletion() {
+    Boolean noCompleteValues = commandSpec.findOption(NO_COMPLETE_VALUES_OPTION).getValue();
+
+    return BashCompletionValueCompletion.from(!Boolean.TRUE.equals(noCompleteValues));
   }
 }

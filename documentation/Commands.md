@@ -135,7 +135,21 @@ mkdir -p ~/.local/share/bash-completion/completions
 seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
 ```
 
-The script completes available command names, nested subcommands, `apply` module slugs, option names, and negated option names such as `--no-commit`. It does not complete option values.
+The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI or module metadata. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`, and `seed4j apply init --node-package-manager <TAB>` can suggest `npm`.
+
+To generate a completion script without option value candidates, disable value completion:
+
+```bash
+seed4j completion bash --no-complete-values
+```
+
+The same flag works with installation:
+
+```bash
+seed4j completion bash --no-complete-values --install
+```
+
+Value completion is limited to explicit static candidates in CLI and module metadata. It does not complete filesystem paths, shell history values, or inferred enum-like values.
 
 The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 
