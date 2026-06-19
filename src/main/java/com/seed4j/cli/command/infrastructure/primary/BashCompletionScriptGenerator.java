@@ -103,12 +103,10 @@ class BashCompletionScriptGenerator {
   }
 
   private CompletionCandidates currentCandidates(CommandSpec command, String path) {
-    Map<String, String> candidatesByPath = new TreeMap<>();
-    Map<String, String> valueOptionsByPath = new TreeMap<>();
-    List<String> candidates = Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).toList();
-
-    candidatesByPath.put(path, String.join(" ", candidates));
-    valueOptionsByPath.put(path, String.join(" ", valueOptionNames(command)));
+    Map<String, String> candidatesByPath = new TreeMap<>(
+      Map.of(path, Stream.concat(subcommandNames(command).stream(), optionNames(command).stream()).collect(Collectors.joining(" ")))
+    );
+    Map<String, String> valueOptionsByPath = new TreeMap<>(Map.of(path, String.join(" ", valueOptionNames(command))));
     Map<String, List<String>> valueCandidatesByPathAndOption = valueCandidatesByPathAndOption(command, path);
 
     return new CompletionCandidates(candidatesByPath, valueOptionsByPath, valueCandidatesByPathAndOption);
