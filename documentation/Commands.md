@@ -9,6 +9,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Version](#version)
   - [List Available Modules](#list-available-modules)
   - [Apply a Module](#apply-a-module)
+  - [Bash Completion](#bash-completion)
   - [Install a Runtime Extension](#install-a-runtime-extension)
   - [Enable a Runtime Extension](#enable-a-runtime-extension)
   - [Disable a Runtime Extension](#disable-a-runtime-extension)
@@ -109,6 +110,34 @@ To see the specific parameters for a module and which one is required, run:
 ```bash
 seed4j apply <module-name> --help
 ```
+
+### Bash Completion
+
+To print a Bash completion script for the active runtime:
+
+```bash
+seed4j completion bash
+```
+
+Install it for the current user:
+
+```bash
+seed4j completion bash --install
+source ~/.local/share/bash-completion/completions/seed4j
+```
+
+The `source` command loads completion in the terminal session that is already open. Without it, open a new terminal so Bash loads the generated script during startup.
+
+To inspect or install the script manually, redirect the generated output:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
+```
+
+The script completes available command names, nested subcommands, `apply` module slugs, option names, and negated option names such as `--no-commit`. It does not complete option values.
+
+The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 
 ### Install a Runtime Extension
 
@@ -322,6 +351,7 @@ These values are exposed through the `seed4j.hidden-resources.*` configuration n
 
 - Hidden modules will not appear in the output of `seed4j list`
 - Hidden modules cannot be applied using `seed4j apply <hidden-module>`
+- Hidden modules will not appear in `seed4j completion bash`
 - Attempting to apply a hidden module will result in an "Unmatched arguments" error
 
 **Example:**

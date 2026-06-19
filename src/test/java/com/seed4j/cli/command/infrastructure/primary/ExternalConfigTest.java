@@ -57,4 +57,16 @@ class ExternalConfigTest {
       assertThat(outputCaptor.getOutput()).contains("Unmatched arguments from index");
     }
   }
+
+  @Test
+  void shouldHideApplyCommandsInBashCompletionWhenLoadExternalConfigurationFile() {
+    String[] args = { "completion", "bash" };
+
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(outputCaptor.getOutput()).doesNotContain("gradle-java").doesNotContain("gitpod");
+    }
+  }
 }
