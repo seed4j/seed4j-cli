@@ -114,36 +114,81 @@ seed4j apply <module-name> --help
 To inspect the values Seed4J would use without applying the module, add `--plan`:
 
 ```bash
-seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager pnpm --plan
+seed4j apply init --plan
 ```
 
-The plan is text-only and exits without generated files, history entries, or commits. Required parameters can come from the current command or project history. When required parameters are still missing, the plan exits successfully and prints a `Missing required parameters` section so callers know which options to pass before applying the module.
-
-Example output:
+The plan is text-only and exits without generated files, history entries, or commits. Required parameters can come from
+the current command or project history. When required parameters are still missing, the plan exits successfully and shows
+which options to pass before applying the module.
 
 ```text
 Plan for module: init
-Project path: /home/user/my-project
+Project path: .
 
 Resolved parameters:
-
-projectName: My Project
-  Source: explicit CLI input
-  CLI option: --project-name
-
-baseName: MyProject
-  Source: explicit CLI input
-  CLI option: --base-name
-
-nodePackageManager: pnpm
-  Source: explicit CLI input
-  CLI option: --node-package-manager
 
 endOfLine: lf
   Source: default
   CLI option: --end-of-line
 
+indentSize: 2
+  Source: default
+  CLI option: --indent-size
+
+Missing required parameters:
+
+projectName:
+  CLI option: --project-name
+  Note: pass this option or apply a module that records it in project history.
+
+baseName:
+  CLI option: --base-name
+  Note: pass this option or apply a module that records it in project history.
+
 No changes were applied.
+```
+
+Pass the missing options when applying the module:
+
+```bash
+seed4j apply init --project-name "Seed4J Sample Application" --base-name seed4jSampleApplication --node-package-manager npm
+```
+
+Planning `maven-java` shows the values already selected by project history and the remaining required option:
+
+```bash
+seed4j apply maven-java --plan
+```
+
+```text
+Plan for module: maven-java
+Project path: .
+
+Resolved parameters:
+
+projectName: Seed4J Sample Application
+  Source: project history
+  CLI option: --project-name
+  Note: already selected by project history; omit this option to keep it.
+
+baseName: seed4jSampleApplication
+  Source: project history
+  CLI option: --base-name
+  Note: already selected by project history; omit this option to keep it.
+
+Missing required parameters:
+
+packageName:
+  CLI option: --package-name
+  Note: pass this option or apply a module that records it in project history.
+
+No changes were applied.
+```
+
+Pass the missing option when applying the module:
+
+```bash
+seed4j apply maven-java --package-name com.mycompany.myapp
 ```
 
 Plan source labels mean:
@@ -152,17 +197,9 @@ Plan source labels mean:
 - `project history`: the value came from the latest saved project parameters
 - `default`: the module metadata defines a display default and no explicit or historical value exists
 
-Project-history values include a note telling callers they can omit that option to keep the remembered value. Defaults in the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part of this text-only phase.
-
-If required values are missing, the plan includes them after the resolved parameters:
-
-```text
-Missing required parameters:
-
-projectName:
-  CLI option: --project-name
-  Note: pass this option or apply a module that records it in project history.
-```
+Project-history values include a note telling callers they can omit that option to keep the remembered value. Defaults in
+the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part
+of this text-only phase.
 
 ### Bash Completion
 
