@@ -114,7 +114,7 @@ To inspect module parameters before applying a module, add `--plan`:
 seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager pnpm --plan
 ```
 
-The plan prints the resolved text values and shows whether each value came from the current CLI input, project history, or a module metadata default. It does not apply files, write history, or create commits.
+The plan prints the resolved text values and shows whether each value came from the current CLI input, project history, or a module metadata default. If required values are missing, it prints a `Missing required parameters` section and still does not apply files, write history, or create commits.
 
 To install Bash completion for the active runtime:
 

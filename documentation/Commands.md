@@ -117,7 +117,7 @@ To inspect the values Seed4J would use without applying the module, add `--plan`
 seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager pnpm --plan
 ```
 
-The plan is text-only and exits without generated files, history entries, or commits. Required parameters are still validated the same way as normal apply: a value can come from the current command or project history, but missing required values return the usual missing-options error.
+The plan is text-only and exits without generated files, history entries, or commits. Required parameters can come from the current command or project history. When required parameters are still missing, the plan exits successfully and prints a `Missing required parameters` section so callers know which options to pass before applying the module.
 
 Example output:
 
@@ -153,6 +153,16 @@ Plan source labels mean:
 - `default`: the module metadata defines a display default and no explicit or historical value exists
 
 Project-history values include a note telling callers they can omit that option to keep the remembered value. Defaults in the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part of this text-only phase.
+
+If required values are missing, the plan includes them after the resolved parameters:
+
+```text
+Missing required parameters:
+
+projectName:
+  CLI option: --project-name
+  Note: pass this option or apply a module that records it in project history.
+```
 
 ### Bash Completion
 

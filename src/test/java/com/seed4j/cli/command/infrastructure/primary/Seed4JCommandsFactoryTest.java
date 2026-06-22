@@ -365,7 +365,8 @@ class Seed4JCommandsFactoryTest {
             CLI option: --end-of-line
           """
         )
-        .contains("No changes were applied.");
+        .contains("No changes were applied.")
+        .doesNotContain("Missing required parameters:");
     }
 
     @Test
@@ -415,7 +416,8 @@ class Seed4JCommandsFactoryTest {
             Note: already selected by project history; omit this option to keep it.
           """
         )
-        .contains("No changes were applied.");
+        .contains("No changes were applied.")
+        .doesNotContain("Missing required parameters:");
     }
 
     @Test
@@ -436,21 +438,38 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldNotPlanInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
+    void shouldPlanInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
-      assertThat(exitCode).isEqualTo(2);
+      assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
       assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
       assertThat(output)
-        .contains("Missing required")
-        .contains("'--base-name=<basename*>'")
-        .contains("'--project-name=<projectname*>'")
-        .doesNotContain("Plan for module: init")
-        .doesNotContain("No changes were applied.");
+        .contains(
+          """
+          Plan for module: init
+          Project path: %s
+
+          Resolved parameters:
+          """.formatted(projectPath)
+        )
+        .contains(
+          """
+          Missing required parameters:
+
+          projectName:
+            CLI option: --project-name
+            Note: pass this option or apply a module that records it in project history.
+
+          baseName:
+            CLI option: --base-name
+            Note: pass this option or apply a module that records it in project history.
+          """
+        )
+        .contains("No changes were applied.");
     }
 
     @Test
@@ -463,16 +482,18 @@ class Seed4JCommandsFactoryTest {
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
       assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
-      assertThat(output).contains(
-        """
-        Plan for module: checkstyle
-        Project path: %s
+      assertThat(output)
+        .contains(
+          """
+          Plan for module: checkstyle
+          Project path: %s
 
-        Resolved parameters:
+          Resolved parameters:
 
-        No changes were applied.
-        """.formatted(projectPath)
-      );
+          No changes were applied.
+          """.formatted(projectPath)
+        )
+        .doesNotContain("Missing required parameters:");
     }
 
     @Test

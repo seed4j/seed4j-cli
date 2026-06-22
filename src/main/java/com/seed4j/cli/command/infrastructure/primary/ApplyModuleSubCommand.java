@@ -164,7 +164,6 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     Map<String, Object> explicitParameters = parametersFromOptions();
     ModuleParameters historyParameters = projects.getHistory(new ProjectPath(projectPath)).latestProperties();
     ModuleParameters mergedParameters = historyParameters.merge(new ModuleParameters(explicitParameters));
-    validateRequiredOptions(mergedParameters);
 
     if (executionMode() == ApplyModuleExecutionMode.PLAN) {
       ResolvedModuleParameters resolvedParameters = parameterResolver.resolve(
@@ -176,6 +175,8 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
       return ExitCode.OK;
     }
+
+    validateRequiredOptions(mergedParameters);
 
     Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath, commitEnabled(), mergedParameters.get());
     Seed4JModuleToApply moduleToApply = new Seed4JModuleToApply(new Seed4JModuleSlug(module.slug().get()), properties);

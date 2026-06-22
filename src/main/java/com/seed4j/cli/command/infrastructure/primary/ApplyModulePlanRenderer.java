@@ -3,6 +3,7 @@ package com.seed4j.cli.command.infrastructure.primary;
 class ApplyModulePlanRenderer {
 
   private static final String PROJECT_HISTORY_NOTE = "already selected by project history; omit this option to keep it.";
+  private static final String MISSING_REQUIRED_NOTE = "pass this option or apply a module that records it in project history.";
 
   String render(String moduleSlug, String projectPath, ResolvedModuleParameters parameters) {
     StringBuilder plan = new StringBuilder();
@@ -20,6 +21,17 @@ class ApplyModulePlanRenderer {
         if (parameter.source().projectHistory()) {
           plan.append("  Note: ").append(PROJECT_HISTORY_NOTE).append('\n');
         }
+      }
+    }
+
+    if (!parameters.complete()) {
+      plan.append('\n');
+      plan.append("Missing required parameters:").append('\n');
+      for (MissingRequiredModuleParameter parameter : parameters.missingRequiredParameters()) {
+        plan.append('\n');
+        plan.append(parameter.name()).append(":").append('\n');
+        plan.append("  CLI option: ").append(parameter.cliOption()).append('\n');
+        plan.append("  Note: ").append(MISSING_REQUIRED_NOTE).append('\n');
       }
     }
 
