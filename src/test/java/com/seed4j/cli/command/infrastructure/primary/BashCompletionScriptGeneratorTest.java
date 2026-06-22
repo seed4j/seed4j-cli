@@ -60,6 +60,18 @@ class BashCompletionScriptGeneratorTest {
   }
 
   @Test
+  void shouldFilterMultipleOptionValueCandidatesByPrefix() throws IOException, InterruptedException {
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("npm", "pnpm")),
+      BashCompletionValueCompletion.ENABLED
+    );
+
+    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "p");
+
+    assertThat(completions).containsExactly("pnpm");
+  }
+
+  @Test
   void shouldCompleteOptionValueCandidateWhenValueIsAssignedWithEquals() throws IOException, InterruptedException {
     String script = new BashCompletionScriptGenerator().generate(
       commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),

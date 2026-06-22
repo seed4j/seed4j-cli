@@ -118,6 +118,19 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldPrintBashCompletionScriptWithKnownModuleValueCandidates(CapturedOutput output) {
+      String[] args = { "completion", "bash" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("'apply init\t--node-package-manager') printf '%s\\n' 'npm' 'pnpm'")
+        .contains("'apply spring-boot\t--spring-configuration-format') printf '%s\\n' 'yaml' 'properties'")
+        .contains("'apply init\t--end-of-line') printf '%s\\n' 'lf' 'crlf'");
+    }
+
+    @Test
     void shouldPrintBashCompletionScriptWithoutValueCandidatesWhenDisabled(CapturedOutput output) {
       String[] args = { "completion", "bash", "--no-complete-values" };
 
