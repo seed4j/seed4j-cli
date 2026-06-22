@@ -188,7 +188,7 @@ mkdir -p ~/.local/share/bash-completion/completions
 seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
 ```
 
-The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI metadata, known Seed4J module property values, and module default values. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`, `seed4j apply init --node-package-manager <TAB>` can suggest `npm` and `pnpm`, `seed4j apply spring-boot --spring-configuration-format <TAB>` can suggest `yaml` and `properties`, and `seed4j apply init --end-of-line <TAB>` can suggest `lf` and `crlf`.
+The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI metadata, known Seed4J module property values, and module default values. For example, `seed4j apply init --project-name <TAB>` can suggest `"Seed4J Sample Application"`, `seed4j apply init --node-package-manager <TAB>` can suggest `npm` and `pnpm`, `seed4j apply spring-boot --spring-configuration-format <TAB>` can suggest `yaml` and `properties`, and `seed4j apply init --end-of-line <TAB>` can suggest `lf` and `crlf`.
 
 To generate a completion script without option value candidates, disable value completion:
 

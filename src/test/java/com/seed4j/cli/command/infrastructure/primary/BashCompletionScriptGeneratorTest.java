@@ -48,7 +48,7 @@ class BashCompletionScriptGeneratorTest {
   }
 
   @Test
-  void shouldCompleteOptionValueCandidateAsSingleSuggestionWhenOptionValueIsNext() throws IOException, InterruptedException {
+  void shouldCompleteOptionValueCandidateAsQuotedSuggestionWhenOptionValueIsNext() throws IOException, InterruptedException {
     String script = new BashCompletionScriptGenerator().generate(
       commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
       BashCompletionValueCompletion.ENABLED
@@ -56,7 +56,7 @@ class BashCompletionScriptGeneratorTest {
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
 
-    assertThat(completions).containsExactly("Seed4J Sample Application");
+    assertThat(completions).containsExactly("\"Seed4J Sample Application\"");
   }
 
   @Test
@@ -72,6 +72,18 @@ class BashCompletionScriptGeneratorTest {
   }
 
   @Test
+  void shouldCompleteQuotedOptionValueCandidateAfterPartialValue() throws IOException, InterruptedException {
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      BashCompletionValueCompletion.ENABLED
+    );
+
+    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "Se");
+
+    assertThat(completions).containsExactly("\"Seed4J Sample Application\"");
+  }
+
+  @Test
   void shouldCompleteOptionValueCandidateWhenValueIsAssignedWithEquals() throws IOException, InterruptedException {
     String script = new BashCompletionScriptGenerator().generate(
       commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
@@ -80,7 +92,31 @@ class BashCompletionScriptGeneratorTest {
 
     List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name=");
 
-    assertThat(completions).containsExactly("--project-name=Seed4J Sample Application");
+    assertThat(completions).containsExactly("--project-name=\"Seed4J Sample Application\"");
+  }
+
+  @Test
+  void shouldCompleteQuotedOptionValueCandidateAfterEquals() throws IOException, InterruptedException {
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      BashCompletionValueCompletion.ENABLED
+    );
+
+    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "=");
+
+    assertThat(completions).containsExactly("\"Seed4J Sample Application\"");
+  }
+
+  @Test
+  void shouldCompleteQuotedOptionValueCandidateAfterEqualsAndPartialValue() throws IOException, InterruptedException {
+    String script = new BashCompletionScriptGenerator().generate(
+      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      BashCompletionValueCompletion.ENABLED
+    );
+
+    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "=", "Se");
+
+    assertThat(completions).containsExactly("\"Seed4J Sample Application\"");
   }
 
   @Test
