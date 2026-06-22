@@ -31,12 +31,15 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
+  private static final String PLAN_OPTION = "--plan";
 
   private final Seed4JModulesApplicationService modules;
   private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
   private final ProjectsApplicationService projects;
   private final KnownModulePropertyCompletionCandidates knownCompletionCandidates = new KnownModulePropertyCompletionCandidates();
+  private final ApplyModuleParameterResolver parameterResolver = new ApplyModuleParameterResolver();
+  private final ApplyModulePlanRenderer planRenderer = new ApplyModulePlanRenderer();
 
   public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
     this.modules = modules;
@@ -81,6 +84,13 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .build()
     );
 
+    spec.addOption(
+      OptionSpec.builder(PLAN_OPTION)
+        .description("Print the resolved module parameters and value sources without applying changes")
+        .type(Boolean.class)
+        .build()
+    );
+
     properties.stream().forEach(property ->
       spec.addOption(
         OptionSpec.builder(toDashedFormat(property.key()))
@@ -111,7 +121,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     };
   }
 
-  private static String toDashedFormat(Seed4JPropertyKey key) {
+  static String toDashedFormat(Seed4JPropertyKey key) {
     StringBuilder dashed = new StringBuilder("--");
     for (char c : key.get().toCharArray()) {
       if (Character.isUpperCase(c)) {
@@ -150,11 +160,38 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath(), commitEnabled(), parameters());
+    String projectPath = projectPath();
+    Map<String, Object> explicitParameters = parametersFromOptions();
+    ModuleParameters historyParameters = projects.getHistory(new ProjectPath(projectPath)).latestProperties();
+    ModuleParameters mergedParameters = historyParameters.merge(new ModuleParameters(explicitParameters));
+    validateRequiredOptions(mergedParameters);
+
+    if (executionMode() == ApplyModuleExecutionMode.PLAN) {
+      ResolvedModuleParameters resolvedParameters = parameterResolver.resolve(
+        module.propertiesDefinition(),
+        explicitParameters,
+        historyParameters.get()
+      );
+      System.out.print(planRenderer.render(module.slug().get(), projectPath, resolvedParameters));
+
+      return ExitCode.OK;
+    }
+
+    Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath, commitEnabled(), mergedParameters.get());
     Seed4JModuleToApply moduleToApply = new Seed4JModuleToApply(new Seed4JModuleSlug(module.slug().get()), properties);
     modules.apply(moduleToApply);
 
     return ExitCode.OK;
+  }
+
+  private ApplyModuleExecutionMode executionMode() {
+    Boolean plan = commandSpec.findOption(PLAN_OPTION).getValue();
+
+    if (Boolean.TRUE.equals(plan)) {
+      return ApplyModuleExecutionMode.PLAN;
+    }
+
+    return ApplyModuleExecutionMode.APPLY;
   }
 
   private String projectPath() {
@@ -167,27 +204,23 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     return commit == null || commit;
   }
 
-  private Map<String, Object> parameters() {
-    ModuleParameters moduleParameters = projects
-      .getHistory(new ProjectPath(projectPath()))
-      .latestProperties()
-      .merge(new ModuleParameters(parametersFromOptions()));
-
-    validateRequiredOptions(moduleParameters);
-
-    return moduleParameters.get();
-  }
-
   private Map<String, Object> parametersFromOptions() {
     Map<String, Object> map = new HashMap<>();
 
     commandSpec
       .options()
       .stream()
+      .filter(this::moduleParameterOption)
       .filter(option -> option.getValue() != null)
       .forEach(option -> map.put(toCamelCaseFormat(option.longestName()), option.getValue()));
 
     return map;
+  }
+
+  private boolean moduleParameterOption(OptionSpec option) {
+    String name = option.longestName();
+
+    return !PROJECT_PATH_OPTION.equals(name) && !COMMIT_OPTION.equals(name) && !PLAN_OPTION.equals(name);
   }
 
   private void validateRequiredOptions(ModuleParameters moduleParameters) {

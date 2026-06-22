@@ -111,6 +111,49 @@ To see the specific parameters for a module and which one is required, run:
 seed4j apply <module-name> --help
 ```
 
+To inspect the values Seed4J would use without applying the module, add `--plan`:
+
+```bash
+seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager pnpm --plan
+```
+
+The plan is text-only and exits without generated files, history entries, or commits. Required parameters are still validated the same way as normal apply: a value can come from the current command or project history, but missing required values return the usual missing-options error.
+
+Example output:
+
+```text
+Plan for module: init
+Project path: /home/user/my-project
+
+Resolved parameters:
+
+projectName: My Project
+  Source: explicit CLI input
+  CLI option: --project-name
+
+baseName: MyProject
+  Source: explicit CLI input
+  CLI option: --base-name
+
+nodePackageManager: pnpm
+  Source: explicit CLI input
+  CLI option: --node-package-manager
+
+endOfLine: lf
+  Source: default
+  CLI option: --end-of-line
+
+No changes were applied.
+```
+
+Plan source labels mean:
+
+- `explicit CLI input`: the option was passed in the current command
+- `project history`: the value came from the latest saved project parameters
+- `default`: the module metadata defines a display default and no explicit or historical value exists
+
+Project-history values include a note telling callers they can omit that option to keep the remembered value. Defaults in the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part of this text-only phase.
+
 ### Bash Completion
 
 To print a Bash completion script for the active runtime:
@@ -295,6 +338,7 @@ Most commands accept additional options and parameters:
 - `--project-path=<projectpath>`: Specifies the project directory (defaults to current directory)
 - `--[no-]commit`: Initializes Git if needed and commits generated changes (defaults to true). `--no-commit` skips both Git
   initialization and commit.
+- `--plan`: Prints resolved module parameters and their value sources without applying changes.
 - `--debug`: Enables runtime bootstrap diagnostics (mainly for `extension` mode runtime troubleshooting)
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)

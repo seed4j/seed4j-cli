@@ -316,6 +316,109 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldPlanInitModuleWithExplicitAndDefaultParameterSources(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "pnpm",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(output)
+        .contains(
+          """
+          Plan for module: init
+          Project path: %s
+
+          Resolved parameters:
+
+          projectName: Seed4J Sample Application
+            Source: explicit CLI input
+            CLI option: --project-name
+
+          baseName: seed4jSampleApplication
+            Source: explicit CLI input
+            CLI option: --base-name
+
+          nodePackageManager: pnpm
+            Source: explicit CLI input
+            CLI option: --node-package-manager
+          """.formatted(projectPath)
+        )
+        .contains(
+          """
+          endOfLine: lf
+            Source: default
+            CLI option: --end-of-line
+          """
+        )
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldPlanInitModuleWithHistorySourcesAndExplicitOverrides(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] applyArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int applyExitCode = commandLine(modules, projects).execute(applyArgs);
+      assertThat(applyExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "explicitOverride", "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output)
+        .contains(
+          """
+          projectName: Seed4J Sample Application
+            Source: project history
+            CLI option: --project-name
+            Note: already selected by project history; omit this option to keep it.
+
+          baseName: explicitOverride
+            Source: explicit CLI input
+            CLI option: --base-name
+          """
+        )
+        .contains(
+          """
+          nodePackageManager: npm
+            Source: project history
+            CLI option: --node-package-manager
+            Note: already selected by project history; omit this option to keep it.
+          """
+        )
+        .contains("No changes were applied.");
+    }
+
+    @Test
     void shouldNotApplyInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
@@ -330,6 +433,46 @@ class Seed4JCommandsFactoryTest {
         .contains("'--project-name=<projectname*>'")
         .contains("Project short name (only letters and numbers) (required)")
         .contains("Project full name (required)");
+    }
+
+    @Test
+    void shouldNotPlanInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "init", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(output)
+        .contains("Missing required")
+        .contains("'--base-name=<basename*>'")
+        .contains("'--project-name=<projectname*>'")
+        .doesNotContain("Plan for module: init")
+        .doesNotContain("No changes were applied.");
+    }
+
+    @Test
+    void shouldPlanModuleWithoutResolvedParameters(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "checkstyle", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(output).contains(
+        """
+        Plan for module: checkstyle
+        Project path: %s
+
+        Resolved parameters:
+
+        No changes were applied.
+        """.formatted(projectPath)
+      );
     }
 
     @Test

@@ -108,6 +108,14 @@ seed4j --version
 
 This prints both the Seed4J CLI version and the bundled Seed4J version.
 
+To inspect module parameters before applying a module, add `--plan`:
+
+```bash
+seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager pnpm --plan
+```
+
+The plan prints the resolved text values and shows whether each value came from the current CLI input, project history, or a module metadata default. It does not apply files, write history, or create commits.
+
 To install Bash completion for the active runtime:
 
 ```bash
