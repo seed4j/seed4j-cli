@@ -41,6 +41,19 @@ class BashCompletionScriptGenerator {
       esac
     }
 
+    _seed4j_completion_quote_value() {
+      case "$1" in
+        *[!a-zA-Z0-9_./:@%%+=,-]*|'')
+          local quoted="${1//\\\\/\\\\\\\\}"
+          quoted="${quoted//\\"/\\\\\\"}"
+          quoted="${quoted//\\$/\\\\\\$}"
+          quoted="${quoted//\\`/\\\\\\`}"
+          printf '%%s' "\\"$quoted\\""
+          ;;
+        *) printf '%%s' "$1" ;;
+      esac
+    }
+
     _seed4j_completion() {
       local cur prev word path candidates value_options value_candidates option value_prefix candidate
       COMPREPLY=()
@@ -65,7 +78,7 @@ class BashCompletionScriptGenerator {
         value_candidates="$(_seed4j_value_candidates_for_option "$path" "$option")"
         if [[ -n "$value_candidates" ]]; then
           while IFS= read -r candidate; do
-            [[ "$candidate" == "$value_prefix"* ]] && COMPREPLY+=("$option=$candidate")
+            [[ "$candidate" == "$value_prefix"* ]] && COMPREPLY+=("$option=$(_seed4j_completion_quote_value "$candidate")")
           done <<< "$value_candidates"
           return 0
         fi
@@ -205,10 +218,31 @@ class BashCompletionScriptGenerator {
     }
 
     return """
+      if [[ "$cur" == "=" && "$prev" == --* ]]; then
+        value_candidates="$(_seed4j_value_candidates_for_option "$path" "$prev")"
+        if [[ -n "$value_candidates" ]]; then
+          while IFS= read -r candidate; do
+            COMPREPLY+=("$(_seed4j_completion_quote_value "$candidate")")
+          done <<< "$value_candidates"
+          return 0
+        fi
+      fi
+
+      if [[ "$prev" == "=" && "${COMP_WORDS[COMP_CWORD - 2]}" == --* ]]; then
+        option="${COMP_WORDS[COMP_CWORD - 2]}"
+        value_candidates="$(_seed4j_value_candidates_for_option "$path" "$option")"
+        if [[ -n "$value_candidates" ]]; then
+          while IFS= read -r candidate; do
+            [[ "$candidate" == "$cur"* ]] && COMPREPLY+=("$(_seed4j_completion_quote_value "$candidate")")
+          done <<< "$value_candidates"
+          return 0
+        fi
+      fi
+
       value_candidates="$(_seed4j_value_candidates_for_option "$path" "$prev")"
       if [[ -n "$value_candidates" ]]; then
         while IFS= read -r candidate; do
-          [[ "$candidate" == "$cur"* ]] && COMPREPLY+=("$candidate")
+          [[ "$candidate" == "$cur"* ]] && COMPREPLY+=("$(_seed4j_completion_quote_value "$candidate")")
         done <<< "$value_candidates"
         return 0
       fi

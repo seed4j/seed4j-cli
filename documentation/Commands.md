@@ -111,6 +111,96 @@ To see the specific parameters for a module and which one is required, run:
 seed4j apply <module-name> --help
 ```
 
+To inspect the values Seed4J would use without applying the module, add `--plan`:
+
+```bash
+seed4j apply init --plan
+```
+
+The plan is text-only and exits without generated files, history entries, or commits. Required parameters can come from
+the current command or project history. When required parameters are still missing, the plan exits successfully and shows
+which options to pass before applying the module.
+
+```text
+Plan for module: init
+Project path: .
+
+Resolved parameters:
+
+endOfLine: lf
+  Source: default
+  CLI option: --end-of-line
+
+indentSize: 2
+  Source: default
+  CLI option: --indent-size
+
+Missing required parameters:
+
+projectName:
+  CLI option: --project-name
+  Note: pass this option or apply a module that records it in project history.
+
+baseName:
+  CLI option: --base-name
+  Note: pass this option or apply a module that records it in project history.
+
+No changes were applied.
+```
+
+Pass the missing options when applying the module:
+
+```bash
+seed4j apply init --project-name "Seed4J Sample Application" --base-name seed4jSampleApplication --node-package-manager npm
+```
+
+Planning `maven-java` shows the values already selected by project history and the remaining required option:
+
+```bash
+seed4j apply maven-java --plan
+```
+
+```text
+Plan for module: maven-java
+Project path: .
+
+Resolved parameters:
+
+projectName: Seed4J Sample Application
+  Source: project history
+  CLI option: --project-name
+  Note: already selected by project history; omit this option to keep it.
+
+baseName: seed4jSampleApplication
+  Source: project history
+  CLI option: --base-name
+  Note: already selected by project history; omit this option to keep it.
+
+Missing required parameters:
+
+packageName:
+  CLI option: --package-name
+  Note: pass this option or apply a module that records it in project history.
+
+No changes were applied.
+```
+
+Pass the missing option when applying the module:
+
+```bash
+seed4j apply maven-java --package-name com.mycompany.myapp
+```
+
+Plan source labels mean:
+
+- `explicit CLI input`: the option was passed in the current command
+- `project history`: the value came from the latest saved project parameters
+- `default`: the module metadata defines a display default and no explicit or historical value exists
+
+Project-history values include a note telling callers they can omit that option to keep the remembered value. Defaults in
+the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part
+of this text-only phase.
+
 ### Bash Completion
 
 To print a Bash completion script for the active runtime:
@@ -135,7 +225,7 @@ mkdir -p ~/.local/share/bash-completion/completions
 seed4j completion bash > ~/.local/share/bash-completion/completions/seed4j
 ```
 
-The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI metadata, known Seed4J module property values, and module default values. For example, `seed4j apply init --project-name <TAB>` can suggest `Seed4J Sample Application`, `seed4j apply init --node-package-manager <TAB>` can suggest `npm` and `pnpm`, `seed4j apply spring-boot --spring-configuration-format <TAB>` can suggest `yaml` and `properties`, and `seed4j apply init --end-of-line <TAB>` can suggest `lf` and `crlf`.
+The script completes available command names, nested subcommands, `apply` module slugs, option names, negated option names such as `--no-commit`, and static option value candidates from CLI metadata, known Seed4J module property values, and module default values. For example, `seed4j apply init --project-name <TAB>` can suggest `"Seed4J Sample Application"`, `seed4j apply init --node-package-manager <TAB>` can suggest `npm` and `pnpm`, `seed4j apply spring-boot --spring-configuration-format <TAB>` can suggest `yaml` and `properties`, and `seed4j apply init --end-of-line <TAB>` can suggest `lf` and `crlf`.
 
 To generate a completion script without option value candidates, disable value completion:
 
@@ -295,6 +385,7 @@ Most commands accept additional options and parameters:
 - `--project-path=<projectpath>`: Specifies the project directory (defaults to current directory)
 - `--[no-]commit`: Initializes Git if needed and commits generated changes (defaults to true). `--no-commit` skips both Git
   initialization and commit.
+- `--plan`: Prints resolved module parameters and their value sources without applying changes.
 - `--debug`: Enables runtime bootstrap diagnostics (mainly for `extension` mode runtime troubleshooting)
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)

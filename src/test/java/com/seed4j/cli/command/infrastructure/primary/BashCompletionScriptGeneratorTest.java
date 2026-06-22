@@ -8,8 +8,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Model.OptionSpec;
 
@@ -47,40 +51,22 @@ class BashCompletionScriptGeneratorTest {
       .doesNotContain("dev|prod");
   }
 
-  @Test
-  void shouldCompleteOptionValueCandidateAsSingleSuggestionWhenOptionValueIsNext() throws IOException, InterruptedException {
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("optionValueCompletionScenarios")
+  void shouldCompleteOptionValueCandidates(
+    String scenarioName,
+    List<String> candidates,
+    List<String> words,
+    List<String> expectedCompletions
+  ) throws IOException, InterruptedException {
     String script = new BashCompletionScriptGenerator().generate(
-      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
+      commandWithProjectNameCandidates(candidates),
       BashCompletionValueCompletion.ENABLED
     );
 
-    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "");
+    List<String> completions = completions(script, words.toArray(String[]::new));
 
-    assertThat(completions).containsExactly("Seed4J Sample Application");
-  }
-
-  @Test
-  void shouldFilterMultipleOptionValueCandidatesByPrefix() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(
-      commandWithProjectNameCandidates(List.of("npm", "pnpm")),
-      BashCompletionValueCompletion.ENABLED
-    );
-
-    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name", "p");
-
-    assertThat(completions).containsExactly("pnpm");
-  }
-
-  @Test
-  void shouldCompleteOptionValueCandidateWhenValueIsAssignedWithEquals() throws IOException, InterruptedException {
-    String script = new BashCompletionScriptGenerator().generate(
-      commandWithProjectNameCandidates(List.of("Seed4J Sample Application")),
-      BashCompletionValueCompletion.ENABLED
-    );
-
-    List<String> completions = completions(script, "seed4j", "apply", "init", "--project-name=");
-
-    assertThat(completions).containsExactly("--project-name=Seed4J Sample Application");
+    assertThat(completions).containsExactlyElementsOf(expectedCompletions);
   }
 
   @Test
@@ -116,6 +102,47 @@ class BashCompletionScriptGeneratorTest {
     root.addSubcommand("apply", apply);
 
     return root;
+  }
+
+  private static Stream<Arguments> optionValueCompletionScenarios() {
+    return Stream.of(
+      Arguments.of(
+        "quoted suggestion when option value is next",
+        List.of("Seed4J Sample Application"),
+        List.of("seed4j", "apply", "init", "--project-name", ""),
+        List.of("\"Seed4J Sample Application\"")
+      ),
+      Arguments.of(
+        "multiple candidates filtered by prefix",
+        List.of("npm", "pnpm"),
+        List.of("seed4j", "apply", "init", "--project-name", "p"),
+        List.of("pnpm")
+      ),
+      Arguments.of(
+        "quoted suggestion after partial value",
+        List.of("Seed4J Sample Application"),
+        List.of("seed4j", "apply", "init", "--project-name", "Se"),
+        List.of("\"Seed4J Sample Application\"")
+      ),
+      Arguments.of(
+        "suggestion when value is assigned with equals",
+        List.of("Seed4J Sample Application"),
+        List.of("seed4j", "apply", "init", "--project-name="),
+        List.of("--project-name=\"Seed4J Sample Application\"")
+      ),
+      Arguments.of(
+        "quoted suggestion after equals",
+        List.of("Seed4J Sample Application"),
+        List.of("seed4j", "apply", "init", "--project-name", "="),
+        List.of("\"Seed4J Sample Application\"")
+      ),
+      Arguments.of(
+        "quoted suggestion after equals and partial value",
+        List.of("Seed4J Sample Application"),
+        List.of("seed4j", "apply", "init", "--project-name", "=", "Se"),
+        List.of("\"Seed4J Sample Application\"")
+      )
+    );
   }
 
   private List<String> completions(String script, String... words) throws IOException, InterruptedException {
