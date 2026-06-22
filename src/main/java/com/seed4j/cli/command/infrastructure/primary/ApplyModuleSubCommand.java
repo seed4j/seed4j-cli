@@ -36,6 +36,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
   private final ProjectsApplicationService projects;
+  private final KnownModulePropertyCompletionCandidates knownCompletionCandidates = new KnownModulePropertyCompletionCandidates();
 
   public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
     this.modules = modules;
@@ -98,10 +99,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   }
 
   private List<String> completionCandidates(Seed4JModulePropertyDefinition property) {
-    return property
-      .defaultValue()
-      .map(defaultValue -> List.of(defaultValue.get()))
-      .orElse(List.of());
+    return knownCompletionCandidates.candidates(property);
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")
