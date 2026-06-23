@@ -1,13 +1,28 @@
 {
   "name": "seed4j-cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
+  "private": false,
   "description": "Seed4J CLI",
-  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seed4j/seed4j-cli.git"
+  },
+  "license": "Apache-2.0",
+  "bin": {
+    "seed4j": "./bin/seed4j.js"
+  },
+  "files": [
+    "bin/",
+    "dist/seed4j-cli.jar",
+    "LICENSE.txt",
+    "README.md"
+  ],
   "scripts": {
+    "package:prepare": "node scripts/prepare-npm-package.js",
     "prepare": "husky",
     "prettier:check": "prettier --check .",
-    "prettier:format": "prettier --write ."
+    "prettier:format": "prettier --write .",
+    "test:npm-package": "node --test test/npm/*.test.js"
   },
   "devDependencies": {
     "@prettier/plugin-xml": "3.4.2",
