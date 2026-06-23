@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    name: npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 'Setup: checkout project'
+        uses: actions/checkout@v6
+
+      - name: 'Setup: Node.js'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.17.0
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: 'Setup: Java'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 25
+          cache: maven
+
+      - name: 'Release: derive version'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "Release tag must be v<semver>, got ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: 'Setup: npm dependencies'
+        run: npm ci
+
+      - name: 'Release: set package versions'
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          perl -0pi -e 's{<version>[^<]+</version>}{<version>$ENV{VERSION}</version>}' pom.xml
+
+      - name: 'Test: npm wrapper'
+        run: npm run test:npm-package
+
+      - name: 'Build: Java package'
+        run: ./mvnw --batch-mode -ntp clean package
+
+      - name: 'Build: prepare npm package'
+        run: npm run package:prepare
+
+      - name: 'Test: packed npm package'
+        run: |
+          npm pack --dry-run
+          TARBALL="$(npm pack --silent)"
+          PREFIX="$(mktemp -d)"
+          npm install --global --prefix "$PREFIX" "./$TARBALL"
+          "$PREFIX/bin/seed4j" --version
+
+      - name: 'Release: publish npm package'
+        run: npm publish --provenance

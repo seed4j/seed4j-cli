@@ -18,17 +18,17 @@ Seed4J CLI is a command-line interface tool that helps you apply and manage Seed
 
 ## Quick Start
 
-You need to clone this project and go into the folder:
+Install the `seed4j` command from npm:
 
 ```bash
-git clone https://github.com/seed4j/seed4j-cli
-cd seed4j-cli
+npm install -g seed4j-cli
+seed4j --help
 ```
 
-Install `seed4j` command in your bin folder:
+You can also run it without a global install:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
+npx --package seed4j-cli seed4j --help
 ```
 
 Then you can follow the [Commands Guide](documentation/Commands.md)
@@ -37,7 +37,7 @@ Then you can follow the [Commands Guide](documentation/Commands.md)
 
 ### Java
 
-You need to have Java 25:
+The npm package runs the Seed4J CLI Spring Boot JAR through Java. You need Java 25 on your `PATH` at runtime:
 
 - [JDK 25](https://openjdk.org/projects/jdk/25/)
 
@@ -65,32 +65,57 @@ npm install
 ./mvnw
 ```
 
-## Install CLI Command
+## Build from source
+
+Clone this project and go into the folder:
 
 ```bash
-./mvnw clean package
-
-echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null
-
-# Make the script executable
-sudo chmod +x /usr/local/bin/seed4j
-
-# Find the JAR file in the target directory and move it as seed4j.jar
-JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1)
-if [ -n "$JAR_SOURCE" ]; then
-  sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar
-else
-  echo "No JAR file found in target directory"
-fi
+git clone https://github.com/seed4j/seed4j-cli
+cd seed4j-cli
 ```
 
-Copy and paste the above script into a terminal to install the `seed4j` command.
-
-You can use a single command:
+Build the Java package and prepare the npm package contents:
 
 ```bash
-./mvnw clean package && echo "java -jar \"/usr/local/bin/seed4j.jar\" \"\$@\"" | sudo tee /usr/local/bin/seed4j > /dev/null && sudo chmod +x /usr/local/bin/seed4j && JAR_SOURCE=$(ls target/seed4j-cli-*.jar | head -n 1) && [ -n "$JAR_SOURCE" ] && sudo mv "$JAR_SOURCE" /usr/local/bin/seed4j.jar || echo "No JAR file found in target directory"
+./mvnw --batch-mode -ntp clean package
+npm run package:prepare
 ```
+
+The preparation step copies the Maven-built JAR to `dist/seed4j-cli.jar`, which is the JAR shipped by npm.
+
+To inspect the npm package before publishing:
+
+```bash
+npm pack --dry-run
+```
+
+To install the local package globally for a smoke test:
+
+```bash
+npm install -g .
+seed4j --version
+```
+
+## Release to npm
+
+The npm package name is `seed4j-cli`, and it exposes the command `seed4j`.
+
+Releases are tag-driven. Push a `v<semver>` tag, for example:
+
+```bash
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+The release workflow derives `0.0.1` from the tag, updates npm and Maven versions for the build, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, and publishes with `npm publish --provenance`.
+
+Before the first Trusted Publishing release, configure the `seed4j-cli` package on npm with this GitHub publisher:
+
+- Repository: `seed4j/seed4j-cli`
+- Workflow: `.github/workflows/release.yml`
+- Environment: leave empty unless the workflow is later changed to use one
+
+If the package does not exist yet and npm requires a manual first publish, build from source, run `npm run package:prepare`, inspect `npm pack --dry-run`, then publish once from a maintainer machine with `npm publish --provenance` or, if provenance is not available locally, `npm publish`. After that, use the tag workflow for releases.
 
 ### Usage
 
