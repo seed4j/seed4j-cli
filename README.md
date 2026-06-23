@@ -100,14 +100,38 @@ seed4j --version
 
 The npm package name is `seed4j-cli`, and it exposes the command `seed4j`.
 
-Releases are tag-driven. Push a `v<semver>` tag, for example:
+Release Drafter keeps a draft GitHub Release updated from pull requests merged into `main`. The draft changelog is grouped by PR labels, so release notes are only as precise as the labels applied before merging.
+
+The categories currently used by the draft are:
+
+- `theme: important`
+- `area: feature request :bulb:`
+- `area: enhancement :wrench:`
+- `area: refactoring`
+- `area: bug :bug:`
+- `area: breaking change`
+- `server: spring boot`
+- `theme: security`
+- `theme: maven`
+- `theme: gradle`
+- `area: documentation :books:`
+- `area: remove`
+- `area: invalid`
+- `area: spam`
+- `area: dependencies`
+
+Tag releases are automated. Push a `v<semver>` tag, for example:
 
 ```bash
 git tag v0.0.1
 git push origin v0.0.1
 ```
 
-The release workflow derives `0.0.1` from the tag, updates npm and Maven versions for the build, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, and publishes with `npm publish --provenance`.
+The release workflow derives `0.0.1` from the tag, updates npm and Maven versions for the build, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, publishes with `npm publish --provenance`, then publishes the matching GitHub Release from the maintained draft. The GitHub Release attaches the versioned JAR, such as `seed4j-cli-0.0.1.jar`, but npm remains the primary installation channel:
+
+```bash
+npm install -g seed4j-cli
+```
 
 Before the first Trusted Publishing release, configure the `seed4j-cli` package on npm with this GitHub publisher:
 
