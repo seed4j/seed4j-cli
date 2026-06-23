@@ -120,18 +120,26 @@ The categories currently used by the draft are:
 - `area: spam`
 - `area: dependencies`
 
-Tag releases are automated. Push a `v<semver>` tag, for example:
+`pom.xml` is the source of truth for the release version. Prepare a release by committing the Maven version and matching npm metadata, then push a tag with the same version:
 
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
+git switch main
+./mvnw versions:set -DnewVersion=0.0.2 -DgenerateBackupPoms=false
+npm version 0.0.2 --no-git-tag-version
+git add pom.xml package.json package-lock.json
+git commit -m "chore(release): prepare 0.0.2"
+git tag v0.0.2
+git push origin main
+git push origin v0.0.2
 ```
 
-The release workflow derives `0.0.1` from the tag, updates npm and Maven versions for the build, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, publishes with `npm publish --provenance`, then publishes the matching GitHub Release from the maintained draft. The GitHub Release attaches the versioned JAR, such as `seed4j-cli-0.0.1.jar`, but npm remains the primary installation channel:
+The release workflow reads the version from `pom.xml`, rejects snapshot versions, requires the tag to match `v<project.version>`, checks that `package.json` and `package-lock.json` match the Maven version, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, publishes with `npm publish --provenance`, then publishes the matching GitHub Release from the maintained draft. The GitHub Release attaches the versioned JAR, such as `seed4j-cli-0.0.2.jar`, but npm remains the primary installation channel:
 
 ```bash
 npm install -g seed4j-cli
 ```
+
+After the release is published, bump `pom.xml`, `package.json`, and `package-lock.json` to the next snapshot development version, for example `0.0.3-SNAPSHOT`, in a follow-up commit.
 
 Before the first Trusted Publishing release, configure the `seed4j-cli` package on npm with this GitHub publisher:
 
