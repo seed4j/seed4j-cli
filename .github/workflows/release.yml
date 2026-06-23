@@ -31,11 +31,19 @@ jobs:
           java-version: 25
           cache: maven
 
-      - name: 'Release: derive version'
+      - name: 'Release: validate version'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$(./mvnw --batch-mode -ntp help:evaluate -Dexpression=project.version -q -DforceStdout)"
           if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-            echo "Release tag must be v<semver>, got ${GITHUB_REF_NAME}" >&2
+            echo "Maven project.version must be semver, got ${VERSION}" >&2
+            exit 1
+          fi
+          if printf '%s' "$VERSION" | grep -Eq -- '-SNAPSHOT$'; then
+            echo "Release version must not be a SNAPSHOT, got ${VERSION}" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "Release tag ${GITHUB_REF_NAME} must match pom.xml version v${VERSION}" >&2
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -43,10 +51,23 @@ jobs:
       - name: 'Setup: npm dependencies'
         run: npm ci
 
-      - name: 'Release: set package versions'
+      - name: 'Release: validate npm metadata'
         run: |
-          npm version "$VERSION" --no-git-tag-version
-          perl -0pi -e 's{<version>[^<]+</version>}{<version>$ENV{VERSION}</version>}' pom.xml
+          PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
+          LOCK_VERSION="$(node -p 'require("./package-lock.json").version')"
+          LOCK_ROOT_VERSION="$(node -p 'require("./package-lock.json").packages[""].version')"
+          if [ "$PACKAGE_VERSION" != "$VERSION" ]; then
+            echo "package.json version ${PACKAGE_VERSION} must match Maven version ${VERSION}" >&2
+            exit 1
+          fi
+          if [ "$LOCK_VERSION" != "$VERSION" ]; then
+            echo "package-lock.json version ${LOCK_VERSION} must match Maven version ${VERSION}" >&2
+            exit 1
+          fi
+          if [ "$LOCK_ROOT_VERSION" != "$VERSION" ]; then
+            echo "package-lock.json root package version ${LOCK_ROOT_VERSION} must match Maven version ${VERSION}" >&2
+            exit 1
+          fi
 
       - name: 'Test: npm wrapper'
         run: npm run test:npm-package
