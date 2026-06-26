@@ -13,7 +13,6 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -498,26 +497,6 @@ class Seed4JCommandsFactoryTest {
 
         feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
         feature:java-build-tool - satisfied by maven-java
-
-        Resolved parameters:
-        """
-      );
-    }
-
-    @Test
-    void shouldRenderFeatureDependencyWithoutVisibleCandidatesInPlan() {
-      ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlan(
-        List.of(new ApplyModuleDependencyPlanLine("feature:missing-feature", ApplyModuleDependencyStatus.pendingChoice(List.of())))
-      );
-      ResolvedModuleParameters parameters = new ResolvedModuleParameters(List.of(), List.of());
-
-      String output = new ApplyModulePlanRenderer().render("sample-module", "/tmp/sample", dependencyPlan, parameters);
-
-      assertThat(output).contains(
-        """
-        Dependency plan:
-
-        feature:missing-feature - pending choice: no visible candidates
 
         Resolved parameters:
         """

@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.List;
 
 record ApplyModuleDependencyStatus(StatusKind kind, String moduleSlug, List<String> candidates) {
@@ -20,6 +21,8 @@ record ApplyModuleDependencyStatus(StatusKind kind, String moduleSlug, List<Stri
   }
 
   static ApplyModuleDependencyStatus pendingChoice(List<String> candidates) {
+    Assert.notEmpty("candidates", candidates);
+
     return new ApplyModuleDependencyStatus(StatusKind.PENDING_CHOICE, "", candidates);
   }
 
@@ -28,16 +31,8 @@ record ApplyModuleDependencyStatus(StatusKind kind, String moduleSlug, List<Stri
       case ALREADY_APPLIED -> "already applied";
       case PENDING -> "pending";
       case SATISFIED_BY -> "satisfied by " + moduleSlug;
-      case PENDING_CHOICE -> pendingChoiceDisplayLabel();
+      case PENDING_CHOICE -> "pending choice: " + String.join(", ", candidates);
     };
-  }
-
-  private String pendingChoiceDisplayLabel() {
-    if (candidates.isEmpty()) {
-      return "pending choice: no visible candidates";
-    }
-
-    return "pending choice: " + String.join(", ", candidates);
   }
 
   private enum StatusKind {
