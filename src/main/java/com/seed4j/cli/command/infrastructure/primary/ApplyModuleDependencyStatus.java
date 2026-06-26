@@ -35,6 +35,13 @@ record ApplyModuleDependencyStatus(StatusKind kind, String moduleSlug, List<Stri
     };
   }
 
+  ApplyModulePlanItemMarker planMarker() {
+    return switch (kind) {
+      case ALREADY_APPLIED, SATISFIED_BY -> ApplyModulePlanItemMarker.RESOLVED;
+      case PENDING, PENDING_CHOICE -> ApplyModulePlanItemMarker.PENDING;
+    };
+  }
+
   private enum StatusKind {
     ALREADY_APPLIED,
     PENDING,

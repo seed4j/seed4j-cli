@@ -14,11 +14,16 @@ class ApplyModulePlanRenderer {
 
     if (dependencyPlan.empty()) {
       plan.append('\n');
-      plan.append("No dependencies.").append('\n');
+      plan.append(ApplyModulePlanItemMarker.RESOLVED.prefix()).append("No dependencies.").append('\n');
     } else {
       plan.append('\n');
       for (ApplyModuleDependencyPlanLine line : dependencyPlan.lines()) {
-        plan.append(line.dependency()).append(" - ").append(line.status().displayLabel()).append('\n');
+        plan
+          .append(line.status().planMarker().prefix())
+          .append(line.dependency())
+          .append(" - ")
+          .append(line.status().displayLabel())
+          .append('\n');
       }
     }
 
@@ -28,7 +33,12 @@ class ApplyModulePlanRenderer {
     if (!parameters.empty()) {
       for (ResolvedModuleParameter parameter : parameters.parameters()) {
         plan.append('\n');
-        plan.append(parameter.name()).append(": ").append(parameter.value()).append('\n');
+        plan
+          .append(ApplyModulePlanItemMarker.RESOLVED.prefix())
+          .append(parameter.name())
+          .append(": ")
+          .append(parameter.value())
+          .append('\n');
         plan.append("  Source: ").append(parameter.source().displayLabel()).append('\n');
         plan.append("  CLI option: ").append(parameter.cliOption()).append('\n');
         if (parameter.source().projectHistory()) {
@@ -42,7 +52,7 @@ class ApplyModulePlanRenderer {
       plan.append("Missing required parameters:").append('\n');
       for (MissingRequiredModuleParameter parameter : parameters.missingRequiredParameters()) {
         plan.append('\n');
-        plan.append(parameter.name()).append(":").append('\n');
+        plan.append(ApplyModulePlanItemMarker.PENDING.prefix()).append(parameter.name()).append(":").append('\n');
         plan.append("  CLI option: ").append(parameter.cliOption()).append('\n');
         plan.append("  Note: ").append(MISSING_REQUIRED_NOTE).append('\n');
       }

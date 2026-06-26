@@ -345,26 +345,26 @@ class Seed4JCommandsFactoryTest {
 
           Dependency plan:
 
-          No dependencies.
+          ✓ No dependencies.
 
           Resolved parameters:
 
-          projectName: Seed4J Sample Application
+          ✓ projectName: Seed4J Sample Application
             Source: explicit CLI input
             CLI option: --project-name
 
-          baseName: seed4jSampleApplication
+          ✓ baseName: seed4jSampleApplication
             Source: explicit CLI input
             CLI option: --base-name
 
-          nodePackageManager: pnpm
+          ✓ nodePackageManager: pnpm
             Source: explicit CLI input
             CLI option: --node-package-manager
           """.formatted(projectPath)
         )
         .contains(
           """
-          endOfLine: lf
+          ✓ endOfLine: lf
             Source: default
             CLI option: --end-of-line
           """
@@ -402,19 +402,19 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains(
           """
-          projectName: Seed4J Sample Application
+          ✓ projectName: Seed4J Sample Application
             Source: project history
             CLI option: --project-name
             Note: already selected by project history; omit this option to keep it.
 
-          baseName: explicitOverride
+          ✓ baseName: explicitOverride
             Source: explicit CLI input
             CLI option: --base-name
           """
         )
         .contains(
           """
-          nodePackageManager: npm
+          ✓ nodePackageManager: npm
             Source: project history
             CLI option: --node-package-manager
             Note: already selected by project history; omit this option to keep it.
@@ -454,8 +454,8 @@ class Seed4JCommandsFactoryTest {
         """
         Dependency plan:
 
-        module:init - already applied
-        module:prettier - pending
+        ✓ module:init - already applied
+        ○ module:prettier - pending
 
         Resolved parameters:
         """
@@ -495,8 +495,8 @@ class Seed4JCommandsFactoryTest {
         """
         Dependency plan:
 
-        feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
-        feature:java-build-tool - satisfied by maven-java
+        ○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+        ✓ feature:java-build-tool - satisfied by maven-java
 
         Resolved parameters:
         """
@@ -538,7 +538,7 @@ class Seed4JCommandsFactoryTest {
 
           Dependency plan:
 
-          No dependencies.
+          ✓ No dependencies.
 
           Resolved parameters:
           """.formatted(projectPath)
@@ -547,11 +547,11 @@ class Seed4JCommandsFactoryTest {
           """
           Missing required parameters:
 
-          projectName:
+          ○ projectName:
             CLI option: --project-name
             Note: pass this option or apply a module that records it in project history.
 
-          baseName:
+          ○ baseName:
             CLI option: --base-name
             Note: pass this option or apply a module that records it in project history.
           """
@@ -577,7 +577,7 @@ class Seed4JCommandsFactoryTest {
 
           Dependency plan:
 
-          No dependencies.
+          ✓ No dependencies.
 
           Resolved parameters:
 
