@@ -95,12 +95,12 @@ class ApplyModuleDependencyPlanner {
       .orElse(nextProgress);
   }
 
-  private static String moduleStatus(String dependencySlug, Set<String> appliedModules) {
+  private static ApplyModuleDependencyStatus moduleStatus(String dependencySlug, Set<String> appliedModules) {
     if (appliedModules.contains(dependencySlug)) {
-      return "already applied";
+      return ApplyModuleDependencyStatus.alreadyApplied();
     }
 
-    return "pending";
+    return ApplyModuleDependencyStatus.pending();
   }
 
   private static DependencyPlanningProgress appendFeatureDependency(
@@ -113,14 +113,14 @@ class ApplyModuleDependencyPlanner {
     );
   }
 
-  private static String featureStatus(Seed4JLandscapeDependency dependency, DependencyPlanningContext context) {
+  private static ApplyModuleDependencyStatus featureStatus(Seed4JLandscapeDependency dependency, DependencyPlanningContext context) {
     List<String> candidates = featureCandidates(dependency.slug().get(), context.visibleModules());
     return candidates
       .stream()
       .filter(context.appliedModules()::contains)
       .findFirst()
-      .map(candidate -> "satisfied by " + candidate)
-      .orElseGet(() -> pendingChoiceStatus(candidates));
+      .map(ApplyModuleDependencyStatus::satisfiedBy)
+      .orElseGet(() -> ApplyModuleDependencyStatus.pendingChoice(candidates));
   }
 
   private static List<String> featureCandidates(String featureSlug, List<Seed4JModuleResource> visibleModules) {
@@ -136,14 +136,6 @@ class ApplyModuleDependencyPlanner {
       .map(module -> module.slug().get())
       .sorted()
       .toList();
-  }
-
-  private static String pendingChoiceStatus(List<String> candidates) {
-    if (candidates.isEmpty()) {
-      return "pending choice: no visible candidates";
-    }
-
-    return "pending choice: " + String.join(", ", candidates);
   }
 
   private static String dependencyToken(Seed4JLandscapeDependency dependency) {

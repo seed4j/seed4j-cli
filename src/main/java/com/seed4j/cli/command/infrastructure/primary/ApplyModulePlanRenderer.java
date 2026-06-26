@@ -18,7 +18,7 @@ class ApplyModulePlanRenderer {
     } else {
       plan.append('\n');
       for (ApplyModuleDependencyPlanLine line : dependencyPlan.lines()) {
-        plan.append(line.dependency()).append(" - ").append(line.status()).append('\n');
+        plan.append(line.dependency()).append(" - ").append(line.status().displayLabel()).append('\n');
       }
     }
 
