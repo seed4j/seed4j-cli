@@ -3,6 +3,7 @@ package com.seed4j.cli.command.infrastructure.primary;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
+import com.seed4j.project.domain.ModuleSlug;
 import com.seed4j.project.domain.history.ProjectAction;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.ArrayList;
@@ -32,12 +33,7 @@ class ApplyModuleDependencyPlanner {
   }
 
   private static Set<String> appliedModules(ProjectHistory history) {
-    return history
-      .actions()
-      .stream()
-      .map(ProjectAction::module)
-      .map(module -> module.get())
-      .collect(Collectors.toUnmodifiableSet());
+    return history.actions().stream().map(ProjectAction::module).map(ModuleSlug::get).collect(Collectors.toUnmodifiableSet());
   }
 
   private static Comparator<Seed4JModuleResource> byModuleSlug() {
