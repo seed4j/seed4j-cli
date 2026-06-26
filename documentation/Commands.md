@@ -125,6 +125,10 @@ which options to pass before applying the module.
 Plan for module: init
 Project path: .
 
+Dependency plan:
+
+No dependencies.
+
 Resolved parameters:
 
 endOfLine: lf
@@ -145,6 +149,10 @@ baseName:
   CLI option: --base-name
   Note: pass this option or apply a module that records it in project history.
 
+nodePackageManager:
+  CLI option: --node-package-manager
+  Note: pass this option or apply a module that records it in project history.
+
 No changes were applied.
 ```
 
@@ -163,6 +171,10 @@ seed4j apply maven-java --plan
 ```text
 Plan for module: maven-java
 Project path: .
+
+Dependency plan:
+
+module:init - already applied
 
 Resolved parameters:
 
@@ -189,6 +201,24 @@ Pass the missing option when applying the module:
 
 ```bash
 seed4j apply maven-java --package-name com.mycompany.myapp
+```
+
+Dependency status labels mean:
+
+- `module:<slug> - already applied`: the module dependency is already recorded in project history
+- `module:<slug> - pending`: the module dependency is not recorded in project history
+- `feature:<slug> - satisfied by <module>`: an applied module provides the required feature
+- `feature:<slug> - pending choice: <candidate>, <candidate>`: no applied module provides the feature yet; choose one of
+  the sorted visible candidates
+
+For example, after applying `maven-java`, planning `sonarqube-java-backend` can show one satisfied feature and one feature
+that still needs a choice:
+
+```text
+Dependency plan:
+
+feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+feature:java-build-tool - satisfied by maven-java
 ```
 
 Plan source labels mean:

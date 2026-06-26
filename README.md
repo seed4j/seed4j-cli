@@ -173,7 +173,7 @@ To inspect module parameters before applying a module, add `--plan`:
 seed4j apply init --plan
 ```
 
-The plan prints the resolved text values and shows whether each value came from the current CLI input, project history, or a module metadata default. If required values are missing, it prints a `Missing required parameters` section and still does not apply files, write history, or create commits.
+The plan first prints a `Dependency plan`, then the resolved text values and whether each value came from the current CLI input, project history, or a module metadata default. Dependency statuses show direct module dependencies as `already applied` or `pending`; feature dependencies show either `satisfied by <module>` or `pending choice` with visible candidate modules. If required values are missing, it prints a `Missing required parameters` section and still does not apply files, write history, or create commits.
 
 To install Bash completion for the active runtime:
 

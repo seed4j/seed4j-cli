@@ -343,6 +343,10 @@ class Seed4JCommandsFactoryTest {
           Plan for module: init
           Project path: %s
 
+          Dependency plan:
+
+          No dependencies.
+
           Resolved parameters:
 
           projectName: Seed4J Sample Application
@@ -421,6 +425,85 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldPlanModuleDependencyStatuses(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] applyArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int applyExitCode = commandLine(modules, projects).execute(applyArgs);
+      assertThat(applyExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply", "angular-core", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output).contains(
+        """
+        Dependency plan:
+
+        module:init - already applied
+        module:prettier - pending
+
+        Resolved parameters:
+        """
+      );
+    }
+
+    @Test
+    void shouldPlanFeatureDependencyStatuses(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
+      int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
+      assertThat(mavenJavaExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output).contains(
+        """
+        Dependency plan:
+
+        feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+        feature:java-build-tool - satisfied by maven-java
+
+        Resolved parameters:
+        """
+      );
+    }
+
+    @Test
     void shouldNotApplyInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
@@ -452,6 +535,10 @@ class Seed4JCommandsFactoryTest {
           """
           Plan for module: init
           Project path: %s
+
+          Dependency plan:
+
+          No dependencies.
 
           Resolved parameters:
           """.formatted(projectPath)
@@ -487,6 +574,10 @@ class Seed4JCommandsFactoryTest {
           """
           Plan for module: checkstyle
           Project path: %s
+
+          Dependency plan:
+
+          feature:java-build-tool - pending choice: gradle-java, maven-java
 
           Resolved parameters:
 

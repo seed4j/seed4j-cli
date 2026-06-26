@@ -5,10 +5,23 @@ class ApplyModulePlanRenderer {
   private static final String PROJECT_HISTORY_NOTE = "already selected by project history; omit this option to keep it.";
   private static final String MISSING_REQUIRED_NOTE = "pass this option or apply a module that records it in project history.";
 
-  String render(String moduleSlug, String projectPath, ResolvedModuleParameters parameters) {
+  String render(String moduleSlug, String projectPath, ApplyModuleDependencyPlan dependencyPlan, ResolvedModuleParameters parameters) {
     StringBuilder plan = new StringBuilder();
     plan.append("Plan for module: ").append(moduleSlug).append('\n');
     plan.append("Project path: ").append(projectPath).append('\n');
+    plan.append('\n');
+    plan.append("Dependency plan:").append('\n');
+
+    if (dependencyPlan.empty()) {
+      plan.append('\n');
+      plan.append("No dependencies.").append('\n');
+    } else {
+      plan.append('\n');
+      for (ApplyModuleDependencyPlanLine line : dependencyPlan.lines()) {
+        plan.append(line.dependency()).append(" - ").append(line.status()).append('\n');
+      }
+    }
+
     plan.append('\n');
     plan.append("Resolved parameters:").append('\n');
 
