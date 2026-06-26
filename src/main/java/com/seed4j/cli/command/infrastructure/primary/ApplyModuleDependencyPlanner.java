@@ -20,13 +20,11 @@ import java.util.stream.Collectors;
 class ApplyModuleDependencyPlanner {
 
   ApplyModuleDependencyPlan plan(Seed4JModuleResource module, Seed4JModulesResources resources, ProjectHistory history) {
-    Set<String> appliedModules = appliedModules(history);
-    List<Seed4JModuleResource> visibleModules = resources.stream().sorted(byModuleSlug()).toList();
-    Map<String, Seed4JModuleResource> modulesBySlug = visibleModules
-      .stream()
-      .collect(Collectors.toMap(resource -> resource.slug().get(), Function.identity()));
-    DependencyPlanningContext context = new DependencyPlanningContext(modulesBySlug, visibleModules, appliedModules);
-    DependencyPlanningProgress progress = appendDependencies(module, context, DependencyPlanningProgress.empty());
+    DependencyPlanningProgress progress = appendDependencies(
+      module,
+      DependencyPlanningContext.from(resources, history),
+      DependencyPlanningProgress.empty()
+    );
 
     return new ApplyModuleDependencyPlan(progress.lines());
   }
@@ -44,20 +42,30 @@ class ApplyModuleDependencyPlanner {
     DependencyPlanningContext context,
     DependencyPlanningProgress progress
   ) {
-    if (progress.visitedModules().contains(module.slug().get())) {
+    String moduleSlug = module.slug().get();
+    if (progress.visitedModules().contains(moduleSlug)) {
       return progress;
     }
 
-    DependencyPlanningProgress currentProgress = progress.withVisitedModule(module.slug().get());
-    List<Seed4JLandscapeDependency> dependencies = module.organization().dependencies().stream().sorted(byDependencyToken()).toList();
-    for (Seed4JLandscapeDependency dependency : dependencies) {
-      currentProgress = appendDependency(dependency, context, currentProgress);
-    }
-    return currentProgress;
+    return module
+      .organization()
+      .dependencies()
+      .stream()
+      .sorted(byDependencyToken())
+      .map(dependency -> dependencyPlanningStep(dependency, context))
+      .reduce(Function.identity(), Function::andThen)
+      .apply(progress.withVisitedModule(moduleSlug));
   }
 
   private static Comparator<Seed4JLandscapeDependency> byDependencyToken() {
     return Comparator.comparing(ApplyModuleDependencyPlanner::dependencyToken);
+  }
+
+  private static Function<DependencyPlanningProgress, DependencyPlanningProgress> dependencyPlanningStep(
+    Seed4JLandscapeDependency dependency,
+    DependencyPlanningContext context
+  ) {
+    return progress -> appendDependency(dependency, context, progress);
   }
 
   private static DependencyPlanningProgress appendDependency(
@@ -77,20 +85,14 @@ class ApplyModuleDependencyPlanner {
     DependencyPlanningProgress progress
   ) {
     String dependencySlug = dependency.slug().get();
-    String token = dependencyToken(dependency);
-    DependencyPlanningProgress currentProgress = progress;
-    if (!currentProgress.plannedDependencies().contains(token)) {
-      currentProgress = currentProgress.withPlanLine(
-        new ApplyModuleDependencyPlanLine(token, moduleStatus(dependencySlug, context.appliedModules()))
-      );
-    }
+    DependencyPlanningProgress nextProgress = progress.withPlanLineIfMissing(
+      new ApplyModuleDependencyPlanLine(dependencyToken(dependency), moduleStatus(dependencySlug, context.appliedModules()))
+    );
 
-    Optional<Seed4JModuleResource> dependencyModule = Optional.ofNullable(context.modulesBySlug().get(dependencySlug));
-    if (dependencyModule.isEmpty()) {
-      return currentProgress;
-    }
-
-    return appendDependencies(dependencyModule.get(), context, currentProgress);
+    return context
+      .module(dependencySlug)
+      .map(resource -> appendDependencies(resource, context, nextProgress))
+      .orElse(nextProgress);
   }
 
   private static String moduleStatus(String dependencySlug, Set<String> appliedModules) {
@@ -106,16 +108,19 @@ class ApplyModuleDependencyPlanner {
     DependencyPlanningContext context,
     DependencyPlanningProgress progress
   ) {
-    String token = dependencyToken(dependency);
-    if (progress.plannedDependencies().contains(token)) {
-      return progress;
-    }
+    return progress.withPlanLineIfMissing(
+      new ApplyModuleDependencyPlanLine(dependencyToken(dependency), featureStatus(dependency, context))
+    );
+  }
 
+  private static String featureStatus(Seed4JLandscapeDependency dependency, DependencyPlanningContext context) {
     List<String> candidates = featureCandidates(dependency.slug().get(), context.visibleModules());
-    Optional<String> appliedCandidate = candidates.stream().filter(context.appliedModules()::contains).findFirst();
-    String status = appliedCandidate.map(candidate -> "satisfied by " + candidate).orElseGet(() -> pendingChoiceStatus(candidates));
-
-    return progress.withPlanLine(new ApplyModuleDependencyPlanLine(token, status));
+    return candidates
+      .stream()
+      .filter(context.appliedModules()::contains)
+      .findFirst()
+      .map(candidate -> "satisfied by " + candidate)
+      .orElseGet(() -> pendingChoiceStatus(candidates));
   }
 
   private static List<String> featureCandidates(String featureSlug, List<Seed4JModuleResource> visibleModules) {
@@ -155,6 +160,19 @@ class ApplyModuleDependencyPlanner {
       visibleModules = List.copyOf(visibleModules);
       appliedModules = Set.copyOf(appliedModules);
     }
+
+    private static DependencyPlanningContext from(Seed4JModulesResources resources, ProjectHistory history) {
+      List<Seed4JModuleResource> visibleModules = resources.stream().sorted(byModuleSlug()).toList();
+      return new DependencyPlanningContext(
+        visibleModules.stream().collect(Collectors.toMap(resource -> resource.slug().get(), Function.identity())),
+        visibleModules,
+        ApplyModuleDependencyPlanner.appliedModules(history)
+      );
+    }
+
+    private Optional<Seed4JModuleResource> module(String slug) {
+      return Optional.ofNullable(modulesBySlug.get(slug));
+    }
   }
 
   private record DependencyPlanningProgress(
@@ -178,7 +196,11 @@ class ApplyModuleDependencyPlanner {
       return new DependencyPlanningProgress(lines, plannedDependencies, nextVisitedModules);
     }
 
-    private DependencyPlanningProgress withPlanLine(ApplyModuleDependencyPlanLine line) {
+    private DependencyPlanningProgress withPlanLineIfMissing(ApplyModuleDependencyPlanLine line) {
+      if (plannedDependencies.contains(line.dependency())) {
+        return this;
+      }
+
       List<ApplyModuleDependencyPlanLine> nextLines = new ArrayList<>(lines);
       Set<String> nextPlannedDependencies = new LinkedHashSet<>(plannedDependencies);
       nextLines.add(line);
