@@ -8,7 +8,7 @@
 
   <groupId>com.seed4j.cli</groupId>
   <artifactId>seed4j-cli</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.3</version>
   <name>Seed4J CLI</name>
   <description>Seed4J CLI</description>
   <packaging>jar</packaging>
