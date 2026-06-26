@@ -343,24 +343,28 @@ class Seed4JCommandsFactoryTest {
           Plan for module: init
           Project path: %s
 
+          Dependency plan:
+
+          ✓ No dependencies.
+
           Resolved parameters:
 
-          projectName: Seed4J Sample Application
+          ✓ projectName: Seed4J Sample Application
             Source: explicit CLI input
             CLI option: --project-name
 
-          baseName: seed4jSampleApplication
+          ✓ baseName: seed4jSampleApplication
             Source: explicit CLI input
             CLI option: --base-name
 
-          nodePackageManager: pnpm
+          ✓ nodePackageManager: pnpm
             Source: explicit CLI input
             CLI option: --node-package-manager
           """.formatted(projectPath)
         )
         .contains(
           """
-          endOfLine: lf
+          ✓ endOfLine: lf
             Source: default
             CLI option: --end-of-line
           """
@@ -398,19 +402,19 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains(
           """
-          projectName: Seed4J Sample Application
+          ✓ projectName: Seed4J Sample Application
             Source: project history
             CLI option: --project-name
             Note: already selected by project history; omit this option to keep it.
 
-          baseName: explicitOverride
+          ✓ baseName: explicitOverride
             Source: explicit CLI input
             CLI option: --base-name
           """
         )
         .contains(
           """
-          nodePackageManager: npm
+          ✓ nodePackageManager: npm
             Source: project history
             CLI option: --node-package-manager
             Note: already selected by project history; omit this option to keep it.
@@ -418,6 +422,85 @@ class Seed4JCommandsFactoryTest {
         )
         .contains("No changes were applied.")
         .doesNotContain("Missing required parameters:");
+    }
+
+    @Test
+    void shouldPlanModuleDependencyStatuses(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] applyArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int applyExitCode = commandLine(modules, projects).execute(applyArgs);
+      assertThat(applyExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply", "angular-core", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output).contains(
+        """
+        Dependency plan:
+
+        ✓ module:init - already applied
+        ○ module:prettier - pending
+
+        Resolved parameters:
+        """
+      );
+    }
+
+    @Test
+    void shouldPlanFeatureDependencyStatuses(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
+      int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
+      assertThat(mavenJavaExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output).contains(
+        """
+        Dependency plan:
+
+        ○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+        ✓ feature:java-build-tool - satisfied by maven-java
+
+        Resolved parameters:
+        """
+      );
     }
 
     @Test
@@ -453,6 +536,10 @@ class Seed4JCommandsFactoryTest {
           Plan for module: init
           Project path: %s
 
+          Dependency plan:
+
+          ✓ No dependencies.
+
           Resolved parameters:
           """.formatted(projectPath)
         )
@@ -460,11 +547,11 @@ class Seed4JCommandsFactoryTest {
           """
           Missing required parameters:
 
-          projectName:
+          ○ projectName:
             CLI option: --project-name
             Note: pass this option or apply a module that records it in project history.
 
-          baseName:
+          ○ baseName:
             CLI option: --base-name
             Note: pass this option or apply a module that records it in project history.
           """
@@ -475,7 +562,7 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldPlanModuleWithoutResolvedParameters(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
-      String[] args = { "apply", "checkstyle", "--project-path", projectPath.toString(), "--plan" };
+      String[] args = { "apply", "front-hexagonal-architecture", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
@@ -485,8 +572,12 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains(
           """
-          Plan for module: checkstyle
+          Plan for module: front-hexagonal-architecture
           Project path: %s
+
+          Dependency plan:
+
+          ✓ No dependencies.
 
           Resolved parameters:
 

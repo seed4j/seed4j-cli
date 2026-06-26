@@ -119,30 +119,39 @@ seed4j apply init --plan
 
 The plan is text-only and exits without generated files, history entries, or commits. Required parameters can come from
 the current command or project history. When required parameters are still missing, the plan exits successfully and shows
-which options to pass before applying the module.
+which options to pass before applying the module. Lines marked with `✓` are resolved, and lines marked with `○` are
+pending or missing.
 
 ```text
 Plan for module: init
 Project path: .
 
+Dependency plan:
+
+✓ No dependencies.
+
 Resolved parameters:
 
-endOfLine: lf
+✓ endOfLine: lf
   Source: default
   CLI option: --end-of-line
 
-indentSize: 2
+✓ indentSize: 2
   Source: default
   CLI option: --indent-size
 
 Missing required parameters:
 
-projectName:
+○ projectName:
   CLI option: --project-name
   Note: pass this option or apply a module that records it in project history.
 
-baseName:
+○ baseName:
   CLI option: --base-name
+  Note: pass this option or apply a module that records it in project history.
+
+○ nodePackageManager:
+  CLI option: --node-package-manager
   Note: pass this option or apply a module that records it in project history.
 
 No changes were applied.
@@ -164,21 +173,25 @@ seed4j apply maven-java --plan
 Plan for module: maven-java
 Project path: .
 
+Dependency plan:
+
+✓ module:init - already applied
+
 Resolved parameters:
 
-projectName: Seed4J Sample Application
+✓ projectName: Seed4J Sample Application
   Source: project history
   CLI option: --project-name
   Note: already selected by project history; omit this option to keep it.
 
-baseName: seed4jSampleApplication
+✓ baseName: seed4jSampleApplication
   Source: project history
   CLI option: --base-name
   Note: already selected by project history; omit this option to keep it.
 
 Missing required parameters:
 
-packageName:
+○ packageName:
   CLI option: --package-name
   Note: pass this option or apply a module that records it in project history.
 
@@ -189,6 +202,24 @@ Pass the missing option when applying the module:
 
 ```bash
 seed4j apply maven-java --package-name com.mycompany.myapp
+```
+
+Dependency status labels mean:
+
+- `✓ module:<slug> - already applied`: the module dependency is already recorded in project history
+- `○ module:<slug> - pending`: the module dependency is not recorded in project history
+- `✓ feature:<slug> - satisfied by <module>`: an applied module provides the required feature
+- `○ feature:<slug> - pending choice: <candidate>, <candidate>`: no applied module provides the feature yet; choose one of
+  the sorted visible candidates
+
+For example, after applying `maven-java`, planning `sonarqube-java-backend` can show one satisfied feature and one feature
+that still needs a choice:
+
+```text
+Dependency plan:
+
+○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+✓ feature:java-build-tool - satisfied by maven-java
 ```
 
 Plan source labels mean:

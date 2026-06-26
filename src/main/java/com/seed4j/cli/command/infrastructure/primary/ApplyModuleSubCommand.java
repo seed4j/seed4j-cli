@@ -39,6 +39,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   private final ProjectsApplicationService projects;
   private final KnownModulePropertyCompletionCandidates knownCompletionCandidates = new KnownModulePropertyCompletionCandidates();
   private final ApplyModuleParameterResolver parameterResolver = new ApplyModuleParameterResolver();
+  private final ApplyModuleDependencyPlanner dependencyPlanner = new ApplyModuleDependencyPlanner();
   private final ApplyModulePlanRenderer planRenderer = new ApplyModulePlanRenderer();
 
   public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
@@ -171,7 +172,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         explicitParameters,
         historyParameters.get()
       );
-      System.out.print(planRenderer.render(module.slug().get(), projectPath, resolvedParameters));
+      ApplyModuleDependencyPlan dependencyPlan = dependencyPlanner.plan(
+        module,
+        modules.resources(),
+        projects.getHistory(new ProjectPath(projectPath))
+      );
+      System.out.print(planRenderer.render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
       return ExitCode.OK;
     }
@@ -241,7 +247,10 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
       throw new MissingParameterException(
         commandSpec.commandLine(),
-        missingOptions.stream().map(ArgSpec.class::cast).toList(),
+        missingOptions
+          .stream()
+          .map(ArgSpec.class::cast)
+          .toList(),
         "Missing required options: %s".formatted(missingOptionsDescription)
       );
     }
