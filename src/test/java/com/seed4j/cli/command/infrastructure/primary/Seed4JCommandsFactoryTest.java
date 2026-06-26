@@ -562,7 +562,7 @@ class Seed4JCommandsFactoryTest {
     @Test
     void shouldPlanModuleWithoutResolvedParameters(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
-      String[] args = { "apply", "checkstyle", "--project-path", projectPath.toString(), "--plan" };
+      String[] args = { "apply", "front-hexagonal-architecture", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
@@ -572,12 +572,12 @@ class Seed4JCommandsFactoryTest {
       assertThat(output)
         .contains(
           """
-          Plan for module: checkstyle
+          Plan for module: front-hexagonal-architecture
           Project path: %s
 
           Dependency plan:
 
-          feature:java-build-tool - pending choice: gradle-java, maven-java
+          No dependencies.
 
           Resolved parameters:
 
