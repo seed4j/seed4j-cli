@@ -516,8 +516,25 @@ class Seed4JCommandsFactoryTest {
         .contains("Missing required")
         .contains("'--base-name=<basename*>'")
         .contains("'--project-name=<projectname*>'")
-        .contains("Project short name (only letters and numbers) (required)")
-        .contains("Project full name (required)");
+        .contains("Project short name (only letters and numbers) e.g.")
+        .contains("seed4jSampleApplication (required)")
+        .contains("Project full name e.g. Seed4J Sample Application")
+        .contains("(required)");
+    }
+
+    @Test
+    void shouldShowExampleValuesInHelpDescription(CapturedOutput output) {
+      String[] args = { "apply", "init", "--help" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("Project short name (only letters and numbers) e.g.")
+        .contains("seed4jSampleApplication (required)")
+        .contains("Node package manager e.g. npm, pnpm (required)")
+        .contains("Project full name e.g. Seed4J Sample Application")
+        .contains("(required)");
     }
 
     @Test

@@ -96,8 +96,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       spec.addOption(
         OptionSpec.builder(toDashedFormat(property.key()))
           .description(
-            "%s%s".formatted(
+            "%s%s%s".formatted(
               property.description().map(Seed4JPropertyDescription::get).orElse(""),
+              exampleValues(property),
               property.isMandatory() ? " (required)" : ""
             )
           )
@@ -111,6 +112,14 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
   private List<String> completionCandidates(Seed4JModulePropertyDefinition property) {
     return knownCompletionCandidates.candidates(property);
+  }
+
+  private String exampleValues(Seed4JModulePropertyDefinition property) {
+    List<String> candidates = knownCompletionCandidates.candidates(property);
+    if (candidates.isEmpty()) {
+      return "";
+    }
+    return " e.g. " + String.join(", ", candidates);
   }
 
   @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")
