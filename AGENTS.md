@@ -33,7 +33,7 @@ Use Java 25 and Node.js 22+ before running the toolchain.
 
 ## Agent Validation Behavior
 
-Agents may run smaller, targeted checks such as `./mvnw test`, specific Maven tests, `npm run prettier:check`, or focused Maven goals. Before the final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. If the user explicitly asks an agent to run `./mvnw clean verify`, the agent may run it, preferably with output limited or redirected to a file.
+Agents may run smaller, targeted checks during implementation, such as specific Maven tests related to the changed class or behavior, `npm run prettier:check`, or focused Maven goals. Before finishing a change, agents should run `./mvnw test` as the default agent-side validation gate. Before the complete final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. If the user explicitly asks an agent to run `./mvnw clean verify`, the agent may run it, preferably with output limited or redirected to a file.
 
 ## Coding Style & Naming Conventions
 
