@@ -16,6 +16,7 @@ import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ModuleParameters;
+import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,15 +33,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
   private static final String PLAN_OPTION = "--plan";
+  private static final KnownModulePropertyCompletionCandidates KNOWN_COMPLETION_CANDIDATES = new KnownModulePropertyCompletionCandidates();
 
   private final Seed4JModulesApplicationService modules;
   private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
   private final ProjectsApplicationService projects;
-  private final KnownModulePropertyCompletionCandidates knownCompletionCandidates = new KnownModulePropertyCompletionCandidates();
-  private final ApplyModuleParameterResolver parameterResolver = new ApplyModuleParameterResolver();
-  private final ApplyModuleDependencyPlanner dependencyPlanner = new ApplyModuleDependencyPlanner();
-  private final ApplyModulePlanRenderer planRenderer = new ApplyModulePlanRenderer();
 
   public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
     this.modules = modules;
@@ -92,30 +90,32 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .build()
     );
 
-    properties.stream().forEach(property ->
-      spec.addOption(
-        OptionSpec.builder(toDashedFormat(property.key()))
-          .description(
-            "%s%s%s".formatted(
-              property.description().map(Seed4JPropertyDescription::get).orElse(""),
-              exampleValues(property),
-              property.isMandatory() ? " (required)" : ""
+    properties
+      .stream()
+      .forEach(property ->
+        spec.addOption(
+          OptionSpec.builder(toDashedFormat(property.key()))
+            .description(
+              "%s%s%s".formatted(
+                property.description().map(Seed4JPropertyDescription::get).orElse(""),
+                exampleValues(property),
+                property.isMandatory() ? " (required)" : ""
+              )
             )
-          )
-          .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
-          .type(toOptionType(property.type()))
-          .completionCandidates(completionCandidates(property))
-          .build()
-      )
-    );
+            .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
+            .type(toOptionType(property.type()))
+            .completionCandidates(completionCandidates(property))
+            .build()
+        )
+      );
   }
 
   private List<String> completionCandidates(Seed4JModulePropertyDefinition property) {
-    return knownCompletionCandidates.candidates(property);
+    return KNOWN_COMPLETION_CANDIDATES.candidates(property);
   }
 
   private String exampleValues(Seed4JModulePropertyDefinition property) {
-    List<String> candidates = knownCompletionCandidates.candidates(property);
+    List<String> candidates = KNOWN_COMPLETION_CANDIDATES.candidates(property);
     if (candidates.isEmpty()) {
       return "";
     }
@@ -171,24 +171,14 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   @Override
   public Integer call() {
     String projectPath = projectPath();
+    ProjectPath project = new ProjectPath(projectPath);
+    ProjectHistory history = projects.getHistory(project);
     Map<String, Object> explicitParameters = parametersFromOptions();
-    ModuleParameters historyParameters = projects.getHistory(new ProjectPath(projectPath)).latestProperties();
+    ModuleParameters historyParameters = history.latestProperties();
     ModuleParameters mergedParameters = historyParameters.merge(new ModuleParameters(explicitParameters));
 
     if (executionMode() == ApplyModuleExecutionMode.PLAN) {
-      ResolvedModuleParameters resolvedParameters = parameterResolver.resolve(
-        module.propertiesDefinition(),
-        explicitParameters,
-        historyParameters.get()
-      );
-      ApplyModuleDependencyPlan dependencyPlan = dependencyPlanner.plan(
-        module,
-        modules.resources(),
-        projects.getHistory(new ProjectPath(projectPath))
-      );
-      System.out.print(planRenderer.render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
-
-      return ExitCode.OK;
+      return plan(projectPath, history, explicitParameters, historyParameters);
     }
 
     validateRequiredOptions(mergedParameters);
@@ -196,6 +186,24 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath, commitEnabled(), mergedParameters.get());
     Seed4JModuleToApply moduleToApply = new Seed4JModuleToApply(new Seed4JModuleSlug(module.slug().get()), properties);
     modules.apply(moduleToApply);
+
+    return ExitCode.OK;
+  }
+
+  private Integer plan(
+    String projectPath,
+    ProjectHistory history,
+    Map<String, Object> explicitParameters,
+    ModuleParameters historyParameters
+  ) {
+    ResolvedModuleParameters resolvedParameters = new ApplyModuleParameterResolver().resolve(
+      module.propertiesDefinition(),
+      explicitParameters,
+      historyParameters.get()
+    );
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, modules.resources(), history);
+
+    System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
     return ExitCode.OK;
   }
@@ -256,10 +264,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
       throw new MissingParameterException(
         commandSpec.commandLine(),
-        missingOptions
-          .stream()
-          .map(ArgSpec.class::cast)
-          .toList(),
+        missingOptions.stream().map(ArgSpec.class::cast).toList(),
         "Missing required options: %s".formatted(missingOptionsDescription)
       );
     }
