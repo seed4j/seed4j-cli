@@ -48,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -77,7 +76,8 @@ class PreSpringBootstrapPrimaryTest {
   private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
   private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
   private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
-  private static final Pattern MODULE_LINE_PATTERN = Pattern.compile("^\\s{2}(\\S+)\\s{2,}.+$");
+  private static final String MODULE_LIST_ROW_INDENT = " ".repeat(2);
+  private static final String MODULE_LIST_COLUMN_SEPARATOR = " ".repeat(2);
   private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
   @Test
@@ -670,12 +670,17 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   private static Optional<String> moduleSlugFromLine(String line) {
-    Matcher moduleLineMatcher = MODULE_LINE_PATTERN.matcher(line);
-    if (!moduleLineMatcher.matches()) {
+    if (!line.startsWith(MODULE_LIST_ROW_INDENT)) {
       return Optional.empty();
     }
 
-    String candidateSlug = moduleLineMatcher.group(1);
+    String moduleColumns = line.substring(MODULE_LIST_ROW_INDENT.length());
+    int firstColumnSeparatorIndex = moduleColumns.indexOf(MODULE_LIST_COLUMN_SEPARATOR);
+    if (firstColumnSeparatorIndex < 0) {
+      return Optional.empty();
+    }
+
+    String candidateSlug = moduleColumns.substring(0, firstColumnSeparatorIndex);
     if (!MODULE_SLUG_PATTERN.matcher(candidateSlug).matches()) {
       return Optional.empty();
     }
@@ -851,18 +856,20 @@ class PreSpringBootstrapPrimaryTest {
       runtimeSelection
         .distributionVersion()
         .ifPresent(distributionVersion -> systemProperties.put(DISTRIBUTION_VERSION_PROPERTY, distributionVersion.version()));
-      runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> {
-        Path rawExtensionJarPath = extensionJarPath.path();
-        systemProperties.put(
-          "seed4j.cli.runtime.extension.start-class",
-          new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
-        );
-        Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
-        systemProperties.put(
-          LOADER_PATH_PROPERTY,
-          new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
-        );
-      });
+      runtimeSelection
+        .extensionJarPath()
+        .ifPresent(extensionJarPath -> {
+          Path rawExtensionJarPath = extensionJarPath.path();
+          systemProperties.put(
+            "seed4j.cli.runtime.extension.start-class",
+            new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
+          );
+          Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
+          systemProperties.put(
+            LOADER_PATH_PROPERTY,
+            new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
+          );
+        });
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");
       systemProperties.put("spring.main.log-startup-info", "false");
