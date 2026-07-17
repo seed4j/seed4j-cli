@@ -196,17 +196,14 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     Map<String, Object> explicitParameters,
     ModuleParameters historyParameters
   ) {
-    ApplyModuleParameterResolver parameterResolver = new ApplyModuleParameterResolver();
-    ResolvedModuleParameters resolvedParameters = parameterResolver.resolve(
+    ResolvedModuleParameters resolvedParameters = new ApplyModuleParameterResolver().resolve(
       module.propertiesDefinition(),
       explicitParameters,
       historyParameters.get()
     );
-    ApplyModuleDependencyPlanner dependencyPlanner = new ApplyModuleDependencyPlanner();
-    ApplyModuleDependencyPlan dependencyPlan = dependencyPlanner.plan(module, modules.resources(), history);
-    ApplyModulePlanRenderer planRenderer = new ApplyModulePlanRenderer();
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, modules.resources(), history);
 
-    System.out.print(planRenderer.render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
+    System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
     return ExitCode.OK;
   }
