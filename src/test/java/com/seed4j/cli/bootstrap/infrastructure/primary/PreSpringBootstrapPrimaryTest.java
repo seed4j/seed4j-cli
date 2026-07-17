@@ -76,6 +76,8 @@ class PreSpringBootstrapPrimaryTest {
   private static final String STARTUP_INFO_MARKER = "Starting Seed4JCliApp";
   private static final String EXTENSION_LOGBACK_OVERRIDE_MARKER = "[EXT-LOGBACK-OVERRIDE]";
   private static final String EXTENSION_APPLICATION_OVERRIDE_MARKER = "[EXT-APPLICATION-OVERRIDE]";
+  private static final String MODULE_LIST_ROW_INDENT = " ".repeat(2);
+  private static final String MODULE_LIST_COLUMN_SEPARATOR = " ".repeat(2);
   private static final Pattern MODULE_SLUG_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
   @Test
@@ -668,12 +670,12 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   private static Optional<String> moduleSlugFromLine(String line) {
-    if (!line.startsWith("  ")) {
+    if (!line.startsWith(MODULE_LIST_ROW_INDENT)) {
       return Optional.empty();
     }
 
-    String moduleColumns = line.substring(2);
-    int firstColumnSeparatorIndex = moduleColumns.indexOf("  ");
+    String moduleColumns = line.substring(MODULE_LIST_ROW_INDENT.length());
+    int firstColumnSeparatorIndex = moduleColumns.indexOf(MODULE_LIST_COLUMN_SEPARATOR);
     if (firstColumnSeparatorIndex < 0) {
       return Optional.empty();
     }
