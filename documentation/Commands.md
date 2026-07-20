@@ -105,6 +105,33 @@ seed4j apply <module-name> [options]
 
 Most modules require specific parameters. If you miss required parameters, the CLI will inform you which ones are missing.
 
+Before normal apply validates those parameters or generates files, it calculates the target module's complete dependency
+plan. Any pending direct module, transitive module, or feature dependency blocks the command with exit code 2. The
+diagnostic is written to stderr, includes only pending dependencies, and leaves generated files, project history, and Git
+commits unchanged. Apply every pending module and one visible provider from each pending feature choice, then retry the
+requested module.
+
+For example, after `init` is recorded but `prettier` is not, applying `angular-core` is blocked:
+
+```bash
+seed4j apply angular-core --package-name com.mycompany.myapp
+```
+
+```text
+Cannot apply module: angular-core
+
+Missing required dependencies:
+
+○ module:prettier - pending
+
+Next action: apply every pending module and one module from each pending choice, then retry this module.
+No changes were applied.
+```
+
+The dependency check has precedence over required options. If `--package-name` is also omitted in this example, the same
+dependency diagnostic appears first. Once dependencies are ready, the existing required-parameter validation runs
+normally.
+
 To see the specific parameters for a module and which one is required, run:
 
 ```bash
@@ -121,6 +148,9 @@ The plan is text-only and exits without generated files, history entries, or com
 the current command or project history. When required parameters are still missing, the plan exits successfully and shows
 which options to pass before applying the module. Lines marked with `✓` are resolved, and lines marked with `○` are
 pending or missing.
+
+Unlike normal apply, `--plan` never blocks on pending dependencies: it remains read-only, returns exit code 0, and renders
+both resolved and pending dependency lines together with parameter resolution.
 
 ```text
 Plan for module: init
@@ -218,9 +248,30 @@ that still needs a choice:
 ```text
 Dependency plan:
 
-○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
 ✓ feature:java-build-tool - satisfied by maven-java
+○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
 ```
+
+Normal apply renders only the missing feature and blocks until one of its alphabetically ordered visible providers is in
+project history:
+
+```bash
+seed4j apply sonarqube-java-backend
+```
+
+```text
+Cannot apply module: sonarqube-java-backend
+
+Missing required dependencies:
+
+○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+
+Next action: apply every pending module and one module from each pending choice, then retry this module.
+No changes were applied.
+```
+
+After applying either `jacoco` or `jacoco-with-min-coverage-check`, the feature is satisfied by the module recorded in
+history and normal application of `sonarqube-java-backend` can continue.
 
 Plan source labels mean:
 

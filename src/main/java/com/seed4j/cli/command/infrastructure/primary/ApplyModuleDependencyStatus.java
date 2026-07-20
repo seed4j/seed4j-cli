@@ -26,6 +26,13 @@ record ApplyModuleDependencyStatus(StatusKind kind, String moduleSlug, List<Stri
     return new ApplyModuleDependencyStatus(StatusKind.PENDING_CHOICE, "", candidates);
   }
 
+  boolean satisfied() {
+    return switch (kind) {
+      case ALREADY_APPLIED, SATISFIED_BY -> true;
+      case PENDING, PENDING_CHOICE -> false;
+    };
+  }
+
   String displayLabel() {
     return switch (kind) {
       case ALREADY_APPLIED -> "already applied";

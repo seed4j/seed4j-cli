@@ -185,6 +185,8 @@ seed4j apply init --plan
 
 The plan first prints a `Dependency plan`, then the resolved text values and whether each value came from the current CLI input, project history, or a module metadata default. Lines marked with `✓` are resolved, and lines marked with `○` are pending or missing. Dependency statuses show direct module dependencies as `already applied` or `pending`; feature dependencies show either `satisfied by <module>` or `pending choice` with visible candidate modules. If required values are missing, it prints a `Missing required parameters` section and still does not apply files, write history, or create commits.
 
+Normal `seed4j apply <module>` also calculates this dependency plan before generating anything. If a direct, transitive, or feature dependency is pending, the command writes only the missing dependencies to stderr, exits with code 2, and does not generate files, update project history, or create commits. Apply every pending module and one provider from each pending feature choice, then retry the requested module. This dependency check runs before required-parameter validation. In contrast, `--plan` always remains read-only and exits successfully so callers can inspect all dependency and parameter statuses without being blocked.
+
 To install Bash completion for the active runtime:
 
 ```bash

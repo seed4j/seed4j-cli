@@ -173,12 +173,23 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     String projectPath = projectPath();
     ProjectPath project = new ProjectPath(projectPath);
     ProjectHistory history = projects.getHistory(project);
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(
+      module,
+      modules.resources(),
+      modules.landscape(),
+      history
+    );
     Map<String, Object> explicitParameters = parametersFromOptions();
     ModuleParameters historyParameters = history.latestProperties();
     ModuleParameters mergedParameters = historyParameters.merge(new ModuleParameters(explicitParameters));
 
     if (executionMode() == ApplyModuleExecutionMode.PLAN) {
-      return plan(projectPath, history, explicitParameters, historyParameters);
+      return plan(projectPath, dependencyPlan, explicitParameters, historyParameters);
+    }
+
+    if (dependencyPlan.notReady()) {
+      System.err.print(new MissingApplyModuleDependenciesRenderer().render(module.slug().get(), dependencyPlan));
+      return ExitCode.USAGE;
     }
 
     validateRequiredOptions(mergedParameters);
@@ -192,7 +203,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
 
   private Integer plan(
     String projectPath,
-    ProjectHistory history,
+    ApplyModuleDependencyPlan dependencyPlan,
     Map<String, Object> explicitParameters,
     ModuleParameters historyParameters
   ) {
@@ -201,13 +212,6 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       explicitParameters,
       historyParameters.get()
     );
-    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(
-      module,
-      modules.resources(),
-      modules.landscape(),
-      history
-    );
-
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
     return ExitCode.OK;
