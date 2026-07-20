@@ -201,7 +201,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       explicitParameters,
       historyParameters.get()
     );
-    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, modules.resources(), history);
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(
+      module,
+      modules.resources(),
+      modules.landscape(),
+      history
+    );
 
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
