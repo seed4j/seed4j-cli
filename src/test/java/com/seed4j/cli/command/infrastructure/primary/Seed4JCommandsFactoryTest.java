@@ -463,6 +463,29 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldPlanTransitiveModuleDependenciesInLandscapeOrder(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply", "optional-typescript", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(output).contains(
+        """
+        Dependency plan:
+
+        ○ module:init - pending
+        ○ module:prettier - pending
+        ○ module:typescript - pending
+
+        Resolved parameters:
+        """
+      );
+    }
+
+    @Test
     void shouldPlanFeatureDependencyStatuses(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] initArgs = {

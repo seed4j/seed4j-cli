@@ -85,14 +85,14 @@ class ApplyModuleDependencyPlanner {
     DependencyPlanningProgress progress
   ) {
     String dependencySlug = dependency.slug().get();
-    DependencyPlanningProgress nextProgress = progress.withPlanLineIfMissing(
+    DependencyPlanningProgress nextProgress = context
+      .module(dependencySlug)
+      .map(resource -> appendDependencies(resource, context, progress))
+      .orElse(progress);
+
+    return nextProgress.withPlanLineIfMissing(
       new ApplyModuleDependencyPlanLine(dependencyToken(dependency), moduleStatus(dependencySlug, context.appliedModules()))
     );
-
-    return context
-      .module(dependencySlug)
-      .map(resource -> appendDependencies(resource, context, nextProgress))
-      .orElse(nextProgress);
   }
 
   private static ApplyModuleDependencyStatus moduleStatus(String dependencySlug, Set<String> appliedModules) {
