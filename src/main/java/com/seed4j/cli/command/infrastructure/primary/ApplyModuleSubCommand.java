@@ -5,6 +5,7 @@ import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
 import com.seed4j.module.domain.Seed4JModuleToApply;
+import com.seed4j.module.domain.landscape.Seed4JLandscape;
 import com.seed4j.module.domain.properties.Seed4JModuleProperties;
 import com.seed4j.module.domain.properties.Seed4JPropertyDescription;
 import com.seed4j.module.domain.properties.Seed4JPropertyKey;
@@ -13,6 +14,7 @@ import com.seed4j.module.domain.resource.Seed4JModuleOperation;
 import com.seed4j.module.domain.resource.Seed4JModulePropertiesDefinition;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
+import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ModuleParameters;
@@ -201,7 +203,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       explicitParameters,
       historyParameters.get()
     );
-    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, modules.resources(), history);
+    Seed4JModulesResources resources = modules.resources();
+    Seed4JLandscape landscape = modules.landscape();
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, resources, landscape, history);
 
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 

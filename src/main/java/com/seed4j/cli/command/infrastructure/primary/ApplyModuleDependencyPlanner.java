@@ -1,12 +1,13 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.module.domain.Seed4JSlug;
+import com.seed4j.module.domain.landscape.Seed4JLandscape;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import com.seed4j.project.domain.ModuleSlug;
 import com.seed4j.project.domain.history.ProjectAction;
 import com.seed4j.project.domain.history.ProjectHistory;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -19,14 +20,20 @@ import java.util.stream.Collectors;
 
 class ApplyModuleDependencyPlanner {
 
-  ApplyModuleDependencyPlan plan(Seed4JModuleResource module, Seed4JModulesResources resources, ProjectHistory history) {
-    DependencyPlanningProgress progress = appendDependencies(
-      module,
-      DependencyPlanningContext.from(resources, history),
-      DependencyPlanningProgress.empty()
-    );
+  ApplyModuleDependencyPlan plan(
+    Seed4JModuleResource module,
+    Seed4JModulesResources resources,
+    Seed4JLandscape landscape,
+    ProjectHistory history
+  ) {
+    DependencyPlanningContext context = DependencyPlanningContext.from(resources, history);
+    DependencyDiscoveryProgress progress = discoverDependencies(module, context, DependencyDiscoveryProgress.empty());
+    List<ApplyModuleDependencyPlanLine> lines = orderedDependencies(progress.dependencies(), landscape)
+      .stream()
+      .map(dependency -> toPlanLine(dependency, context))
+      .toList();
 
-    return new ApplyModuleDependencyPlan(progress.lines());
+    return new ApplyModuleDependencyPlan(lines);
   }
 
   private static Set<String> appliedModules(ProjectHistory history) {
@@ -37,10 +44,10 @@ class ApplyModuleDependencyPlanner {
     return Comparator.comparing(module -> module.slug().get());
   }
 
-  private static DependencyPlanningProgress appendDependencies(
+  private static DependencyDiscoveryProgress discoverDependencies(
     Seed4JModuleResource module,
     DependencyPlanningContext context,
-    DependencyPlanningProgress progress
+    DependencyDiscoveryProgress progress
   ) {
     String moduleSlug = module.slug().get();
     if (progress.visitedModules().contains(moduleSlug)) {
@@ -51,48 +58,64 @@ class ApplyModuleDependencyPlanner {
       .organization()
       .dependencies()
       .stream()
-      .sorted(byDependencyToken())
-      .map(dependency -> dependencyPlanningStep(dependency, context))
+      .map(dependency -> dependencyDiscoveryStep(dependency, context))
       .reduce(Function.identity(), Function::andThen)
       .apply(progress.withVisitedModule(moduleSlug));
   }
 
-  private static Comparator<Seed4JLandscapeDependency> byDependencyToken() {
-    return Comparator.comparing(ApplyModuleDependencyPlanner::dependencyToken);
-  }
-
-  private static Function<DependencyPlanningProgress, DependencyPlanningProgress> dependencyPlanningStep(
+  private static Function<DependencyDiscoveryProgress, DependencyDiscoveryProgress> dependencyDiscoveryStep(
     Seed4JLandscapeDependency dependency,
     DependencyPlanningContext context
   ) {
-    return progress -> appendDependency(dependency, context, progress);
+    return progress -> discoverDependency(dependency, context, progress);
   }
 
-  private static DependencyPlanningProgress appendDependency(
+  private static DependencyDiscoveryProgress discoverDependency(
     Seed4JLandscapeDependency dependency,
     DependencyPlanningContext context,
-    DependencyPlanningProgress progress
+    DependencyDiscoveryProgress progress
   ) {
     return switch (dependency.type()) {
-      case MODULE -> appendModuleDependency(dependency, context, progress);
-      case FEATURE -> appendFeatureDependency(dependency, context, progress);
+      case MODULE -> discoverModuleDependency(dependency, context, progress);
+      case FEATURE -> progress.withDependency(dependency);
     };
   }
 
-  private static DependencyPlanningProgress appendModuleDependency(
+  private static DependencyDiscoveryProgress discoverModuleDependency(
     Seed4JLandscapeDependency dependency,
     DependencyPlanningContext context,
-    DependencyPlanningProgress progress
+    DependencyDiscoveryProgress progress
   ) {
     String dependencySlug = dependency.slug().get();
-    DependencyPlanningProgress nextProgress = context
+    DependencyDiscoveryProgress nextProgress = progress.withDependency(dependency);
+    return context
       .module(dependencySlug)
-      .map(resource -> appendDependencies(resource, context, progress))
-      .orElse(progress);
+      .map(resource -> discoverDependencies(resource, context, nextProgress))
+      .orElse(nextProgress);
+  }
 
-    return nextProgress.withPlanLineIfMissing(
-      new ApplyModuleDependencyPlanLine(dependencyToken(dependency), moduleStatus(dependencySlug, context.appliedModules()))
-    );
+  private static List<Seed4JLandscapeDependency> orderedDependencies(
+    Set<Seed4JLandscapeDependency> dependencies,
+    Seed4JLandscape landscape
+  ) {
+    Map<Seed4JSlug, Seed4JLandscapeDependency> dependenciesBySlug = dependencies
+      .stream()
+      .collect(Collectors.toMap(Seed4JLandscapeDependency::slug, Function.identity()));
+
+    return landscape
+      .levels()
+      .stream()
+      .flatMap(level -> level.slugs().filter(dependenciesBySlug::containsKey).sorted().map(dependenciesBySlug::get))
+      .toList();
+  }
+
+  private static ApplyModuleDependencyPlanLine toPlanLine(Seed4JLandscapeDependency dependency, DependencyPlanningContext context) {
+    ApplyModuleDependencyStatus status = switch (dependency.type()) {
+      case MODULE -> moduleStatus(dependency.slug().get(), context.appliedModules());
+      case FEATURE -> featureStatus(dependency, context);
+    };
+
+    return new ApplyModuleDependencyPlanLine(dependencyToken(dependency), status);
   }
 
   private static ApplyModuleDependencyStatus moduleStatus(String dependencySlug, Set<String> appliedModules) {
@@ -101,16 +124,6 @@ class ApplyModuleDependencyPlanner {
     }
 
     return ApplyModuleDependencyStatus.pending();
-  }
-
-  private static DependencyPlanningProgress appendFeatureDependency(
-    Seed4JLandscapeDependency dependency,
-    DependencyPlanningContext context,
-    DependencyPlanningProgress progress
-  ) {
-    return progress.withPlanLineIfMissing(
-      new ApplyModuleDependencyPlanLine(dependencyToken(dependency), featureStatus(dependency, context))
-    );
   }
 
   private static ApplyModuleDependencyStatus featureStatus(Seed4JLandscapeDependency dependency, DependencyPlanningContext context) {
@@ -167,37 +180,26 @@ class ApplyModuleDependencyPlanner {
     }
   }
 
-  private record DependencyPlanningProgress(
-    List<ApplyModuleDependencyPlanLine> lines,
-    Set<String> plannedDependencies,
-    Set<String> visitedModules
-  ) {
-    private DependencyPlanningProgress {
-      lines = List.copyOf(lines);
-      plannedDependencies = Collections.unmodifiableSet(new LinkedHashSet<>(plannedDependencies));
+  private record DependencyDiscoveryProgress(Set<Seed4JLandscapeDependency> dependencies, Set<String> visitedModules) {
+    private DependencyDiscoveryProgress {
+      dependencies = Collections.unmodifiableSet(new LinkedHashSet<>(dependencies));
       visitedModules = Collections.unmodifiableSet(new LinkedHashSet<>(visitedModules));
     }
 
-    private static DependencyPlanningProgress empty() {
-      return new DependencyPlanningProgress(List.of(), Set.of(), Set.of());
+    private static DependencyDiscoveryProgress empty() {
+      return new DependencyDiscoveryProgress(Set.of(), Set.of());
     }
 
-    private DependencyPlanningProgress withVisitedModule(String moduleSlug) {
+    private DependencyDiscoveryProgress withVisitedModule(String moduleSlug) {
       Set<String> nextVisitedModules = new LinkedHashSet<>(visitedModules);
       nextVisitedModules.add(moduleSlug);
-      return new DependencyPlanningProgress(lines, plannedDependencies, nextVisitedModules);
+      return new DependencyDiscoveryProgress(dependencies, nextVisitedModules);
     }
 
-    private DependencyPlanningProgress withPlanLineIfMissing(ApplyModuleDependencyPlanLine line) {
-      if (plannedDependencies.contains(line.dependency())) {
-        return this;
-      }
-
-      List<ApplyModuleDependencyPlanLine> nextLines = new ArrayList<>(lines);
-      Set<String> nextPlannedDependencies = new LinkedHashSet<>(plannedDependencies);
-      nextLines.add(line);
-      nextPlannedDependencies.add(line.dependency());
-      return new DependencyPlanningProgress(nextLines, nextPlannedDependencies, visitedModules);
+    private DependencyDiscoveryProgress withDependency(Seed4JLandscapeDependency dependency) {
+      Set<Seed4JLandscapeDependency> nextDependencies = new LinkedHashSet<>(dependencies);
+      nextDependencies.add(dependency);
+      return new DependencyDiscoveryProgress(nextDependencies, visitedModules);
     }
   }
 }
