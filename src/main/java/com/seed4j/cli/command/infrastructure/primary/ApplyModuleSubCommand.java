@@ -187,7 +187,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       return plan(projectPath, dependencyPlan, explicitParameters, historyParameters);
     }
 
-    if (!dependencyPlan.ready()) {
+    if (dependencyPlan.notReady()) {
       System.err.print(new MissingApplyModuleDependenciesRenderer().render(module.slug().get(), dependencyPlan));
       return ExitCode.USAGE;
     }

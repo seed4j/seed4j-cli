@@ -7,8 +7,8 @@ record ApplyModuleDependencyPlan(List<ApplyModuleDependencyPlanLine> lines) {
     return lines.isEmpty();
   }
 
-  boolean ready() {
-    return lines.stream().allMatch(line -> line.status().satisfied());
+  boolean notReady() {
+    return lines.stream().anyMatch(line -> !line.status().satisfied());
   }
 
   List<ApplyModuleDependencyPlanLine> pendingLines() {
