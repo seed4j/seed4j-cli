@@ -203,9 +203,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       explicitParameters,
       historyParameters.get()
     );
-    Seed4JModulesResources resources = modules.resources();
-    Seed4JLandscape landscape = modules.landscape();
-    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(module, resources, landscape, history);
+    ApplyModuleDependencyPlan dependencyPlan = new ApplyModuleDependencyPlanner().plan(
+      module,
+      modules.resources(),
+      modules.landscape(),
+      history
+    );
 
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan, resolvedParameters));
 
