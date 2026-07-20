@@ -463,6 +463,48 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldNotApplyModuleWhenDirectDependencyIsMissing(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      String[] args = { "apply", "angular-core", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
+      assertThat(output.getErr())
+        .contains(
+          """
+          Cannot apply module: angular-core
+
+          Missing required dependencies:
+
+          ○ module:prettier - pending
+
+          Next action: apply every pending module and one module from each pending choice, then retry this module.
+          No changes were applied.
+          """
+        )
+        .doesNotContain("module:init");
+    }
+
+    @Test
     void shouldPlanTransitiveModuleDependenciesInLandscapeOrder(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "optional-typescript", "--project-path", projectPath.toString(), "--plan" };
@@ -483,6 +525,44 @@ class Seed4JCommandsFactoryTest {
         Resolved parameters:
         """
       );
+    }
+
+    @Test
+    void shouldNotApplyModuleWithTransitiveDependenciesMissing(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      String[] args = { "apply", "optional-typescript", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
+      assertThat(output.getErr())
+        .contains(
+          """
+          Missing required dependencies:
+
+          ○ module:prettier - pending
+          ○ module:typescript - pending
+          """
+        )
+        .doesNotContain("module:init");
     }
 
     @Test
@@ -550,6 +630,78 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldNotApplyModuleWhenFeatureDependencyIsMissing(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
+      int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
+      assertThat(mavenJavaExitCode).isZero();
+      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      String[] args = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
+      assertThat(output.getErr())
+        .contains(
+          """
+          Missing required dependencies:
+
+          ○ feature:code-coverage-java - pending choice: jacoco, jacoco-with-min-coverage-check
+          """
+        )
+        .doesNotContain("feature:java-build-tool");
+    }
+
+    @Test
+    void shouldApplyModuleWhenFeatureDependenciesAreSatisfiedByHistory(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
+      int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
+      assertThat(mavenJavaExitCode).isZero();
+      String[] jacocoArgs = { "apply", "jacoco", "--project-path", projectPath.toString() };
+      int jacocoExitCode = commandLine(modules, projects).execute(jacocoArgs);
+      assertThat(jacocoExitCode).isZero();
+      String[] args = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(GitTestUtil.getCommits(projectPath)).contains("Apply module: sonarqube-java-backend");
+      assertThat(output.getErr()).doesNotContain("Cannot apply module: sonarqube-java-backend");
+    }
+
+    @Test
     void shouldNotApplyInitModuleMissingRequiredOptions(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] args = { "apply", "init", "--project-path", projectPath.toString() };
@@ -566,6 +718,35 @@ class Seed4JCommandsFactoryTest {
         .contains("seed4jSampleApplication (required)")
         .contains("Project full name e.g. Seed4J Sample Application")
         .contains("(required)");
+    }
+
+    @Test
+    void shouldReportMissingDependenciesBeforeMissingRequiredOptions(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] initArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "seed4jSampleApplication",
+        "--project-name",
+        "Seed4J Sample Application",
+        "--node-package-manager",
+        "npm",
+      };
+      int initExitCode = commandLine(modules, projects).execute(initArgs);
+      assertThat(initExitCode).isZero();
+      String[] args = { "apply", "angular-core", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Cannot apply module: angular-core")
+        .contains("○ module:prettier - pending")
+        .doesNotContain("Missing required options")
+        .doesNotContain("--package-name=<packagename*>");
     }
 
     @Test
