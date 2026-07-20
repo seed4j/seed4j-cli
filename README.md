@@ -98,6 +98,16 @@ npm install -g .
 seed4j --version
 ```
 
+### Mutation testing
+
+Mutation testing with PIT is opt-in because it runs the test suite repeatedly and can take significantly longer than a normal build. Run it explicitly with:
+
+```bash
+./mvnw -Ppitest test-compile org.pitest:pitest-maven:mutationCoverage
+```
+
+PIT writes its HTML report under `target/pit-reports/`. A surviving mutant is a small behavioral change that the current tests did not detect; investigate whether it reveals a meaningful missing behavior test, but do not add implementation-detail tests solely to increase the mutation score.
+
 ## Release to npm
 
 The npm package name is `seed4j-cli`, and it exposes the command `seed4j`.
