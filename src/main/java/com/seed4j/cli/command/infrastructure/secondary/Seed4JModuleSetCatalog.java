@@ -12,26 +12,26 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.shared.error.domain.Assert;
+import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
 import com.seed4j.module.domain.Seed4JSlug;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
+@Component
 public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
 
-  private final Seed4JModulesResourcesReader resourcesReader;
-  private final Seed4JLandscapeModuleSorter landscapeSorter;
+  private final Seed4JModulesApplicationService modules;
 
-  public Seed4JModuleSetCatalog(Seed4JModulesResourcesReader resourcesReader, Seed4JLandscapeModuleSorter landscapeSorter) {
-    Assert.notNull("resourcesReader", resourcesReader);
-    Assert.notNull("landscapeSorter", landscapeSorter);
-    this.resourcesReader = resourcesReader;
-    this.landscapeSorter = landscapeSorter;
+  public Seed4JModuleSetCatalog(Seed4JModulesApplicationService modules) {
+    Assert.notNull("modules", modules);
+    this.modules = modules;
   }
 
   @Override
   public List<ModuleSetModule> modules() {
-    return resourcesReader
+    return modules
       .resources()
       .stream()
       .map(resource ->
@@ -70,7 +70,8 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
       .stream()
       .map(slug -> new Seed4JModuleSlug(slug.value()))
       .toList();
-    return landscapeSorter
+    return modules
+      .landscape()
       .sort(slugs)
       .stream()
       .map(slug -> new ModuleSetSlug(slug.get()))

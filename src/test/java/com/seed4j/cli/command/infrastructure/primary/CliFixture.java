@@ -108,8 +108,8 @@ class CliFixture {
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
     ModuleSetPlanningApplicationService moduleSetPlanningApplicationService = new ModuleSetPlanningApplicationService(
-      new Seed4JModuleSetCatalog(modules::resources, slugs -> modules.landscape().sort(slugs)),
-      new ProjectsModuleSetPlanningHistoryReader(projects::getHistory)
+      new Seed4JModuleSetCatalog(modules),
+      new ProjectsModuleSetPlanningHistoryReader(projects)
     );
     ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(moduleSetPlanningApplicationService);
     RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService = new RuntimeExtensionInstallApplicationService(

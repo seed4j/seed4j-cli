@@ -6,6 +6,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.shared.error.domain.Assert;
+import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ModuleSlug;
 import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectAction;
@@ -13,19 +14,21 @@ import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
+@Component
 public class ProjectsModuleSetPlanningHistoryReader implements ModuleSetPlanningHistoryReader {
 
-  private final ProjectsHistoryReader historyReader;
+  private final ProjectsApplicationService projects;
 
-  public ProjectsModuleSetPlanningHistoryReader(ProjectsHistoryReader historyReader) {
-    Assert.notNull("historyReader", historyReader);
-    this.historyReader = historyReader;
+  public ProjectsModuleSetPlanningHistoryReader(ProjectsApplicationService projects) {
+    Assert.notNull("projects", projects);
+    this.projects = projects;
   }
 
   @Override
   public ModuleSetPlanningHistory history(ModuleSetProjectPath projectPath) {
-    ProjectHistory history = historyReader.history(new ProjectPath(projectPath.value().toString()));
+    ProjectHistory history = projects.getHistory(new ProjectPath(projectPath.value().toString()));
     Set<ModuleSetSlug> appliedModules = history
       .actions()
       .stream()

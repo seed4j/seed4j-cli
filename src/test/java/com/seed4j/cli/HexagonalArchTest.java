@@ -311,15 +311,17 @@ class HexagonalArchTest {
     }
 
     @Test
-    void shouldNotDependOnApplication() {
-      noClasses()
-        .that()
-        .resideInAPackage("..infrastructure.secondary..")
-        .should()
-        .dependOnClassesThat()
-        .resideInAPackage("..application..")
-        .because("secondary adapters should implement domain ports without depending on application services")
-        .check(classes);
+    void shouldNotDependOnSameContextApplication() {
+      Stream.concat(businessContexts.stream(), sharedKernels.stream()).forEach(context ->
+        noClasses()
+          .that()
+          .resideInAPackage(context + ".infrastructure.secondary..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage(context + ".application..")
+          .because("secondary adapters should implement their context's domain ports without calling their own application services")
+          .check(classes)
+      );
     }
 
     @Test
@@ -358,6 +360,17 @@ class HexagonalArchTest {
 
   @Nested
   class CompositionRoot {
+
+    @Test
+    void shouldBeReservedForPreSpringBootstrap() {
+      classes()
+        .that()
+        .resideInAPackage("..composition..")
+        .should()
+        .resideInAnyPackage(COMPOSITION_PACKAGES)
+        .because("explicit composition packages are reserved for work that happens before Spring is available")
+        .check(classes);
+    }
 
     @Test
     void shouldOnlyBeAccessedByRootApplicationEntryPoint() {

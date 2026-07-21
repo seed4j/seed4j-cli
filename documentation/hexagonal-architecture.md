@@ -132,6 +132,8 @@ The secondary part is made of adapters implementing the ports from the domain. T
 
 Secondary infrastructure can also define its own technical interfaces when it needs local seams for process execution, filesystem variants, framework wrappers, or deterministic tests. Those interfaces are not ports unless domain or application code depends on them.
 
+A secondary adapter must not call its own bounded context's application layer. It may integrate an external bounded context through that context's public application API when the external API is the mechanism behind a domain capability. In a Spring runtime, make these adapters ordinary components with constructor injection. Reserve explicit `composition` packages for manual wiring that must happen before Spring exists, such as bootstrap selection; do not add them for application flows already created inside the Spring context.
+
 ### Module-set planning flow
 
 The read-only `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is a primary Picocli
@@ -149,6 +151,7 @@ The domain capability interfaces are `ModuleSetCatalog` and `ModuleSetPlanningHi
 resources, dependency metadata, features, properties, and landscape ordering into CLI-owned domain values.
 `ProjectsModuleSetPlanningHistoryReader` is a secondary adapter around `ProjectsApplicationService`; it translates applied
 module history and latest properties without exposing persistence paths or `.seed4j` layout to application or domain.
+Both adapters are Spring components and receive those external application services directly through their constructors.
 
 The resulting dependency direction is:
 
