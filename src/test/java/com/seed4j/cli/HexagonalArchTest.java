@@ -97,9 +97,7 @@ class HexagonalArchTest {
   }
 
   private static Path rootPackagePath() {
-    return Stream.of(ROOT_PACKAGE.split("\\."))
-      .map(Path::of)
-      .reduce(Path.of("src", "main", "java"), Path::resolve);
+    return Stream.of(ROOT_PACKAGE.split("\\.")).map(Path::of).reduce(Path.of("src", "main", "java"), Path::resolve);
   }
 
   private static Function<Path, String> toPackageInfoName() {
@@ -313,15 +311,17 @@ class HexagonalArchTest {
     }
 
     @Test
-    void shouldNotDependOnApplication() {
-      noClasses()
-        .that()
-        .resideInAPackage("..infrastructure.secondary..")
-        .should()
-        .dependOnClassesThat()
-        .resideInAPackage("..application..")
-        .because("secondary adapters should implement domain ports without depending on application services")
-        .check(classes);
+    void shouldNotDependOnSameContextApplication() {
+      Stream.concat(businessContexts.stream(), sharedKernels.stream()).forEach(context ->
+        noClasses()
+          .that()
+          .resideInAPackage(context + ".infrastructure.secondary..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage(context + ".application..")
+          .because("secondary adapters should implement their context's domain ports without calling their own application services")
+          .check(classes)
+      );
     }
 
     @Test
@@ -362,6 +362,17 @@ class HexagonalArchTest {
   class CompositionRoot {
 
     @Test
+    void shouldBeReservedForPreSpringBootstrap() {
+      classes()
+        .that()
+        .resideInAPackage("..composition..")
+        .should()
+        .resideInAnyPackage(COMPOSITION_PACKAGES)
+        .because("explicit composition packages are reserved for work that happens before Spring is available")
+        .check(classes);
+    }
+
+    @Test
     void shouldOnlyBeAccessedByRootApplicationEntryPoint() {
       noClasses()
         .that()
@@ -390,9 +401,7 @@ class HexagonalArchTest {
     }
 
     private String[] businessContextsOrSharedKernelsPackages() {
-      return Stream.of(businessContextsPackages, sharedKernelsPackages)
-        .flatMap(Collection::stream)
-        .toArray(String[]::new);
+      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
     }
   }
 

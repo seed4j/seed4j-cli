@@ -283,6 +283,82 @@ Project-history values include a note telling callers they can omit that option 
 the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part
 of this text-only phase.
 
+### Plan a Module Set
+
+Use `apply-set` to validate an explicitly selected set of modules as one read-only operation:
+
+```bash
+seed4j apply-set init maven-java \
+  --project-path . \
+  --project-name "Sample application" \
+  --base-name sampleApplication \
+  --node-package-manager npm \
+  --package-name com.mycompany.sample \
+  --plan
+```
+
+The command requires at least one visible module slug and requires `--plan`. `--project-path` defaults to `.`. It accepts
+the union of property options declared by visible modules and does not expose `--commit`, because this issue implements
+planning only. Unknown and hidden slugs are treated alike. Duplicate slugs are rejected instead of normalized.
+
+The output separates `Requested modules` from `Execution order`. Requested order preserves the command line. Execution
+order is calculated exclusively by the Seed4J landscape and is the order a future application command can reuse. A module
+already recorded in project history remains in this execution order; history can satisfy dependencies but does not remove
+an explicitly requested module.
+
+Dependencies are discovered recursively, rendered once, and annotated with every requested module that requires them. A
+module dependency is satisfied by project history or by an explicitly selected module ordered before the dependent. A
+feature dependency is satisfied by a visible provider in history or by an explicitly selected provider ordered before the
+dependent. The planner never selects a provider implicitly. When a provider is absent, it lists visible candidates in
+alphabetical order so the caller can add one explicitly.
+
+Selected property definitions are reconciled by key and shown once. Seed4J treats repeated keys having the same type as a
+catalog invariant, so the first visible definition supplies the type of the single global Picocli option. A property is
+mandatory when any selected module makes it mandatory, and at most one distinct default and description may remain.
+Display order follows the property's first occurrence in execution order and then its declaration order. Values resolve
+in this order:
+
+1. explicit CLI input;
+2. latest project history value;
+3. metadata default for an optional property.
+
+Defaults for mandatory properties remain informational and do not satisfy the requirement. Picocli converts explicit CLI
+input directly to the global option's declared type and rejects invalid typed values before planning. Passing a known
+property option that none of the selected modules uses invalidates the plan.
+
+The planner aggregates all predictable post-resolution problems, including recursive dependencies, feature choices,
+property conflicts, irrelevant options, and every missing required parameter. A valid plan writes the
+structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or complete
+plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
+
+```text
+Plan for module set
+
+Project path: .
+
+Requested modules:
+  1. maven-java
+  2. init
+
+Execution order:
+  1. init
+  2. maven-java
+
+Dependency validation:
+  ✓ module:init - satisfied by requested module: init; required by: maven-java
+
+Resolved parameters:
+  ...
+
+Status: VALID
+No changes were applied.
+```
+
+`apply-set` is stricter than the existing single-module plan. `seed4j apply <module> --plan` remains informational and
+returns 0 with pending dependencies or parameters. `seed4j apply-set ... --plan` returns 2 whenever the combined plan is
+not ready. Applying the set, `--commit`, rollback, commit granularity, presets, JSON output, and changes to
+`seed4j apply <module>` remain outside this command.
+
 ### Bash Completion
 
 To print a Bash completion script for the active runtime:

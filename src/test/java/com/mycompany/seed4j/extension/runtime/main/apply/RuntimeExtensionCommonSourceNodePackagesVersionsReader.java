@@ -18,8 +18,6 @@ public class RuntimeExtensionCommonSourceNodePackagesVersionsReader implements N
 
   @Override
   public NodePackagesVersions get() {
-    return NodePackagesVersions.builder()
-      .put(COMMON.build(), List.of(new NodePackage("prettier", "3.6.2")))
-      .build();
+    return NodePackagesVersions.builder().put(COMMON.build(), List.of(new NodePackage("prettier", "3.6.2"))).build();
   }
 }

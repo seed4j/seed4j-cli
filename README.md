@@ -187,6 +187,22 @@ The plan first prints a `Dependency plan`, then the resolved text values and whe
 
 Normal `seed4j apply <module>` also calculates this dependency plan before generating anything. If a direct, transitive, or feature dependency is pending, the command writes only the missing dependencies to stderr, exits with code 2, and does not generate files, update project history, or create commits. Apply every pending module and one provider from each pending feature choice, then retry the requested module. This dependency check runs before required-parameter validation. In contrast, `--plan` always remains read-only and exits successfully so callers can inspect all dependency and parameter statuses without being blocked.
 
+To validate several explicitly selected modules together without applying them, use `apply-set`:
+
+```bash
+seed4j apply-set init maven-java \
+  --project-path . \
+  --project-name "Sample application" \
+  --base-name sampleApplication \
+  --node-package-manager npm \
+  --package-name com.mycompany.sample \
+  --plan
+```
+
+`apply-set` requires one or more visible module slugs and the `--plan` flag. It prints the caller's requested order separately from the execution order calculated by the Seed4J landscape, validates recursive module and feature dependencies against both project history and earlier explicitly selected modules, and resolves the selected modules' shared property set once. Repeated property keys follow Seed4J's catalog invariant of having the same type; Picocli parses the single global option using that declared type, while conflicting defaults or descriptions still invalidate the plan. Feature providers are never added implicitly; a missing feature lists visible providers that can be selected explicitly. The command has no `--commit` option and never creates files, `.seed4j`, `.git`, history entries, or commits.
+
+A complete module-set plan exits with code 0. Missing or duplicate slugs, unknown or hidden modules, missing `--plan`, pending dependencies, missing required parameters, conflicting shared defaults or descriptions, invalid typed option values, and known options unused by the selected modules exit with code 2 and write the complete invalid plan or usage diagnostic to stderr. Unlike the existing single-module `seed4j apply <module> --plan`, which remains informational and returns 0 even with pending items, an incomplete `apply-set` plan returns 2.
+
 To install Bash completion for the active runtime:
 
 ```bash
