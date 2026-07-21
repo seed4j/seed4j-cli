@@ -97,9 +97,7 @@ class HexagonalArchTest {
   }
 
   private static Path rootPackagePath() {
-    return Stream.of(ROOT_PACKAGE.split("\\."))
-      .map(Path::of)
-      .reduce(Path.of("src", "main", "java"), Path::resolve);
+    return Stream.of(ROOT_PACKAGE.split("\\.")).map(Path::of).reduce(Path.of("src", "main", "java"), Path::resolve);
   }
 
   private static Function<Path, String> toPackageInfoName() {
@@ -390,9 +388,7 @@ class HexagonalArchTest {
     }
 
     private String[] businessContextsOrSharedKernelsPackages() {
-      return Stream.of(businessContextsPackages, sharedKernelsPackages)
-        .flatMap(Collection::stream)
-        .toArray(String[]::new);
+      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
     }
   }
 

@@ -1,0 +1,11 @@
+package com.seed4j.cli.command.domain.moduleset;
+
+public enum ModuleSetPlanningProblemType {
+  DUPLICATE_MODULES,
+  UNKNOWN_MODULES,
+  MISSING_DEPENDENCY,
+  MISSING_REQUIRED_PARAMETER,
+  PROPERTY_CONFLICT,
+  IRRELEVANT_OPTION,
+  INVALID_PARAMETER_VALUE,
+}

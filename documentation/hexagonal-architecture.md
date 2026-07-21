@@ -131,3 +131,33 @@ The primary part contains adapters for the code driving our domain. Example: cod
 The secondary part is made of adapters implementing the ports from the domain. This part depends a lot on frameworks and its responsibility is to make the best possible use of the infrastructure our business needs.
 
 Secondary infrastructure can also define its own technical interfaces when it needs local seams for process execution, filesystem variants, framework wrappers, or deterministic tests. Those interfaces are not ports unless domain or application code depends on them.
+
+### Module-set planning flow
+
+The read-only `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is a primary Picocli
+adapter: it creates the global options before parsing, converts positional strings, the user-visible project path, and
+explicit option values into module-set domain types, then calls `ModuleSetPlanningApplicationService`. The primary adapter
+does not call the Seed4J core application services directly.
+
+`ModuleSetPlanningApplicationService` orchestrates the immutable module-set request and produces a reusable
+`ModuleSetPlan`. The plan retains requested order, the execution order, dependency statuses and providers, reconciled and
+resolved parameters, missing parameters, and typed validation problems. Ordering is delegated through `ModuleSetCatalog`,
+whose implementation calls `Seed4JLandscape.sort(...)`; the CLI does not reproduce the landscape algorithm.
+
+The domain capability interfaces are `ModuleSetCatalog` and `ModuleSetPlanningHistoryReader`.
+`Seed4JModuleSetCatalog` is a secondary adapter around `Seed4JModulesApplicationService`; it translates visible module
+resources, dependency metadata, features, properties, and landscape ordering into CLI-owned domain values.
+`ProjectsModuleSetPlanningHistoryReader` is a secondary adapter around `ProjectsApplicationService`; it translates applied
+module history and latest properties without exposing persistence paths or `.seed4j` layout to application or domain.
+
+The resulting dependency direction is:
+
+```text
+Picocli ApplyModuleSetCommand
+  -> ModuleSetPlanningApplicationService
+    -> ModuleSetCatalog / ModuleSetPlanningHistoryReader
+      <- Seed4JModuleSetCatalog / ProjectsModuleSetPlanningHistoryReader
+```
+
+Rendering stays in the primary adapter because text layout, stdout/stderr selection, and Picocli option names are delivery
+concerns. Applying modules, filesystem mutation, Git initialization, history writes, and commits are absent from this flow.

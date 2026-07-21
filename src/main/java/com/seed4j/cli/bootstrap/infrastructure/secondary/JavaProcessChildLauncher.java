@@ -65,16 +65,18 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
     runtimeSelection
       .distributionVersion()
       .ifPresent(distributionVersion -> systemProperties.put("seed4j.cli.runtime.distribution.version", distributionVersion.version()));
-    runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> {
-      Path rawExtensionJarPath = extensionJarPath.path();
-      String extensionStartClass = runtimeExtensionStartClassResolver.resolve(rawExtensionJarPath);
-      systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
-      Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(rawExtensionJarPath);
-      systemProperties.put(
-        "loader.path",
-        runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
-      );
-    });
+    runtimeSelection
+      .extensionJarPath()
+      .ifPresent(extensionJarPath -> {
+        Path rawExtensionJarPath = extensionJarPath.path();
+        String extensionStartClass = runtimeExtensionStartClassResolver.resolve(rawExtensionJarPath);
+        systemProperties.put(RUNTIME_EXTENSION_START_CLASS_PROPERTY, extensionStartClass);
+        Path overlayClassesPath = runtimeExtensionOverlayCache.materialize(rawExtensionJarPath);
+        systemProperties.put(
+          "loader.path",
+          runtimeExtensionLoaderPathResolver.resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
+        );
+      });
     if (runtimeSelection.mode() == RuntimeMode.EXTENSION) {
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       if (request.debug().enabled()) {

@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.BashCompletionInstallApplicationService;
+import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionModeApplicationService;
@@ -11,6 +12,8 @@ import com.seed4j.cli.command.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionReplacementStatus;
 import com.seed4j.cli.command.domain.RuntimeModeConfigurationPath;
+import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -104,6 +107,11 @@ class CliFixture {
     ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
+    ModuleSetPlanningApplicationService moduleSetPlanningApplicationService = new ModuleSetPlanningApplicationService(
+      new Seed4JModuleSetCatalog(modules::resources, slugs -> modules.landscape().sort(slugs)),
+      new ProjectsModuleSetPlanningHistoryReader(projects::getHistory)
+    );
+    ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(moduleSetPlanningApplicationService);
     RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService = new RuntimeExtensionInstallApplicationService(
       request ->
         new RuntimeExtensionInstallResult(
@@ -126,7 +134,7 @@ class CliFixture {
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand, extensionCommand, completionCommand),
+      List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
       projectCliVersion,
       projectSeed4JVersion,
       runtimeDisplayApplicationService

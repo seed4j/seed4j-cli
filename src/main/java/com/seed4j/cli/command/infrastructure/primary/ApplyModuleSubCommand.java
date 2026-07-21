@@ -1,14 +1,11 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.shared.error.domain.Assert;
-import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
 import com.seed4j.module.domain.Seed4JModuleToApply;
 import com.seed4j.module.domain.properties.Seed4JModuleProperties;
-import com.seed4j.module.domain.properties.Seed4JPropertyDescription;
 import com.seed4j.module.domain.properties.Seed4JPropertyKey;
-import com.seed4j.module.domain.properties.Seed4JPropertyType;
 import com.seed4j.module.domain.resource.Seed4JModuleOperation;
 import com.seed4j.module.domain.resource.Seed4JModulePropertiesDefinition;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
@@ -33,8 +30,6 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   private static final String PROJECT_PATH_OPTION = "--project-path";
   private static final String COMMIT_OPTION = "--commit";
   private static final String PLAN_OPTION = "--plan";
-  private static final KnownModulePropertyCompletionCandidates KNOWN_COMPLETION_CANDIDATES = new KnownModulePropertyCompletionCandidates();
-
   private final Seed4JModulesApplicationService modules;
   private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
@@ -90,57 +85,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
         .build()
     );
 
-    properties
-      .stream()
-      .forEach(property ->
-        spec.addOption(
-          OptionSpec.builder(toDashedFormat(property.key()))
-            .description(
-              "%s%s%s".formatted(
-                property.description().map(Seed4JPropertyDescription::get).orElse(""),
-                exampleValues(property),
-                property.isMandatory() ? " (required)" : ""
-              )
-            )
-            .paramLabel("<%s%s>".formatted(property.key().get().toLowerCase(), property.isMandatory() ? "*" : ""))
-            .type(toOptionType(property.type()))
-            .completionCandidates(completionCandidates(property))
-            .build()
-        )
-      );
-  }
-
-  private List<String> completionCandidates(Seed4JModulePropertyDefinition property) {
-    return KNOWN_COMPLETION_CANDIDATES.candidates(property);
-  }
-
-  private String exampleValues(Seed4JModulePropertyDefinition property) {
-    List<String> candidates = KNOWN_COMPLETION_CANDIDATES.candidates(property);
-    if (candidates.isEmpty()) {
-      return "";
-    }
-    return " e.g. " + String.join(", ", candidates);
-  }
-
-  @ExcludeFromGeneratedCodeCoverage(reason = "There is no Seed4J module using a property with the BOOLEAN type")
-  private static Class<?> toOptionType(Seed4JPropertyType type) {
-    return switch (type) {
-      case BOOLEAN -> boolean.class;
-      case INTEGER -> int.class;
-      case STRING -> String.class;
-    };
+    ModulePropertyOptionSpecFactory optionsFactory = new ModulePropertyOptionSpecFactory();
+    properties.stream().map(optionsFactory::moduleOption).forEach(spec::addOption);
   }
 
   static String toDashedFormat(Seed4JPropertyKey key) {
-    StringBuilder dashed = new StringBuilder("--");
-    for (char c : key.get().toCharArray()) {
-      if (Character.isUpperCase(c)) {
-        dashed.append('-').append(Character.toLowerCase(c));
-      } else {
-        dashed.append(c);
-      }
-    }
-    return dashed.toString();
+    return ModulePropertyOptionSpecFactory.toDashedFormat(key);
   }
 
   private static String toCamelCaseFormat(String dashed) {
