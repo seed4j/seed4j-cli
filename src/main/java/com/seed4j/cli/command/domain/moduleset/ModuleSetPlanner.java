@@ -302,7 +302,7 @@ public class ModuleSetPlanner {
       );
     }
 
-    Optional<ModuleSetSlug> requestedProvider = requestedProvider(dependency, candidates, requiringModules, executionOrder);
+    Optional<ModuleSetSlug> requestedProvider = requestedProvider(candidates, requiringModules, executionOrder);
     return new ModuleSetDependencyValidation(
       dependency,
       requestedProvider.isPresent() ? ModuleSetDependencyStatus.SATISFIED_BY_REQUESTED_MODULE : ModuleSetDependencyStatus.MISSING,
@@ -338,7 +338,6 @@ public class ModuleSetPlanner {
   }
 
   private static Optional<ModuleSetSlug> requestedProvider(
-    ModuleSetDependency dependency,
     List<ModuleSetSlug> candidates,
     List<ModuleSetSlug> requiringModules,
     List<ModuleSetSlug> executionOrder
