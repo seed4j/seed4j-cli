@@ -48,7 +48,7 @@ public class ModuleSetPlanner {
       .toList();
     return new ModuleSetPropertyDefinition(
       first.key(),
-      definitions.stream().map(ModuleSetPropertyDefinition::type).distinct().count() == 1 ? first.type() : ModuleSetPropertyType.TEXT,
+      first.type(),
       definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
         ? ModuleSetPropertyRequirement.REQUIRED
         : ModuleSetPropertyRequirement.OPTIONAL,
@@ -83,8 +83,8 @@ public class ModuleSetPlanner {
       problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.UNKNOWN_MODULES, unknownModules));
     }
 
-    List<ModuleSetSlug> executionOrder =
-      unknownModules.isEmpty() && duplicateModules.isEmpty() ? catalog.sort(request.requestedModules().modules()) : List.of();
+    boolean requestedModulesValid = unknownModules.isEmpty() && duplicateModules.isEmpty();
+    List<ModuleSetSlug> executionOrder = requestedModulesValid ? catalog.sort(request.requestedModules().modules()) : List.of();
     List<ModuleSetDependencyValidation> dependencyValidations = List.of();
     List<ResolvedModuleSetParameter> resolvedParameters = List.of();
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = List.of();
@@ -142,13 +142,17 @@ public class ModuleSetPlanner {
     List<ResolvedModuleSetParameter> resolvedParameters = new ArrayList<>();
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
     List<String> propertyConflicts = new ArrayList<>();
-    List<String> invalidValues = new ArrayList<>();
     for (List<ModuleSetPropertyDefinition> definitions : definitionsByKey.values()) {
       ModuleSetPropertyDefinition definition = reconcile(definitions, propertyConflicts);
       ModuleSetPropertyKey key = definition.key();
       if (request.explicitParameters().values().containsKey(key)) {
-        explicitParameter(definition, request.explicitParameters().values().get(key), invalidValues).ifPresent(value ->
-          resolvedParameters.add(new ResolvedModuleSetParameter(key, value, ModuleSetPropertySource.EXPLICIT_CLI, definition))
+        resolvedParameters.add(
+          new ResolvedModuleSetParameter(
+            key,
+            request.explicitParameters().values().get(key),
+            ModuleSetPropertySource.EXPLICIT_CLI,
+            definition
+          )
         );
       } else if (history.parameters().containsKey(key)) {
         resolvedParameters.add(
@@ -168,9 +172,6 @@ public class ModuleSetPlanner {
     if (!propertyConflicts.isEmpty()) {
       problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.PROPERTY_CONFLICT, propertyConflicts));
     }
-    if (!invalidValues.isEmpty()) {
-      problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.INVALID_PARAMETER_VALUE, invalidValues));
-    }
     List<String> irrelevantOptions = request
       .explicitParameters()
       .values()
@@ -184,47 +185,6 @@ public class ModuleSetPlanner {
       problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.IRRELEVANT_OPTION, irrelevantOptions));
     }
     return new ParameterPlanningResult(resolvedParameters, missingRequiredParameters, problems);
-  }
-
-  private static Optional<Object> explicitParameter(ModuleSetPropertyDefinition definition, Object value, List<String> invalidValues) {
-    try {
-      return Optional.of(convert(value, definition.type()));
-    } catch (IllegalArgumentException exception) {
-      invalidValues.add("%s: %s".formatted(cliOption(definition.key()), exception.getMessage()));
-      return Optional.empty();
-    }
-  }
-
-  private static Object convert(Object value, ModuleSetPropertyType type) {
-    return switch (type) {
-      case BOOLEAN -> booleanValue(value);
-      case INTEGER -> integerValue(value);
-      case STRING, TEXT -> value.toString();
-    };
-  }
-
-  private static Object booleanValue(Object value) {
-    if (value instanceof Boolean) {
-      return value;
-    }
-    if (value instanceof String text && ("true".equalsIgnoreCase(text) || "false".equalsIgnoreCase(text))) {
-      return Boolean.valueOf(text);
-    }
-    throw new IllegalArgumentException("expected boolean but got '%s'".formatted(value));
-  }
-
-  private static Object integerValue(Object value) {
-    if (value instanceof Integer) {
-      return value;
-    }
-    if (value instanceof String text) {
-      try {
-        return Integer.valueOf(text);
-      } catch (NumberFormatException exception) {
-        throw new IllegalArgumentException("expected integer but got '%s'".formatted(value), exception);
-      }
-    }
-    throw new IllegalArgumentException("expected integer but got '%s'".formatted(value));
   }
 
   private static String cliOption(ModuleSetPropertyKey key) {
@@ -241,7 +201,6 @@ public class ModuleSetPlanner {
 
   private static ModuleSetPropertyDefinition reconcile(List<ModuleSetPropertyDefinition> definitions, List<String> propertyConflicts) {
     ModuleSetPropertyDefinition first = definitions.getFirst();
-    List<ModuleSetPropertyType> types = definitions.stream().map(ModuleSetPropertyDefinition::type).distinct().sorted().toList();
     List<String> defaults = definitions
       .stream()
       .flatMap(definition -> definition.defaultValue().stream())
@@ -256,11 +215,6 @@ public class ModuleSetPlanner {
       .distinct()
       .sorted()
       .toList();
-    if (types.size() > 1) {
-      propertyConflicts.add(
-        "%s: incompatible types (%s)".formatted(first.key().value(), types.stream().map(Enum::name).collect(Collectors.joining(", ")))
-      );
-    }
     if (defaults.size() > 1) {
       propertyConflicts.add("%s: conflicting defaults (%s)".formatted(first.key().value(), String.join(", ", defaults)));
     }
@@ -269,7 +223,7 @@ public class ModuleSetPlanner {
     }
     return new ModuleSetPropertyDefinition(
       first.key(),
-      types.size() == 1 ? first.type() : ModuleSetPropertyType.TEXT,
+      first.type(),
       definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
         ? ModuleSetPropertyRequirement.REQUIRED
         : ModuleSetPropertyRequirement.OPTIONAL,

@@ -5,7 +5,18 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProj
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -13,14 +24,20 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import picocli.CommandLine;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
@@ -104,6 +121,26 @@ class Seed4JCommandsFactoryTest {
       assertThat(output.getErr())
         .contains("Duplicate requested modules: init")
         .contains("Unknown requested modules: another-unknown, unknown-module")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRejectDuplicateModuleSetSlugBeforePlanning(CapturedOutput output) {
+      String[] args = { "apply-set", "init", "init", "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Duplicate requested modules: init")
+        .contains(
+          """
+          Execution order:
+
+          Dependency validation:
+          """
+        )
+        .contains("Status: INVALID")
         .contains("No changes were applied.");
     }
 
@@ -387,6 +424,120 @@ class Seed4JCommandsFactoryTest {
       try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
         assertThat(entries).isEmpty();
       }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldPlanBooleanPropertyUsingPicocliTypedValue(boolean featureEnabled, CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("boolean-module");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        new ModuleSetPropertyKey("featureEnabled"),
+        ModuleSetPropertyType.BOOLEAN,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      String[] args = { "boolean-module", "--feature-enabled=" + featureEnabled, "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("✓ featureEnabled: " + featureEnabled)
+        .contains("Source: explicit CLI input")
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRejectInvalidIntegerPropertyBeforePlanning(CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        new ModuleSetPropertyKey("count"),
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.REQUIRED,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      String[] args = { "integer-module", "--count", "not-a-number", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Invalid value for option '--count': 'not-a-number' is not an int")
+        .doesNotContain("Plan for module set");
+    }
+
+    @Test
+    void shouldRenderAllSharedPropertyConflicts(CapturedOutput output) {
+      ModuleSetSlug first = new ModuleSetSlug("first-module");
+      ModuleSetSlug second = new ModuleSetSlug("second-module");
+      ModuleSetPropertyKey key = new ModuleSetPropertyKey("shared");
+      ModuleSetPropertyDefinition firstDefinition = new ModuleSetPropertyDefinition(
+        key,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.of(new ModuleSetPropertyDescription("First description")),
+        Optional.of(new ModuleSetPropertyDefaultValue("first-default")),
+        List.of()
+      );
+      ModuleSetPropertyDefinition secondDefinition = new ModuleSetPropertyDefinition(
+        key,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.of(new ModuleSetPropertyDescription("Second description")),
+        Optional.of(new ModuleSetPropertyDefaultValue("second-default")),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(
+          new ModuleSetModule(first, List.of(), List.of(firstDefinition), Optional.empty()),
+          new ModuleSetModule(second, List.of(), List.of(secondDefinition), Optional.empty())
+        ),
+        List.of(first, second)
+      );
+      String[] args = { "first-module", "second-module", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Property conflicts: shared: conflicting defaults (first-default, second-default)")
+        .contains("shared: conflicting descriptions (First description, Second description)")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
+
+    private CommandLine moduleSetCommandLine(ModuleSetCatalog catalog) {
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+        new ModuleSetPlanningHistory(Set.of(), Map.of())
+      );
+      return new CommandLine(new ApplyModuleSetCommand(planning).spec());
+    }
+
+    private ModuleSetCatalog catalog(List<ModuleSetModule> catalogModules, List<ModuleSetSlug> executionOrder) {
+      return new ModuleSetCatalog() {
+        @Override
+        public List<ModuleSetModule> modules() {
+          return catalogModules;
+        }
+
+        @Override
+        public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
+          return executionOrder.stream().filter(requestedModules::contains).toList();
+        }
+      };
     }
   }
 

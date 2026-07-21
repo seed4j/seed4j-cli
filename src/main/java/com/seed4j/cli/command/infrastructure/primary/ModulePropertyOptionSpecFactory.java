@@ -93,7 +93,7 @@ class ModulePropertyOptionSpecFactory {
     return switch (type) {
       case BOOLEAN -> boolean.class;
       case INTEGER -> int.class;
-      case STRING, TEXT -> String.class;
+      case STRING -> String.class;
     };
   }
 

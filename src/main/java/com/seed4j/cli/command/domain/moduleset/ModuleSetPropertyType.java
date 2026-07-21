@@ -4,5 +4,4 @@ public enum ModuleSetPropertyType {
   BOOLEAN,
   INTEGER,
   STRING,
-  TEXT,
 }

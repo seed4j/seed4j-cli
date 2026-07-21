@@ -125,7 +125,7 @@ class ModuleSetPlanningApplicationServiceTest {
     );
     ModuleSetPropertyDefinition secondDefinition = new ModuleSetPropertyDefinition(
       shared,
-      ModuleSetPropertyType.INTEGER,
+      ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.OPTIONAL,
       Optional.of(new ModuleSetPropertyDescription("Second description")),
       Optional.of(new ModuleSetPropertyDefaultValue("second-default")),
@@ -154,7 +154,6 @@ class ModuleSetPlanningApplicationServiceTest {
       .singleElement()
       .satisfies(problem ->
         assertThat(problem.values()).containsExactly(
-          "shared: incompatible types (INTEGER, STRING)",
           "shared: conflicting defaults (first-default, second-default)",
           "shared: conflicting descriptions (First description, Second description)"
         )
@@ -201,42 +200,6 @@ class ModuleSetPlanningApplicationServiceTest {
       .singleElement()
       .satisfies(problem -> assertThat(problem.values()).containsExactly("--unused-property"));
     assertThat(plan.valid()).isFalse();
-  }
-
-  @Test
-  void shouldConvertNeutralTextInputToSelectedPropertyType() {
-    ModuleSetSlug selected = new ModuleSetSlug("selected");
-    ModuleSetPropertyKey count = new ModuleSetPropertyKey("count");
-    ModuleSetPropertyDefinition countDefinition = new ModuleSetPropertyDefinition(
-      count,
-      ModuleSetPropertyType.INTEGER,
-      ModuleSetPropertyRequirement.REQUIRED,
-      Optional.empty(),
-      Optional.empty(),
-      List.of()
-    );
-    ModuleSetCatalog catalog = catalog(
-      List.of(new ModuleSetModule(selected, List.of(), List.of(countDefinition), Optional.empty())),
-      List.of(selected)
-    );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
-    );
-    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
-      new RequestedModuleSet(List.of(selected)),
-      new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(count, "42"))
-    );
-
-    ModuleSetPlan plan = service.plan(request);
-
-    assertThat(plan.resolvedParameters())
-      .singleElement()
-      .satisfies(parameter -> {
-        assertThat(parameter.value()).isEqualTo(42);
-        assertThat(parameter.value()).isInstanceOf(Integer.class);
-      });
-    assertThat(plan.valid()).isTrue();
   }
 
   @Test
@@ -310,6 +273,40 @@ class ModuleSetPlanningApplicationServiceTest {
   }
 
   @Test
+  void shouldNotSatisfyFeatureDependencyWithProviderOrderedAfterConsumer() {
+    ModuleSetSlug consumer = new ModuleSetSlug("consumer");
+    ModuleSetSlug provider = new ModuleSetSlug("provider");
+    ModuleSetDependency feature = new ModuleSetDependency(ModuleSetDependencyType.FEATURE, "feature");
+    ModuleSetCatalog catalog = catalog(
+      List.of(
+        new ModuleSetModule(consumer, List.of(feature), List.of(), Optional.empty()),
+        new ModuleSetModule(provider, List.of(), List.of(), Optional.of("feature"))
+      ),
+      List.of(consumer, provider)
+    );
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(), Map.of())
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(provider, consumer)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty()
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.executionOrder()).containsExactly(consumer, provider);
+    assertThat(plan.dependencyValidations())
+      .singleElement()
+      .satisfies(validation -> {
+        assertThat(validation.status()).isEqualTo(ModuleSetDependencyStatus.MISSING);
+        assertThat(validation.provider()).isEmpty();
+        assertThat(validation.candidates()).containsExactly(provider);
+      });
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
   void shouldSatisfyFeatureDependencyWithProviderFromProjectHistory() {
     ModuleSetSlug consumer = new ModuleSetSlug("consumer");
     ModuleSetSlug provider = new ModuleSetSlug("provider");
@@ -379,6 +376,39 @@ class ModuleSetPlanningApplicationServiceTest {
   }
 
   @Test
+  void shouldReportModuleDependencyMissingFromCatalog() {
+    ModuleSetSlug consumer = new ModuleSetSlug("consumer");
+    ModuleSetDependency missing = new ModuleSetDependency(ModuleSetDependencyType.MODULE, "missing-module");
+    ModuleSetCatalog catalog = catalog(
+      List.of(new ModuleSetModule(consumer, List.of(missing), List.of(), Optional.empty())),
+      List.of(consumer)
+    );
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(), Map.of())
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(consumer)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty()
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.dependencyValidations())
+      .singleElement()
+      .satisfies(validation -> {
+        assertThat(validation.dependency()).isEqualTo(missing);
+        assertThat(validation.status()).isEqualTo(ModuleSetDependencyStatus.MISSING);
+        assertThat(validation.requiredBy()).containsExactly(consumer);
+      });
+    assertThat(plan.problems())
+      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.MISSING_DEPENDENCY)
+      .singleElement()
+      .satisfies(problem -> assertThat(problem.values()).containsExactly("module:missing-module"));
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
   void shouldUseHistoryBeforeOptionalDefaultAndKeepMandatoryDefaultInformational() {
     ModuleSetSlug selected = new ModuleSetSlug("selected");
     ModuleSetPropertyKey historyKey = new ModuleSetPropertyKey("historyValue");
@@ -432,42 +462,6 @@ class ModuleSetPlanningApplicationServiceTest {
     assertThat(plan.missingRequiredParameters())
       .extracting(parameter -> parameter.key().value())
       .containsExactly("mandatoryValue");
-    assertThat(plan.valid()).isFalse();
-  }
-
-  @Test
-  void shouldReportInvalidNeutralTextValueWithoutAlsoReportingItMissing() {
-    ModuleSetSlug selected = new ModuleSetSlug("selected");
-    ModuleSetPropertyKey count = new ModuleSetPropertyKey("count");
-    ModuleSetPropertyDefinition countDefinition = new ModuleSetPropertyDefinition(
-      count,
-      ModuleSetPropertyType.INTEGER,
-      ModuleSetPropertyRequirement.REQUIRED,
-      Optional.empty(),
-      Optional.empty(),
-      List.of()
-    );
-    ModuleSetCatalog catalog = catalog(
-      List.of(new ModuleSetModule(selected, List.of(), List.of(countDefinition), Optional.empty())),
-      List.of(selected)
-    );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
-    );
-    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
-      new RequestedModuleSet(List.of(selected)),
-      new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(count, "not-a-number"))
-    );
-
-    ModuleSetPlan plan = service.plan(request);
-
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.INVALID_PARAMETER_VALUE)
-      .singleElement()
-      .satisfies(problem -> assertThat(problem.values()).containsExactly("--count: expected integer but got 'not-a-number'"));
-    assertThat(plan.missingRequiredParameters()).isEmpty();
-    assertThat(plan.resolvedParameters()).isEmpty();
     assertThat(plan.valid()).isFalse();
   }
 

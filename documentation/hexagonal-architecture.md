@@ -135,9 +135,9 @@ Secondary infrastructure can also define its own technical interfaces when it ne
 ### Module-set planning flow
 
 The read-only `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is a primary Picocli
-adapter: it creates the global options before parsing, converts positional strings, the user-visible project path, and
-explicit option values into module-set domain types, then calls `ModuleSetPlanningApplicationService`. The primary adapter
-does not call the Seed4J core application services directly.
+adapter: it creates the global options before parsing, lets Picocli produce their declared value types, and converts module
+slugs, the user-visible project path, and property keys into module-set domain types before calling
+`ModuleSetPlanningApplicationService`. The primary adapter does not call the Seed4J core application services directly.
 
 `ModuleSetPlanningApplicationService` orchestrates the immutable module-set request and produces a reusable
 `ModuleSetPlan`. The plan retains requested order, the execution order, dependency statuses and providers, reconciled and

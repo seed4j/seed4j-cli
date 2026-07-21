@@ -10,8 +10,20 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
 import java.util.List;
+import java.util.Map;
 
 class ApplyModuleSetPlanRenderer {
+
+  private static final Map<ModuleSetPlanningProblemType, String> PROBLEM_LABELS = Map.of(
+    ModuleSetPlanningProblemType.DUPLICATE_MODULES,
+    "Duplicate requested modules",
+    ModuleSetPlanningProblemType.UNKNOWN_MODULES,
+    "Unknown requested modules",
+    ModuleSetPlanningProblemType.PROPERTY_CONFLICT,
+    "Property conflicts",
+    ModuleSetPlanningProblemType.IRRELEVANT_OPTION,
+    "Options not used by requested modules"
+  );
 
   String render(ModuleSetPlan plan) {
     StringBuilder output = new StringBuilder("Plan for module set\n\n");
@@ -119,31 +131,15 @@ class ApplyModuleSetPlanRenderer {
   private static void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
     List<ModuleSetPlanningProblem> otherProblems = problems
       .stream()
-      .filter(
-        problem ->
-          problem.type() != ModuleSetPlanningProblemType.MISSING_DEPENDENCY
-          && problem.type() != ModuleSetPlanningProblemType.MISSING_REQUIRED_PARAMETER
-      )
+      .filter(problem -> PROBLEM_LABELS.containsKey(problem.type()))
       .toList();
     if (otherProblems.isEmpty()) {
       return;
     }
     output.append("Validation problems:\n");
     otherProblems.forEach(problem ->
-      output.append("  ○ ").append(label(problem.type())).append(": ").append(String.join(", ", problem.values())).append('\n')
+      output.append("  ○ ").append(PROBLEM_LABELS.get(problem.type())).append(": ").append(String.join(", ", problem.values())).append('\n')
     );
     output.append('\n');
-  }
-
-  private static String label(ModuleSetPlanningProblemType type) {
-    return switch (type) {
-      case DUPLICATE_MODULES -> "Duplicate requested modules";
-      case UNKNOWN_MODULES -> "Unknown requested modules";
-      case MISSING_DEPENDENCY -> "Missing dependencies";
-      case MISSING_REQUIRED_PARAMETER -> "Missing required parameters";
-      case PROPERTY_CONFLICT -> "Property conflicts";
-      case IRRELEVANT_OPTION -> "Options not used by requested modules";
-      case INVALID_PARAMETER_VALUE -> "Invalid parameter values";
-    };
   }
 }

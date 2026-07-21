@@ -312,21 +312,22 @@ feature dependency is satisfied by a visible provider in history or by an explic
 dependent. The planner never selects a provider implicitly. When a provider is absent, it lists visible candidates in
 alphabetical order so the caller can add one explicitly.
 
-Selected property definitions are reconciled by key and shown once. Their types must agree; a property is mandatory when
-any selected module makes it mandatory; and at most one distinct default and description may remain. Display order follows
-the property's first occurrence in execution order and then its declaration order. Values resolve in this order:
+Selected property definitions are reconciled by key and shown once. Seed4J treats repeated keys having the same type as a
+catalog invariant, so the first visible definition supplies the type of the single global Picocli option. A property is
+mandatory when any selected module makes it mandatory, and at most one distinct default and description may remain.
+Display order follows the property's first occurrence in execution order and then its declaration order. Values resolve
+in this order:
 
 1. explicit CLI input;
 2. latest project history value;
 3. metadata default for an optional property.
 
-Defaults for mandatory properties remain informational and do not satisfy the requirement. If visible modules declare the
-same global option with conflicting types, Picocli captures text so an unrelated selected set can still be planned; the
-planner converts the value to the selected definition's type or reports it as invalid. Passing a known property option that
-none of the selected modules uses invalidates the plan.
+Defaults for mandatory properties remain informational and do not satisfy the requirement. Picocli converts explicit CLI
+input directly to the global option's declared type and rejects invalid typed values before planning. Passing a known
+property option that none of the selected modules uses invalidates the plan.
 
 The planner aggregates all predictable post-resolution problems, including recursive dependencies, feature choices,
-property conflicts, irrelevant options, invalid values, and every missing required parameter. A valid plan writes the
+property conflicts, irrelevant options, and every missing required parameter. A valid plan writes the
 structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or complete
 plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
 
