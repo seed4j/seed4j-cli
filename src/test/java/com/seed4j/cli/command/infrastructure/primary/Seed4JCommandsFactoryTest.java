@@ -64,324 +64,329 @@ class Seed4JCommandsFactoryTest {
     assertThat(output).contains("Seed4J CLI v1").contains("Seed4J version: 2");
   }
 
-  @Test
-  void shouldRegisterReadOnlyModuleSetPlanningCommand(CapturedOutput output) {
-    String[] args = { "--help" };
+  @Nested
+  @DisplayName("apply-set")
+  class ApplyModuleSet {
 
-    int exitCode = commandLine(modules, projects).execute(args);
+    @Test
+    void shouldRegisterReadOnlyModuleSetPlanningCommand(CapturedOutput output) {
+      String[] args = { "--help" };
 
-    assertThat(exitCode).isZero();
-    assertThat(output).contains("apply-set").contains("Plan a set of Seed4J modules without applying changes");
-  }
+      int exitCode = commandLine(modules, projects).execute(args);
 
-  @Test
-  void shouldExposeReadOnlyModuleSetOptions(CapturedOutput output) {
-    String[] args = { "apply-set", "--help" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(output)
-      .contains("<module-slug>...")
-      .contains("--project-path")
-      .contains("--plan")
-      .contains("--project-name")
-      .contains("--package-name")
-      .doesNotContain("--commit");
-  }
-
-  @Test
-  void shouldReportDuplicateAndUnknownModuleSetSlugsTogether(CapturedOutput output) {
-    String[] args = { "apply-set", "init", "unknown-module", "init", "another-unknown", "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr())
-      .contains("Duplicate requested modules: init")
-      .contains("Unknown requested modules: another-unknown, unknown-module")
-      .contains("No changes were applied.");
-  }
-
-  @Test
-  void shouldSeparateRequestedModuleOrderFromLandscapeExecutionOrder(CapturedOutput output) {
-    String[] args = {
-      "apply-set",
-      "maven-java",
-      "init",
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-      "--package-name",
-      "com.mycompany.sample",
-      "--plan",
-    };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(output)
-      .contains(
-        """
-        Requested modules:
-          1. maven-java
-          2. init
-
-        Execution order:
-          1. init
-          2. maven-java
-        """
-      )
-      .contains("Dependency validation:")
-      .contains("Resolved parameters:")
-      .contains("Status: VALID")
-      .contains("No changes were applied.");
-  }
-
-  @Test
-  void shouldRenderDependenciesAndMissingParametersInInvalidModuleSetPlan(CapturedOutput output) throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = { "apply-set", "angular-core", "--project-path", projectPath.toString(), "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr())
-      .contains(
-        """
-        Requested modules:
-          1. angular-core
-
-        Execution order:
-          1. angular-core
-        """
-      )
-      .contains("Dependency validation:")
-      .contains("○ module:init - missing; required by: angular-core")
-      .contains("Resolved parameters:")
-      .contains("Missing required parameters:")
-      .contains("○ packageName (--package-name)")
-      .contains("Status: INVALID")
-      .contains("No changes were applied.");
-  }
-
-  @Test
-  void shouldPlanValidModuleSetWithoutCreatingNonexistentProjectPath(CapturedOutput output) throws IOException {
-    Path parent = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-");
-    Path projectPath = parent.resolve("nonexistent-project");
-    String[] args = {
-      "apply-set",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-      "--plan",
-    };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(projectPath).doesNotExist();
-    assertThat(output).contains("Status: VALID").contains("No changes were applied.");
-  }
-
-  @Test
-  void shouldLeaveExistingEmptyProjectDirectoryUnchangedWhenPlanningModuleSet(CapturedOutput output) throws IOException {
-    Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-empty-");
-    String[] args = {
-      "apply-set",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-      "--plan",
-    };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
-      assertThat(entries).isEmpty();
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("apply-set").contains("Plan a set of Seed4J modules without applying changes");
     }
-    assertThat(projectPath.resolve(".seed4j")).doesNotExist();
-    assertThat(projectPath.resolve(".git")).doesNotExist();
-    assertThat(output).contains("Status: VALID").contains("No changes were applied.");
-  }
 
-  @Test
-  void shouldRequirePlanFlagForModuleSetCommand(CapturedOutput output) {
-    String[] args = { "apply-set", "init" };
+    @Test
+    void shouldExposeReadOnlyModuleSetOptions(CapturedOutput output) {
+      String[] args = { "apply-set", "--help" };
 
-    int exitCode = commandLine(modules, projects).execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr()).contains("Missing required option: '--plan'");
-  }
-
-  @Test
-  void shouldRequireAtLeastOneModuleSetSlug(CapturedOutput output) {
-    String[] args = { "apply-set", "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr()).contains("Missing required parameter: '<module-slug>...'");
-  }
-
-  @Test
-  void shouldTreatHiddenModuleSetSlugAsUnknown(CapturedOutput output) {
-    String[] args = { "apply-set", "runtime-extension-list-only", "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr()).contains("Unknown requested modules: runtime-extension-list-only");
-  }
-
-  @Test
-  void shouldKeepRequestedAppliedModuleInPlanWithoutChangingHistoryOrCommits(CapturedOutput output) throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] applyArgs = {
-      "apply",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-    };
-    int applyExitCode = commandLine(modules, projects).execute(applyArgs);
-    assertThat(applyExitCode).isZero();
-    int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-    String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
-    String[] planArgs = { "apply-set", "init", "--project-path", projectPath.toString(), "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(planArgs);
-
-    assertThat(exitCode).isZero();
-    assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
-    assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
-    assertThat(output)
-      .contains(
-        """
-        Execution order:
-          1. init
-        """
-      )
-      .contains("Status: VALID")
-      .contains("No changes were applied.");
-  }
-
-  @Test
-  void shouldResolveSharedPropertiesOnceAndSatisfyDependenciesFromRequestedSet(CapturedOutput output) throws IOException {
-    Path projectPath = setupProjectTestFolder();
-    String[] args = {
-      "apply-set",
-      "angular-core",
-      "prettier",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-      "--package-name",
-      "com.mycompany.sample",
-      "--plan",
-    };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(output)
-      .contains(
-        """
-        Execution order:
-          1. init
-          2. prettier
-          3. angular-core
-        """
-      )
-      .contains("module:init - satisfied by requested module: init")
-      .contains("module:prettier - satisfied by requested module: prettier")
-      .containsOnlyOnce("✓ projectName:")
-      .containsOnlyOnce("✓ baseName:")
-      .containsOnlyOnce("✓ nodePackageManager:")
-      .contains("Status: VALID");
-    assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
-    assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-  }
-
-  @Test
-  void shouldListVisibleFeatureCandidatesWithoutSelectingProviderImplicitly(CapturedOutput output) throws IOException {
-    Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-feature-");
-    String[] args = { "apply-set", "seed4j-extension", "--project-path", projectPath.toString(), "--plan" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr())
-      .contains("○ feature:java-build-tool - missing; select one explicitly from: gradle-java, maven-java")
-      .contains(
-        """
-        Execution order:
-          1. seed4j-extension
-        """
-      )
-      .contains("Status: INVALID")
-      .contains("No changes were applied.");
-    try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
-      assertThat(entries).isEmpty();
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("<module-slug>...")
+        .contains("--project-path")
+        .contains("--plan")
+        .contains("--project-name")
+        .contains("--package-name")
+        .doesNotContain("--commit");
     }
-  }
 
-  @Test
-  void shouldRejectKnownPropertyOptionNotUsedBySelectedModules(CapturedOutput output) throws IOException {
-    Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-unused-option-");
-    String[] args = {
-      "apply-set",
-      "init",
-      "--project-path",
-      projectPath.toString(),
-      "--project-name",
-      "Sample application",
-      "--base-name",
-      "sampleApplication",
-      "--node-package-manager",
-      "npm",
-      "--package-name",
-      "com.mycompany.sample",
-      "--plan",
-    };
+    @Test
+    void shouldReportDuplicateAndUnknownModuleSetSlugsTogether(CapturedOutput output) {
+      String[] args = { "apply-set", "init", "unknown-module", "init", "another-unknown", "--plan" };
 
-    int exitCode = commandLine(modules, projects).execute(args);
+      int exitCode = commandLine(modules, projects).execute(args);
 
-    assertThat(exitCode).isEqualTo(2);
-    assertThat(output.getErr())
-      .contains("Options not used by requested modules: --package-name")
-      .contains("Status: INVALID")
-      .contains("No changes were applied.");
-    try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
-      assertThat(entries).isEmpty();
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Duplicate requested modules: init")
+        .contains("Unknown requested modules: another-unknown, unknown-module")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldSeparateRequestedModuleOrderFromLandscapeExecutionOrder(CapturedOutput output) {
+      String[] args = {
+        "apply-set",
+        "maven-java",
+        "init",
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--package-name",
+        "com.mycompany.sample",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains(
+          """
+          Requested modules:
+            1. maven-java
+            2. init
+
+          Execution order:
+            1. init
+            2. maven-java
+          """
+        )
+        .contains("Dependency validation:")
+        .contains("Resolved parameters:")
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRenderDependenciesAndMissingParametersInInvalidModuleSetPlan(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = { "apply-set", "angular-core", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains(
+          """
+          Requested modules:
+            1. angular-core
+
+          Execution order:
+            1. angular-core
+          """
+        )
+        .contains("Dependency validation:")
+        .contains("○ module:init - missing; required by: angular-core")
+        .contains("Resolved parameters:")
+        .contains("Missing required parameters:")
+        .contains("○ packageName (--package-name)")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldPlanValidModuleSetWithoutCreatingNonexistentProjectPath(CapturedOutput output) throws IOException {
+      Path parent = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-");
+      Path projectPath = parent.resolve("nonexistent-project");
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(projectPath).doesNotExist();
+      assertThat(output).contains("Status: VALID").contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldLeaveExistingEmptyProjectDirectoryUnchangedWhenPlanningModuleSet(CapturedOutput output) throws IOException {
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-empty-");
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
+        assertThat(entries).isEmpty();
+      }
+      assertThat(projectPath.resolve(".seed4j")).doesNotExist();
+      assertThat(projectPath.resolve(".git")).doesNotExist();
+      assertThat(output).contains("Status: VALID").contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRequirePlanFlagForModuleSetCommand(CapturedOutput output) {
+      String[] args = { "apply-set", "init" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr()).contains("Missing required option: '--plan'");
+    }
+
+    @Test
+    void shouldRequireAtLeastOneModuleSetSlug(CapturedOutput output) {
+      String[] args = { "apply-set", "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr()).contains("Missing required parameter: '<module-slug>...'");
+    }
+
+    @Test
+    void shouldTreatHiddenModuleSetSlugAsUnknown(CapturedOutput output) {
+      String[] args = { "apply-set", "runtime-extension-list-only", "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr()).contains("Unknown requested modules: runtime-extension-list-only");
+    }
+
+    @Test
+    void shouldKeepRequestedAppliedModuleInPlanWithoutChangingHistoryOrCommits(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] applyArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+      };
+      int applyExitCode = commandLine(modules, projects).execute(applyArgs);
+      assertThat(applyExitCode).isZero();
+      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      String[] planArgs = { "apply-set", "init", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(planArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
+      assertThat(output)
+        .contains(
+          """
+          Execution order:
+            1. init
+          """
+        )
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldResolveSharedPropertiesOnceAndSatisfyDependenciesFromRequestedSet(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] args = {
+        "apply-set",
+        "angular-core",
+        "prettier",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--package-name",
+        "com.mycompany.sample",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains(
+          """
+          Execution order:
+            1. init
+            2. prettier
+            3. angular-core
+          """
+        )
+        .contains("module:init - satisfied by requested module: init")
+        .contains("module:prettier - satisfied by requested module: prettier")
+        .containsOnlyOnce("✓ projectName:")
+        .containsOnlyOnce("✓ baseName:")
+        .containsOnlyOnce("✓ nodePackageManager:")
+        .contains("Status: VALID");
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
+    }
+
+    @Test
+    void shouldListVisibleFeatureCandidatesWithoutSelectingProviderImplicitly(CapturedOutput output) throws IOException {
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-feature-");
+      String[] args = { "apply-set", "seed4j-extension", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("○ feature:java-build-tool - missing; select one explicitly from: gradle-java, maven-java")
+        .contains(
+          """
+          Execution order:
+            1. seed4j-extension
+          """
+        )
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+      try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
+        assertThat(entries).isEmpty();
+      }
+    }
+
+    @Test
+    void shouldRejectKnownPropertyOptionNotUsedBySelectedModules(CapturedOutput output) throws IOException {
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-unused-option-");
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--package-name",
+        "com.mycompany.sample",
+        "--plan",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains("Options not used by requested modules: --package-name")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+      try (java.util.stream.Stream<Path> entries = java.nio.file.Files.list(projectPath)) {
+        assertThat(entries).isEmpty();
+      }
     }
   }
 
