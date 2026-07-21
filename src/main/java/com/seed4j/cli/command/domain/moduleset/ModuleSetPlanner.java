@@ -1,14 +1,7 @@
 package com.seed4j.cli.command.domain.moduleset;
 
 import com.seed4j.cli.shared.error.domain.Assert;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 

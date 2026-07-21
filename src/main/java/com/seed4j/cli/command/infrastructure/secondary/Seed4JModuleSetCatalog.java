@@ -13,6 +13,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.module.domain.Seed4JModuleSlug;
+import com.seed4j.module.domain.Seed4JSlug;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import java.util.List;
 
@@ -43,10 +44,7 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
             .map(dependency -> new ModuleSetDependency(ModuleSetDependencyType.valueOf(dependency.type().name()), dependency.slug().get()))
             .toList(),
           resource.propertiesDefinition().stream().map(Seed4JModuleSetCatalog::property).toList(),
-          resource
-            .organization()
-            .feature()
-            .map(feature -> feature.get())
+          resource.organization().feature().map(Seed4JSlug::get)
         )
       )
       .toList();
