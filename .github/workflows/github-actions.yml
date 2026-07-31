@@ -24,7 +24,7 @@ jobs:
       - name: 'Setup: Node.js'
         uses: actions/setup-node@v7
         with:
-          node-version: 24.18.0
+          node-version: 24.18.1
       - name: 'Setup: Java'
         uses: actions/setup-java@v5
         with:
