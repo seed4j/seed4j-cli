@@ -89,7 +89,7 @@
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.1.0</spring-boot.version>
     <seed4j.version>2.2.0</seed4j.version>
-    <archunit-junit5.version>1.4.2</archunit-junit5.version>
+    <archunit-junit5.version>1.5.0</archunit-junit5.version>
   </properties>
 
   <build>
