@@ -136,7 +136,9 @@ public class ModuleSetPlanner {
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
     List<String> propertyConflicts = new ArrayList<>();
     for (List<ModuleSetPropertyDefinition> definitions : definitionsByKey.values()) {
-      ModuleSetPropertyDefinition definition = reconcile(definitions, propertyConflicts);
+      PropertyReconciliation reconciliation = reconcile(definitions);
+      ModuleSetPropertyDefinition definition = reconciliation.definition();
+      propertyConflicts.addAll(reconciliation.conflicts());
       ModuleSetPropertyKey key = definition.key();
       if (request.explicitParameters().values().containsKey(key)) {
         resolvedParameters.add(
@@ -192,7 +194,7 @@ public class ModuleSetPlanner {
     return option.toString();
   }
 
-  private static ModuleSetPropertyDefinition reconcile(List<ModuleSetPropertyDefinition> definitions, List<String> propertyConflicts) {
+  private static PropertyReconciliation reconcile(List<ModuleSetPropertyDefinition> definitions) {
     ModuleSetPropertyDefinition first = definitions.getFirst();
     List<String> defaults = definitions
       .stream()
@@ -208,26 +210,36 @@ public class ModuleSetPlanner {
       .distinct()
       .sorted()
       .toList();
+    List<String> conflicts = new ArrayList<>();
     if (defaults.size() > 1) {
-      propertyConflicts.add("%s: conflicting defaults (%s)".formatted(first.key().value(), String.join(", ", defaults)));
+      conflicts.add("%s: conflicting defaults (%s)".formatted(first.key().value(), String.join(", ", defaults)));
     }
     if (descriptions.size() > 1) {
-      propertyConflicts.add("%s: conflicting descriptions (%s)".formatted(first.key().value(), String.join(", ", descriptions)));
+      conflicts.add("%s: conflicting descriptions (%s)".formatted(first.key().value(), String.join(", ", descriptions)));
     }
-    return new ModuleSetPropertyDefinition(
-      first.key(),
-      first.type(),
-      definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
-        ? ModuleSetPropertyRequirement.REQUIRED
-        : ModuleSetPropertyRequirement.OPTIONAL,
-      descriptions.size() == 1 ? Optional.of(new ModuleSetPropertyDescription(descriptions.getFirst())) : Optional.empty(),
-      defaults.size() == 1 ? Optional.of(new ModuleSetPropertyDefaultValue(defaults.getFirst())) : Optional.empty(),
-      definitions
-        .stream()
-        .flatMap(definition -> definition.completionCandidates().stream())
-        .distinct()
-        .toList()
+    return new PropertyReconciliation(
+      new ModuleSetPropertyDefinition(
+        first.key(),
+        first.type(),
+        definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
+          ? ModuleSetPropertyRequirement.REQUIRED
+          : ModuleSetPropertyRequirement.OPTIONAL,
+        descriptions.size() == 1 ? Optional.of(new ModuleSetPropertyDescription(descriptions.getFirst())) : Optional.empty(),
+        defaults.size() == 1 ? Optional.of(new ModuleSetPropertyDefaultValue(defaults.getFirst())) : Optional.empty(),
+        definitions
+          .stream()
+          .flatMap(definition -> definition.completionCandidates().stream())
+          .distinct()
+          .toList()
+      ),
+      conflicts
     );
+  }
+
+  private record PropertyReconciliation(ModuleSetPropertyDefinition definition, List<String> conflicts) {
+    private PropertyReconciliation {
+      conflicts = List.copyOf(conflicts);
+    }
   }
 
   private record ParameterPlanningResult(
