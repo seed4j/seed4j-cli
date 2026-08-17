@@ -39,7 +39,7 @@ Use Java 25 and Node.js 22+ before running the toolchain.
 
 Agents may run smaller, targeted checks during implementation, such as specific Maven tests related to the changed class or behavior, `npm run prettier:check`, or focused Maven goals. Before finishing a change, agents should run `./mvnw test` as the default agent-side validation gate. Before the complete final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. If the user explicitly asks an agent to run `./mvnw clean verify`, the agent may run it, preferably with output limited or redirected to a file.
 
-After substantial production-code work is behaviorally complete and its relevant public-path tests are green, perform a post-green design review before final validation; use `refactor-design` when available. Do not use that review to introduce new behavior.
+After substantial production-code work is behaviorally complete and its relevant public-path tests are green, perform a post-green design review before final validation. Do not use that review to introduce new behavior.
 
 ## Coding Style & Naming Conventions
 
