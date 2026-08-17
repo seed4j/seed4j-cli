@@ -34,7 +34,10 @@ class ApplyModuleSetPlanRenderer {
     appendResolvedParameters(output, plan.resolvedParameters());
     appendMissingParameters(output, plan);
     appendProblems(output, plan.problems());
-    output.append("Status: ").append(plan.valid() ? "VALID" : "INVALID").append('\n');
+    output
+      .append("Status: ")
+      .append(plan.valid() ? "VALID" : "INVALID")
+      .append('\n');
     output.append("No changes were applied.\n");
     return output.toString();
   }
@@ -42,7 +45,12 @@ class ApplyModuleSetPlanRenderer {
   private static void appendModules(StringBuilder output, String heading, List<ModuleSetSlug> modules) {
     output.append(heading).append(":\n");
     for (int index = 0; index < modules.size(); index++) {
-      output.append("  ").append(index + 1).append(". ").append(modules.get(index).value()).append('\n');
+      output
+        .append("  ")
+        .append(index + 1)
+        .append(". ")
+        .append(modules.get(index).value())
+        .append('\n');
     }
     output.append('\n');
   }

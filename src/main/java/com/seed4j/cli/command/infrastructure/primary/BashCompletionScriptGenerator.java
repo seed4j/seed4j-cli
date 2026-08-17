@@ -94,11 +94,11 @@ class BashCompletionScriptGenerator {
 
     complete -F _seed4j_completion seed4j
     """.formatted(
-        caseStatements(candidates.candidatesByPath()),
-        caseStatements(candidates.valueOptionsByPath()),
-        valueCandidateCaseStatements(valueCompletion.enabled() ? candidates.valueCandidatesByPathAndOption() : Map.of()),
-        separatedValueCompletion(valueCompletion)
-      );
+      caseStatements(candidates.candidatesByPath()),
+      caseStatements(candidates.valueOptionsByPath()),
+      valueCandidateCaseStatements(valueCompletion.enabled() ? candidates.valueCandidatesByPathAndOption() : Map.of()),
+      separatedValueCompletion(valueCompletion)
+    );
   }
 
   private CompletionCandidates collectCandidates(CommandSpec command, String path) {

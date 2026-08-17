@@ -28,7 +28,7 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
 
   @Override
   public boolean activeRuntimePresent() {
-    return (Files.exists(extensionJarPath()) || Files.exists(metadataPath()));
+    return Files.exists(extensionJarPath()) || Files.exists(metadataPath());
   }
 
   @Override

@@ -70,10 +70,10 @@ class Seed4JCommandsFactory {
     %s
     Distribution ID: %s
     Distribution version: %s""".formatted(
-        commonOutput,
-        runtimeDisplay.distributionId().map(RuntimeDistributionId::value).orElse(UNKNOWN_VERSION),
-        runtimeDisplay.distributionVersion().map(RuntimeDistributionVersion::value).orElse(UNKNOWN_VERSION)
-      );
+      commonOutput,
+      runtimeDisplay.distributionId().map(RuntimeDistributionId::value).orElse(UNKNOWN_VERSION),
+      runtimeDisplay.distributionVersion().map(RuntimeDistributionVersion::value).orElse(UNKNOWN_VERSION)
+    );
   }
 
   private static String resolvedVersion(String primaryValue, String defaultValue) {
