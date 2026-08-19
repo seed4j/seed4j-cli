@@ -13,6 +13,7 @@
   },
   "files": [
     "bin/",
+    "documentation/",
     "dist/seed4j-cli.jar",
     "LICENSE.txt",
     "README.md"
