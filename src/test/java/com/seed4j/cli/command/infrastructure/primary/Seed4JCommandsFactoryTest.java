@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
+import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
@@ -17,6 +18,8 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -109,6 +112,39 @@ class Seed4JCommandsFactoryTest {
         .contains("--project-name")
         .contains("--package-name")
         .doesNotContain("--commit");
+    }
+
+    @Test
+    void shouldKeepEarlierModuleSetCommandExecutableAfterBuildingAnotherCommandTree(CapturedOutput output) {
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(planning);
+      Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
+        List.of(applyModuleSetCommand),
+        "1",
+        "2",
+        new RuntimeDisplayApplicationService(RuntimeDisplay::standard)
+      );
+      CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
+      factory.buildCommandSpec();
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--plan",
+      };
+
+      int exitCode = earlierCommandLine.execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("Status: VALID").contains("No changes were applied.");
     }
 
     @Test
