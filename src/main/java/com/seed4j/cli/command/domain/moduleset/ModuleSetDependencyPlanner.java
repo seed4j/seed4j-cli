@@ -1,6 +1,6 @@
 package com.seed4j.cli.command.domain.moduleset;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,10 +15,12 @@ final class ModuleSetDependencyPlanner {
     Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
     ModuleSetPlanningHistory history
   ) {
-    Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements = new LinkedHashMap<>();
+    Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements = Map.of();
     ModuleSetExecutionPositions executionPositions = ModuleSetExecutionPositions.from(executionOrder);
     for (ModuleSetSlug requestedModule : executionOrder) {
-      discoverDependencies(requestedModule, requestedModule, modulesBySlug, requirements, new HashSet<>());
+      requirements = DependencyDiscovery.startingWith(requirements, modulesBySlug, requestedModule)
+        .discover(requestedModule)
+        .requirements();
     }
 
     return requirements
@@ -29,25 +31,68 @@ final class ModuleSetDependencyPlanner {
       .toList();
   }
 
-  private static void discoverDependencies(
-    ModuleSetSlug moduleSlug,
-    ModuleSetSlug requestedBy,
-    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
+  private record DependencyDiscovery(
     Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements,
-    Set<ModuleSetSlug> visitedModules
+    Set<ModuleSetSlug> visitedModules,
+    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
+    ModuleSetSlug requestedBy
   ) {
-    if (!visitedModules.add(moduleSlug)) {
-      return;
+    private DependencyDiscovery {
+      requirements = immutableRequirements(requirements);
+      visitedModules = Collections.unmodifiableSet(new LinkedHashSet<>(visitedModules));
+      modulesBySlug = Map.copyOf(modulesBySlug);
     }
-    ModuleSetModule module = modulesBySlug.get(moduleSlug);
-    if (module == null) {
-      return;
+
+    private static Map<ModuleSetDependency, Set<ModuleSetSlug>> immutableRequirements(
+      Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements
+    ) {
+      Map<ModuleSetDependency, Set<ModuleSetSlug>> copy = new LinkedHashMap<>();
+      requirements.forEach((dependency, requiredBy) -> copy.put(dependency, Collections.unmodifiableSet(new LinkedHashSet<>(requiredBy))));
+      return Collections.unmodifiableMap(copy);
     }
-    for (ModuleSetDependency dependency : module.dependencies()) {
-      requirements.computeIfAbsent(dependency, ignored -> new LinkedHashSet<>()).add(requestedBy);
-      if (dependency.type() == ModuleSetDependencyType.MODULE) {
-        discoverDependencies(new ModuleSetSlug(dependency.value()), requestedBy, modulesBySlug, requirements, visitedModules);
+
+    private static DependencyDiscovery startingWith(
+      Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements,
+      Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
+      ModuleSetSlug requestedBy
+    ) {
+      return new DependencyDiscovery(requirements, Set.of(), modulesBySlug, requestedBy);
+    }
+
+    private DependencyDiscovery discover(ModuleSetSlug moduleSlug) {
+      if (visited(moduleSlug)) {
+        return this;
       }
+      DependencyDiscovery progress = visit(moduleSlug);
+      ModuleSetModule module = modulesBySlug.get(moduleSlug);
+      if (module == null) {
+        return progress;
+      }
+      for (ModuleSetDependency dependency : module.dependencies()) {
+        progress = progress.require(dependency);
+        if (dependency.type() == ModuleSetDependencyType.MODULE) {
+          progress = progress.discover(new ModuleSetSlug(dependency.value()));
+        }
+      }
+      return progress;
+    }
+
+    private boolean visited(ModuleSetSlug moduleSlug) {
+      return visitedModules.contains(moduleSlug);
+    }
+
+    private DependencyDiscovery visit(ModuleSetSlug moduleSlug) {
+      Set<ModuleSetSlug> visited = new LinkedHashSet<>(visitedModules);
+      visited.add(moduleSlug);
+      return new DependencyDiscovery(requirements, visited, modulesBySlug, requestedBy);
+    }
+
+    private DependencyDiscovery require(ModuleSetDependency dependency) {
+      Map<ModuleSetDependency, Set<ModuleSetSlug>> updatedRequirements = new LinkedHashMap<>(requirements);
+      Set<ModuleSetSlug> requiredBy = new LinkedHashSet<>(updatedRequirements.getOrDefault(dependency, Set.of()));
+      requiredBy.add(requestedBy);
+      updatedRequirements.put(dependency, requiredBy);
+      return new DependencyDiscovery(updatedRequirements, visitedModules, modulesBySlug, requestedBy);
     }
   }
 
