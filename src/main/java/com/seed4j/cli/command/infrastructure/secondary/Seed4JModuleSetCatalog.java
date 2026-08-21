@@ -15,6 +15,9 @@ import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
 import com.seed4j.module.domain.Seed4JSlug;
+import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
+import com.seed4j.module.domain.landscape.Seed4JLandscapeElementType;
+import com.seed4j.module.domain.properties.Seed4JPropertyType;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -37,12 +40,7 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
       .map(resource ->
         new ModuleSetModule(
           new ModuleSetSlug(resource.slug().get()),
-          resource
-            .organization()
-            .dependencies()
-            .stream()
-            .map(dependency -> new ModuleSetDependency(ModuleSetDependencyType.valueOf(dependency.type().name()), dependency.slug().get()))
-            .toList(),
+          resource.organization().dependencies().stream().map(Seed4JModuleSetCatalog::dependency).toList(),
           resource.propertiesDefinition().stream().map(Seed4JModuleSetCatalog::property).toList(),
           resource.organization().feature().map(Seed4JSlug::get)
         )
@@ -50,10 +48,21 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
       .toList();
   }
 
+  private static ModuleSetDependency dependency(Seed4JLandscapeDependency dependency) {
+    return new ModuleSetDependency(dependencyType(dependency.type()), dependency.slug().get());
+  }
+
+  private static ModuleSetDependencyType dependencyType(Seed4JLandscapeElementType type) {
+    return switch (type) {
+      case MODULE -> ModuleSetDependencyType.MODULE;
+      case FEATURE -> ModuleSetDependencyType.FEATURE;
+    };
+  }
+
   private static ModuleSetPropertyDefinition property(Seed4JModulePropertyDefinition definition) {
     return new ModuleSetPropertyDefinition(
       new ModuleSetPropertyKey(definition.key().get()),
-      ModuleSetPropertyType.valueOf(definition.type().name()),
+      propertyType(definition.type()),
       definition.isMandatory() ? ModuleSetPropertyRequirement.REQUIRED : ModuleSetPropertyRequirement.OPTIONAL,
       definition.description().map(description -> new ModuleSetPropertyDescription(description.get())),
       definition.defaultValue().map(defaultValue -> new ModuleSetPropertyDefaultValue(defaultValue.get())),
@@ -62,6 +71,14 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
         .map(defaultValue -> List.of(defaultValue.get()))
         .orElseGet(List::of)
     );
+  }
+
+  private static ModuleSetPropertyType propertyType(Seed4JPropertyType type) {
+    return switch (type) {
+      case BOOLEAN -> ModuleSetPropertyType.BOOLEAN;
+      case INTEGER -> ModuleSetPropertyType.INTEGER;
+      case STRING -> ModuleSetPropertyType.STRING;
+    };
   }
 
   @Override
