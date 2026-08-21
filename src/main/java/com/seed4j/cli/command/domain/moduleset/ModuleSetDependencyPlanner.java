@@ -23,11 +23,12 @@ final class ModuleSetDependencyPlanner {
         .requirements();
     }
 
+    DependencyResolver resolver = new DependencyResolver(executionPositions, modulesBySlug, history);
     return requirements
       .entrySet()
       .stream()
       .sorted(Map.Entry.comparingByKey())
-      .map(entry -> dependencyValidation(entry.getKey(), entry.getValue(), executionPositions, modulesBySlug, history))
+      .map(entry -> resolver.validate(entry.getKey(), entry.getValue()))
       .toList();
   }
 
@@ -96,70 +97,66 @@ final class ModuleSetDependencyPlanner {
     }
   }
 
-  private static ModuleSetDependencyValidation dependencyValidation(
-    ModuleSetDependency dependency,
-    Set<ModuleSetSlug> requiredBy,
+  private record DependencyResolver(
     ModuleSetExecutionPositions executionPositions,
     Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
     ModuleSetPlanningHistory history
   ) {
-    List<ModuleSetSlug> requiringModules = requiredBy.stream().toList();
-    List<ModuleSetSlug> candidates = featureCandidates(dependency, modulesBySlug);
-    Optional<ModuleSetSlug> historyProvider = historyProvider(dependency, candidates, history);
-    if (historyProvider.isPresent()) {
+    private DependencyResolver {
+      modulesBySlug = Map.copyOf(modulesBySlug);
+    }
+
+    private ModuleSetDependencyValidation validate(ModuleSetDependency dependency, Set<ModuleSetSlug> requiredBy) {
+      List<ModuleSetSlug> requiringModules = requiredBy.stream().toList();
+      List<ModuleSetSlug> candidates = candidates(dependency);
+      Optional<ModuleSetSlug> historyProvider = historyProvider(dependency, candidates);
+      if (historyProvider.isPresent()) {
+        return new ModuleSetDependencyValidation(
+          dependency,
+          ModuleSetDependencyStatus.SATISFIED_BY_HISTORY,
+          historyProvider,
+          candidates,
+          requiringModules
+        );
+      }
+
+      Optional<ModuleSetSlug> requestedProvider = requestedProvider(candidates, requiringModules);
       return new ModuleSetDependencyValidation(
         dependency,
-        ModuleSetDependencyStatus.SATISFIED_BY_HISTORY,
-        historyProvider,
+        requestedProvider.isPresent() ? ModuleSetDependencyStatus.SATISFIED_BY_REQUESTED_MODULE : ModuleSetDependencyStatus.MISSING,
+        requestedProvider,
         candidates,
         requiringModules
       );
     }
 
-    Optional<ModuleSetSlug> requestedProvider = requestedProvider(candidates, requiringModules, executionPositions);
-    return new ModuleSetDependencyValidation(
-      dependency,
-      requestedProvider.isPresent() ? ModuleSetDependencyStatus.SATISFIED_BY_REQUESTED_MODULE : ModuleSetDependencyStatus.MISSING,
-      requestedProvider,
-      candidates,
-      requiringModules
-    );
-  }
-
-  private static List<ModuleSetSlug> featureCandidates(ModuleSetDependency dependency, Map<ModuleSetSlug, ModuleSetModule> modulesBySlug) {
-    if (dependency.type() == ModuleSetDependencyType.MODULE) {
-      return List.of(new ModuleSetSlug(dependency.value()));
+    private List<ModuleSetSlug> candidates(ModuleSetDependency dependency) {
+      if (dependency.type() == ModuleSetDependencyType.MODULE) {
+        return List.of(new ModuleSetSlug(dependency.value()));
+      }
+      return modulesBySlug
+        .values()
+        .stream()
+        .filter(module -> module.feature().filter(dependency.value()::equals).isPresent())
+        .map(ModuleSetModule::slug)
+        .sorted()
+        .toList();
     }
-    return modulesBySlug
-      .values()
-      .stream()
-      .filter(module -> module.feature().filter(dependency.value()::equals).isPresent())
-      .map(ModuleSetModule::slug)
-      .sorted()
-      .toList();
-  }
 
-  private static Optional<ModuleSetSlug> historyProvider(
-    ModuleSetDependency dependency,
-    List<ModuleSetSlug> candidates,
-    ModuleSetPlanningHistory history
-  ) {
-    if (dependency.type() == ModuleSetDependencyType.MODULE) {
-      ModuleSetSlug dependencyModule = new ModuleSetSlug(dependency.value());
-      return history.appliedModules().contains(dependencyModule) ? Optional.of(dependencyModule) : Optional.empty();
+    private Optional<ModuleSetSlug> historyProvider(ModuleSetDependency dependency, List<ModuleSetSlug> candidates) {
+      if (dependency.type() == ModuleSetDependencyType.MODULE) {
+        ModuleSetSlug dependencyModule = new ModuleSetSlug(dependency.value());
+        return history.appliedModules().contains(dependencyModule) ? Optional.of(dependencyModule) : Optional.empty();
+      }
+      return candidates.stream().filter(history.appliedModules()::contains).findFirst();
     }
-    return candidates.stream().filter(history.appliedModules()::contains).findFirst();
-  }
 
-  private static Optional<ModuleSetSlug> requestedProvider(
-    List<ModuleSetSlug> candidates,
-    List<ModuleSetSlug> requiringModules,
-    ModuleSetExecutionPositions executionPositions
-  ) {
-    return candidates
-      .stream()
-      .filter(candidate -> executionPositions.precedesAll(candidate, requiringModules))
-      .findFirst();
+    private Optional<ModuleSetSlug> requestedProvider(List<ModuleSetSlug> candidates, List<ModuleSetSlug> requiringModules) {
+      return candidates
+        .stream()
+        .filter(candidate -> executionPositions.precedesAll(candidate, requiringModules))
+        .findFirst();
+    }
   }
 
   private record ModuleSetExecutionPositions(Map<ModuleSetSlug, Integer> positions) {
