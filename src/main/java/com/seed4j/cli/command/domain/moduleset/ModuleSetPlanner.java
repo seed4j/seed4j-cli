@@ -260,6 +260,7 @@ public class ModuleSetPlanner {
     ModuleSetPlanningHistory history
   ) {
     Map<ModuleSetDependency, Set<ModuleSetSlug>> requirements = new LinkedHashMap<>();
+    ModuleSetExecutionPositions executionPositions = ModuleSetExecutionPositions.from(executionOrder);
     for (ModuleSetSlug requestedModule : executionOrder) {
       discoverDependencies(requestedModule, requestedModule, modulesBySlug, requirements, new HashSet<>());
     }
@@ -268,7 +269,7 @@ public class ModuleSetPlanner {
       .entrySet()
       .stream()
       .sorted(Map.Entry.comparingByKey())
-      .map(entry -> dependencyValidation(entry.getKey(), entry.getValue(), executionOrder, modulesBySlug, history))
+      .map(entry -> dependencyValidation(entry.getKey(), entry.getValue(), executionPositions, modulesBySlug, history))
       .toList();
   }
 
@@ -297,7 +298,7 @@ public class ModuleSetPlanner {
   private static ModuleSetDependencyValidation dependencyValidation(
     ModuleSetDependency dependency,
     Set<ModuleSetSlug> requiredBy,
-    List<ModuleSetSlug> executionOrder,
+    ModuleSetExecutionPositions executionPositions,
     Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
     ModuleSetPlanningHistory history
   ) {
@@ -314,7 +315,7 @@ public class ModuleSetPlanner {
       );
     }
 
-    Optional<ModuleSetSlug> requestedProvider = requestedProvider(candidates, requiringModules, executionOrder);
+    Optional<ModuleSetSlug> requestedProvider = requestedProvider(candidates, requiringModules, executionPositions);
     return new ModuleSetDependencyValidation(
       dependency,
       requestedProvider.isPresent() ? ModuleSetDependencyStatus.SATISFIED_BY_REQUESTED_MODULE : ModuleSetDependencyStatus.MISSING,
@@ -352,15 +353,38 @@ public class ModuleSetPlanner {
   private static Optional<ModuleSetSlug> requestedProvider(
     List<ModuleSetSlug> candidates,
     List<ModuleSetSlug> requiringModules,
-    List<ModuleSetSlug> executionOrder
+    ModuleSetExecutionPositions executionPositions
   ) {
     return candidates
       .stream()
-      .filter(executionOrder::contains)
-      .filter(candidate ->
-        requiringModules.stream().allMatch(requiredBy -> executionOrder.indexOf(candidate) < executionOrder.indexOf(requiredBy))
-      )
+      .filter(candidate -> executionPositions.precedesAll(candidate, requiringModules))
       .findFirst();
+  }
+
+  private record ModuleSetExecutionPositions(Map<ModuleSetSlug, Integer> positions) {
+    private ModuleSetExecutionPositions {
+      positions = Map.copyOf(positions);
+    }
+
+    private static ModuleSetExecutionPositions from(List<ModuleSetSlug> executionOrder) {
+      Map<ModuleSetSlug, Integer> positions = new LinkedHashMap<>();
+      for (int index = 0; index < executionOrder.size(); index++) {
+        positions.putIfAbsent(executionOrder.get(index), index);
+      }
+      return new ModuleSetExecutionPositions(positions);
+    }
+
+    private boolean precedesAll(ModuleSetSlug candidate, List<ModuleSetSlug> requiringModules) {
+      Integer candidatePosition = positions.get(candidate);
+      if (candidatePosition == null) {
+        return false;
+      }
+
+      return requiringModules
+        .stream()
+        .map(positions::get)
+        .allMatch(requiredPosition -> requiredPosition != null && candidatePosition < requiredPosition);
+    }
   }
 
   private static List<String> duplicates(List<ModuleSetSlug> requestedModules) {
