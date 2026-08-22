@@ -38,26 +38,45 @@ public class ProjectsModuleSetPlanningHistoryReader implements ModuleSetPlanning
   @Override
   public ModuleSetPlanningHistory history(ModuleSetProjectPath projectPath) {
     ProjectHistory history = projects.getHistory(new ProjectPath(projectPath.value().toString()));
-    Set<ModuleSetSlug> appliedModules = history
+    return new ModuleSetPlanningHistory(appliedModules(history), historyParameters(history));
+  }
+
+  private static Set<ModuleSetSlug> appliedModules(ProjectHistory history) {
+    return history
       .actions()
       .stream()
       .map(ProjectAction::module)
       .map(ModuleSlug::get)
       .map(ModuleSetSlug::new)
       .collect(Collectors.toUnmodifiableSet());
-    Map<ModuleSetPropertyKey, ModuleSetParameterValue> parameters = new LinkedHashMap<>();
+  }
+
+  private static ModuleSetHistoryParameters historyParameters(ProjectHistory history) {
+    Map<ModuleSetPropertyKey, ModuleSetParameterValue> recognizedParameters = new LinkedHashMap<>();
     List<UnsupportedModuleSetHistoryParameter> unsupportedParameters = new ArrayList<>();
     for (Map.Entry<String, Object> entry : history.latestProperties().get().entrySet()) {
-      ModuleSetPropertyKey key = new ModuleSetPropertyKey(entry.getKey());
-      switch (entry.getValue()) {
-        case null -> unsupportedParameters.add(new UnsupportedModuleSetHistoryParameter(key));
-        case String stringValue -> parameters.put(key, new ModuleSetStringParameterValue(stringValue));
-        case Integer integerValue -> parameters.put(key, new ModuleSetIntegerParameterValue(integerValue));
-        case Boolean booleanValue -> parameters.put(key, new ModuleSetBooleanParameterValue(booleanValue));
-        default -> unsupportedParameters.add(new UnsupportedModuleSetHistoryParameter(key));
+      switch (historyParameter(entry)) {
+        case RecognizedHistoryParameter recognized -> recognizedParameters.put(recognized.key(), recognized.value());
+        case UnsupportedHistoryParameter unsupported -> unsupportedParameters.add(unsupported.parameter());
       }
     }
-
-    return new ModuleSetPlanningHistory(appliedModules, new ModuleSetHistoryParameters(parameters, unsupportedParameters));
+    return new ModuleSetHistoryParameters(recognizedParameters, unsupportedParameters);
   }
+
+  private static HistoryParameterFact historyParameter(Map.Entry<String, Object> entry) {
+    ModuleSetPropertyKey key = new ModuleSetPropertyKey(entry.getKey());
+    return switch (entry.getValue()) {
+      case null -> new UnsupportedHistoryParameter(new UnsupportedModuleSetHistoryParameter(key));
+      case String stringValue -> new RecognizedHistoryParameter(key, new ModuleSetStringParameterValue(stringValue));
+      case Integer integerValue -> new RecognizedHistoryParameter(key, new ModuleSetIntegerParameterValue(integerValue));
+      case Boolean booleanValue -> new RecognizedHistoryParameter(key, new ModuleSetBooleanParameterValue(booleanValue));
+      default -> new UnsupportedHistoryParameter(new UnsupportedModuleSetHistoryParameter(key));
+    };
+  }
+
+  private sealed interface HistoryParameterFact permits RecognizedHistoryParameter, UnsupportedHistoryParameter {}
+
+  private record RecognizedHistoryParameter(ModuleSetPropertyKey key, ModuleSetParameterValue value) implements HistoryParameterFact {}
+
+  private record UnsupportedHistoryParameter(UnsupportedModuleSetHistoryParameter parameter) implements HistoryParameterFact {}
 }
