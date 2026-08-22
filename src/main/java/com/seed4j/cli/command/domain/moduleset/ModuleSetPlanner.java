@@ -4,6 +4,7 @@ import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ModuleSetPlanner {
 
@@ -56,57 +57,17 @@ public class ModuleSetPlanner {
   }
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
-    List<ModuleSetPlanningProblem> problems = new ArrayList<>();
-    List<ModuleSetSlug> duplicateModules = duplicates(request.requestedModules().modules());
-    if (!duplicateModules.isEmpty()) {
-      problems.add(new DuplicateRequestedModuleSetModules(duplicateModules));
-    }
+    ModuleSetRequestValidation requestValidation = validateRequestedModules(request.requestedModules());
+    List<ModuleSetSlug> executionOrder = executionOrder(request.requestedModules(), requestValidation);
+    SelectedModulesPlanning selectedModulesPlanning = planSelectedModules(request, executionOrder, requestValidation.modulesBySlug());
+    return selectedModulesPlanning.moduleSetPlan(request, executionOrder, requestValidation.problems());
+  }
 
-    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug = catalog
-      .modules()
-      .stream()
-      .collect(Collectors.toMap(ModuleSetModule::slug, Function.identity()));
-    Set<ModuleSetSlug> knownModules = modulesBySlug.keySet();
-    List<ModuleSetSlug> unknownModules = request
-      .requestedModules()
-      .modules()
-      .stream()
-      .filter(module -> !knownModules.contains(module))
-      .distinct()
-      .sorted(Comparator.comparing(ModuleSetSlug::value))
-      .toList();
-    if (!unknownModules.isEmpty()) {
-      problems.add(new UnknownRequestedModuleSetModules(unknownModules));
-    }
-
-    boolean requestedModulesValid = unknownModules.isEmpty() && duplicateModules.isEmpty();
-    List<ModuleSetSlug> executionOrder = requestedModulesValid ? catalog.sort(request.requestedModules().modules()) : List.of();
-    List<ModuleSetDependencyValidation> dependencyValidations = List.of();
-    List<ResolvedModuleSetParameter> resolvedParameters = List.of();
-    List<MissingRequiredModuleSetParameter> missingRequiredParameters = List.of();
-    if (!executionOrder.isEmpty()) {
-      ModuleSetPlanningHistory history = historyReader.history(request.projectPath());
-      dependencyValidations = dependencyPlanner.plan(executionOrder, modulesBySlug, history);
-      List<ModuleSetModule> selectedModules = executionOrder.stream().map(modulesBySlug::get).toList();
-      ModuleSetParameterPlanner.ParameterPlanning parameterPlanning = parameterPlanner.plan(
-        selectedModules,
-        request.explicitParameters(),
-        history.parameters()
-      );
-      resolvedParameters = parameterPlanning.resolvedParameters();
-      missingRequiredParameters = parameterPlanning.missingRequiredParameters();
-      problems.addAll(parameterPlanning.problems());
-    }
-
-    return new ModuleSetPlan(
-      request.requestedModules(),
-      request.projectPath(),
-      executionOrder,
-      dependencyValidations,
-      resolvedParameters,
-      missingRequiredParameters,
-      problems
-    );
+  private ModuleSetRequestValidation validateRequestedModules(RequestedModuleSet requestedModules) {
+    List<ModuleSetSlug> duplicateModules = duplicates(requestedModules.modules());
+    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug = modulesBySlug();
+    List<ModuleSetSlug> unknownModules = unknownModules(requestedModules, modulesBySlug.keySet());
+    return new ModuleSetRequestValidation(modulesBySlug, requestProblems(duplicateModules, unknownModules));
   }
 
   private static List<ModuleSetSlug> duplicates(List<ModuleSetSlug> requestedModules) {
@@ -118,5 +79,93 @@ public class ModuleSetPlanner {
       }
     });
     return duplicates.stream().sorted(Comparator.comparing(ModuleSetSlug::value)).toList();
+  }
+
+  private Map<ModuleSetSlug, ModuleSetModule> modulesBySlug() {
+    return catalog.modules().stream().collect(Collectors.toMap(ModuleSetModule::slug, Function.identity()));
+  }
+
+  private static List<ModuleSetSlug> unknownModules(RequestedModuleSet requestedModules, Set<ModuleSetSlug> knownModules) {
+    return requestedModules
+      .modules()
+      .stream()
+      .filter(module -> !knownModules.contains(module))
+      .distinct()
+      .sorted(Comparator.comparing(ModuleSetSlug::value))
+      .toList();
+  }
+
+  private static List<ModuleSetPlanningProblem> requestProblems(List<ModuleSetSlug> duplicateModules, List<ModuleSetSlug> unknownModules) {
+    List<ModuleSetPlanningProblem> problems = new ArrayList<>();
+    if (!duplicateModules.isEmpty()) {
+      problems.add(new DuplicateRequestedModuleSetModules(duplicateModules));
+    }
+    if (!unknownModules.isEmpty()) {
+      problems.add(new UnknownRequestedModuleSetModules(unknownModules));
+    }
+    return List.copyOf(problems);
+  }
+
+  private List<ModuleSetSlug> executionOrder(RequestedModuleSet requestedModules, ModuleSetRequestValidation requestValidation) {
+    return requestValidation.valid() ? catalog.sort(requestedModules.modules()) : List.of();
+  }
+
+  private SelectedModulesPlanning planSelectedModules(
+    ModuleSetPlanningRequest request,
+    List<ModuleSetSlug> executionOrder,
+    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug
+  ) {
+    if (executionOrder.isEmpty()) {
+      return SelectedModulesPlanning.empty();
+    }
+    ModuleSetPlanningHistory history = historyReader.history(request.projectPath());
+    List<ModuleSetDependencyValidation> dependencyValidations = dependencyPlanner.plan(executionOrder, modulesBySlug, history);
+    List<ModuleSetModule> selectedModules = executionOrder.stream().map(modulesBySlug::get).toList();
+    ModuleSetParameterPlanner.ParameterPlanning parameterPlanning = parameterPlanner.plan(
+      selectedModules,
+      request.explicitParameters(),
+      history.parameters()
+    );
+    return new SelectedModulesPlanning(dependencyValidations, parameterPlanning);
+  }
+
+  private record ModuleSetRequestValidation(Map<ModuleSetSlug, ModuleSetModule> modulesBySlug, List<ModuleSetPlanningProblem> problems) {
+    private ModuleSetRequestValidation {
+      modulesBySlug = Map.copyOf(modulesBySlug);
+      problems = List.copyOf(problems);
+    }
+
+    private boolean valid() {
+      return problems.isEmpty();
+    }
+  }
+
+  private record SelectedModulesPlanning(
+    List<ModuleSetDependencyValidation> dependencyValidations,
+    ModuleSetParameterPlanner.ParameterPlanning parameterPlanning
+  ) {
+    private SelectedModulesPlanning {
+      dependencyValidations = List.copyOf(dependencyValidations);
+    }
+
+    private ModuleSetPlan moduleSetPlan(
+      ModuleSetPlanningRequest request,
+      List<ModuleSetSlug> executionOrder,
+      List<ModuleSetPlanningProblem> requestProblems
+    ) {
+      return new ModuleSetPlan(
+        request.requestedModules(),
+        request.projectPath(),
+        executionOrder,
+        dependencyValidations,
+        parameterPlanning.resolvedParameters(),
+        parameterPlanning.missingRequiredParameters(),
+        Stream.concat(requestProblems.stream(), parameterPlanning.problems().stream()).toList()
+      );
+    }
+
+    private static SelectedModulesPlanning empty() {
+      return new SelectedModulesPlanning(List.of(), new ModuleSetParameterPlanner.ParameterPlanning(List.of(), List.of(), List.of()));
+    }
   }
 }
