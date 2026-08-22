@@ -1,0 +1,108 @@
+package com.seed4j.cli.command.infrastructure.primary;
+
+import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
+import java.util.List;
+import java.util.stream.Collectors;
+
+final class ApplyModuleSetPlanningProblemRenderer {
+
+  void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
+    if (problems.isEmpty()) {
+      return;
+    }
+    output.append("Validation problems:\n");
+    problems.forEach(problem -> output.append("  ○ ").append(problemText(problem)).append('\n'));
+    output.append('\n');
+  }
+
+  private static String problemText(ModuleSetPlanningProblem problem) {
+    return switch (problem) {
+      case DuplicateRequestedModuleSetModules duplicateModules -> moduleValues("Duplicate requested modules", duplicateModules.modules());
+      case UnknownRequestedModuleSetModules unknownModules -> moduleValues("Unknown requested modules", unknownModules.modules());
+      case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
+      case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
+      case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
+    };
+  }
+
+  private static String moduleValues(String label, List<ModuleSetSlug> modules) {
+    return problemValues(label, modules.stream().map(ModuleSetSlug::value).toList());
+  }
+
+  private static String problemValues(String label, List<String> values) {
+    return label + ": " + String.join(", ", values);
+  }
+
+  private static String propertyConflicts(ModuleSetPropertyConflicts propertyConflicts) {
+    return problemValues(
+      "Property conflicts",
+      propertyConflicts.conflicts().stream().map(ApplyModuleSetPlanningProblemRenderer::propertyConflict).toList()
+    );
+  }
+
+  private static String propertyConflict(ModuleSetPropertyConflict conflict) {
+    return switch (conflict) {
+      case ModuleSetPropertyDefaultConflict defaultConflict -> defaultConflict(defaultConflict);
+      case ModuleSetPropertyDescriptionConflict descriptionConflict -> descriptionConflict(descriptionConflict);
+    };
+  }
+
+  private static String defaultConflict(ModuleSetPropertyDefaultConflict conflict) {
+    return "%s: conflicting defaults (%s)".formatted(
+      conflict.key().value(),
+      conflict
+        .defaults()
+        .stream()
+        .map(defaultValue -> defaultValue.literal())
+        .collect(Collectors.joining(", "))
+    );
+  }
+
+  private static String descriptionConflict(ModuleSetPropertyDescriptionConflict conflict) {
+    return "%s: conflicting descriptions (%s)".formatted(
+      conflict.key().value(),
+      conflict
+        .descriptions()
+        .stream()
+        .map(description -> description.value())
+        .collect(Collectors.joining(", "))
+    );
+  }
+
+  private static String historyMismatch(ModuleSetHistoryParameterTypeMismatch mismatch) {
+    return "Project history parameter type mismatch: %s expects %s but history contains %s; pass %s to override the stored value".formatted(
+      mismatch.key().value(),
+      mismatch.expectedType(),
+      historyType(mismatch.historyType()),
+      ModulePropertyOptionSpecFactory.toDashedFormat(mismatch.key().value())
+    );
+  }
+
+  private static String historyType(ModuleSetHistoryParameterValueType type) {
+    return switch (type) {
+      case STRING, INTEGER, BOOLEAN -> type.name();
+      case UNSUPPORTED -> "an unsupported value type";
+    };
+  }
+
+  private static String unusedParameters(UnusedExplicitModuleSetParameters unusedParameters) {
+    return problemValues(
+      "Options not used by requested modules",
+      unusedParameters
+        .keys()
+        .stream()
+        .map(key -> ModulePropertyOptionSpecFactory.toDashedFormat(key.value()))
+        .toList()
+    );
+  }
+}

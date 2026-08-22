@@ -1,29 +1,21 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyValidation;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflict;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
-import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
-import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.util.List;
 
 class ApplyModuleSetPlanRenderer {
+
+  private final ApplyModuleSetPlanningProblemRenderer problemRenderer = new ApplyModuleSetPlanningProblemRenderer();
 
   String render(ModuleSetPlan plan) {
     StringBuilder output = new StringBuilder("Plan for module set\n\n");
@@ -33,12 +25,8 @@ class ApplyModuleSetPlanRenderer {
     appendDependencies(output, plan.dependencyValidations());
     appendResolvedParameters(output, plan.resolvedParameters());
     appendMissingParameters(output, plan);
-    appendProblems(output, plan.problems());
-    output
-      .append("Status: ")
-      .append(plan.valid() ? "VALID" : "INVALID")
-      .append('\n');
-    output.append("No changes were applied.\n");
+    problemRenderer.appendProblems(output, plan.problems());
+    appendStatus(output, plan.valid());
     return output.toString();
   }
 
@@ -144,83 +132,11 @@ class ApplyModuleSetPlanRenderer {
     output.append('\n');
   }
 
-  private static void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
-    if (problems.isEmpty()) {
-      return;
-    }
-    output.append("Validation problems:\n");
-    problems.forEach(problem -> appendProblem(output, problem));
-    output.append('\n');
-  }
-
-  private static void appendProblem(StringBuilder output, ModuleSetPlanningProblem problem) {
-    switch (problem) {
-      case DuplicateRequestedModuleSetModules duplicateModules -> appendProblemValues(
-        output,
-        "Duplicate requested modules",
-        duplicateModules.modules().stream().map(ModuleSetSlug::value).toList()
-      );
-      case UnknownRequestedModuleSetModules unknownModules -> appendProblemValues(
-        output,
-        "Unknown requested modules",
-        unknownModules.modules().stream().map(ModuleSetSlug::value).toList()
-      );
-      case ModuleSetPropertyConflicts propertyConflicts -> appendProblemValues(
-        output,
-        "Property conflicts",
-        propertyConflicts.conflicts().stream().map(ApplyModuleSetPlanRenderer::propertyConflict).toList()
-      );
-      case ModuleSetHistoryParameterTypeMismatch mismatch -> output
-        .append("  ○ Project history parameter type mismatch: ")
-        .append(mismatch.key().value())
-        .append(" expects ")
-        .append(mismatch.expectedType())
-        .append(" but history contains ")
-        .append(historyType(mismatch.historyType()))
-        .append("; pass ")
-        .append(ModulePropertyOptionSpecFactory.toDashedFormat(mismatch.key().value()))
-        .append(" to override the stored value\n");
-      case UnusedExplicitModuleSetParameters unusedParameters -> appendProblemValues(
-        output,
-        "Options not used by requested modules",
-        unusedParameters
-          .keys()
-          .stream()
-          .map(key -> ModulePropertyOptionSpecFactory.toDashedFormat(key.value()))
-          .toList()
-      );
-    }
-  }
-
-  private static String historyType(ModuleSetHistoryParameterValueType type) {
-    return switch (type) {
-      case STRING, INTEGER, BOOLEAN -> type.name();
-      case UNSUPPORTED -> "an unsupported value type";
-    };
-  }
-
-  private static String propertyConflict(ModuleSetPropertyConflict conflict) {
-    return switch (conflict) {
-      case ModuleSetPropertyDefaultConflict defaultConflict -> "%s: conflicting defaults (%s)".formatted(
-        defaultConflict.key().value(),
-        defaultConflict
-          .defaults()
-          .stream()
-          .map(defaultValue -> defaultValue.literal())
-          .collect(java.util.stream.Collectors.joining(", "))
-      );
-      case ModuleSetPropertyDescriptionConflict descriptionConflict -> "%s: conflicting descriptions (%s)".formatted(
-        descriptionConflict.key().value(),
-        descriptionConflict
-          .descriptions()
-          .stream()
-          .map(description -> description.value())
-          .collect(java.util.stream.Collectors.joining(", "))
-      );
-    };
-  }
-
-  private static void appendProblemValues(StringBuilder output, String label, List<String> values) {
-    output.append("  ○ ").append(label).append(": ").append(String.join(", ", values)).append('\n');
+  private static void appendStatus(StringBuilder output, boolean valid) {
+    output
+      .append("Status: ")
+      .append(valid ? "VALID" : "INVALID")
+      .append('\n');
+    output.append("No changes were applied.\n");
   }
 }
