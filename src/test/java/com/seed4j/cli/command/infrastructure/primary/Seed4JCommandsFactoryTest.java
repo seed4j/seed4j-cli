@@ -9,6 +9,7 @@ import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
@@ -485,7 +486,10 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "boolean-module", "--feature-enabled=" + featureEnabled, "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog, new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -512,7 +516,10 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "integer-module", "--count", "not-a-number", "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog, new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -538,8 +545,7 @@ class Seed4JCommandsFactoryTest {
       );
       ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
         Set.of(),
-        Map.of(indentSize, new ModuleSetStringParameterValue("2")),
-        List.of()
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
       );
       String[] args = { "integer-module", "--plan" };
 
@@ -573,8 +579,7 @@ class Seed4JCommandsFactoryTest {
       );
       ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
         Set.of(),
-        Map.of(indentSize, new ModuleSetStringParameterValue("2")),
-        List.of()
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
       );
       String[] args = { "integer-module", "--indent-size", "3", "--plan" };
 
@@ -611,8 +616,7 @@ class Seed4JCommandsFactoryTest {
       );
       ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
         Set.of(),
-        Map.of(indentSize, new ModuleSetStringParameterValue("2")),
-        List.of()
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
       );
       String[] args = { "selected-module", "--plan" };
 
@@ -735,8 +739,10 @@ class Seed4JCommandsFactoryTest {
       );
       ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
         Set.of(),
-        Map.of(zetaCount, new ModuleSetStringParameterValue("2"), alphaEnabled, new ModuleSetIntegerParameterValue(1)),
-        List.of()
+        new ModuleSetHistoryParameters(
+          Map.of(zetaCount, new ModuleSetStringParameterValue("2"), alphaEnabled, new ModuleSetIntegerParameterValue(1)),
+          List.of()
+        )
       );
       String[] args = { "typed-module", "--plan" };
 
@@ -783,7 +789,10 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "first-module", "second-module", "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog, new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())

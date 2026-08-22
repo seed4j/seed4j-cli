@@ -87,11 +87,11 @@ public class ModuleSetPlanner {
     if (!executionOrder.isEmpty()) {
       ModuleSetPlanningHistory history = historyReader.history(request.projectPath());
       dependencyValidations = dependencyPlanner.plan(executionOrder, modulesBySlug, history);
+      List<ModuleSetModule> selectedModules = executionOrder.stream().map(modulesBySlug::get).toList();
       ModuleSetParameterPlanner.ParameterPlanning parameterPlanning = parameterPlanner.plan(
-        executionOrder,
-        modulesBySlug,
-        request,
-        history
+        selectedModules,
+        request.explicitParameters(),
+        history.parameters()
       );
       resolvedParameters = parameterPlanning.resolvedParameters();
       missingRequiredParameters = parameterPlanning.missingRequiredParameters();

@@ -8,6 +8,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
@@ -56,7 +57,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(selected)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
@@ -101,7 +102,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(first, second)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
@@ -140,7 +141,7 @@ class ModuleSetPlanningApplicationServiceTest {
     );
     ModuleSetCatalog catalog = catalog(List.of(initModule, mavenJavaModule), List.of(init, mavenJava));
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(mavenJava, init)),
@@ -182,7 +183,10 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(first, second)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(packageName, new ModuleSetStringParameterValue("com.history")), List.of())
+      new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.history")), List.of())
+      )
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
@@ -232,7 +236,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(first, second)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
@@ -286,7 +290,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(selected, unselected)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
@@ -315,7 +319,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(gradle, maven, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -350,7 +354,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(provider, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer, provider)),
@@ -383,7 +387,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(consumer, provider)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(provider, consumer)),
@@ -417,7 +421,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(provider, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(provider), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(provider), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -452,7 +456,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(transitive, direct, requested)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(requested)),
@@ -482,7 +486,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(), List.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -540,7 +544,10 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(selected)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(historyKey, new ModuleSetStringParameterValue("from-history")), List.of())
+      new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(historyKey, new ModuleSetStringParameterValue("from-history")), List.of())
+      )
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),

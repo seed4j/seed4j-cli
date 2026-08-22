@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.secondary;
 
 import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
@@ -57,6 +58,6 @@ public class ProjectsModuleSetPlanningHistoryReader implements ModuleSetPlanning
       }
     }
 
-    return new ModuleSetPlanningHistory(appliedModules, parameters, unsupportedParameters);
+    return new ModuleSetPlanningHistory(appliedModules, new ModuleSetHistoryParameters(parameters, unsupportedParameters));
   }
 }

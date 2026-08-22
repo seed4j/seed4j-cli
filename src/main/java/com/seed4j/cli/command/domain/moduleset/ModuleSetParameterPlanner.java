@@ -1,65 +1,50 @@
 package com.seed4j.cli.command.domain.moduleset;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 final class ModuleSetParameterPlanner {
 
+  private final ModuleSetPropertyDefinitionReconciler definitionReconciler = new ModuleSetPropertyDefinitionReconciler();
+  private final ModuleSetParameterResolver parameterResolver = new ModuleSetParameterResolver();
+
   ParameterPlanning plan(
-    List<ModuleSetSlug> executionOrder,
-    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug,
-    ModuleSetPlanningRequest request,
-    ModuleSetPlanningHistory history
+    List<ModuleSetModule> selectedModules,
+    ExplicitModuleSetParameters explicitParameters,
+    ModuleSetHistoryParameters historyParameters
   ) {
-    Map<ModuleSetPropertyKey, List<ModuleSetPropertyDefinition>> definitionsByKey = new LinkedHashMap<>();
-    executionOrder
-      .stream()
-      .map(modulesBySlug::get)
-      .flatMap(module -> module.properties().stream())
-      .forEach(definition -> definitionsByKey.computeIfAbsent(definition.key(), ignored -> new ArrayList<>()).add(definition));
+    ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation = definitionReconciler.reconcile(selectedModules);
     List<ResolvedModuleSetParameter> resolvedParameters = new ArrayList<>();
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
     List<ModuleSetHistoryParameterTypeMismatch> historyMismatches = new ArrayList<>();
-    List<ModuleSetPropertyConflict> propertyConflicts = new ArrayList<>();
-    for (List<ModuleSetPropertyDefinition> definitions : definitionsByKey.values()) {
-      PropertyReconciliation reconciliation = reconcile(definitions);
-      ModuleSetPropertyDefinition definition = reconciliation.definition();
-      propertyConflicts.addAll(reconciliation.conflicts());
-      ModuleSetPropertyKey key = definition.key();
-      if (request.explicitParameters().values().containsKey(key)) {
-        resolvedParameters.add(
-          new ResolvedModuleSetParameter(
-            key,
-            request.explicitParameters().values().get(key),
-            ModuleSetPropertySource.EXPLICIT_INPUT,
-            definition
-          )
-        );
-      } else if (history.parameters().containsKey(key)) {
-        ModuleSetParameterValue historyValue = history.parameters().get(key);
-        if (historyValue.type() == definition.type()) {
-          resolvedParameters.add(new ResolvedModuleSetParameter(key, historyValue, ModuleSetPropertySource.PROJECT_HISTORY, definition));
-        } else {
-          historyMismatches.add(
-            new ModuleSetHistoryParameterTypeMismatch(key, definition.type(), ModuleSetHistoryParameterValueType.from(historyValue.type()))
-          );
+    for (ModuleSetParameterResolution resolution : parameterResolver.resolve(
+      reconciliation.definitions(),
+      explicitParameters,
+      historyParameters
+    )) {
+      switch (resolution) {
+        case ModuleSetParameterResolution.Resolved resolved -> resolvedParameters.add(resolved.parameter());
+        case ModuleSetParameterResolution.RequiredMissing missing -> missingRequiredParameters.add(missing.parameter());
+        case ModuleSetParameterResolution.HistoryIncompatible incompatible -> historyMismatches.add(incompatible.mismatch());
+        case ModuleSetParameterResolution.OptionalWithoutValue _ -> {
         }
-      } else if (history.unsupportedParameter(key).isPresent()) {
-        historyMismatches.add(
-          new ModuleSetHistoryParameterTypeMismatch(key, definition.type(), ModuleSetHistoryParameterValueType.UNSUPPORTED)
-        );
-      } else if (definition.mandatory()) {
-        missingRequiredParameters.add(new MissingRequiredModuleSetParameter(key));
-      } else {
-        definition
-          .defaultValue()
-          .ifPresent(defaultValue ->
-            resolvedParameters.add(new ResolvedModuleSetParameter(key, defaultValue.value(), ModuleSetPropertySource.DEFAULT, definition))
-          );
       }
     }
+    List<ModuleSetPlanningProblem> problems = planningProblems(reconciliation, historyMismatches, explicitParameters);
+    return new ParameterPlanning(resolvedParameters, missingRequiredParameters, problems);
+  }
+
+  private static List<ModuleSetPlanningProblem> planningProblems(
+    ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation,
+    List<ModuleSetHistoryParameterTypeMismatch> historyMismatches,
+    ExplicitModuleSetParameters explicitParameters
+  ) {
     List<ModuleSetPlanningProblem> problems = new ArrayList<>();
-    if (!propertyConflicts.isEmpty()) {
-      problems.add(new ModuleSetPropertyConflicts(propertyConflicts));
+    if (!reconciliation.conflicts().isEmpty()) {
+      problems.add(new ModuleSetPropertyConflicts(reconciliation.conflicts()));
     }
     problems.addAll(
       historyMismatches
@@ -67,64 +52,28 @@ final class ModuleSetParameterPlanner {
         .sorted(Comparator.comparing(mismatch -> mismatch.key().value()))
         .toList()
     );
-    List<ModuleSetPropertyKey> irrelevantOptions = request
-      .explicitParameters()
+    List<ModuleSetPropertyKey> unusedParameters = unusedExplicitParameters(reconciliation.definitions(), explicitParameters);
+    if (!unusedParameters.isEmpty()) {
+      problems.add(new UnusedExplicitModuleSetParameters(unusedParameters));
+    }
+    return List.copyOf(problems);
+  }
+
+  private static List<ModuleSetPropertyKey> unusedExplicitParameters(
+    List<ModuleSetPropertyDefinition> definitions,
+    ExplicitModuleSetParameters explicitParameters
+  ) {
+    Set<ModuleSetPropertyKey> definedKeys = definitions
+      .stream()
+      .map(ModuleSetPropertyDefinition::key)
+      .collect(Collectors.toUnmodifiableSet());
+    return explicitParameters
       .values()
       .keySet()
       .stream()
-      .filter(key -> !definitionsByKey.containsKey(key))
+      .filter(key -> !definedKeys.contains(key))
       .sorted(Comparator.comparing(ModuleSetPropertyKey::value))
       .toList();
-    if (!irrelevantOptions.isEmpty()) {
-      problems.add(new UnusedExplicitModuleSetParameters(irrelevantOptions));
-    }
-    return new ParameterPlanning(resolvedParameters, missingRequiredParameters, problems);
-  }
-
-  private static PropertyReconciliation reconcile(List<ModuleSetPropertyDefinition> definitions) {
-    ModuleSetPropertyDefinition first = definitions.getFirst();
-    List<ModuleSetPropertyDefaultValue> defaults = definitions
-      .stream()
-      .flatMap(definition -> definition.defaultValue().stream())
-      .distinct()
-      .sorted(Comparator.comparing(ModuleSetPropertyDefaultValue::literal))
-      .toList();
-    List<ModuleSetPropertyDescription> descriptions = definitions
-      .stream()
-      .flatMap(definition -> definition.description().stream())
-      .distinct()
-      .sorted(Comparator.comparing(ModuleSetPropertyDescription::value))
-      .toList();
-    List<ModuleSetPropertyConflict> conflicts = new ArrayList<>();
-    if (defaults.size() > 1) {
-      conflicts.add(new ModuleSetPropertyDefaultConflict(first.key(), defaults));
-    }
-    if (descriptions.size() > 1) {
-      conflicts.add(new ModuleSetPropertyDescriptionConflict(first.key(), descriptions));
-    }
-    return new PropertyReconciliation(
-      new ModuleSetPropertyDefinition(
-        first.key(),
-        first.type(),
-        definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
-          ? ModuleSetPropertyRequirement.REQUIRED
-          : ModuleSetPropertyRequirement.OPTIONAL,
-        descriptions.size() == 1 ? Optional.of(descriptions.getFirst()) : Optional.empty(),
-        defaults.size() == 1 ? Optional.of(defaults.getFirst()) : Optional.empty(),
-        definitions
-          .stream()
-          .flatMap(definition -> definition.completionCandidates().stream())
-          .distinct()
-          .toList()
-      ),
-      conflicts
-    );
-  }
-
-  private record PropertyReconciliation(ModuleSetPropertyDefinition definition, List<ModuleSetPropertyConflict> conflicts) {
-    private PropertyReconciliation {
-      conflicts = List.copyOf(conflicts);
-    }
   }
 
   record ParameterPlanning(
