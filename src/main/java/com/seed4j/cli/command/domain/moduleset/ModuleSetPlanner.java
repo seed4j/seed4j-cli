@@ -57,9 +57,9 @@ public class ModuleSetPlanner {
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
     List<ModuleSetPlanningProblem> problems = new ArrayList<>();
-    List<String> duplicateModules = duplicates(request.requestedModules().modules());
+    List<ModuleSetSlug> duplicateModules = duplicates(request.requestedModules().modules());
     if (!duplicateModules.isEmpty()) {
-      problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.DUPLICATE_MODULES, duplicateModules));
+      problems.add(new DuplicateRequestedModuleSetModules(duplicateModules));
     }
 
     Map<ModuleSetSlug, ModuleSetModule> modulesBySlug = catalog
@@ -67,17 +67,16 @@ public class ModuleSetPlanner {
       .stream()
       .collect(Collectors.toMap(ModuleSetModule::slug, Function.identity()));
     Set<ModuleSetSlug> knownModules = modulesBySlug.keySet();
-    List<String> unknownModules = request
+    List<ModuleSetSlug> unknownModules = request
       .requestedModules()
       .modules()
       .stream()
       .filter(module -> !knownModules.contains(module))
-      .map(ModuleSetSlug::value)
       .distinct()
-      .sorted()
+      .sorted(Comparator.comparing(ModuleSetSlug::value))
       .toList();
     if (!unknownModules.isEmpty()) {
-      problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.UNKNOWN_MODULES, unknownModules));
+      problems.add(new UnknownRequestedModuleSetModules(unknownModules));
     }
 
     boolean requestedModulesValid = unknownModules.isEmpty() && duplicateModules.isEmpty();
@@ -88,14 +87,6 @@ public class ModuleSetPlanner {
     if (!executionOrder.isEmpty()) {
       ModuleSetPlanningHistory history = historyReader.history(request.projectPath());
       dependencyValidations = dependencyPlanner.plan(executionOrder, modulesBySlug, history);
-      List<String> missingDependencies = dependencyValidations
-        .stream()
-        .filter(validation -> validation.status() == ModuleSetDependencyStatus.MISSING)
-        .map(validation -> validation.dependency().token())
-        .toList();
-      if (!missingDependencies.isEmpty()) {
-        problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.MISSING_DEPENDENCY, missingDependencies));
-      }
       ModuleSetParameterPlanner.ParameterPlanning parameterPlanning = parameterPlanner.plan(
         executionOrder,
         modulesBySlug,
@@ -105,17 +96,6 @@ public class ModuleSetPlanner {
       resolvedParameters = parameterPlanning.resolvedParameters();
       missingRequiredParameters = parameterPlanning.missingRequiredParameters();
       problems.addAll(parameterPlanning.problems());
-      if (!missingRequiredParameters.isEmpty()) {
-        problems.add(
-          new ModuleSetPlanningProblem(
-            ModuleSetPlanningProblemType.MISSING_REQUIRED_PARAMETER,
-            missingRequiredParameters
-              .stream()
-              .map(parameter -> parameter.key().value())
-              .toList()
-          )
-        );
-      }
     }
 
     return new ModuleSetPlan(
@@ -129,14 +109,14 @@ public class ModuleSetPlanner {
     );
   }
 
-  private static List<String> duplicates(List<ModuleSetSlug> requestedModules) {
+  private static List<ModuleSetSlug> duplicates(List<ModuleSetSlug> requestedModules) {
     Set<ModuleSetSlug> seen = new HashSet<>();
-    Set<String> duplicates = new LinkedHashSet<>();
+    Set<ModuleSetSlug> duplicates = new LinkedHashSet<>();
     requestedModules.forEach(module -> {
       if (!seen.add(module)) {
-        duplicates.add(module.value());
+        duplicates.add(module);
       }
     });
-    return duplicates.stream().sorted().toList();
+    return duplicates.stream().sorted(Comparator.comparing(ModuleSetSlug::value)).toList();
   }
 }

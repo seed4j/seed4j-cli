@@ -11,12 +11,14 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblemType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
@@ -24,6 +26,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
+import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +107,7 @@ class ModuleSetPlanningApplicationServiceTest {
       .satisfies(parameter -> {
         assertThat(parameter.key()).isEqualTo(packageName);
         assertThat(parameter.value()).isEqualTo("com.explicit");
-        assertThat(parameter.source()).isEqualTo(ModuleSetPropertySource.EXPLICIT_CLI);
+        assertThat(parameter.source()).isEqualTo(ModuleSetPropertySource.EXPLICIT_INPUT);
       });
     assertThat(plan.missingRequiredParameters()).isEmpty();
     assertThat(plan.valid()).isTrue();
@@ -149,15 +152,20 @@ class ModuleSetPlanningApplicationServiceTest {
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.PROPERTY_CONFLICT)
-      .singleElement()
-      .satisfies(problem ->
-        assertThat(problem.values()).containsExactly(
-          "shared: conflicting defaults (first-default, second-default)",
-          "shared: conflicting descriptions (First description, Second description)"
+    assertThat(plan.problems()).containsExactly(
+      new ModuleSetPropertyConflicts(
+        List.of(
+          new ModuleSetPropertyDefaultConflict(
+            shared,
+            List.of(new ModuleSetPropertyDefaultValue("first-default"), new ModuleSetPropertyDefaultValue("second-default"))
+          ),
+          new ModuleSetPropertyDescriptionConflict(
+            shared,
+            List.of(new ModuleSetPropertyDescription("First description"), new ModuleSetPropertyDescription("Second description"))
+          )
         )
-      );
+      )
+    );
     assertThat(plan.missingRequiredParameters())
       .extracting(parameter -> parameter.key().value())
       .containsExactly("shared");
@@ -195,10 +203,7 @@ class ModuleSetPlanningApplicationServiceTest {
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.IRRELEVANT_OPTION)
-      .singleElement()
-      .satisfies(problem -> assertThat(problem.values()).containsExactly("--unused-property"));
+    assertThat(plan.problems()).containsExactly(new UnusedExplicitModuleSetParameters(List.of(unused)));
     assertThat(plan.valid()).isFalse();
   }
 
@@ -401,10 +406,7 @@ class ModuleSetPlanningApplicationServiceTest {
         assertThat(validation.status()).isEqualTo(ModuleSetDependencyStatus.MISSING);
         assertThat(validation.requiredBy()).containsExactly(consumer);
       });
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.MISSING_DEPENDENCY)
-      .singleElement()
-      .satisfies(problem -> assertThat(problem.values()).containsExactly("module:missing-module"));
+    assertThat(plan.problems()).isEmpty();
     assertThat(plan.valid()).isFalse();
   }
 

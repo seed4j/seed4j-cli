@@ -18,7 +18,7 @@ final class ModuleSetParameterPlanner {
       .forEach(definition -> definitionsByKey.computeIfAbsent(definition.key(), ignored -> new ArrayList<>()).add(definition));
     List<ResolvedModuleSetParameter> resolvedParameters = new ArrayList<>();
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
-    List<String> propertyConflicts = new ArrayList<>();
+    List<ModuleSetPropertyConflict> propertyConflicts = new ArrayList<>();
     for (List<ModuleSetPropertyDefinition> definitions : definitionsByKey.values()) {
       PropertyReconciliation reconciliation = reconcile(definitions);
       ModuleSetPropertyDefinition definition = reconciliation.definition();
@@ -29,7 +29,7 @@ final class ModuleSetParameterPlanner {
           new ResolvedModuleSetParameter(
             key,
             request.explicitParameters().values().get(key),
-            ModuleSetPropertySource.EXPLICIT_CLI,
+            ModuleSetPropertySource.EXPLICIT_INPUT,
             definition
           )
         );
@@ -49,45 +49,42 @@ final class ModuleSetParameterPlanner {
     }
     List<ModuleSetPlanningProblem> problems = new ArrayList<>();
     if (!propertyConflicts.isEmpty()) {
-      problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.PROPERTY_CONFLICT, propertyConflicts));
+      problems.add(new ModuleSetPropertyConflicts(propertyConflicts));
     }
-    List<String> irrelevantOptions = request
+    List<ModuleSetPropertyKey> irrelevantOptions = request
       .explicitParameters()
       .values()
       .keySet()
       .stream()
       .filter(key -> !definitionsByKey.containsKey(key))
-      .map(ModuleSetParameterPlanner::cliOption)
-      .sorted()
+      .sorted(Comparator.comparing(ModuleSetPropertyKey::value))
       .toList();
     if (!irrelevantOptions.isEmpty()) {
-      problems.add(new ModuleSetPlanningProblem(ModuleSetPlanningProblemType.IRRELEVANT_OPTION, irrelevantOptions));
+      problems.add(new UnusedExplicitModuleSetParameters(irrelevantOptions));
     }
     return new ParameterPlanning(resolvedParameters, missingRequiredParameters, problems);
   }
 
   private static PropertyReconciliation reconcile(List<ModuleSetPropertyDefinition> definitions) {
     ModuleSetPropertyDefinition first = definitions.getFirst();
-    List<String> defaults = definitions
+    List<ModuleSetPropertyDefaultValue> defaults = definitions
       .stream()
       .flatMap(definition -> definition.defaultValue().stream())
-      .map(ModuleSetPropertyDefaultValue::value)
       .distinct()
-      .sorted()
+      .sorted(Comparator.comparing(ModuleSetPropertyDefaultValue::value))
       .toList();
-    List<String> descriptions = definitions
+    List<ModuleSetPropertyDescription> descriptions = definitions
       .stream()
       .flatMap(definition -> definition.description().stream())
-      .map(ModuleSetPropertyDescription::value)
       .distinct()
-      .sorted()
+      .sorted(Comparator.comparing(ModuleSetPropertyDescription::value))
       .toList();
-    List<String> conflicts = new ArrayList<>();
+    List<ModuleSetPropertyConflict> conflicts = new ArrayList<>();
     if (defaults.size() > 1) {
-      conflicts.add("%s: conflicting defaults (%s)".formatted(first.key().value(), String.join(", ", defaults)));
+      conflicts.add(new ModuleSetPropertyDefaultConflict(first.key(), defaults));
     }
     if (descriptions.size() > 1) {
-      conflicts.add("%s: conflicting descriptions (%s)".formatted(first.key().value(), String.join(", ", descriptions)));
+      conflicts.add(new ModuleSetPropertyDescriptionConflict(first.key(), descriptions));
     }
     return new PropertyReconciliation(
       new ModuleSetPropertyDefinition(
@@ -96,8 +93,8 @@ final class ModuleSetParameterPlanner {
         definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
           ? ModuleSetPropertyRequirement.REQUIRED
           : ModuleSetPropertyRequirement.OPTIONAL,
-        descriptions.size() == 1 ? Optional.of(new ModuleSetPropertyDescription(descriptions.getFirst())) : Optional.empty(),
-        defaults.size() == 1 ? Optional.of(new ModuleSetPropertyDefaultValue(defaults.getFirst())) : Optional.empty(),
+        descriptions.size() == 1 ? Optional.of(descriptions.getFirst()) : Optional.empty(),
+        defaults.size() == 1 ? Optional.of(defaults.getFirst()) : Optional.empty(),
         definitions
           .stream()
           .flatMap(definition -> definition.completionCandidates().stream())
@@ -108,19 +105,7 @@ final class ModuleSetParameterPlanner {
     );
   }
 
-  private static String cliOption(ModuleSetPropertyKey key) {
-    StringBuilder option = new StringBuilder("--");
-    for (char character : key.value().toCharArray()) {
-      if (Character.isUpperCase(character)) {
-        option.append('-').append(Character.toLowerCase(character));
-      } else {
-        option.append(character);
-      }
-    }
-    return option.toString();
-  }
-
-  private record PropertyReconciliation(ModuleSetPropertyDefinition definition, List<String> conflicts) {
+  private record PropertyReconciliation(ModuleSetPropertyDefinition definition, List<ModuleSetPropertyConflict> conflicts) {
     private PropertyReconciliation {
       conflicts = List.copyOf(conflicts);
     }

@@ -28,6 +28,10 @@ public record ModuleSetPlan(
   }
 
   public boolean valid() {
-    return problems.isEmpty();
+    return (
+      problems.isEmpty()
+      && missingRequiredParameters.isEmpty()
+      && dependencyValidations.stream().noneMatch(validation -> validation.status() == ModuleSetDependencyStatus.MISSING)
+    );
   }
 }

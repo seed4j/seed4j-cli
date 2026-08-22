@@ -1,29 +1,23 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyValidation;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblemType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
+import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.util.List;
-import java.util.Map;
 
 class ApplyModuleSetPlanRenderer {
-
-  private static final Map<ModuleSetPlanningProblemType, String> PROBLEM_LABELS = Map.of(
-    ModuleSetPlanningProblemType.DUPLICATE_MODULES,
-    "Duplicate requested modules",
-    ModuleSetPlanningProblemType.UNKNOWN_MODULES,
-    "Unknown requested modules",
-    ModuleSetPlanningProblemType.PROPERTY_CONFLICT,
-    "Property conflicts",
-    ModuleSetPlanningProblemType.IRRELEVANT_OPTION,
-    "Options not used by requested modules"
-  );
 
   String render(ModuleSetPlan plan) {
     StringBuilder output = new StringBuilder("Plan for module set\n\n");
@@ -112,7 +106,7 @@ class ApplyModuleSetPlanRenderer {
 
   private static String source(ModuleSetPropertySource source) {
     return switch (source) {
-      case EXPLICIT_CLI -> "explicit CLI input";
+      case EXPLICIT_INPUT -> "explicit CLI input";
       case PROJECT_HISTORY -> "project history";
       case DEFAULT -> "default (informational)";
     };
@@ -137,17 +131,65 @@ class ApplyModuleSetPlanRenderer {
   }
 
   private static void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
-    List<ModuleSetPlanningProblem> otherProblems = problems
-      .stream()
-      .filter(problem -> PROBLEM_LABELS.containsKey(problem.type()))
-      .toList();
-    if (otherProblems.isEmpty()) {
+    if (problems.isEmpty()) {
       return;
     }
     output.append("Validation problems:\n");
-    otherProblems.forEach(problem ->
-      output.append("  ○ ").append(PROBLEM_LABELS.get(problem.type())).append(": ").append(String.join(", ", problem.values())).append('\n')
-    );
+    problems.forEach(problem -> appendProblem(output, problem));
     output.append('\n');
+  }
+
+  private static void appendProblem(StringBuilder output, ModuleSetPlanningProblem problem) {
+    switch (problem) {
+      case DuplicateRequestedModuleSetModules duplicateModules -> appendProblemValues(
+        output,
+        "Duplicate requested modules",
+        duplicateModules.modules().stream().map(ModuleSetSlug::value).toList()
+      );
+      case UnknownRequestedModuleSetModules unknownModules -> appendProblemValues(
+        output,
+        "Unknown requested modules",
+        unknownModules.modules().stream().map(ModuleSetSlug::value).toList()
+      );
+      case ModuleSetPropertyConflicts propertyConflicts -> appendProblemValues(
+        output,
+        "Property conflicts",
+        propertyConflicts.conflicts().stream().map(ApplyModuleSetPlanRenderer::propertyConflict).toList()
+      );
+      case UnusedExplicitModuleSetParameters unusedParameters -> appendProblemValues(
+        output,
+        "Options not used by requested modules",
+        unusedParameters
+          .keys()
+          .stream()
+          .map(key -> ModulePropertyOptionSpecFactory.toDashedFormat(key.value()))
+          .toList()
+      );
+    }
+  }
+
+  private static String propertyConflict(ModuleSetPropertyConflict conflict) {
+    return switch (conflict) {
+      case ModuleSetPropertyDefaultConflict defaultConflict -> "%s: conflicting defaults (%s)".formatted(
+        defaultConflict.key().value(),
+        defaultConflict
+          .defaults()
+          .stream()
+          .map(defaultValue -> defaultValue.value())
+          .collect(java.util.stream.Collectors.joining(", "))
+      );
+      case ModuleSetPropertyDescriptionConflict descriptionConflict -> "%s: conflicting descriptions (%s)".formatted(
+        descriptionConflict.key().value(),
+        descriptionConflict
+          .descriptions()
+          .stream()
+          .map(description -> description.value())
+          .collect(java.util.stream.Collectors.joining(", "))
+      );
+    };
+  }
+
+  private static void appendProblemValues(StringBuilder output, String label, List<String> values) {
+    output.append("  ○ ").append(label).append(": ").append(String.join(", ", values)).append('\n');
   }
 }
