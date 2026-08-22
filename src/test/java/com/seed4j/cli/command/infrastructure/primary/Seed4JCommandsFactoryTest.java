@@ -33,15 +33,19 @@ import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -629,8 +633,10 @@ class Seed4JCommandsFactoryTest {
         .contains("No changes were applied.");
     }
 
-    @Test
-    void shouldRejectRelevantUnsupportedHistoryType(CapturedOutput output) throws IOException {
+    @ParameterizedTest
+    @MethodSource("unsupportedHistoryValues")
+    @NullSource
+    void shouldRejectRelevantUnsupportedHistoryType(Object unsupportedHistoryValue, CapturedOutput output) throws IOException {
       ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
       ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
       ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
@@ -646,13 +652,12 @@ class Seed4JCommandsFactoryTest {
         List.of(moduleSlug)
       );
       Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-unsupported-history-");
+      Map<String, Object> parameters = new HashMap<>();
+      parameters.put(indentSize.value(), unsupportedHistoryValue);
       projects.append(
         new ProjectActionToAppend(
           new ProjectPath(projectPath.toString()),
-          ProjectAction.builder()
-            .module("history-fixture")
-            .date(Instant.EPOCH)
-            .parameters(Map.of(indentSize.value(), List.of(2)))
+          ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(parameters)
         )
       );
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
@@ -671,6 +676,10 @@ class Seed4JCommandsFactoryTest {
         .doesNotContain("✓ indentSize:")
         .contains("Status: INVALID")
         .contains("No changes were applied.");
+    }
+
+    private static Stream<Object> unsupportedHistoryValues() {
+      return Stream.of(List.of(2));
     }
 
     @Test
@@ -709,6 +718,47 @@ class Seed4JCommandsFactoryTest {
         .contains("✓ featureEnabled: true")
         .contains("Source: project history")
         .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRejectBooleanHistoryForIntegerPropertyAtSeed4JBoundary(CapturedOutput output) throws IOException {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-boolean-mismatch-");
+      projects.append(
+        new ProjectActionToAppend(
+          new ProjectPath(projectPath.toString()),
+          ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(Map.of(indentSize.value(), true))
+        )
+      );
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        catalog,
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains(
+          "Project history parameter type mismatch: indentSize expects INTEGER but history contains BOOLEAN; pass --indent-size to override the stored value"
+        )
+        .doesNotContain("✓ indentSize:")
+        .contains("Status: INVALID")
         .contains("No changes were applied.");
     }
 
