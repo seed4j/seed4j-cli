@@ -17,24 +17,14 @@ final class ModuleSetParameterPlanner {
     ModuleSetHistoryParameters historyParameters
   ) {
     ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation = definitionReconciler.reconcile(selectedModules);
-    List<ResolvedModuleSetParameter> resolvedParameters = new ArrayList<>();
-    List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
-    List<ModuleSetHistoryParameterTypeMismatch> historyMismatches = new ArrayList<>();
-    for (ModuleSetParameterResolution resolution : parameterResolver.resolve(
-      reconciliation.definitions(),
-      explicitParameters,
-      historyParameters
-    )) {
-      switch (resolution) {
-        case ModuleSetParameterResolution.Resolved resolved -> resolvedParameters.add(resolved.parameter());
-        case ModuleSetParameterResolution.RequiredMissing missing -> missingRequiredParameters.add(missing.parameter());
-        case ModuleSetParameterResolution.HistoryIncompatible incompatible -> historyMismatches.add(incompatible.mismatch());
-        case ModuleSetParameterResolution.OptionalWithoutValue _ -> {
-        }
-      }
-    }
-    List<ModuleSetPlanningProblem> problems = planningProblems(reconciliation, historyMismatches, explicitParameters);
-    return new ParameterPlanning(resolvedParameters, missingRequiredParameters, problems);
+    ModuleSetParameterResolutionSummary resolutions = ModuleSetParameterResolutionSummary.from(
+      parameterResolver.resolve(reconciliation.definitions(), explicitParameters, historyParameters)
+    );
+    return new ParameterPlanning(
+      resolutions.resolvedParameters(),
+      resolutions.missingRequiredParameters(),
+      planningProblems(reconciliation, resolutions.historyMismatches(), explicitParameters)
+    );
   }
 
   private static List<ModuleSetPlanningProblem> planningProblems(

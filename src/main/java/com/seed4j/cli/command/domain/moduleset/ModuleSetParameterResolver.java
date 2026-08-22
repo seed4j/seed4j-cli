@@ -2,7 +2,7 @@ package com.seed4j.cli.command.domain.moduleset;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 final class ModuleSetParameterResolver {
 
@@ -13,27 +13,44 @@ final class ModuleSetParameterResolver {
   ) {
     List<ModuleSetParameterResolution> resolutions = new ArrayList<>();
     for (ModuleSetPropertyDefinition definition : definitions) {
-      resolutions.add(resolve(definition, explicitParameters.values(), historyParameters));
+      resolutions.add(resolve(definition, explicitParameters, historyParameters));
     }
     return List.copyOf(resolutions);
   }
 
   private static ModuleSetParameterResolution resolve(
     ModuleSetPropertyDefinition definition,
-    Map<ModuleSetPropertyKey, ModuleSetParameterValue> explicitParameters,
+    ExplicitModuleSetParameters explicitParameters,
+    ModuleSetHistoryParameters historyParameters
+  ) {
+    return Optional.ofNullable(explicitParameters.values().get(definition.key()))
+      .<ModuleSetParameterResolution>map(value -> resolved(definition, value, ModuleSetPropertySource.EXPLICIT_INPUT))
+      .orElseGet(() -> resolveHistory(definition, historyParameters));
+  }
+
+  private static ModuleSetParameterResolution resolveHistory(
+    ModuleSetPropertyDefinition definition,
+    ModuleSetHistoryParameters historyParameters
+  ) {
+    return Optional.ofNullable(historyParameters.recognizedValues().get(definition.key()))
+      .map(historyValue -> resolveRecognizedHistory(definition, historyValue))
+      .orElseGet(() -> resolveWithoutRecognizedHistory(definition, historyParameters));
+  }
+
+  private static ModuleSetParameterResolution resolveRecognizedHistory(
+    ModuleSetPropertyDefinition definition,
+    ModuleSetParameterValue historyValue
+  ) {
+    return historyValue.type() == definition.type()
+      ? resolved(definition, historyValue, ModuleSetPropertySource.PROJECT_HISTORY)
+      : incompatible(definition, ModuleSetHistoryParameterValueType.from(historyValue.type()));
+  }
+
+  private static ModuleSetParameterResolution resolveWithoutRecognizedHistory(
+    ModuleSetPropertyDefinition definition,
     ModuleSetHistoryParameters historyParameters
   ) {
     ModuleSetPropertyKey key = definition.key();
-    if (explicitParameters.containsKey(key)) {
-      return resolved(definition, explicitParameters.get(key), ModuleSetPropertySource.EXPLICIT_INPUT);
-    }
-    if (historyParameters.recognizedValues().containsKey(key)) {
-      ModuleSetParameterValue historyValue = historyParameters.recognizedValues().get(key);
-      if (historyValue.type() == definition.type()) {
-        return resolved(definition, historyValue, ModuleSetPropertySource.PROJECT_HISTORY);
-      }
-      return incompatible(definition, ModuleSetHistoryParameterValueType.from(historyValue.type()));
-    }
     if (historyParameters.containsUnsupported(key)) {
       return incompatible(definition, ModuleSetHistoryParameterValueType.UNSUPPORTED);
     }
