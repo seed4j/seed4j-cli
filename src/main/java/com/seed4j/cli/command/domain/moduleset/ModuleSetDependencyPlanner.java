@@ -181,7 +181,7 @@ final class ModuleSetDependencyPlanner {
       return requiringModules
         .stream()
         .map(positions::get)
-        .allMatch(requiredPosition -> requiredPosition != null && candidatePosition < requiredPosition);
+        .allMatch(requiredPosition -> candidatePosition < requiredPosition);
     }
   }
 }
