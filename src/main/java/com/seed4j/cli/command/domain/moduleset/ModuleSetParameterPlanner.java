@@ -18,6 +18,7 @@ final class ModuleSetParameterPlanner {
       .forEach(definition -> definitionsByKey.computeIfAbsent(definition.key(), ignored -> new ArrayList<>()).add(definition));
     List<ResolvedModuleSetParameter> resolvedParameters = new ArrayList<>();
     List<MissingRequiredModuleSetParameter> missingRequiredParameters = new ArrayList<>();
+    List<ModuleSetHistoryParameterTypeMismatch> historyMismatches = new ArrayList<>();
     List<ModuleSetPropertyConflict> propertyConflicts = new ArrayList<>();
     for (List<ModuleSetPropertyDefinition> definitions : definitionsByKey.values()) {
       PropertyReconciliation reconciliation = reconcile(definitions);
@@ -34,8 +35,17 @@ final class ModuleSetParameterPlanner {
           )
         );
       } else if (history.parameters().containsKey(key)) {
-        resolvedParameters.add(
-          new ResolvedModuleSetParameter(key, history.parameters().get(key), ModuleSetPropertySource.PROJECT_HISTORY, definition)
+        ModuleSetParameterValue historyValue = history.parameters().get(key);
+        if (historyValue.type() == definition.type()) {
+          resolvedParameters.add(new ResolvedModuleSetParameter(key, historyValue, ModuleSetPropertySource.PROJECT_HISTORY, definition));
+        } else {
+          historyMismatches.add(
+            new ModuleSetHistoryParameterTypeMismatch(key, definition.type(), ModuleSetHistoryParameterValueType.from(historyValue.type()))
+          );
+        }
+      } else if (history.unsupportedParameter(key).isPresent()) {
+        historyMismatches.add(
+          new ModuleSetHistoryParameterTypeMismatch(key, definition.type(), ModuleSetHistoryParameterValueType.UNSUPPORTED)
         );
       } else if (definition.mandatory()) {
         missingRequiredParameters.add(new MissingRequiredModuleSetParameter(key));
@@ -51,6 +61,12 @@ final class ModuleSetParameterPlanner {
     if (!propertyConflicts.isEmpty()) {
       problems.add(new ModuleSetPropertyConflicts(propertyConflicts));
     }
+    problems.addAll(
+      historyMismatches
+        .stream()
+        .sorted(Comparator.comparing(mismatch -> mismatch.key().value()))
+        .toList()
+    );
     List<ModuleSetPropertyKey> irrelevantOptions = request
       .explicitParameters()
       .values()
@@ -71,7 +87,7 @@ final class ModuleSetParameterPlanner {
       .stream()
       .flatMap(definition -> definition.defaultValue().stream())
       .distinct()
-      .sorted(Comparator.comparing(ModuleSetPropertyDefaultValue::value))
+      .sorted(Comparator.comparing(ModuleSetPropertyDefaultValue::literal))
       .toList();
     List<ModuleSetPropertyDescription> descriptions = definitions
       .stream()

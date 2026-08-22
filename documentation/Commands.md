@@ -327,10 +327,17 @@ Defaults for mandatory properties remain informational and do not satisfy the re
 input directly to the global option's declared type and rejects invalid typed values before planning. Passing a known
 property option that none of the selected modules uses invalidates the plan.
 
+A project-history value is reused only when its stored type matches the selected property type. A relevant mismatch
+invalidates the plan without falling back to a default or also reporting the property as missing. The diagnostic names
+the expected and stored types and tells the caller which explicit option overrides the stored value; a correctly typed
+explicit value therefore takes precedence over incompatible history. History keys unused by the selected modules remain
+irrelevant and do not invalidate the plan. History values outside Seed4J's `STRING`, `INTEGER`, and `BOOLEAN` variants are
+reported as an unsupported value type when their key is relevant.
+
 The planner aggregates all predictable post-resolution problems, including recursive dependencies, feature choices,
-property conflicts, irrelevant options, and every missing required parameter. A valid plan writes the
-structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or complete
-plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
+property conflicts, irrelevant options, history type mismatches, and every missing required parameter. A valid plan
+writes the structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or
+complete plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
 
 ```text
 Plan for module set

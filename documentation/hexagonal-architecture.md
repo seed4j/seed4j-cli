@@ -138,7 +138,7 @@ A secondary adapter must not call its own bounded context's application layer. I
 
 The read-only `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is a primary Picocli
 adapter: it creates the global options before parsing, lets Picocli produce their declared value types, and converts module
-slugs, the user-visible project path, and property keys into module-set domain types before calling
+slugs, the user-visible project path, property keys, and parsed property values into module-set domain types before calling
 `ModuleSetPlanningApplicationService`. The primary adapter does not call the Seed4J core application services directly.
 
 `ModuleSetPlanningApplicationService` orchestrates the immutable module-set request and produces a reusable
@@ -148,9 +148,13 @@ whose implementation calls `Seed4JLandscape.sort(...)`; the CLI does not reprodu
 
 The domain capability interfaces are `ModuleSetCatalog` and `ModuleSetPlanningHistoryReader`.
 `Seed4JModuleSetCatalog` is a secondary adapter around `Seed4JModulesApplicationService`; it translates visible module
-resources, dependency metadata, features, properties, and landscape ordering into CLI-owned domain values.
+resources, dependency metadata, features, properties, and landscape ordering into CLI-owned domain values. Textual catalog
+defaults are converted according to their declared `STRING`, `INTEGER`, or `BOOLEAN` type while retaining the original
+literal for conflict detection, help, and completion.
 `ProjectsModuleSetPlanningHistoryReader` is a secondary adapter around `ProjectsApplicationService`; it translates applied
-module history and latest properties without exposing persistence paths or `.seed4j` layout to application or domain.
+module history and latest Java/JSON scalar properties into the same closed parameter-value variants without exposing
+persistence paths or `.seed4j` layout to application or domain. Values outside those variants become structured unsupported
+history facts so the domain never receives a raw `Object`.
 Both adapters are Spring components and receive those external application services directly through their constructors.
 
 The resulting dependency direction is:

@@ -1,9 +1,12 @@
 package com.seed4j.cli.command.infrastructure.secondary;
 
+import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
@@ -11,6 +14,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
@@ -60,17 +64,38 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
   }
 
   private static ModuleSetPropertyDefinition property(Seed4JModulePropertyDefinition definition) {
+    ModuleSetPropertyType type = propertyType(definition.type());
     return new ModuleSetPropertyDefinition(
       new ModuleSetPropertyKey(definition.key().get()),
-      propertyType(definition.type()),
+      type,
       definition.isMandatory() ? ModuleSetPropertyRequirement.REQUIRED : ModuleSetPropertyRequirement.OPTIONAL,
       definition.description().map(description -> new ModuleSetPropertyDescription(description.get())),
-      definition.defaultValue().map(defaultValue -> new ModuleSetPropertyDefaultValue(defaultValue.get())),
+      definition.defaultValue().map(defaultValue -> defaultValue(type, defaultValue.get())),
       definition
         .defaultValue()
         .map(defaultValue -> List.of(defaultValue.get()))
         .orElseGet(List::of)
     );
+  }
+
+  private static ModuleSetPropertyDefaultValue defaultValue(ModuleSetPropertyType type, String literal) {
+    return new ModuleSetPropertyDefaultValue(parameterValue(type, literal), literal);
+  }
+
+  private static ModuleSetParameterValue parameterValue(ModuleSetPropertyType type, String literal) {
+    return switch (type) {
+      case STRING -> new ModuleSetStringParameterValue(literal);
+      case INTEGER -> new ModuleSetIntegerParameterValue(Integer.valueOf(literal));
+      case BOOLEAN -> new ModuleSetBooleanParameterValue(booleanValue(literal));
+    };
+  }
+
+  private static boolean booleanValue(String literal) {
+    return switch (literal) {
+      case "true" -> true;
+      case "false" -> false;
+      default -> throw new IllegalArgumentException("Invalid BOOLEAN module set property default: " + literal);
+    };
   }
 
   private static ModuleSetPropertyType propertyType(Seed4JPropertyType type) {

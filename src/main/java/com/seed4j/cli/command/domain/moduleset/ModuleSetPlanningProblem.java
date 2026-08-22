@@ -5,4 +5,5 @@ public sealed interface ModuleSetPlanningProblem
     DuplicateRequestedModuleSetModules,
     UnknownRequestedModuleSetModules,
     ModuleSetPropertyConflicts,
+    ModuleSetHistoryParameterTypeMismatch,
     UnusedExplicitModuleSetParameters {}

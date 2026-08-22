@@ -1,9 +1,14 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyValidation;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflict;
@@ -12,6 +17,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
@@ -94,7 +100,7 @@ class ApplyModuleSetPlanRenderer {
         .append("  ✓ ")
         .append(parameter.key().value())
         .append(": ")
-        .append(parameter.value())
+        .append(parameterValue(parameter.value()))
         .append("\n    Source: ")
         .append(source(parameter.source()))
         .append("\n    CLI option: ")
@@ -109,6 +115,14 @@ class ApplyModuleSetPlanRenderer {
       case EXPLICIT_INPUT -> "explicit CLI input";
       case PROJECT_HISTORY -> "project history";
       case DEFAULT -> "default (informational)";
+    };
+  }
+
+  private static String parameterValue(ModuleSetParameterValue value) {
+    return switch (value) {
+      case ModuleSetStringParameterValue stringValue -> stringValue.value();
+      case ModuleSetIntegerParameterValue integerValue -> integerValue.value().toString();
+      case ModuleSetBooleanParameterValue booleanValue -> booleanValue.value().toString();
     };
   }
 
@@ -156,6 +170,16 @@ class ApplyModuleSetPlanRenderer {
         "Property conflicts",
         propertyConflicts.conflicts().stream().map(ApplyModuleSetPlanRenderer::propertyConflict).toList()
       );
+      case ModuleSetHistoryParameterTypeMismatch mismatch -> output
+        .append("  ○ Project history parameter type mismatch: ")
+        .append(mismatch.key().value())
+        .append(" expects ")
+        .append(mismatch.expectedType())
+        .append(" but history contains ")
+        .append(historyType(mismatch.historyType()))
+        .append("; pass ")
+        .append(ModulePropertyOptionSpecFactory.toDashedFormat(mismatch.key().value()))
+        .append(" to override the stored value\n");
       case UnusedExplicitModuleSetParameters unusedParameters -> appendProblemValues(
         output,
         "Options not used by requested modules",
@@ -168,6 +192,13 @@ class ApplyModuleSetPlanRenderer {
     }
   }
 
+  private static String historyType(ModuleSetHistoryParameterValueType type) {
+    return switch (type) {
+      case STRING, INTEGER, BOOLEAN -> type.name();
+      case UNSUPPORTED -> "an unsupported value type";
+    };
+  }
+
   private static String propertyConflict(ModuleSetPropertyConflict conflict) {
     return switch (conflict) {
       case ModuleSetPropertyDefaultConflict defaultConflict -> "%s: conflicting defaults (%s)".formatted(
@@ -175,7 +206,7 @@ class ApplyModuleSetPlanRenderer {
         defaultConflict
           .defaults()
           .stream()
-          .map(defaultValue -> defaultValue.value())
+          .map(defaultValue -> defaultValue.literal())
           .collect(java.util.stream.Collectors.joining(", "))
       );
       case ModuleSetPropertyDescriptionConflict descriptionConflict -> "%s: conflicting descriptions (%s)".formatted(

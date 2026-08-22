@@ -2,12 +2,16 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.domain.moduleset.ExplicitModuleSetParameters;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
@@ -47,7 +51,7 @@ class ApplyModuleSetCommand implements Seed4JCommand {
   private static final class ApplyModuleSetInvocation implements Callable<Integer> {
 
     private final ModuleSetPlanningApplicationService planning;
-    private final Map<String, ModuleSetPropertyKey> propertyKeysByOption = new LinkedHashMap<>();
+    private final Map<String, ModuleSetPropertyDefinition> propertyDefinitionsByOption = new LinkedHashMap<>();
     private final CommandSpec commandSpec;
 
     private ApplyModuleSetInvocation(ModuleSetPlanningApplicationService planning, String commandName) {
@@ -86,7 +90,7 @@ class ApplyModuleSetCommand implements Seed4JCommand {
       ModulePropertyOptionSpecFactory optionsFactory = new ModulePropertyOptionSpecFactory();
       for (ModuleSetPropertyDefinition definition : planning.availableProperties()) {
         OptionSpec option = optionsFactory.moduleSetOption(definition);
-        propertyKeysByOption.put(option.longestName(), definition.key());
+        propertyDefinitionsByOption.put(option.longestName(), definition);
         spec.addOption(option);
       }
     }
@@ -123,13 +127,21 @@ class ApplyModuleSetCommand implements Seed4JCommand {
     }
 
     private ExplicitModuleSetParameters explicitParameters() {
-      Map<ModuleSetPropertyKey, Object> parameters = new LinkedHashMap<>();
-      propertyKeysByOption.forEach((optionName, key) -> {
+      Map<ModuleSetPropertyKey, ModuleSetParameterValue> parameters = new LinkedHashMap<>();
+      propertyDefinitionsByOption.forEach((optionName, definition) -> {
         if (commandSpec.commandLine().getParseResult().hasMatchedOption(optionName)) {
-          parameters.put(key, commandSpec.findOption(optionName).getValue());
+          parameters.put(definition.key(), parameterValue(definition, commandSpec.findOption(optionName).getValue()));
         }
       });
       return new ExplicitModuleSetParameters(parameters);
+    }
+
+    private static ModuleSetParameterValue parameterValue(ModuleSetPropertyDefinition definition, Object value) {
+      return switch (definition.type()) {
+        case STRING -> new ModuleSetStringParameterValue((String) value);
+        case INTEGER -> new ModuleSetIntegerParameterValue((Integer) value);
+        case BOOLEAN -> new ModuleSetBooleanParameterValue((Boolean) value);
+      };
     }
   }
 }
