@@ -154,10 +154,10 @@ class ExtensionRuntimeCommandsTest {
     Files.createDirectories(configPath.getParent());
     Files.createDirectories(runtimeJarPath.getParent());
     String originalConfig = """
-      seed4j:
-        runtime:
-          mode: standard
-      """;
+    seed4j:
+      runtime:
+        mode: standard
+    """;
     Files.writeString(configPath, originalConfig);
     createFatJar(runtimeJarPath);
     String[] args = { "extension", "enable" };

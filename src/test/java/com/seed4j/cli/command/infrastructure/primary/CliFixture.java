@@ -27,10 +27,10 @@ class CliFixture {
 
   private static final Path HISTORY_FILE = Path.of(".seed4j", "modules", "history.json");
   private static final String EMPTY_HISTORY = """
-    {
-      "actions": []
-    }
-    """;
+  {
+    "actions": []
+  }
+  """;
 
   static Path setupProjectTestFolder() throws IOException {
     Path projectPath = Files.createTempDirectory("seed4j-cli-");

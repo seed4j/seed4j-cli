@@ -58,9 +58,9 @@ class Seed4JCommandsFactory {
     RuntimeDisplay runtimeDisplay = runtimeDisplayApplicationService.activeRuntime();
 
     String commonOutput = """
-      Seed4J CLI v%s
-      Seed4J version: %s
-      Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay.mode().name().toLowerCase());
+    Seed4J CLI v%s
+    Seed4J version: %s
+    Runtime mode: %s""".formatted(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay.mode().name().toLowerCase());
 
     if (runtimeDisplay.mode() != RuntimeModeDisplay.EXTENSION) {
       return commonOutput;

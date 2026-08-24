@@ -35,10 +35,10 @@ import java.util.jar.Manifest;
 public final class ExtensionRuntimeFixture {
 
   private static final String EXTENSION_MODE_CONFIG = """
-    seed4j:
-      runtime:
-        mode: extension
-    """;
+  seed4j:
+    runtime:
+      mode: extension
+  """;
   private static final String CONFIG_FILE_LOCATION = ".config/seed4j-cli/config.yml";
   private static final String RUNTIME_DIRECTORY_LOCATION = ".config/seed4j-cli/runtime/active";
   private static final String METADATA_RESOURCE_LOCATION = "runtime/extension/metadata.yml";
@@ -54,76 +54,76 @@ public final class ExtensionRuntimeFixture {
   private static final String EXTENSION_COMMON_DEPENDENCIES_ENTRY = "BOOT-INF/classes/generator/dependencies/common/package.json";
   private static final String EXTENSION_PRETTIER_TEMPLATE_ENTRY = "BOOT-INF/classes/generator/prettier/.prettierrc.mustache";
   private static final String EXTENSION_COMMON_DEPENDENCIES_OVERRIDE = """
-    {
-      "dependencies": {
-        "@prettier/plugin-xml": "3.4.2",
-        "husky": "9.1.7",
-        "lint-staged": "16.2.7",
-        "node": "24.12.0",
-        "npm": "11.7.0",
-        "prettier": "3.6.2",
-        "prettier-plugin-gherkin": "3.1.3",
-        "prettier-plugin-java": "2.7.7",
-        "prettier-plugin-organize-imports": "4.3.0",
-        "prettier-plugin-packagejson": "2.5.20"
-      }
+  {
+    "dependencies": {
+      "@prettier/plugin-xml": "3.4.2",
+      "husky": "9.1.7",
+      "lint-staged": "16.2.7",
+      "node": "24.12.0",
+      "npm": "11.7.0",
+      "prettier": "3.6.2",
+      "prettier-plugin-gherkin": "3.1.3",
+      "prettier-plugin-java": "2.7.7",
+      "prettier-plugin-organize-imports": "4.3.0",
+      "prettier-plugin-packagejson": "2.5.20"
     }
-    """;
+  }
+  """;
   private static final String EXTENSION_PRETTIER_TEMPLATE_OVERRIDE = """
-    # seed4j-extension-template-override
+  # seed4j-extension-template-override
 
-    printWidth: 140
-    singleQuote: true
-    tabWidth: {{indentSize}}
-    useTabs: false
-    endOfLine: '{{endOfLine}}'
-    """;
+  printWidth: 140
+  singleQuote: true
+  tabWidth: {{indentSize}}
+  useTabs: false
+  endOfLine: '{{endOfLine}}'
+  """;
   private static final String EXTENSION_APPLICATION_YML = """
-    logging:
-      level:
-        root: INFO
-      pattern:
-        console: "[EXT-APPLICATION-OVERRIDE] %msg%n"
-    spring:
-      main:
-        log-startup-info: true
-    """;
+  logging:
+    level:
+      root: INFO
+    pattern:
+      console: "[EXT-APPLICATION-OVERRIDE] %msg%n"
+  spring:
+    main:
+      log-startup-info: true
+  """;
   private static final String EXTENSION_APPLICATION_WITH_HIDDEN_RESOURCES_YML = """
-    seed4j:
-      hidden-resources:
-        slugs:
-          - gradle-java
-    """;
+  seed4j:
+    hidden-resources:
+      slugs:
+        - gradle-java
+  """;
   private static final String EXTENSION_LOGBACK_CONFIGURATION = """
-    <?xml version="1.0" encoding="UTF-8" ?>
-    <!DOCTYPE configuration>
-    <configuration scan="false">
-      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-          <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
-        </encoder>
-      </appender>
+  <?xml version="1.0" encoding="UTF-8" ?>
+  <!DOCTYPE configuration>
+  <configuration scan="false">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
+      </encoder>
+    </appender>
 
-      <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-      </root>
-    </configuration>
-    """;
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </configuration>
+  """;
   private static final String EXTENSION_LOGBACK_CONFIGURATION_WITH_SCAN = """
-    <?xml version="1.0" encoding="UTF-8" ?>
-    <!DOCTYPE configuration>
-    <configuration scan="true">
-      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-          <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
-        </encoder>
-      </appender>
+  <?xml version="1.0" encoding="UTF-8" ?>
+  <!DOCTYPE configuration>
+  <configuration scan="true">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>[EXT-LOGBACK-OVERRIDE] %msg%n</pattern>
+      </encoder>
+    </appender>
 
-      <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-      </root>
-    </configuration>
-    """;
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </configuration>
+  """;
   private static final String FLAT_CLASS_ENTRY = "com/seed4j/cli/runtime/FlatExtensionMarker.class";
   private static final String EXTENSION_START_CLASS = RuntimeExtensionListApplication.class.getName();
   private static final String COMMON_SOURCE_EXTENSION_START_CLASS = RuntimeExtensionCommonSourceApplication.class.getName();
