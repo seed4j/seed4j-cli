@@ -108,9 +108,9 @@ class ApplyModuleSetPlanRenderer {
 
   private static String parameterValue(ModuleSetParameterValue value) {
     return switch (value) {
-      case ModuleSetStringParameterValue stringValue -> stringValue.value();
-      case ModuleSetIntegerParameterValue integerValue -> integerValue.value().toString();
-      case ModuleSetBooleanParameterValue booleanValue -> booleanValue.value().toString();
+      case ModuleSetStringParameterValue(String stringValue) -> stringValue;
+      case ModuleSetIntegerParameterValue(Integer integerValue) -> integerValue.toString();
+      case ModuleSetBooleanParameterValue(Boolean booleanValue) -> booleanValue.toString();
     };
   }
 

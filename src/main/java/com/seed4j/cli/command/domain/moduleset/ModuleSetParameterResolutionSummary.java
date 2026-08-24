@@ -28,22 +28,18 @@ record ModuleSetParameterResolutionSummary(
 
   private ModuleSetParameterResolutionSummary add(ModuleSetParameterResolution resolution) {
     return switch (resolution) {
-      case ModuleSetParameterResolution.Resolved resolved -> new ModuleSetParameterResolutionSummary(
-        append(resolvedParameters, resolved.parameter()),
+      case ModuleSetParameterResolution.Resolved(ResolvedModuleSetParameter parameter) -> new ModuleSetParameterResolutionSummary(
+        append(resolvedParameters, parameter),
         missingRequiredParameters,
         historyMismatches
       );
-      case ModuleSetParameterResolution.RequiredMissing missing -> new ModuleSetParameterResolutionSummary(
-        resolvedParameters,
-        append(missingRequiredParameters, missing.parameter()),
-        historyMismatches
-      );
-      case ModuleSetParameterResolution.HistoryIncompatible incompatible -> new ModuleSetParameterResolutionSummary(
-        resolvedParameters,
-        missingRequiredParameters,
-        append(historyMismatches, incompatible.mismatch())
-      );
-      case ModuleSetParameterResolution.OptionalWithoutValue _ -> this;
+      case ModuleSetParameterResolution.RequiredMissing(
+        MissingRequiredModuleSetParameter parameter
+      ) -> new ModuleSetParameterResolutionSummary(resolvedParameters, append(missingRequiredParameters, parameter), historyMismatches);
+      case ModuleSetParameterResolution.HistoryIncompatible(
+        ModuleSetHistoryParameterTypeMismatch mismatch
+      ) -> new ModuleSetParameterResolutionSummary(resolvedParameters, missingRequiredParameters, append(historyMismatches, mismatch));
+      case ModuleSetParameterResolution.OptionalWithoutValue(_) -> this;
     };
   }
 

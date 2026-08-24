@@ -7,6 +7,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
@@ -27,8 +28,8 @@ final class ApplyModuleSetPlanningProblemRenderer {
 
   private static String problemText(ModuleSetPlanningProblem problem) {
     return switch (problem) {
-      case DuplicateRequestedModuleSetModules duplicateModules -> moduleValues("Duplicate requested modules", duplicateModules.modules());
-      case UnknownRequestedModuleSetModules unknownModules -> moduleValues("Unknown requested modules", unknownModules.modules());
+      case DuplicateRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Duplicate requested modules", modules);
+      case UnknownRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Unknown requested modules", modules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
       case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
@@ -60,11 +61,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
   private static String defaultConflict(ModuleSetPropertyDefaultConflict conflict) {
     return "%s: conflicting defaults (%s)".formatted(
       conflict.key().value(),
-      conflict
-        .defaults()
-        .stream()
-        .map(defaultValue -> defaultValue.literal())
-        .collect(Collectors.joining(", "))
+      conflict.defaults().stream().map(ModuleSetPropertyDefaultValue::literal).collect(Collectors.joining(", "))
     );
   }
 

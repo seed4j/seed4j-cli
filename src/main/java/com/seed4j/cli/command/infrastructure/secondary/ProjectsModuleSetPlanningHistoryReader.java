@@ -56,8 +56,8 @@ public class ProjectsModuleSetPlanningHistoryReader implements ModuleSetPlanning
     List<UnsupportedModuleSetHistoryParameter> unsupportedParameters = new ArrayList<>();
     for (Map.Entry<String, Object> entry : history.latestProperties().get().entrySet()) {
       switch (historyParameter(entry)) {
-        case RecognizedHistoryParameter recognized -> recognizedParameters.put(recognized.key(), recognized.value());
-        case UnsupportedHistoryParameter unsupported -> unsupportedParameters.add(unsupported.parameter());
+        case RecognizedHistoryParameter(ModuleSetPropertyKey key, ModuleSetParameterValue value) -> recognizedParameters.put(key, value);
+        case UnsupportedHistoryParameter(UnsupportedModuleSetHistoryParameter parameter) -> unsupportedParameters.add(parameter);
       }
     }
     return new ModuleSetHistoryParameters(recognizedParameters, unsupportedParameters);
