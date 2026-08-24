@@ -8,22 +8,20 @@ import com.seed4j.cli.bootstrap.domain.RuntimeExtensionJarPath;
 import com.seed4j.cli.bootstrap.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.shared.error.domain.Assert;
-import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
 
 public final class FileSystemRuntimeExtensionArtifactsRepository implements RuntimeExtensionArtifactsRepository {
 
   private final Seed4JCliHome cliHome;
+  private final AtomicFilePublisher filePublisher;
 
   public FileSystemRuntimeExtensionArtifactsRepository(Seed4JCliHome cliHome) {
     Assert.notNull("cliHome", cliHome);
 
     this.cliHome = cliHome;
+    filePublisher = new AtomicFilePublisher();
   }
 
   @Override
@@ -36,8 +34,8 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
     try {
       Path runtimeDirectoryPath = extensionJarPath().getParent();
       Files.createDirectories(runtimeDirectoryPath);
-      replacePathWithSource(request.extensionJarPath().path(), extensionJarPath());
-      replacePathWithContent(metadataContent(request), metadataPath());
+      filePublisher.publishSource(request.extensionJarPath().path(), extensionJarPath());
+      filePublisher.publishContent(metadataContent(request), metadataPath());
       return new RuntimeExtensionArtifactsInstallation(
         new RuntimeExtensionJarPath(extensionJarPath()),
         new RuntimeExtensionMetadataPath(metadataPath())
@@ -61,41 +59,5 @@ public final class FileSystemRuntimeExtensionArtifactsRepository implements Runt
       id: %s
       version: %s
     """.formatted(request.distributionId().id(), request.distributionVersion().version());
-  }
-
-  private static void replacePathWithSource(Path sourcePath, Path targetPath) throws IOException {
-    Path temporaryPath = temporaryPath(targetPath);
-    try {
-      Files.copy(sourcePath, temporaryPath, StandardCopyOption.REPLACE_EXISTING);
-      moveReplacing(temporaryPath, targetPath);
-    } catch (IOException ioException) {
-      Files.deleteIfExists(temporaryPath);
-      throw ioException;
-    }
-  }
-
-  private static void replacePathWithContent(String content, Path targetPath) throws IOException {
-    Path temporaryPath = temporaryPath(targetPath);
-    try {
-      Files.writeString(temporaryPath, content);
-      moveReplacing(temporaryPath, targetPath);
-    } catch (IOException ioException) {
-      Files.deleteIfExists(temporaryPath);
-      throw ioException;
-    }
-  }
-
-  @ExcludeFromGeneratedCodeCoverage(reason = "Cache publication race branch depends on filesystem concurrency timing")
-  private static void moveReplacing(Path sourcePath, Path targetPath) throws IOException {
-    try {
-      Files.move(sourcePath, targetPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-    } catch (AtomicMoveNotSupportedException _) {
-      Files.move(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-    }
-  }
-
-  private static Path temporaryPath(Path targetPath) {
-    String temporaryFileName = "." + targetPath.getFileName() + ".tmp-" + UUID.randomUUID();
-    return targetPath.getParent().resolve(temporaryFileName);
   }
 }
