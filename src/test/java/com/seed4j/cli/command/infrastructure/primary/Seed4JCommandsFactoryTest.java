@@ -88,6 +88,20 @@ class Seed4JCommandsFactoryTest {
   }
 
   @Test
+  void shouldShowHelpWithoutReadingRuntimeDisplay(CapturedOutput output) {
+    RuntimeDisplayApplicationService unavailableRuntime = new RuntimeDisplayApplicationService(() -> {
+      throw new AssertionError("Runtime display must only be read for --version");
+    });
+    Seed4JCommandsFactory factory = new Seed4JCommandsFactory(List.of(), new Seed4JVersionProvider("1", "2", unavailableRuntime));
+    String[] args = { "--help" };
+
+    int exitCode = new CommandLine(factory.buildCommandSpec()).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("Seed4J CLI").contains("--version");
+  }
+
+  @Test
   void shouldAcceptDebugFlagInRootCommand(CapturedOutput output) {
     String[] args = { "--version", "--debug" };
 
@@ -136,9 +150,7 @@ class Seed4JCommandsFactoryTest {
       ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(planning);
       Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
         List.of(applyModuleSetCommand),
-        "1",
-        "2",
-        new RuntimeDisplayApplicationService(RuntimeDisplay::standard)
+        new Seed4JVersionProvider("1", "2", new RuntimeDisplayApplicationService(RuntimeDisplay::standard))
       );
       CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
       factory.buildCommandSpec();

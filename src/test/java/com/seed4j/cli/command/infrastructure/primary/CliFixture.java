@@ -132,12 +132,15 @@ class CliFixture {
     );
     CompletionCommand completionCommand = new CompletionCommand(new BashCompletionCommand(bashCompletionInstallApplicationService));
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
-
-    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
+    Seed4JVersionProvider versionProvider = new Seed4JVersionProvider(
       projectCliVersion,
       projectSeed4JVersion,
       runtimeDisplayApplicationService
+    );
+
+    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
+      List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
+      versionProvider
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
