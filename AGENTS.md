@@ -11,6 +11,10 @@ Keep hexagonal boundaries explicit. `domain` contains business rules, business t
 
 `application` must not depend on concrete adapters, filesystem access, Spring configuration, `System.getProperty`, or classes in `..infrastructure..`. `infrastructure.primary` translates CLI, HTTP, and framework input into domain types and calls application services. `infrastructure.secondary` implements domain ports and encapsulates filesystem access, process execution, Spring Security, configuration loading, and other external mechanisms.
 
+Keep interface syntax and presentation metadata out of domain code. Domain types and services must not know CLI option spelling, HTTP field names, formatted user-facing messages, help labels, examples, or completion candidates unless those values are genuine business concepts. Domain validation results should carry structured facts; primary adapters and renderers translate those facts into interface-specific diagnostics.
+
+Map enums from external contexts explicitly and exhaustively. Do not couple contexts with `TargetType.valueOf(external.name())`, because coincidental enum names are not a stable contract.
+
 Model business concepts with Value Objects before they cross into `application` or `domain`. `primary` adapters may receive raw CLI/framework values such as `String`, `Path`, booleans, or primitive options, but they should translate those values into domain types before calling application services. Domain aggregate records must not expose multiple raw business values when dedicated domain types can express those concepts. A single-field Value Object may wrap a raw value and should validate or normalize the represented concept.
 
 Physical locations, runtime layouts, persisted configuration files, cache directories, generated file names, and other storage details are secondary infrastructure concerns. Do not model those details as concrete domain records just to pass filesystem locations through `primary`, `application`, or `domain`. If the domain needs to use something stored externally, model the need as a domain port named after the capability or business concept, and keep the concrete path/layout resolution inside `infrastructure.secondary`.
@@ -34,6 +38,20 @@ Use Java 25 and Node.js 22+ before running the toolchain.
 ## Agent Validation Behavior
 
 Agents may run smaller, targeted checks during implementation, such as specific Maven tests related to the changed class or behavior, `npm run prettier:check`, or focused Maven goals. Before finishing a change, agents should run `./mvnw test` as the default agent-side validation gate. Before the complete final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. If the user explicitly asks an agent to run `./mvnw clean verify`, the agent may run it, preferably with output limited or redirected to a file.
+
+After substantial production-code work is behaviorally complete and its relevant public-path tests are green, perform a post-green design review before final validation. Do not use that review to introduce new behavior.
+
+## Habit Hooks
+
+Before considering a code task complete, run `habit-hooks`.
+
+Treat findings produced by Habit Hooks as work that must be analyzed during the task.
+
+Do not silently ignore findings.
+
+Resolve enforced findings before declaring the task complete.
+
+Do not run `habit-snooze` or change `.habit-hooks/snooze.json` without explicit user authorization.
 
 ## Coding Style & Naming Conventions
 

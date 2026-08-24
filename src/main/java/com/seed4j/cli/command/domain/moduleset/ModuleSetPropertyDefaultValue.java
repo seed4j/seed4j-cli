@@ -2,8 +2,9 @@ package com.seed4j.cli.command.domain.moduleset;
 
 import com.seed4j.cli.shared.error.domain.Assert;
 
-public record ModuleSetPropertyDefaultValue(String value) {
+public record ModuleSetPropertyDefaultValue(ModuleSetParameterValue value, String literal) {
   public ModuleSetPropertyDefaultValue {
-    Assert.notBlank("value", value);
+    Assert.notNull("value", value);
+    Assert.notBlank("literal", literal);
   }
 }

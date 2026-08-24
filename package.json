@@ -13,6 +13,7 @@
   },
   "files": [
     "bin/",
+    "documentation/",
     "dist/seed4j-cli.jar",
     "LICENSE.txt",
     "README.md"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@prettier/plugin-xml": "3.4.2",
     "husky": "9.1.7",
+    "jscpd": "5.0.16",
     "lint-staged": "17.3.0",
     "prettier": "3.9.6",
     "prettier-plugin-gherkin": "4.0.0",

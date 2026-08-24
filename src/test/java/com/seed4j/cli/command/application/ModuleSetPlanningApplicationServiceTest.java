@@ -8,22 +8,28 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblemType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
+import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +39,94 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class ModuleSetPlanningApplicationServiceTest {
+
+  @Test
+  void shouldResolveOptionalIntegerDefaultAsIntegerValue() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+    ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+      indentSize,
+      ModuleSetPropertyType.INTEGER,
+      ModuleSetPropertyRequirement.OPTIONAL,
+      Optional.empty(),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(2), "2")),
+      List.of()
+    );
+    ModuleSetCatalog catalog = catalog(
+      List.of(new ModuleSetModule(selected, List.of(), List.of(property), Optional.empty())),
+      List.of(selected)
+    );
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(selected)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty()
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.resolvedParameters())
+      .singleElement()
+      .satisfies(parameter -> assertThat(parameter.value()).isEqualTo(new ModuleSetIntegerParameterValue(2)));
+    assertThat(plan.valid()).isTrue();
+  }
+
+  @Test
+  void shouldKeepDistinctIntegerDefaultLiteralsInPropertyConflict() {
+    ModuleSetSlug first = new ModuleSetSlug("first");
+    ModuleSetSlug second = new ModuleSetSlug("second");
+    ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+    ModuleSetPropertyDefinition firstDefinition = new ModuleSetPropertyDefinition(
+      indentSize,
+      ModuleSetPropertyType.INTEGER,
+      ModuleSetPropertyRequirement.OPTIONAL,
+      Optional.empty(),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(2), "2")),
+      List.of()
+    );
+    ModuleSetPropertyDefinition secondDefinition = new ModuleSetPropertyDefinition(
+      indentSize,
+      ModuleSetPropertyType.INTEGER,
+      ModuleSetPropertyRequirement.OPTIONAL,
+      Optional.empty(),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(2), "02")),
+      List.of()
+    );
+    ModuleSetCatalog catalog = catalog(
+      List.of(
+        new ModuleSetModule(first, List.of(), List.of(firstDefinition), Optional.empty()),
+        new ModuleSetModule(second, List.of(), List.of(secondDefinition), Optional.empty())
+      ),
+      List.of(first, second)
+    );
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(first, second)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty()
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.problems()).containsExactly(
+      new ModuleSetPropertyConflicts(
+        List.of(
+          new ModuleSetPropertyDefaultConflict(
+            indentSize,
+            List.of(
+              new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(2), "02"),
+              new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(2), "2")
+            )
+          )
+        )
+      )
+    );
+    assertThat(plan.valid()).isFalse();
+  }
 
   @Test
   void shouldSatisfyModuleDependencyWithEarlierRequestedModule() {
@@ -47,7 +141,7 @@ class ModuleSetPlanningApplicationServiceTest {
     );
     ModuleSetCatalog catalog = catalog(List.of(initModule, mavenJavaModule), List.of(init, mavenJava));
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(mavenJava, init)),
@@ -89,12 +183,15 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(first, second)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(packageName, "com.history"))
+      new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.history")), List.of())
+      )
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
       new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(packageName, "com.explicit"))
+      new ExplicitModuleSetParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.explicit")))
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -103,8 +200,8 @@ class ModuleSetPlanningApplicationServiceTest {
       .singleElement()
       .satisfies(parameter -> {
         assertThat(parameter.key()).isEqualTo(packageName);
-        assertThat(parameter.value()).isEqualTo("com.explicit");
-        assertThat(parameter.source()).isEqualTo(ModuleSetPropertySource.EXPLICIT_CLI);
+        assertThat(parameter.value()).isEqualTo(new ModuleSetStringParameterValue("com.explicit"));
+        assertThat(parameter.source()).isEqualTo(ModuleSetPropertySource.EXPLICIT_INPUT);
       });
     assertThat(plan.missingRequiredParameters()).isEmpty();
     assertThat(plan.valid()).isTrue();
@@ -120,7 +217,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.REQUIRED,
       Optional.of(new ModuleSetPropertyDescription("First description")),
-      Optional.of(new ModuleSetPropertyDefaultValue("first-default")),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("first-default"), "first-default")),
       List.of()
     );
     ModuleSetPropertyDefinition secondDefinition = new ModuleSetPropertyDefinition(
@@ -128,7 +225,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.OPTIONAL,
       Optional.of(new ModuleSetPropertyDescription("Second description")),
-      Optional.of(new ModuleSetPropertyDefaultValue("second-default")),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("second-default"), "second-default")),
       List.of()
     );
     ModuleSetCatalog catalog = catalog(
@@ -139,7 +236,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(first, second)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
@@ -149,15 +246,23 @@ class ModuleSetPlanningApplicationServiceTest {
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.PROPERTY_CONFLICT)
-      .singleElement()
-      .satisfies(problem ->
-        assertThat(problem.values()).containsExactly(
-          "shared: conflicting defaults (first-default, second-default)",
-          "shared: conflicting descriptions (First description, Second description)"
+    assertThat(plan.problems()).containsExactly(
+      new ModuleSetPropertyConflicts(
+        List.of(
+          new ModuleSetPropertyDefaultConflict(
+            shared,
+            List.of(
+              new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("first-default"), "first-default"),
+              new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("second-default"), "second-default")
+            )
+          ),
+          new ModuleSetPropertyDescriptionConflict(
+            shared,
+            List.of(new ModuleSetPropertyDescription("First description"), new ModuleSetPropertyDescription("Second description"))
+          )
         )
-      );
+      )
+    );
     assertThat(plan.missingRequiredParameters())
       .extracting(parameter -> parameter.key().value())
       .containsExactly("shared");
@@ -185,20 +290,17 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(selected, unselected)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
       new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(unused, "value"))
+      new ExplicitModuleSetParameters(Map.of(unused, new ModuleSetStringParameterValue("value")))
     );
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.IRRELEVANT_OPTION)
-      .singleElement()
-      .satisfies(problem -> assertThat(problem.values()).containsExactly("--unused-property"));
+    assertThat(plan.problems()).containsExactly(new UnusedExplicitModuleSetParameters(List.of(unused)));
     assertThat(plan.valid()).isFalse();
   }
 
@@ -217,7 +319,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(gradle, maven, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -252,7 +354,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(provider, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer, provider)),
@@ -285,7 +387,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(consumer, provider)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(provider, consumer)),
@@ -319,7 +421,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(provider, consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(provider), Map.of())
+      new ModuleSetPlanningHistory(Set.of(provider), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -354,7 +456,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(transitive, direct, requested)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(requested)),
@@ -384,7 +486,7 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(consumer)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of())
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
@@ -401,10 +503,7 @@ class ModuleSetPlanningApplicationServiceTest {
         assertThat(validation.status()).isEqualTo(ModuleSetDependencyStatus.MISSING);
         assertThat(validation.requiredBy()).containsExactly(consumer);
       });
-    assertThat(plan.problems())
-      .filteredOn(problem -> problem.type() == ModuleSetPlanningProblemType.MISSING_DEPENDENCY)
-      .singleElement()
-      .satisfies(problem -> assertThat(problem.values()).containsExactly("module:missing-module"));
+    assertThat(plan.problems()).isEmpty();
     assertThat(plan.valid()).isFalse();
   }
 
@@ -419,7 +518,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.OPTIONAL,
       Optional.empty(),
-      Optional.of(new ModuleSetPropertyDefaultValue("history-default")),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("history-default"), "history-default")),
       List.of()
     );
     ModuleSetPropertyDefinition defaultDefinition = new ModuleSetPropertyDefinition(
@@ -427,7 +526,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.OPTIONAL,
       Optional.empty(),
-      Optional.of(new ModuleSetPropertyDefaultValue("optional-default")),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("optional-default"), "optional-default")),
       List.of()
     );
     ModuleSetPropertyDefinition mandatoryDefinition = new ModuleSetPropertyDefinition(
@@ -435,7 +534,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPropertyType.STRING,
       ModuleSetPropertyRequirement.REQUIRED,
       Optional.empty(),
-      Optional.of(new ModuleSetPropertyDefaultValue("informational-only")),
+      Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("informational-only"), "informational-only")),
       List.of()
     );
     ModuleSetCatalog catalog = catalog(
@@ -445,7 +544,10 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(selected)
     );
     ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-      new ModuleSetPlanningHistory(Set.of(), Map.of(historyKey, "from-history"))
+      new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(historyKey, new ModuleSetStringParameterValue("from-history")), List.of())
+      )
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
@@ -455,7 +557,9 @@ class ModuleSetPlanningApplicationServiceTest {
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.resolvedParameters()).extracting(ResolvedModuleSetParameter::value).containsExactly("from-history", "optional-default");
+    assertThat(plan.resolvedParameters())
+      .extracting(ResolvedModuleSetParameter::value)
+      .containsExactly(new ModuleSetStringParameterValue("from-history"), new ModuleSetStringParameterValue("optional-default"));
     assertThat(plan.resolvedParameters())
       .extracting(ResolvedModuleSetParameter::source)
       .containsExactly(ModuleSetPropertySource.PROJECT_HISTORY, ModuleSetPropertySource.DEFAULT);

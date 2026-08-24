@@ -47,7 +47,9 @@ class JavaRuntimeExtensionInstallerTest {
     assertThat(Files.readString(configPath)).contains("mode: extension");
     assertThat(runtimeJarPath).exists();
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
-    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+    assertThat(Files.readString(metadataPath))
+      .contains("id: " + DISTRIBUTION_ID)
+      .contains("version: " + DISTRIBUTION_VERSION);
     assertThat(installation.extensionJarPath()).isEqualTo(runtimeJarPath);
     assertThat(installation.metadataPath()).isEqualTo(metadataPath);
     assertThat(installation.configPath()).isEqualTo(configPath);
@@ -100,18 +102,19 @@ class JavaRuntimeExtensionInstallerTest {
         version: 0.9.0
       """
     );
-    Path extensionJarPath = createFatJar(
-      userHome.resolve("company-extension.jar"),
-      "BOOT-INF/classes/com/company/New.class",
-      new byte[] { 2, 3 }
-    );
+    Path extensionJarPath = createFatJar(userHome.resolve("company-extension.jar"), "BOOT-INF/classes/com/company/New.class", new byte[] {
+      2,
+      3,
+    });
     JavaRuntimeExtensionInstaller installer = installer(userHome);
 
     JavaRuntimeExtensionInstallation installation = installer.install(installRequest(extensionJarPath));
 
     assertThat(installation.runtimeReplaced()).isTrue();
     assertThat(Files.readAllBytes(runtimeJarPath)).isEqualTo(Files.readAllBytes(extensionJarPath));
-    assertThat(Files.readString(metadataPath)).contains("id: " + DISTRIBUTION_ID).contains("version: " + DISTRIBUTION_VERSION);
+    assertThat(Files.readString(metadataPath))
+      .contains("id: " + DISTRIBUTION_ID)
+      .contains("version: " + DISTRIBUTION_VERSION);
   }
 
   @Test

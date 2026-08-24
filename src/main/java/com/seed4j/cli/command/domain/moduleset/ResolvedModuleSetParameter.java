@@ -4,7 +4,7 @@ import com.seed4j.cli.shared.error.domain.Assert;
 
 public record ResolvedModuleSetParameter(
   ModuleSetPropertyKey key,
-  Object value,
+  ModuleSetParameterValue value,
   ModuleSetPropertySource source,
   ModuleSetPropertyDefinition definition
 ) {

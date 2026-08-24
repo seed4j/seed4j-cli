@@ -856,20 +856,18 @@ class PreSpringBootstrapPrimaryTest {
       runtimeSelection
         .distributionVersion()
         .ifPresent(distributionVersion -> systemProperties.put(DISTRIBUTION_VERSION_PROPERTY, distributionVersion.version()));
-      runtimeSelection
-        .extensionJarPath()
-        .ifPresent(extensionJarPath -> {
-          Path rawExtensionJarPath = extensionJarPath.path();
-          systemProperties.put(
-            "seed4j.cli.runtime.extension.start-class",
-            new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
-          );
-          Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
-          systemProperties.put(
-            LOADER_PATH_PROPERTY,
-            new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
-          );
-        });
+      runtimeSelection.extensionJarPath().ifPresent(extensionJarPath -> {
+        Path rawExtensionJarPath = extensionJarPath.path();
+        systemProperties.put(
+          "seed4j.cli.runtime.extension.start-class",
+          new RuntimeExtensionStartClassResolver().resolve(rawExtensionJarPath)
+        );
+        Path overlayClassesPath = new RuntimeExtensionOverlayCache(cliHome).materialize(rawExtensionJarPath);
+        systemProperties.put(
+          LOADER_PATH_PROPERTY,
+          new RuntimeExtensionLoaderPathResolver().resolve(overlayClassesPath, rawExtensionJarPath, request.executableJar().path())
+        );
+      });
       systemProperties.put("logging.config", "classpath:seed4j-cli-logback-spring.xml");
       systemProperties.put("logging.level.root", "ERROR");
       systemProperties.put("spring.main.log-startup-info", "false");

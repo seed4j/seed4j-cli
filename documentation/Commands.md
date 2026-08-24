@@ -9,6 +9,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Version](#version)
   - [List Available Modules](#list-available-modules)
   - [Apply a Module](#apply-a-module)
+  - [Plan a Module Set](#plan-a-module-set)
   - [Bash Completion](#bash-completion)
   - [Install a Runtime Extension](#install-a-runtime-extension)
   - [Enable a Runtime Extension](#enable-a-runtime-extension)
@@ -326,10 +327,17 @@ Defaults for mandatory properties remain informational and do not satisfy the re
 input directly to the global option's declared type and rejects invalid typed values before planning. Passing a known
 property option that none of the selected modules uses invalidates the plan.
 
+A project-history value is reused only when its stored type matches the selected property type. A relevant mismatch
+invalidates the plan without falling back to a default or also reporting the property as missing. The diagnostic names
+the expected and stored types and tells the caller which explicit option overrides the stored value; a correctly typed
+explicit value therefore takes precedence over incompatible history. History keys unused by the selected modules remain
+irrelevant and do not invalidate the plan. History values outside Seed4J's `STRING`, `INTEGER`, and `BOOLEAN` variants are
+reported as an unsupported value type when their key is relevant.
+
 The planner aggregates all predictable post-resolution problems, including recursive dependencies, feature choices,
-property conflicts, irrelevant options, and every missing required parameter. A valid plan writes the
-structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or complete
-plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
+property conflicts, irrelevant options, history type mismatches, and every missing required parameter. A valid plan
+writes the structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or
+complete plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
 
 ```text
 Plan for module set
@@ -490,51 +498,7 @@ MVP limitation: `seed4j extension disable` runs through the normal CLI bootstrap
 
 ## Project Creation Workflow Example
 
-A typical workflow to initialize a new project might look like:
-
-1. Create a project directory and navigate to it:
-
-   ```bash
-   mkdir my-project
-   cd my-project
-   ```
-
-2. Initialize a new project:
-
-   ```bash
-   seed4j apply init --project-name "My Project" --base-name MyProject --node-package-manager npm
-   ```
-
-3. Add code formatting support:
-
-   ```bash
-   seed4j apply prettier
-   ```
-
-4. Set up a Maven project structure:
-
-   ```bash
-   seed4j apply maven-java --package-name com.example.myproject
-   ```
-
-5. Add Maven wrapper:
-
-   ```bash
-   seed4j apply maven-wrapper
-   ```
-
-6. Add Java base classes:
-
-   ```bash
-   seed4j apply java-base
-   ```
-
-7. Add Spring Boot:
-   ```bash
-   seed4j apply spring-boot
-   ```
-
-After this basic setup, you can add more specific modules based on your project requirements.
+Follow the canonical [project creation workflow](workflows.md#create-a-project-with-modules) for a concrete sequence from an empty directory to a Spring Boot project. This heading remains available so existing links to this reference path and fragment continue to resolve.
 
 ## Options and Parameters
 
@@ -793,49 +757,4 @@ Operational note:
 
 #### Creating a Seed4J Extension
 
-You can use the official sample repository as a starting point:
-
-- <https://github.com/seed4j/seed4j-sample-extension>
-- <https://github.com/seed4j/seed4j-sample-extension/blob/main/documentation/module-creation.md>
-
-Recommended implementation flow for this CLI runtime mode:
-
-1. Create an extension project that exposes modules as Spring beans (`@Configuration` + `@Bean`).
-2. Define a slug enum implementing `Seed4JModuleSlugFactory`.
-3. Implement a factory that builds a `Seed4JModule`.
-4. Expose a `Seed4JModuleResource` bean wired to your application service.
-5. Build your extension JAR.
-6. Run `seed4j extension install <jar> --distribution-id <id> --distribution-version <version>`.
-7. Validate with `seed4j --version` and `seed4j list`.
-
-Minimal module resource example:
-
-```java
-@Configuration
-public class MyExtensionModuleConfiguration {
-
-  @Bean
-  Seed4JModuleResource myExtensionModule(MyExtensionApplicationService applicationService) {
-    return Seed4JModuleResource.builder()
-      .slug(MyExtensionModuleSlug.MY_EXTENSION_MODULE)
-      .withoutProperties()
-      .apiDoc("Runtime", "My extension module")
-      .standalone()
-      .tags("runtime", "extension")
-      .factory(applicationService::buildModule);
-  }
-}
-```
-
-Minimal metadata example:
-
-```yaml
-distribution:
-  id: my-company-extension
-  version: 1.0.0
-```
-
-Important notes:
-
-- `distribution.id` and `distribution.version` are mandatory.
-- Avoid shipping unintended overrides (for example, `config/application.yml`) unless you intentionally want to change core behavior.
+Follow the canonical [runtime extension workflow](workflows.md#create-and-install-a-runtime-extension) to build the sample module, package it, install it, and validate activation. This heading remains available so existing links to this reference path and fragment continue to resolve.

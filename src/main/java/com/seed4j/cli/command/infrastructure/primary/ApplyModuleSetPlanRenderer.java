@@ -1,29 +1,21 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyValidation;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblemType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
 import java.util.List;
-import java.util.Map;
 
 class ApplyModuleSetPlanRenderer {
 
-  private static final Map<ModuleSetPlanningProblemType, String> PROBLEM_LABELS = Map.of(
-    ModuleSetPlanningProblemType.DUPLICATE_MODULES,
-    "Duplicate requested modules",
-    ModuleSetPlanningProblemType.UNKNOWN_MODULES,
-    "Unknown requested modules",
-    ModuleSetPlanningProblemType.PROPERTY_CONFLICT,
-    "Property conflicts",
-    ModuleSetPlanningProblemType.IRRELEVANT_OPTION,
-    "Options not used by requested modules"
-  );
+  private final ApplyModuleSetPlanningProblemRenderer problemRenderer = new ApplyModuleSetPlanningProblemRenderer();
 
   String render(ModuleSetPlan plan) {
     StringBuilder output = new StringBuilder("Plan for module set\n\n");
@@ -33,16 +25,20 @@ class ApplyModuleSetPlanRenderer {
     appendDependencies(output, plan.dependencyValidations());
     appendResolvedParameters(output, plan.resolvedParameters());
     appendMissingParameters(output, plan);
-    appendProblems(output, plan.problems());
-    output.append("Status: ").append(plan.valid() ? "VALID" : "INVALID").append('\n');
-    output.append("No changes were applied.\n");
+    problemRenderer.appendProblems(output, plan.problems());
+    appendStatus(output, plan.valid());
     return output.toString();
   }
 
   private static void appendModules(StringBuilder output, String heading, List<ModuleSetSlug> modules) {
     output.append(heading).append(":\n");
     for (int index = 0; index < modules.size(); index++) {
-      output.append("  ").append(index + 1).append(". ").append(modules.get(index).value()).append('\n');
+      output
+        .append("  ")
+        .append(index + 1)
+        .append(". ")
+        .append(modules.get(index).value())
+        .append('\n');
     }
     output.append('\n');
   }
@@ -92,7 +88,7 @@ class ApplyModuleSetPlanRenderer {
         .append("  ✓ ")
         .append(parameter.key().value())
         .append(": ")
-        .append(parameter.value())
+        .append(parameterValue(parameter.value()))
         .append("\n    Source: ")
         .append(source(parameter.source()))
         .append("\n    CLI option: ")
@@ -104,9 +100,17 @@ class ApplyModuleSetPlanRenderer {
 
   private static String source(ModuleSetPropertySource source) {
     return switch (source) {
-      case EXPLICIT_CLI -> "explicit CLI input";
+      case EXPLICIT_INPUT -> "explicit CLI input";
       case PROJECT_HISTORY -> "project history";
       case DEFAULT -> "default (informational)";
+    };
+  }
+
+  private static String parameterValue(ModuleSetParameterValue value) {
+    return switch (value) {
+      case ModuleSetStringParameterValue(String stringValue) -> stringValue;
+      case ModuleSetIntegerParameterValue(Integer integerValue) -> integerValue.toString();
+      case ModuleSetBooleanParameterValue(Boolean booleanValue) -> booleanValue.toString();
     };
   }
 
@@ -128,18 +132,11 @@ class ApplyModuleSetPlanRenderer {
     output.append('\n');
   }
 
-  private static void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
-    List<ModuleSetPlanningProblem> otherProblems = problems
-      .stream()
-      .filter(problem -> PROBLEM_LABELS.containsKey(problem.type()))
-      .toList();
-    if (otherProblems.isEmpty()) {
-      return;
-    }
-    output.append("Validation problems:\n");
-    otherProblems.forEach(problem ->
-      output.append("  ○ ").append(PROBLEM_LABELS.get(problem.type())).append(": ").append(String.join(", ", problem.values())).append('\n')
-    );
-    output.append('\n');
+  private static void appendStatus(StringBuilder output, boolean valid) {
+    output
+      .append("Status: ")
+      .append(valid ? "VALID" : "INVALID")
+      .append('\n');
+    output.append("No changes were applied.\n");
   }
 }

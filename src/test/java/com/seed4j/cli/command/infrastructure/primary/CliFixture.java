@@ -27,10 +27,10 @@ class CliFixture {
 
   private static final Path HISTORY_FILE = Path.of(".seed4j", "modules", "history.json");
   private static final String EMPTY_HISTORY = """
-    {
-      "actions": []
-    }
-    """;
+  {
+    "actions": []
+  }
+  """;
 
   static Path setupProjectTestFolder() throws IOException {
     Path projectPath = Files.createTempDirectory("seed4j-cli-");
@@ -132,12 +132,15 @@ class CliFixture {
     );
     CompletionCommand completionCommand = new CompletionCommand(new BashCompletionCommand(bashCompletionInstallApplicationService));
     RuntimeDisplayApplicationService runtimeDisplayApplicationService = new RuntimeDisplayApplicationService(() -> runtimeDisplay);
-
-    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
-      List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
+    Seed4JVersionProvider versionProvider = new Seed4JVersionProvider(
       projectCliVersion,
       projectSeed4JVersion,
       runtimeDisplayApplicationService
+    );
+
+    Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
+      List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
+      versionProvider
     );
 
     return new CommandLine(seed4JCommandsFactory.buildCommandSpec());

@@ -6,8 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
+import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -17,22 +20,32 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
+import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ProjectPath;
+import com.seed4j.project.domain.history.ProjectAction;
+import com.seed4j.project.domain.history.ProjectActionToAppend;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -55,6 +68,9 @@ class Seed4JCommandsFactoryTest {
   @Autowired
   private Seed4JModulesApplicationService modules;
 
+  @Autowired
+  private Seed4JCommandsFactory commandsFactory;
+
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
@@ -69,6 +85,20 @@ class Seed4JCommandsFactoryTest {
       .contains("--debug")
       .contains("Enable runtime bootstrap diagnostics (extension mode only)")
       .contains("Commands:");
+  }
+
+  @Test
+  void shouldShowHelpWithoutReadingRuntimeDisplay(CapturedOutput output) {
+    RuntimeDisplayApplicationService unavailableRuntime = new RuntimeDisplayApplicationService(() -> {
+      throw new AssertionError("Runtime display must only be read for --version");
+    });
+    Seed4JCommandsFactory factory = new Seed4JCommandsFactory(List.of(), new Seed4JVersionProvider("1", "2", unavailableRuntime));
+    String[] args = { "--help" };
+
+    int exitCode = new CommandLine(factory.buildCommandSpec()).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("Seed4J CLI").contains("--version");
   }
 
   @Test
@@ -109,6 +139,37 @@ class Seed4JCommandsFactoryTest {
         .contains("--project-name")
         .contains("--package-name")
         .doesNotContain("--commit");
+    }
+
+    @Test
+    void shouldKeepEarlierModuleSetCommandExecutableAfterBuildingAnotherCommandTree(CapturedOutput output) {
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(planning);
+      Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
+        List.of(applyModuleSetCommand),
+        new Seed4JVersionProvider("1", "2", new RuntimeDisplayApplicationService(RuntimeDisplay::standard))
+      );
+      CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
+      factory.buildCommandSpec();
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--plan",
+      };
+
+      int exitCode = earlierCommandLine.execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("Status: VALID").contains("No changes were applied.");
     }
 
     @Test
@@ -444,7 +505,10 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "boolean-module", "--feature-enabled=" + featureEnabled, "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -471,12 +535,293 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "integer-module", "--count", "not-a-number", "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
         .contains("Invalid value for option '--count': 'not-a-number' is not an int")
         .doesNotContain("Plan for module set");
+    }
+
+    @Test
+    void shouldRejectStringHistoryForIntegerProperty(CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetIntegerParameterValue(4), "4")),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
+      );
+      String[] args = { "integer-module", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog, history).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains(
+          "Project history parameter type mismatch: indentSize expects INTEGER but history contains STRING; pass --indent-size to override the stored value"
+        )
+        .doesNotContain("✓ indentSize:")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldPreferExplicitIntegerOverStringHistory(CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
+      );
+      String[] args = { "integer-module", "--indent-size", "3", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog, history).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("✓ indentSize: 3")
+        .contains("Source: explicit CLI input")
+        .doesNotContain("Project history parameter type mismatch")
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldIgnoreIncompatibleHistoryForUnselectedProperty(CapturedOutput output) {
+      ModuleSetSlug selected = new ModuleSetSlug("selected-module");
+      ModuleSetSlug unselected = new ModuleSetSlug("unselected-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(
+          new ModuleSetModule(selected, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(unselected, List.of(), List.of(property), Optional.empty())
+        ),
+        List.of(selected, unselected)
+      );
+      ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(Map.of(indentSize, new ModuleSetStringParameterValue("2")), List.of())
+      );
+      String[] args = { "selected-module", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog, history).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .doesNotContain("Project history parameter type mismatch")
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @ParameterizedTest
+    @MethodSource("unsupportedHistoryValues")
+    @NullSource
+    void shouldRejectRelevantUnsupportedHistoryType(Object unsupportedHistoryValue, CapturedOutput output) throws IOException {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-unsupported-history-");
+      Map<String, Object> parameters = new HashMap<>();
+      parameters.put(indentSize.value(), unsupportedHistoryValue);
+      projects.append(
+        new ProjectActionToAppend(
+          new ProjectPath(projectPath.toString()),
+          ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(parameters)
+        )
+      );
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        catalog,
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains(
+          "Project history parameter type mismatch: indentSize expects INTEGER but history contains an unsupported value type; pass --indent-size to override the stored value"
+        )
+        .doesNotContain("✓ indentSize:")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
+
+    private static Stream<Object> unsupportedHistoryValues() {
+      return Stream.of(List.of(2));
+    }
+
+    @Test
+    void shouldResolveBooleanHistoryAtSeed4JBoundary(CapturedOutput output) throws IOException {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("boolean-module");
+      ModuleSetPropertyKey featureEnabled = new ModuleSetPropertyKey("featureEnabled");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        featureEnabled,
+        ModuleSetPropertyType.BOOLEAN,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-boolean-history-");
+      projects.append(
+        new ProjectActionToAppend(
+          new ProjectPath(projectPath.toString()),
+          ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(Map.of(featureEnabled.value(), true))
+        )
+      );
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        catalog,
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      String[] args = { "boolean-module", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output)
+        .contains("✓ featureEnabled: true")
+        .contains("Source: project history")
+        .contains("Status: VALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldRejectBooleanHistoryForIntegerPropertyAtSeed4JBoundary(CapturedOutput output) throws IOException {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("integer-module");
+      ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        indentSize,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-boolean-mismatch-");
+      projects.append(
+        new ProjectActionToAppend(
+          new ProjectPath(projectPath.toString()),
+          ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(Map.of(indentSize.value(), true))
+        )
+      );
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        catalog,
+        new ProjectsModuleSetPlanningHistoryReader(projects)
+      );
+      String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
+
+      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .contains(
+          "Project history parameter type mismatch: indentSize expects INTEGER but history contains BOOLEAN; pass --indent-size to override the stored value"
+        )
+        .doesNotContain("✓ indentSize:")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldAggregateHistoryTypeMismatchesAlphabetically(CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("typed-module");
+      ModuleSetPropertyKey zetaCount = new ModuleSetPropertyKey("zetaCount");
+      ModuleSetPropertyKey alphaEnabled = new ModuleSetPropertyKey("alphaEnabled");
+      ModuleSetPropertyDefinition zetaProperty = new ModuleSetPropertyDefinition(
+        zetaCount,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetPropertyDefinition alphaProperty = new ModuleSetPropertyDefinition(
+        alphaEnabled,
+        ModuleSetPropertyType.BOOLEAN,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(zetaProperty, alphaProperty), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      ModuleSetPlanningHistory history = new ModuleSetPlanningHistory(
+        Set.of(),
+        new ModuleSetHistoryParameters(
+          Map.of(zetaCount, new ModuleSetStringParameterValue("2"), alphaEnabled, new ModuleSetIntegerParameterValue(1)),
+          List.of()
+        )
+      );
+      String[] args = { "typed-module", "--plan" };
+
+      int exitCode = moduleSetCommandLine(catalog, history).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(output.getErr())
+        .containsOnlyOnce("Validation problems:")
+        .containsSubsequence(
+          "Project history parameter type mismatch: alphaEnabled expects BOOLEAN but history contains INTEGER; pass --alpha-enabled to override the stored value",
+          "Project history parameter type mismatch: zetaCount expects INTEGER but history contains STRING; pass --zeta-count to override the stored value"
+        )
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
     }
 
     @Test
@@ -489,7 +834,7 @@ class Seed4JCommandsFactoryTest {
         ModuleSetPropertyType.STRING,
         ModuleSetPropertyRequirement.OPTIONAL,
         Optional.of(new ModuleSetPropertyDescription("First description")),
-        Optional.of(new ModuleSetPropertyDefaultValue("first-default")),
+        Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("first-default"), "first-default")),
         List.of()
       );
       ModuleSetPropertyDefinition secondDefinition = new ModuleSetPropertyDefinition(
@@ -497,7 +842,7 @@ class Seed4JCommandsFactoryTest {
         ModuleSetPropertyType.STRING,
         ModuleSetPropertyRequirement.OPTIONAL,
         Optional.of(new ModuleSetPropertyDescription("Second description")),
-        Optional.of(new ModuleSetPropertyDefaultValue("second-default")),
+        Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("second-default"), "second-default")),
         List.of()
       );
       ModuleSetCatalog catalog = catalog(
@@ -509,7 +854,10 @@ class Seed4JCommandsFactoryTest {
       );
       String[] args = { "first-module", "second-module", "--plan" };
 
-      int exitCode = moduleSetCommandLine(catalog).execute(args);
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -519,10 +867,8 @@ class Seed4JCommandsFactoryTest {
         .contains("No changes were applied.");
     }
 
-    private CommandLine moduleSetCommandLine(ModuleSetCatalog catalog) {
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(catalog, projectPath ->
-        new ModuleSetPlanningHistory(Set.of(), Map.of())
-      );
+    private CommandLine moduleSetCommandLine(ModuleSetCatalog catalog, ModuleSetPlanningHistory history) {
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(catalog, projectPath -> history);
       return new CommandLine(new ApplyModuleSetCommand(planning).spec());
     }
 
@@ -613,6 +959,18 @@ class Seed4JCommandsFactoryTest {
       String[] args = { "completion", "bash", "--no-complete-values" };
 
       int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+    }
+
+    @Test
+    void shouldKeepEarlierBashCompletionOptionsAfterBuildingAnotherCommandTree(CapturedOutput output) {
+      CommandLine earlierCommandLine = new CommandLine(commandsFactory.buildCommandSpec());
+      commandsFactory.buildCommandSpec();
+      String[] args = { "completion", "bash", "--no-complete-values" };
+
+      int exitCode = earlierCommandLine.execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
