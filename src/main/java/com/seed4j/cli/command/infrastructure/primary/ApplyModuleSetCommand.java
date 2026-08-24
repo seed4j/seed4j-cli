@@ -28,7 +28,7 @@ import picocli.CommandLine.Model.PositionalParamSpec;
 @Component
 class ApplyModuleSetCommand implements Seed4JCommand {
 
-  private static final String PROJECT_PATH_OPTION = "--project-path";
+  private static final String PROJECT_PATH_OPTION = ProjectPathOptionSpecFactory.OPTION_NAME;
   private static final String PLAN_OPTION = "--plan";
 
   private final ModuleSetPlanningApplicationService planning;
@@ -65,15 +65,7 @@ class ApplyModuleSetCommand implements Seed4JCommand {
       spec.addPositional(
         PositionalParamSpec.builder().arity("1..*").paramLabel("<module-slug>").type(List.class).auxiliaryTypes(String.class).build()
       );
-      spec.addOption(
-        OptionSpec.builder(PROJECT_PATH_OPTION)
-          .description("Project Path Folder")
-          .paramLabel("<projectpath>")
-          .defaultValue(".")
-          .completionCandidates(List.of("."))
-          .type(String.class)
-          .build()
-      );
+      spec.addOption(new ProjectPathOptionSpecFactory().create());
       spec.addOption(
         OptionSpec.builder(PLAN_OPTION)
           .description("Print the validated module set plan without applying changes")

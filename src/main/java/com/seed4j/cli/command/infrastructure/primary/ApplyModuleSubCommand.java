@@ -27,7 +27,7 @@ import picocli.CommandLine.Model.OptionSpec;
 
 class ApplyModuleSubCommand implements Callable<Integer> {
 
-  private static final String PROJECT_PATH_OPTION = "--project-path";
+  private static final String PROJECT_PATH_OPTION = ProjectPathOptionSpecFactory.OPTION_NAME;
   private static final String COMMIT_OPTION = "--commit";
   private static final String PLAN_OPTION = "--plan";
   private final Seed4JModulesApplicationService modules;
@@ -60,15 +60,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   }
 
   private void addOptions(CommandSpec spec, Seed4JModulePropertiesDefinition properties) {
-    spec.addOption(
-      OptionSpec.builder(PROJECT_PATH_OPTION)
-        .description("Project Path Folder")
-        .paramLabel("<projectpath>")
-        .defaultValue(".")
-        .completionCandidates(List.of("."))
-        .type(String.class)
-        .build()
-    );
+    spec.addOption(new ProjectPathOptionSpecFactory().create());
 
     spec.addOption(
       OptionSpec.builder(COMMIT_OPTION)
