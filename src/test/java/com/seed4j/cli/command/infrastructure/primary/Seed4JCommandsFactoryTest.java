@@ -68,6 +68,9 @@ class Seed4JCommandsFactoryTest {
   @Autowired
   private Seed4JModulesApplicationService modules;
 
+  @Autowired
+  private Seed4JCommandsFactory commandsFactory;
+
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
@@ -944,6 +947,18 @@ class Seed4JCommandsFactoryTest {
       String[] args = { "completion", "bash", "--no-complete-values" };
 
       int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
+    }
+
+    @Test
+    void shouldKeepEarlierBashCompletionOptionsAfterBuildingAnotherCommandTree(CapturedOutput output) {
+      CommandLine earlierCommandLine = new CommandLine(commandsFactory.buildCommandSpec());
+      commandsFactory.buildCommandSpec();
+      String[] args = { "completion", "bash", "--no-complete-values" };
+
+      int exitCode = earlierCommandLine.execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output).contains("_seed4j_completion()").doesNotContain("Seed4J Sample Application");
