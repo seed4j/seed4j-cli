@@ -14,7 +14,8 @@ and **MAY** are normative.
 transactional**, and has **no automatic rollback**. After execution starts, an error can leave partial effects.
 
 The command MUST preserve every earlier successful module, stop at the first module whose individual application throws,
-and MUST NOT infer or attempt a restoration of files, project history, Git state, or published events.
+and MUST NOT infer or attempt a restoration of files, project history, Git state, dispatched events, or downstream event
+effects.
 
 This issue creates only this specification. It does not change Java APIs, enable execution, or change the Seed4J core.
 
@@ -28,6 +29,10 @@ seed4j apply-set <module-slug>... [module property options] [--project-path <pat
 - `--commit` is enabled by default. `--no-commit` disables both Git initialization and commit creation.
 - `--plan` remains read-only and reports the preflight snapshot without authorizing a later execution.
 - Existing `seed4j apply <module>` behavior remains unchanged.
+
+Preflight is a validated plan, not a dry run. It MUST NOT simulate individual module application, module hooks, Git
+operations, event dispatch or listeners, or file diffs. Consequently, `--plan` reports validated inputs and execution
+order, not a preview of the effects or diff that execution would produce.
 
 ## Read-only preflight
 
@@ -64,9 +69,16 @@ Path validation is practical rather than a promise that later writes will succee
 - A path accepted as apparently creatable can still fail during execution because permissions, concurrent changes,
   storage, or other external conditions can change. That failure follows the unexpected-failure contract.
 
-Reading project history, catalog metadata, filesystem metadata, and Git status is allowed. Malformed or unreadable history
-needed by the plan is a preflight failure when it is a predictable validation condition; an unexpected read failure returns
-exit code `1`, still before any mutation.
+Reading project history, catalog metadata, filesystem metadata, and Git status is allowed. When the core history-read API
+returns normally:
+
+- absent project history MUST be treated as an empty history snapshot; and
+- structured history problems reported by or discovered after the read, including malformed data, relevant unsupported
+  values, or type mismatches, MUST be aggregated into the invalid preflight report and return exit code `2`.
+
+Any exception thrown by the core history-read API MUST be treated as an unexpected failure and return exit code `1`,
+still before any mutation. The CLI MUST NOT reclassify such an exception as an invalid preflight based on its exception
+type or message.
 
 ### Exact requested-set invariant
 
@@ -83,9 +95,10 @@ it.
 When commits are enabled and the destination belongs to an existing dirty Git worktree, preflight MUST emit a `WARNING`
 on `stderr` and continue. Dirty means that Git reports tracked, staged, or untracked changes relevant to that worktree.
 
-The warning MUST explain that per-module commits can include or be affected by pre-existing changes and recommend cleaning
-or stashing the worktree, or explicitly choosing `--no-commit`. It is informational: it MUST NOT invalidate the plan,
-prevent execution, or change an otherwise successful exit code `0`.
+The warning MUST explain that per-module commits can include or be affected by pre-existing changes and explicitly confirm
+that execution will continue automatically. It is strictly informational: it MUST NOT recommend cleaning, stashing, any
+other intervention, or `--no-commit`; invalidate the plan; prevent execution; or change an otherwise successful exit code
+`0`.
 
 The dirty-worktree check is not required when `--no-commit` is selected because this command will perform no Git
 initialization or commit in that mode.
@@ -98,9 +111,14 @@ Parameter resolution keeps this precedence:
 2. the latest compatible project-history value;
 3. a module metadata default, for display only.
 
-Defaults remain informational. The execution adapter MUST send to the Seed4J core only applicable values whose source in
-the approved plan is explicit input or project history. It MUST NOT materialize a displayed metadata default as core
-input. A default for a mandatory property does not make the preflight valid.
+The approved plan MUST contain one effective global parameter map. That map contains every explicit value and every latest
+compatible project-history value selected for the requested set. Every individual Seed4J core call MUST receive that same
+complete map, with the same keys and resolved values; the CLI MUST NOT filter it to the current module's declared
+properties.
+
+Informational defaults MUST NOT be entries in the effective global parameter map. A value equal to a metadata default is
+an entry only when its source is explicit input or compatible project history. The execution adapter MUST NOT materialize
+a displayed metadata default as core input. A default for a mandatory property does not make the preflight valid.
 
 An explicitly requested module already present in the preflight history snapshot MUST remain in the execution order and
 MUST be invoked again. Planning, progress, and the final summary MUST mark that module as `reapplied`. `reapplied` is an
@@ -118,8 +136,8 @@ preflight so that catalog, history, parameters, path state, and warnings reflect
 
 Within one execution invocation, the approved `ModuleSetPlan` is the single execution snapshot. The application flow MUST
 reuse the same immutable plan instance that passed preflight. It MUST NOT resolve a second order, property set, dependency
-result, or history interpretation between approval and execution. Each individual core request is a projection of that
-same plan instance.
+result, or history interpretation between approval and execution. Module identity and commit mode vary per individual
+core request, but each request MUST carry the same immutable effective global parameter map from that plan.
 
 This prevents internal planning drift; it cannot eliminate external time-of-check/time-of-use changes. An external change
 after preflight can still make an individual application fail.
@@ -129,10 +147,12 @@ after preflight can still make an individual application fail.
 After a valid execution preflight, the CLI MUST:
 
 1. create a result slot for every slug in the plan's execution order;
-2. visit that order once, sequentially, without parallel work;
-3. derive the current module's applicable explicit and historical parameters from the approved plan;
-4. call the existing **individual-module** Seed4J application API for that module, passing the selected commit mode;
-5. mark the module `SUCCEEDED` only if the individual call returns normally;
+2. obtain the effective global parameter map from the approved plan once;
+3. visit that order once, sequentially, without parallel work;
+4. call the existing **individual-module** Seed4J application API for that module, passing the selected commit mode and
+   the same complete effective global parameter map used for every other individual call;
+5. mark the module `SUCCEEDED` only when its `events.dispatch(...)` call returns normally, which is the normal return
+   boundary of the individual call;
 6. on the first thrown exception, mark that module `FAILED`, mark every uninvoked later module `SKIPPED`, and stop; and
 7. render a final summary containing every requested module.
 
@@ -146,18 +166,19 @@ No change to the `seed4j/seed4j` repository is required for this first execution
 
 The three module statuses have these exact meanings:
 
-| Status      | Meaning                                                                                                                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUCCEEDED` | The individual call returned normally. File application, project-history update, an enabled per-module commit, and publication of that call's events therefore completed. |
-| `FAILED`    | The individual call threw. Its effects are indeterminate and can include files, project history, a commit, or published events.                                           |
-| `SKIPPED`   | The module was not invoked because an earlier module was `FAILED`. It has no effects from this invocation.                                                                |
+| Status      | Meaning                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUCCEEDED` | The individual API reached `events.dispatch(...)`, that dispatch call returned normally, and the individual call returned normally. This status does not guarantee completion of event listeners or their asynchronous effects. |
+| `FAILED`    | The individual call threw, including a throw from `events.dispatch(...)`. Its effects are indeterminate and can include files, project history, a commit, dispatched events, or downstream event effects.                       |
+| `SKIPPED`   | The module was not invoked because an earlier module was `FAILED`. It has no effects from this invocation.                                                                                                                      |
 
 `FAILED` does not mean “no changes.” Even if the exception appears to originate late in the call, the CLI MUST NOT infer
 which effects occurred from exception type, current files, history, Git, or observed events. The failure report MUST call
 the effects indeterminate.
 
-Every `SUCCEEDED` module before a failure remains successful. Its files, history, commit when enabled, and published
-events remain in place. The CLI MUST NOT reset, revert, amend, delete, compensate, or publish compensating events.
+Every `SUCCEEDED` module before a failure remains successful. Its files, history, commit when enabled, and event dispatch
+remain in place. The CLI MUST NOT reset, revert, amend, delete, compensate, or dispatch compensating events. This says
+nothing about whether listeners or asynchronous downstream effects have completed.
 
 If the first individual call throws, there are no earlier `SUCCEEDED` modules, but the overall execution result is still
 `PARTIAL_FAILURE` because the failed call itself can have partial effects.
@@ -180,22 +201,29 @@ With `--no-commit`:
 
 For project history and events in either commit mode:
 
-- `SUCCEEDED` guarantees that the module's history update and event publication completed;
-- `FAILED` provides no guarantee about whether its history update or events occurred;
-- `SKIPPED` guarantees that no history update or event came from that module in this invocation; and
-- earlier successful history and events are never rolled back.
+- `SUCCEEDED` guarantees that the module's history update completed and that `events.dispatch(...)` returned normally;
+  it does not guarantee completion of event listeners or asynchronous effects;
+- `FAILED` provides no guarantee about whether its history update, event dispatch, listeners, or asynchronous effects
+  occurred or completed;
+- `SKIPPED` guarantees that no history update or event dispatch came from that module in this invocation; and
+- earlier successful history updates and event dispatches are never rolled back.
 
 The Seed4J individual application API, not the CLI, owns file generation, history persistence, Git initialization and
-commit creation, and event publication. The CLI owns orchestration and reporting of the observable call boundary.
+commit creation, and event dispatch. The CLI owns orchestration and reports the normal return of `events.dispatch(...)`
+as the observable success boundary, without extending that boundary to listeners or asynchronous effects.
 
 ## Output and exit codes
 
 Human-readable text is the only format in this contract.
 
-| Stream   | Content                                                                                                                                                        |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stdout` | A valid plan; execution progress; the per-module final summary; overall `SUCCEEDED` or `PARTIAL_FAILURE`; and `No changes were applied.` when preflight fails. |
-| `stderr` | Warnings; validation diagnostics; a concise unexpected-failure cause; and a safe next action. No stack trace is printed by default.                            |
+| Stream   | Content                                                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `stdout` | A valid plan; execution progress; the per-module final summary; and overall `SUCCEEDED` or `PARTIAL_FAILURE`. It MUST be empty for an invalid preflight.           |
+| `stderr` | Warnings; the complete invalid preflight report; a concise unexpected-failure cause; and a safe next action when applicable. No stack trace is printed by default. |
+
+For an invalid preflight, the complete human-readable report, including the `Preflight: INVALID` heading, every
+aggregated diagnostic, any safe next action, and `No changes were applied.`, MUST be written to `stderr`; `stdout` MUST
+remain empty.
 
 The progress line and final summary MUST use the literal module statuses `SUCCEEDED`, `FAILED`, and `SKIPPED`. A failed
 execution MUST use the literal overall status `PARTIAL_FAILURE`. Warnings and `reapplied` annotations do not replace a
@@ -203,11 +231,11 @@ module status.
 
 The exit-code contract is:
 
-| Exit code | Meaning                                                                                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`       | `--plan` produced a valid plan, or execution completed with every module `SUCCEEDED`. Warnings do not change this code.                                                 |
-| `2`       | Command usage or preflight is invalid. No individual module was invoked, and no project or Git mutation was made.                                                       |
-| `1`       | An unexpected failure occurred. If execution started, there can be partial progress and indeterminate effects from the `FAILED` module; otherwise no mutation occurred. |
+| Exit code | Meaning                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`       | `--plan` produced a valid plan, or execution completed with every module `SUCCEEDED`. Warnings do not change this code.                                                                                                         |
+| `2`       | Command usage or preflight is invalid, including structured history problems after a normal history read. No individual module was invoked, and no project or Git mutation was made.                                            |
+| `1`       | An unexpected failure occurred, including any exception from the core history-read API. If execution started, there can be partial progress and indeterminate effects from the `FAILED` module; otherwise no mutation occurred. |
 
 On exit code `1` after execution starts, `stderr` MUST tell the caller to inspect the working tree, project history, Git
 log when applicable, and relevant external event effects before deciding whether to retry. It MUST NOT recommend an
@@ -239,17 +267,17 @@ Applying module set:
 [1/3] init
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 [2/3] maven-java
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 [3/3] prettier
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 
 Summary:
@@ -269,21 +297,18 @@ Exit code: `0`.
 seed4j apply-set maven-java --project-path /work/sample
 ```
 
-`stdout`:
-
-```text
-Preflight: INVALID
-No changes were applied.
-```
+`stdout`: empty
 
 `stderr`:
 
 ```text
+Preflight: INVALID
 ERROR: module:init is missing; required by: maven-java.
 Next action: add init explicitly before maven-java, or choose a set whose dependencies are satisfied.
+No changes were applied.
 ```
 
-Exit code: `2`. No individual module, Git initialization, file write, history update, commit, or event publication was
+Exit code: `2`. No individual module, Git initialization, file write, history update, commit, or event dispatch was
 attempted.
 
 ### Unexpected failure after partial progress
@@ -302,7 +327,7 @@ Applying module set:
 [1/3] init
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 [2/3] maven-java
       Status: FAILED
@@ -322,7 +347,7 @@ Module set status: PARTIAL_FAILURE
 
 ```text
 ERROR: maven-java failed: unable to complete module application.
-The failed module may have changed files, history, Git, or published events. Earlier successes were preserved.
+The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.
 Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.
 ```
 
@@ -344,7 +369,7 @@ Applying module set:
 [1/1] prettier
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 
 Summary:
@@ -355,11 +380,10 @@ Module set status: SUCCEEDED
 `stderr`:
 
 ```text
-WARNING: Git worktree /work/sample is dirty; module commits can include or be affected by pre-existing changes.
-Next action: clean or stash those changes before execution, or use --no-commit. Continuing because this warning is non-blocking.
+WARNING: Git worktree /work/sample is dirty; module commits can include or be affected by pre-existing changes. Execution will continue automatically.
 ```
 
-Exit code: `0`. The warning does not block execution.
+Exit code: `0`. The warning is informational and execution continues automatically.
 
 ### Reapply a module already in project history
 
@@ -381,7 +405,7 @@ Applying module set:
 [1/1] prettier (reapplied)
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: created
 
 Summary:
@@ -414,12 +438,12 @@ Applying module set:
 [1/2] init
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: disabled
 [2/2] maven-java
       Status: SUCCEEDED
       History: updated
-      Events: published
+      Events: dispatched
       Commit: disabled
 
 Summary:
@@ -430,27 +454,34 @@ Module set status: SUCCEEDED
 
 `stderr`: empty
 
-Exit code: `0`. Files, history, and events are applied normally; this invocation neither initializes Git nor creates
-commits.
+Exit code: `0`. Files, history, and event dispatch follow the normal individual application flow; this invocation neither
+initializes Git nor creates commits. `Events: dispatched` does not assert listener or asynchronous-effect completion.
 
 ## Rejected alternatives
 
+### Treating preflight as a dry run
+
+Rejected. Preflight validates a plan without executing the mechanisms whose effects a dry run would need to predict. It
+does not apply modules or hooks, perform Git operations, dispatch events, run listeners, or calculate execution diffs.
+
 ### Real or Git-based rollback
 
-Rejected for the first implementation. Files, persisted history, commits, and already observed events do not share one
-transaction boundary. Git cannot retract event delivery and is not a safe restoration mechanism for an initially dirty
-or non-Git project. Advertising rollback without a capability spanning all effects would create a false guarantee.
+Rejected for the first implementation. Files, persisted history, commits, dispatched events, and downstream event effects
+do not share one transaction boundary. Git cannot retract event dispatch or listener effects and is not a safe restoration
+mechanism for an initially dirty or non-Git project. Advertising rollback without a capability spanning all effects would
+create a false guarantee.
 
 ### One commit for the complete set
 
-Rejected. Delaying a single commit would not make history or events transactional, and a later failure would leave prior
-successful file changes without the per-module audit boundary supplied by the individual API. One completed commit per
-successful module accurately records the sequential operation.
+Rejected. Delaying a single commit would not make history or event dispatch transactional, and a later failure would
+leave prior successful file changes without the per-module audit boundary supplied by the individual API. One completed
+commit per successful module accurately records the sequential operation.
 
 ### Blocking execution on a dirty Git worktree
 
-Rejected. Dirtiness does not make the module plan invalid and users may intentionally retain local changes. An actionable,
-non-blocking warning communicates the commit risk while leaving the choice with the caller.
+Rejected. Dirtiness does not make the module plan invalid and users may intentionally retain local changes. A strictly
+informational, non-blocking warning explains the commit risk and confirms automatic continuation without recommending an
+intervention.
 
 ### Skipping modules already in history
 
@@ -461,43 +492,57 @@ output. History can satisfy dependency and parameter planning but MUST NOT silen
 
 Rejected for this flow. The CLI needs the approved `ModuleSetPlan` to remain the sole exact order, parameter, progress, and
 failure boundary. Invoking the core multi-module API would delegate a second multi-module transformation and obscure which
-individual call returned or threw. The individual API provides the required observable boundary without a core change.
+individual `events.dispatch(...)` call returned or threw. The individual API provides the required observable boundary
+without a core change.
 
-### Materializing metadata defaults
+### Per-module parameter maps or materialized metadata defaults
 
 Rejected. Defaults are catalog information used to explain possibilities, not explicit user intent or persisted project
-state. Sending them would change current parameter semantics and could make a mandatory value appear supplied. Only
-explicit and compatible historical values cross into the core call.
+state. Sending them would change current parameter semantics and could make a mandatory value appear supplied. Filtering
+values per module would also make individual calls observe different inputs from the approved set. The CLI therefore
+sends the same complete map of explicit and compatible historical values to every individual call and sends no
+informational default.
+
+### Conflating absent history, structured problems, and read exceptions
+
+Rejected. Absence is a valid empty history snapshot. Structured problems discovered after a normal read are
+caller-correctable preflight invalidity, while an exception thrown by the core history-read API is an unexpected failure.
+Collapsing those outcomes would make exit codes `2` and `1` unreliable.
+
+### Treating event dispatch as downstream completion
+
+Rejected. A normal return from `events.dispatch(...)` establishes the individual call's synchronous success boundary but
+cannot guarantee completion of listeners or asynchronous effects outside that boundary.
 
 ## Responsibility boundary
 
-| Responsibility                                                                                                         | Owner                                      |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| CLI syntax, `--[no-]commit`, `--plan`, usage validation, and exit codes                                                | `seed4j-cli` primary adapter               |
-| Read-only preflight orchestration, immutable plan, exact-set invariant, parameter-source selection, and reapply marker | `seed4j-cli` application/domain            |
-| Catalog, landscape ordering, history reads, path checks, Git-status reads, and individual-core integration             | `seed4j-cli` secondary adapters            |
-| Sequential control, first-failure stop, result classification, progress, summary, warnings, and next action            | `seed4j-cli`                               |
-| Module business behavior, file changes, history persistence, Git initialization/commit, and event publication          | existing individual API in `seed4j/seed4j` |
+| Responsibility                                                                                                                              | Owner                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| CLI syntax, `--[no-]commit`, `--plan`, usage validation, streams, and exit codes                                                            | `seed4j-cli` primary adapter               |
+| Read-only preflight orchestration, immutable plan, exact-set invariant, effective global parameter map, and reapply marker                  | `seed4j-cli` application/domain            |
+| Catalog, landscape ordering, core history reads, path checks, Git-status reads, and individual-core integration                             | `seed4j-cli` secondary adapters            |
+| Sequential control, first-failure stop, result classification, progress, summary, strictly informational warnings, and failure next actions | `seed4j-cli`                               |
+| Module business behavior, file changes, history persistence, Git initialization/commit, and event dispatch                                  | existing individual API in `seed4j/seed4j` |
 
 The CLI MUST not duplicate Seed4J module application logic. The core MUST not be changed merely to add this CLI
 orchestration contract.
 
 ## Acceptance audit for #297
 
-| #   | Acceptance criterion                                    | Normative coverage                                                                                                      |
-| --- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 1   | Atomicity guarantees are explicit                       | The operation is sequential, non-atomic, non-transactional, and has no automatic rollback.                              |
-| 2   | Preflight boundaries are defined                        | Read-only validations, practical path checks, exact requested-set confirmation, and dirty-Git warning are specified.    |
-| 3   | Commit granularity is defined                           | Default mode creates exactly one commit per `SUCCEEDED` module; `--no-commit` creates none and does not initialize Git. |
-| 4   | Partial-failure behavior is defined                     | Earlier successes remain, the first thrown call is `FAILED`, later calls are `SKIPPED`, and execution stops.            |
-| 5   | Rollback support or its absence is explicit             | No file, history, Git, or event restoration or compensation is attempted.                                               |
-| 6   | Already-applied behavior is defined                     | Explicitly requested historical modules are invoked and annotated `reapplied`.                                          |
-| 7   | Project-history behavior is defined                     | A returned call guarantees its update; a thrown call is indeterminate; skipped calls add nothing; successes remain.     |
-| 8   | Event-dispatch behavior is defined                      | A returned call guarantees publication completed; a thrown call is indeterminate; published events are not retracted.   |
-| 9   | Exit codes are defined                                  | `0` is valid/full success, `2` is non-mutating usage/preflight invalidity, and `1` is unexpected failure.               |
-| 10  | User-visible progress and failure reporting are defined | Streams, literal statuses, `PARTIAL_FAILURE`, concise cause, next action, and six complete examples are specified.      |
-| 11  | CLI and Seed4J core responsibilities are identified     | The responsibility table assigns planning/orchestration to the CLI and individual application effects to the core.      |
-| 12  | The execution issue has no unresolved product decision  | Interface, snapshots, order, values, reapplication, commits, effects, reporting, and failure handling are fixed here.   |
+| #   | Acceptance criterion                                    | Normative coverage                                                                                                                                                                                                   |
+| --- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Atomicity guarantees are explicit                       | The operation is sequential, non-atomic, non-transactional, and has no automatic rollback of files, history, Git, dispatch, or downstream effects.                                                                   |
+| 2   | Preflight boundaries are defined                        | It is a validated plan, not a dry run; read-only validations, history-read outcomes, practical path checks, exact-set confirmation, and the informational dirty-Git warning are specified.                           |
+| 3   | Commit granularity is defined                           | Default mode creates exactly one commit per `SUCCEEDED` module; `--no-commit` creates none and does not initialize Git.                                                                                              |
+| 4   | Partial-failure behavior is defined                     | Normal dispatch return is `SUCCEEDED`; the first thrown call is `FAILED`, later calls are `SKIPPED`, earlier successes remain, and execution stops.                                                                  |
+| 5   | Rollback support or its absence is explicit             | No file, history, Git, event-dispatch, listener-effect, or asynchronous-effect restoration or compensation is attempted.                                                                                             |
+| 6   | Already-applied behavior is defined                     | Explicitly requested historical modules are invoked and annotated `reapplied`.                                                                                                                                       |
+| 7   | Project-history behavior is defined                     | Absence is empty; structured post-read problems invalidate preflight; read-API exceptions are unexpected; a successful call's update remains, a failed call is indeterminate, and a skipped call adds nothing.       |
+| 8   | Event-dispatch behavior is defined                      | `SUCCEEDED` means `events.dispatch(...)` returned normally, without guaranteeing listener or asynchronous-effect completion; failed dispatch effects are indeterminate and successful dispatches are not retracted.  |
+| 9   | Exit codes are defined                                  | `0` is valid/full success, `2` covers non-mutating usage or structured preflight invalidity, and `1` covers unexpected failures including every core history-read API exception.                                     |
+| 10  | User-visible progress and failure reporting are defined | Streams, literal statuses, `PARTIAL_FAILURE`, concise causes, applicable next actions, complete invalid-preflight reporting on `stderr`, informational Git warning wording, and six complete examples are specified. |
+| 11  | CLI and Seed4J core responsibilities are identified     | The table assigns planning, the shared effective global map, orchestration, and reporting to the CLI, and individual application effects plus dispatch to the core.                                                  |
+| 12  | The execution issue has no unresolved product decision  | Interface, snapshots, order, global values, history outcomes, reapplication, commits, dispatch boundary, preflight meaning, streams, warnings, and failure handling are fixed here.                                  |
 
 The three examples required by #297 are **Full success**, **Invalid preflight**, and **Unexpected failure after partial
 progress**. The additional examples fix the required dirty-Git, reapplication, and `--no-commit` behavior for #298.
