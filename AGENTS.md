@@ -3,7 +3,6 @@
 ## Project Structure & Module Organization
 
 `src/main/java/com/seed4j/cli` contains the CLI application, bootstrap logic, command adapters, and shared kernel code. Keep new production code inside that package tree and preserve the existing hexagonal split, especially `bootstrap`, `command/infrastructure/primary`, and `shared/*`. Runtime and Spring configuration live in `src/main/resources/config`. Tests mirror the main package layout under `src/test/java`, with support fixtures in `command/infrastructure/primary`. Reference material and architecture notes live in `documentation/`, and CI helpers live in `tests-ci/`.
-Use Types Driven Development. The idea is pretty simple: create a dedicated type for each business concept.
 
 ## Hexagonal Architecture Boundaries
 
@@ -15,7 +14,7 @@ Keep interface syntax and presentation metadata out of domain code. Domain types
 
 Map enums from external contexts explicitly and exhaustively. Do not couple contexts with `TargetType.valueOf(external.name())`, because coincidental enum names are not a stable contract.
 
-Model business concepts with Value Objects before they cross into `application` or `domain`. `primary` adapters may receive raw CLI/framework values such as `String`, `Path`, booleans, or primitive options, but they should translate those values into domain types before calling application services. Domain aggregate records must not expose multiple raw business values when dedicated domain types can express those concepts. A single-field Value Object may wrap a raw value and should validate or normalize the represented concept.
+Use types-driven development in domain modeling: create a dedicated type for each business concept. Model business concepts with Value Objects before they cross into `application` or `domain`. `primary` adapters may receive raw CLI/framework values such as `String`, `Path`, booleans, or primitive options, but they should translate those values into domain types before calling application services. Domain aggregate records must not expose multiple raw business values when dedicated domain types can express those concepts. A single-field Value Object may wrap a raw value and should validate or normalize the represented concept.
 
 Physical locations, runtime layouts, persisted configuration files, cache directories, generated file names, and other storage details are secondary infrastructure concerns. Do not model those details as concrete domain records just to pass filesystem locations through `primary`, `application`, or `domain`. If the domain needs to use something stored externally, model the need as a domain port named after the capability or business concept, and keep the concrete path/layout resolution inside `infrastructure.secondary`.
 
@@ -37,29 +36,62 @@ Use Java 25 and Node.js 22+ before running the toolchain.
 
 ## Agent Validation Behavior
 
-Agents may run smaller, targeted checks during implementation, such as specific Maven tests related to the changed class or behavior, `npm run prettier:check`, or focused Maven goals. Before finishing a change, agents should run `./mvnw test` as the default agent-side validation gate. Before the complete final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. If the user explicitly asks an agent to run `./mvnw clean verify`, the agent may run it, preferably with output limited or redirected to a file.
-
-After substantial production-code work is behaviorally complete and its relevant public-path tests are green, perform a post-green design review before final validation. Do not use that review to introduce new behavior.
+Agents may run smaller, targeted checks during code implementation. Before finishing a code task, run `./mvnw test` as the default agent-side gate. When the complete final gate is needed, ask the user to run `./mvnw clean verify` locally and send the exit code plus a concise summary of any relevant failure. Run that complete gate as an agent only when the user explicitly asks, preferably with output limited or redirected to a file. For documentation-only changes, run the applicable documentation and formatting checks without treating them as code tasks.
 
 ## Habit Hooks
 
-Before considering a code task complete, run `habit-hooks`.
-
-Treat findings produced by Habit Hooks as work that must be analyzed during the task.
-
-Do not silently ignore findings.
-
-Resolve enforced findings before declaring the task complete.
-
-Do not run `habit-snooze` or change `.habit-hooks/snooze.json` without explicit user authorization.
+- Before considering a code task complete, run `habit-hooks`.
+- Analyze every finding during the task; do not silently ignore findings.
+- Resolve enforced findings before declaring the task complete.
+- Do not run `habit-snooze` or change `.habit-hooks/snooze.json` without explicit user authorization.
 
 ## Coding Style & Naming Conventions
 
-Follow `.editorconfig`: 2-space indentation, LF line endings, UTF-8, and final newlines. Prettier is the formatter of record, including Java via `prettier-plugin-java`; run it instead of hand-formatting. Checkstyle enforces import hygiene, visibility, declaration order, and standard Java naming. Match current naming patterns: `*Command`, `*Configuration`, `*Exception`, and package names in lowercase. Domain interfaces that represent ports should be named by business capability, such as `RuntimeExtensionInstaller`, `RuntimeDisplayReader`, or `RuntimeModeConfigurationRepository`; do not use the `Port` suffix for domain ports. Secondary implementations of domain ports should use mechanism, source, or context prefix plus capability, such as `FileSystemProjectsRepository`, `BootstrapRuntimeDisplayReader`, or `BootstrapRuntimeExtensionInstaller`. Reserve `Adapter` for technical wrappers that do not implement a domain port, such as adapters around APIs or frameworks. Prefer one public type per file. Do not add overloaded constructors, overloaded methods, factories, or defaulting shortcuts only to make tests shorter or more convenient. Tests should exercise the same intentional API shape used by production code. If a test needs deterministic or alternate behavior, introduce a meaningful production concept that is also connected to the runtime path, or test through the observable public behavior. In production code, order private helper methods immediately after their first use; when a helper is used from multiple places, place it after the earliest caller that introduces it. Avoid local variables that merely rename a single-use accessor result before immediately forwarding it to another call. Inline the accessor when the resulting invocation remains readable. Keep a named intermediate when it expresses a meaningful business step, is reused, avoids repeated work or side effects, or prevents excessive nesting. Do not use mutable out-parameters, such as passing `List`, `Set`, or holder objects into helpers so they can append progress by side effect. Java passes object references by value; the issue is hidden mutation of shared accumulators. Prefer returning an explicit result or progress type and threading it through loops or recursion. Use private records for implementation-local progress/context types, and promote them only when they represent real domain concepts. When a helper needs to apply an ordered sequence of transformations to an immutable progress/result object, prefer a named fold over `forEach` with external state. A stream can be appropriate when each element is mapped to a clearly named `Function<Progress, Progress>` and composed with `Function::andThen` or an equally explicit fold. Use this only when the helper names make the data flow clearer than an explicit loop; do not use streams to hide mutation. Avoid raw boolean parameters when they select a business behavior, mode, status, or strategy. Model that choice with a dedicated type, usually a small enum with named states and a predicate method, following patterns such as `BootstrapDebugMode`, `RuntimeProcessMode`, or `RuntimeExtensionReplacementStatus`. Avoid `is*` prefixes for boolean methods; prefer names that express the business predicate directly, such as `atLeast(...)`, `missingBootInfClasses(...)`, or `standardMode(...)`. When a branch uses the opposite of a project-owned boolean predicate to express a business decision, prefer exposing a predicate that names the branch condition directly; for example, prefer `if (dependencyPlan.notReady())` over `if (!dependencyPlan.ready())`. Keep this contextual: direct negation remains appropriate for standard-library and technical predicates when introducing a wrapper would not add business meaning. Cover the relevant states through observable behavior instead of adding unit tests solely to exercise the predicate method. Prefer `Optional` over direct `null` comparisons when modeling optional values. Do not use `@Autowired`; prefer a single explicit constructor and direct wiring. Do not use `var` in Java; prefer explicit types. When validating mandatory references in Java, do not use `Objects.requireNonNull`; use `Assert.notNull("fieldName", value)` from `src/main/java/com/seed4j/cli/shared/error/domain/Assert.java`.
+### Formatting and naming
+
+Follow `.editorconfig`: 2-space indentation, LF line endings, UTF-8, and final newlines. Prettier is the formatter of record, including Java via `prettier-plugin-java`; run it instead of hand-formatting. Checkstyle enforces import hygiene, visibility, declaration order, and standard Java naming. Match current naming patterns: `*Command`, `*Configuration`, `*Exception`, and package names in lowercase. Prefer one public type per file. Do not use `var` in Java; prefer explicit types.
+
+### Ports, adapters, and APIs
+
+Name domain interfaces that represent ports by business capability, such as `RuntimeExtensionInstaller`, `RuntimeDisplayReader`, or `RuntimeModeConfigurationRepository`; do not use the `Port` suffix. Prefix secondary implementations with their mechanism, source, or context plus capability, such as `FileSystemProjectsRepository`, `BootstrapRuntimeDisplayReader`, or `BootstrapRuntimeExtensionInstaller`. Reserve `Adapter` for technical wrappers that do not implement a domain port, such as wrappers around APIs or frameworks. Do not use `@Autowired`; prefer a single explicit constructor and direct wiring.
+
+### Types and representation of concepts
+
+Avoid raw boolean parameters when they select a business behavior, mode, status, or strategy. Model that choice with a dedicated type, usually a small enum with named states and a predicate method, following patterns such as `BootstrapDebugMode`, `RuntimeProcessMode`, or `RuntimeExtensionReplacementStatus`. Use private records for implementation-local progress or context types, and promote them only when they represent real domain concepts.
+
+### Helpers and immutable flow
+
+In production code, order private helper methods immediately after their first use; when a helper is used from multiple places, place it after the earliest caller that introduces it. Avoid local variables that merely rename a single-use accessor result before immediately forwarding it. Inline the accessor when the invocation remains readable. Keep a named intermediate when it expresses a meaningful business step, is reused, avoids repeated work or side effects, or prevents excessive nesting.
+
+Do not use mutable out-parameters, such as passing `List`, `Set`, or holder objects into helpers so they can append progress by side effect. Prefer returning an explicit result or progress type and threading it through loops or recursion. When a helper applies an ordered sequence of transformations to an immutable progress or result object, prefer a named fold over `forEach` with external state. A stream is appropriate when each element maps to a clearly named `Function<Progress, Progress>` composed with `Function::andThen` or an equally explicit fold, but only when the helper names make the data flow clearer than an explicit loop. Do not use streams to hide mutation.
+
+### Predicates, optionals, and validation
+
+Avoid `is*` prefixes for boolean methods; prefer names that express the business predicate directly, such as `atLeast(...)`, `missingBootInfClasses(...)`, or `standardMode(...)`. When a branch uses the opposite of a project-owned predicate to express a business decision, expose a predicate that names the branch condition directly; for example, prefer `if (dependencyPlan.notReady())` over `if (!dependencyPlan.ready())`. Direct negation remains appropriate for standard-library and technical predicates when a wrapper would not add business meaning.
+
+Prefer `Optional` over direct `null` comparisons when modeling optional values. When validating mandatory references in Java, do not use `Objects.requireNonNull`; use `Assert.notNull("fieldName", value)` from `src/main/java/com/seed4j/cli/shared/error/domain/Assert.java`.
 
 ## Testing Guidelines
 
-This project uses JUnit 5 with Spring Boot test support. Name test classes `*Test.java` and keep them in the mirrored package for the class under test. Reuse the existing meta-annotations: `@UnitTest`, `@ComponentTest`, and `@IntegrationTest` to signal scope consistently. `./mvnw clean verify` fails on uncovered lines or branches, so add tests with every behavior change rather than relying on partial coverage; request the full gate from the user when final coverage/checkstyle validation is needed. Coverage failures do not automatically mean implementation-detail tests should be added. Prefer behavior tests that exercise observable outcomes through public APIs, commands, persisted files, output, or domain results. Avoid tests that only assert Spring annotations, bean counts, constructor wiring, delegation, collaborator call order, or other framework/internal implementation details. If a class has no meaningful behavior beyond wiring or delegation, either cover the user-visible behavior at a higher boundary or remove the test instead of preserving fragile coverage-only assertions. Do not break the TDD loop by introducing several behaviors at once in a new test class; avoid mixing “closing coverage” with “discovering design”, because that creates steps large enough for real bugs to hide inside them. Keep assertions explicit in the test body instead of encapsulating them in helper methods, because inline assertions improve readability and failure diagnosis. Structure test methods with clear Given/When/Then blocks separated by a blank line. Keep `Then` focused on assertions only; do not build `expected` values after `When`. Keep trivial expected values inline. Do not extract helpers for one-step transforms or direct projections (for example `path.toString()`, simple constant concatenation, or single-field mapping). Extract helper methods for expected values only when the structure is complex (for example multi-line content, derived path trees, or large object graphs) or when the helper is reused by two or more tests. If a helper is introduced during RED only to satisfy compilation, remove or inline it during GREEN unless it clearly improves readability. Heuristic: when a helper body is a single expression and has a single call site in the same test class, inline it. Avoid computing expected values with production decision logic. When a test introduces a seam (for example, an overload for deterministic environment control), that seam must be connected to the production path or removed; avoid test-only methods that are never exercised by real runtime flow.
+### Framework, location, and meta-annotations
+
+This project uses JUnit 5 with Spring Boot test support. Name test classes `*Test.java` and keep them in the mirrored package for the class under test. Reuse `@UnitTest`, `@ComponentTest`, and `@IntegrationTest` to signal scope consistently.
+
+### Observable boundaries and coverage
+
+Add tests with every behavior change. The complete validation gate fails on uncovered lines or branches, but coverage failures do not justify implementation-detail tests. Prefer tests that exercise observable outcomes through public APIs, commands, persisted files, output, or domain results. Exercise the relevant states, including predicate branches, through observable behavior instead of unit tests written solely for a predicate method.
+
+Tests should use the same intentional API shape as production code. Avoid tests that only assert Spring annotations, bean counts, constructor wiring, delegation, collaborator call order, or other framework and implementation details. If a class has no meaningful behavior beyond wiring or delegation, cover user-visible behavior at a higher boundary or remove the test instead of preserving fragile coverage-only assertions. Request the complete gate from the user when final coverage and Checkstyle validation is needed.
+
+### Given/When/Then and assertions
+
+Keep assertions explicit in the test body to improve readability and failure diagnosis. Structure test methods with clear Given/When/Then blocks separated by a blank line. Keep `Then` focused on assertions only, and define nontrivial expected values before `When`. Keep trivial expected values inline.
+
+### Helpers, expected values, and seams
+
+Do not extract helpers for one-step transforms or direct projections, such as `path.toString()`, simple constant concatenation, or single-field mapping. Extract expected-value helpers only for complex structures, such as multi-line content, derived path trees, or large object graphs, or when reused by two or more tests. When a helper is a single expression with a single call site in the same test class, inline it. Avoid computing expected values with production decision logic.
+
+Do not add overloaded constructors, overloaded methods, factories, or defaulting shortcuts only to make tests shorter or more convenient. If a test needs deterministic or alternate behavior, introduce a meaningful production concept connected to the runtime path or test through observable public behavior. Remove seams and test-only methods that the real runtime flow never exercises.
 
 ## Commit & Pull Request Guidelines
 
