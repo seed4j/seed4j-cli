@@ -50,9 +50,10 @@ Preflight MUST retain all validations performed by the current read-only `apply-
 6. reconcile property definitions and reject incompatible definitions;
 7. reject explicit property options unused by the requested set;
 8. parse explicit values using their declared types;
-9. read the latest applicable project-history values and reject relevant unsupported values or type mismatches;
+9. read the latest applicable project-history values and, when the history API returns normally, reject relevant
+   unsupported values or values incompatible with the catalog type;
 10. reject every missing mandatory property; and
-11. aggregate predictable dependency, property, and history problems in the preflight result.
+11. aggregate predictable dependency, property, and normally returned history-value problems in the preflight result.
 
 Preflight MUST additionally validate the following execution invariants.
 
@@ -73,12 +74,13 @@ Reading project history, catalog metadata, filesystem metadata, and Git status i
 returns normally:
 
 - absent project history MUST be treated as an empty history snapshot; and
-- structured history problems reported by or discovered after the read, including malformed data, relevant unsupported
-  values, or type mismatches, MUST be aggregated into the invalid preflight report and return exit code `2`.
+- a relevant returned value that is unsupported or incompatible with its catalog type MUST be aggregated into the invalid
+  preflight report and return exit code `2`.
 
 Any exception thrown by the core history-read API MUST be treated as an unexpected failure and return exit code `1`,
-still before any mutation. The CLI MUST NOT reclassify such an exception as an invalid preflight based on its exception
-type or message.
+still before any mutation. This includes exceptions caused by malformed persisted content or I/O failures. Such an
+exception is opaque to the CLI: the CLI MUST NOT inspect its type, cause, or message, or read the core history storage
+directly, to reclassify it as an invalid preflight.
 
 ### Exact requested-set invariant
 
@@ -231,11 +233,11 @@ module status.
 
 The exit-code contract is:
 
-| Exit code | Meaning                                                                                                                                                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`       | `--plan` produced a valid plan, or execution completed with every module `SUCCEEDED`. Warnings do not change this code.                                                                                                         |
-| `2`       | Command usage or preflight is invalid, including structured history problems after a normal history read. No individual module was invoked, and no project or Git mutation was made.                                            |
-| `1`       | An unexpected failure occurred, including any exception from the core history-read API. If execution started, there can be partial progress and indeterminate effects from the `FAILED` module; otherwise no mutation occurred. |
+| Exit code | Meaning                                                                                                                                                                                                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`       | `--plan` produced a valid plan, or execution completed with every module `SUCCEEDED`. Warnings do not change this code.                                                                                                                                                                                     |
+| `2`       | Command usage or preflight is invalid, including a relevant unsupported history value or one incompatible with its catalog type after a normal history read. No individual module was invoked, and no project or Git mutation was made.                                                                     |
+| `1`       | An unexpected failure occurred, including every exception from the core history-read API, whether caused by malformed persisted content, I/O, or another condition. If execution started, there can be partial progress and indeterminate effects from the `FAILED` module; otherwise no mutation occurred. |
 
 On exit code `1` after execution starts, `stderr` MUST tell the caller to inspect the working tree, project history, Git
 log when applicable, and relevant external event effects before deciding whether to retry. It MUST NOT recommend an
@@ -503,11 +505,13 @@ values per module would also make individual calls observe different inputs from
 sends the same complete map of explicit and compatible historical values to every individual call and sends no
 informational default.
 
-### Conflating absent history, structured problems, and read exceptions
+### Conflating absent history, normally returned values, and read exceptions
 
-Rejected. Absence is a valid empty history snapshot. Structured problems discovered after a normal read are
-caller-correctable preflight invalidity, while an exception thrown by the core history-read API is an unexpected failure.
-Collapsing those outcomes would make exit codes `2` and `1` unreliable.
+Rejected. Absence returned normally is a valid empty history snapshot. A relevant value returned normally that is
+unsupported or incompatible with its catalog type is caller-correctable preflight invalidity. Every exception thrown by
+the core history-read API is an unexpected failure, including one caused by malformed persisted content or I/O.
+Inspecting the exception type, cause, or message, or reading the core history storage directly, would violate the public
+API boundary and make exit codes `2` and `1` unreliable.
 
 ### Treating event dispatch as downstream completion
 
@@ -520,7 +524,7 @@ cannot guarantee completion of listeners or asynchronous effects outside that bo
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | CLI syntax, `--[no-]commit`, `--plan`, usage validation, streams, and exit codes                                                            | `seed4j-cli` primary adapter               |
 | Read-only preflight orchestration, immutable plan, exact-set invariant, effective global parameter map, and reapply marker                  | `seed4j-cli` application/domain            |
-| Catalog, landscape ordering, core history reads, path checks, Git-status reads, and individual-core integration                             | `seed4j-cli` secondary adapters            |
+| Catalog, landscape ordering, public core history-read API integration, path checks, Git-status reads, and individual-core integration       | `seed4j-cli` secondary adapters            |
 | Sequential control, first-failure stop, result classification, progress, summary, strictly informational warnings, and failure next actions | `seed4j-cli`                               |
 | Module business behavior, file changes, history persistence, Git initialization/commit, and event dispatch                                  | existing individual API in `seed4j/seed4j` |
 
@@ -529,20 +533,20 @@ orchestration contract.
 
 ## Acceptance audit for #297
 
-| #   | Acceptance criterion                                    | Normative coverage                                                                                                                                                                                                   |
-| --- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Atomicity guarantees are explicit                       | The operation is sequential, non-atomic, non-transactional, and has no automatic rollback of files, history, Git, dispatch, or downstream effects.                                                                   |
-| 2   | Preflight boundaries are defined                        | It is a validated plan, not a dry run; read-only validations, history-read outcomes, practical path checks, exact-set confirmation, and the informational dirty-Git warning are specified.                           |
-| 3   | Commit granularity is defined                           | Default mode creates exactly one commit per `SUCCEEDED` module; `--no-commit` creates none and does not initialize Git.                                                                                              |
-| 4   | Partial-failure behavior is defined                     | Normal dispatch return is `SUCCEEDED`; the first thrown call is `FAILED`, later calls are `SKIPPED`, earlier successes remain, and execution stops.                                                                  |
-| 5   | Rollback support or its absence is explicit             | No file, history, Git, event-dispatch, listener-effect, or asynchronous-effect restoration or compensation is attempted.                                                                                             |
-| 6   | Already-applied behavior is defined                     | Explicitly requested historical modules are invoked and annotated `reapplied`.                                                                                                                                       |
-| 7   | Project-history behavior is defined                     | Absence is empty; structured post-read problems invalidate preflight; read-API exceptions are unexpected; a successful call's update remains, a failed call is indeterminate, and a skipped call adds nothing.       |
-| 8   | Event-dispatch behavior is defined                      | `SUCCEEDED` means `events.dispatch(...)` returned normally, without guaranteeing listener or asynchronous-effect completion; failed dispatch effects are indeterminate and successful dispatches are not retracted.  |
-| 9   | Exit codes are defined                                  | `0` is valid/full success, `2` covers non-mutating usage or structured preflight invalidity, and `1` covers unexpected failures including every core history-read API exception.                                     |
-| 10  | User-visible progress and failure reporting are defined | Streams, literal statuses, `PARTIAL_FAILURE`, concise causes, applicable next actions, complete invalid-preflight reporting on `stderr`, informational Git warning wording, and six complete examples are specified. |
-| 11  | CLI and Seed4J core responsibilities are identified     | The table assigns planning, the shared effective global map, orchestration, and reporting to the CLI, and individual application effects plus dispatch to the core.                                                  |
-| 12  | The execution issue has no unresolved product decision  | Interface, snapshots, order, global values, history outcomes, reapplication, commits, dispatch boundary, preflight meaning, streams, warnings, and failure handling are fixed here.                                  |
+| #   | Acceptance criterion                                    | Normative coverage                                                                                                                                                                                                                                                                                            |
+| --- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Atomicity guarantees are explicit                       | The operation is sequential, non-atomic, non-transactional, and has no automatic rollback of files, history, Git, dispatch, or downstream effects.                                                                                                                                                            |
+| 2   | Preflight boundaries are defined                        | It is a validated plan, not a dry run; normal history returns are separated from opaque read exceptions; practical path checks, exact-set confirmation, and the informational dirty-Git warning are specified.                                                                                                |
+| 3   | Commit granularity is defined                           | Default mode creates exactly one commit per `SUCCEEDED` module; `--no-commit` creates none and does not initialize Git.                                                                                                                                                                                       |
+| 4   | Partial-failure behavior is defined                     | Normal dispatch return is `SUCCEEDED`; the first thrown call is `FAILED`, later calls are `SKIPPED`, earlier successes remain, and execution stops.                                                                                                                                                           |
+| 5   | Rollback support or its absence is explicit             | No file, history, Git, event-dispatch, listener-effect, or asynchronous-effect restoration or compensation is attempted.                                                                                                                                                                                      |
+| 6   | Already-applied behavior is defined                     | Explicitly requested historical modules are invoked and annotated `reapplied`.                                                                                                                                                                                                                                |
+| 7   | Project-history behavior is defined                     | A normal read maps absence to empty and relevant unsupported or catalog-incompatible values to invalid preflight; every read-API exception, including malformed persisted content or I/O, is unexpected; a successful call's update remains, a failed call is indeterminate, and a skipped call adds nothing. |
+| 8   | Event-dispatch behavior is defined                      | `SUCCEEDED` means `events.dispatch(...)` returned normally, without guaranteeing listener or asynchronous-effect completion; failed dispatch effects are indeterminate and successful dispatches are not retracted.                                                                                           |
+| 9   | Exit codes are defined                                  | `0` is valid/full success; `2` covers non-mutating usage or predictable validation of values returned normally; `1` covers unexpected failures, including every core history-read API exception without reclassification by the CLI.                                                                          |
+| 10  | User-visible progress and failure reporting are defined | Streams, literal statuses, `PARTIAL_FAILURE`, concise causes, applicable next actions, complete invalid-preflight reporting on `stderr`, informational Git warning wording, and six complete examples are specified.                                                                                          |
+| 11  | CLI and Seed4J core responsibilities are identified     | The table assigns planning, public history-API integration, the shared effective global map, orchestration, and reporting to the CLI, without allowing direct core history-storage inspection, and assigns individual application effects plus dispatch to the core.                                          |
+| 12  | The execution issue has no unresolved product decision  | Interface, snapshots, order, global values, history outcomes, reapplication, commits, dispatch boundary, preflight meaning, streams, warnings, and failure handling are fixed here.                                                                                                                           |
 
 The three examples required by #297 are **Full success**, **Invalid preflight**, and **Unexpected failure after partial
 progress**. The additional examples fix the required dirty-Git, reapplication, and `--no-commit` behavior for #298.
