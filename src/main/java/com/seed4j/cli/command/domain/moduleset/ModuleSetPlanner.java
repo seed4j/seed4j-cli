@@ -70,10 +70,9 @@ public class ModuleSetPlanner {
     List<ModuleSetPlanningProblem> pathProblems = environmentInspector.pathProblems(request.projectPath());
     ModuleSetRequestSelector.Selection selection = requestSelector.select(request.requestedModules());
     List<ModuleSetPlanningProblem> preselectionProblems = Stream.concat(pathProblems.stream(), selection.problems().stream()).toList();
-    SelectedModulesPlanning selectedModulesPlanning = selection.approved()
-      ? planSelectedModules(request, selection)
-      : SelectedModulesPlanning.empty();
-    ModuleSetPlan plan = selectedModulesPlanning.moduleSetPlan(request, selection.executionOrder(), preselectionProblems);
+    ModuleSetPlan plan = selection.approved()
+      ? planSelectedModules(request, selection).moduleSetPlan(request, selection.executionOrder(), preselectionProblems)
+      : rejectedSelectionPlan(request, selection.executionOrder(), preselectionProblems);
     return plan.withWarnings(environmentInspector.warnings(plan));
   }
 
@@ -90,6 +89,28 @@ public class ModuleSetPlanner {
       history.parameters()
     );
     return new SelectedModulesPlanning(history.appliedModules(), dependencyValidations, parameterPlanning);
+  }
+
+  private static ModuleSetPlan rejectedSelectionPlan(
+    ModuleSetPlanningRequest request,
+    List<ModuleSetSlug> executionOrder,
+    List<ModuleSetPlanningProblem> problems
+  ) {
+    return new ModuleSetPlan(
+      request.requestedModules(),
+      request.projectPath(),
+      executionOrder
+        .stream()
+        .map(slug -> new ModuleSetPlanItem(slug, ModuleSetApplicationKind.APPLICATION))
+        .toList(),
+      request.commitMode(),
+      EffectiveModuleSetParameters.empty(),
+      List.of(),
+      List.of(),
+      List.of(),
+      problems,
+      List.of()
+    );
   }
 
   private record SelectedModulesPlanning(
@@ -135,14 +156,6 @@ public class ModuleSetPlanner {
 
     private ModuleSetApplicationKind applicationKind(ModuleSetSlug slug) {
       return appliedModules.contains(slug) ? ModuleSetApplicationKind.REAPPLICATION : ModuleSetApplicationKind.APPLICATION;
-    }
-
-    private static SelectedModulesPlanning empty() {
-      return new SelectedModulesPlanning(
-        Set.of(),
-        List.of(),
-        new ModuleSetParameterPlanner.ParameterPlanning(List.of(), List.of(), List.of())
-      );
     }
   }
 }
