@@ -2,7 +2,6 @@ package com.seed4j.cli.command.domain.moduleset;
 
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -14,6 +13,7 @@ public class ModuleSetPlanner {
   private final ModuleSetGitStateReader gitStateReader;
   private final ModuleSetDependencyPlanner dependencyPlanner;
   private final ModuleSetParameterPlanner parameterPlanner;
+  private final ModuleSetRequestSelector requestSelector;
 
   public ModuleSetPlanner(
     ModuleSetCatalog catalog,
@@ -31,6 +31,7 @@ public class ModuleSetPlanner {
     this.gitStateReader = gitStateReader;
     dependencyPlanner = new ModuleSetDependencyPlanner();
     parameterPlanner = new ModuleSetParameterPlanner();
+    requestSelector = new ModuleSetRequestSelector(catalog);
   }
 
   public List<ModuleSetPropertyDefinition> availableProperties() {
@@ -69,21 +70,12 @@ public class ModuleSetPlanner {
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
     List<ModuleSetPlanningProblem> pathProblems = projectPathProblems(request.projectPath());
-    ModuleSetRequestValidation requestValidation = validateRequestedModules(request.requestedModules());
-    List<ModuleSetSlug> executionOrder = executionOrder(request.requestedModules(), requestValidation);
-    List<ModuleSetPlanningProblem> orderProblems = executionOrderProblems(request.requestedModules(), executionOrder, requestValidation);
-    List<ModuleSetPlanningProblem> preselectionProblems = Stream.of(
-      pathProblems.stream(),
-      requestValidation.problems().stream(),
-      orderProblems.stream()
-    )
-      .flatMap(Function.identity())
-      .toList();
-    SelectedModulesPlanning selectedModulesPlanning =
-      requestValidation.valid() && orderProblems.isEmpty()
-        ? planSelectedModules(request, executionOrder, requestValidation.modulesBySlug())
-        : SelectedModulesPlanning.empty();
-    ModuleSetPlan plan = selectedModulesPlanning.moduleSetPlan(request, executionOrder, preselectionProblems);
+    ModuleSetRequestSelector.Selection selection = requestSelector.select(request.requestedModules());
+    List<ModuleSetPlanningProblem> preselectionProblems = Stream.concat(pathProblems.stream(), selection.problems().stream()).toList();
+    SelectedModulesPlanning selectedModulesPlanning = selection.approved()
+      ? planSelectedModules(request, selection)
+      : SelectedModulesPlanning.empty();
+    ModuleSetPlan plan = selectedModulesPlanning.moduleSetPlan(request, selection.executionOrder(), preselectionProblems);
     return plan.withWarnings(planningWarnings(plan));
   }
 
@@ -99,97 +91,19 @@ public class ModuleSetPlanner {
     return gitStateReader.state(plan.projectPath()) == ModuleSetGitState.DIRTY ? List.of(new DirtyModuleSetGitWorktree()) : List.of();
   }
 
-  private static List<ModuleSetPlanningProblem> executionOrderProblems(
-    RequestedModuleSet requestedModules,
-    List<ModuleSetSlug> executionOrder,
-    ModuleSetRequestValidation requestValidation
-  ) {
-    if (!requestValidation.valid()) {
-      return List.of();
-    }
-    Set<ModuleSetSlug> requestedSlugs = Set.copyOf(requestedModules.modules());
-    Set<ModuleSetSlug> orderedSlugs = Set.copyOf(executionOrder);
-    if (executionOrder.size() == requestedModules.modules().size() && orderedSlugs.equals(requestedSlugs)) {
-      return List.of();
-    }
-    return List.of(new ModuleSetExecutionOrderMismatch(requestedModules.modules(), executionOrder));
-  }
-
-  private ModuleSetRequestValidation validateRequestedModules(RequestedModuleSet requestedModules) {
-    List<ModuleSetSlug> duplicateModules = duplicates(requestedModules.modules());
-    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug = modulesBySlug();
-    List<ModuleSetSlug> unknownModules = unknownModules(requestedModules, modulesBySlug.keySet());
-    return new ModuleSetRequestValidation(modulesBySlug, requestProblems(duplicateModules, unknownModules));
-  }
-
-  private static List<ModuleSetSlug> duplicates(List<ModuleSetSlug> requestedModules) {
-    Set<ModuleSetSlug> seen = new HashSet<>();
-    Set<ModuleSetSlug> duplicates = new LinkedHashSet<>();
-    requestedModules.forEach(module -> {
-      if (!seen.add(module)) {
-        duplicates.add(module);
-      }
-    });
-    return duplicates.stream().sorted(Comparator.comparing(ModuleSetSlug::value)).toList();
-  }
-
-  private Map<ModuleSetSlug, ModuleSetModule> modulesBySlug() {
-    return catalog.modules().stream().collect(Collectors.toMap(ModuleSetModule::slug, Function.identity()));
-  }
-
-  private static List<ModuleSetSlug> unknownModules(RequestedModuleSet requestedModules, Set<ModuleSetSlug> knownModules) {
-    return requestedModules
-      .modules()
-      .stream()
-      .filter(module -> !knownModules.contains(module))
-      .distinct()
-      .sorted(Comparator.comparing(ModuleSetSlug::value))
-      .toList();
-  }
-
-  private static List<ModuleSetPlanningProblem> requestProblems(List<ModuleSetSlug> duplicateModules, List<ModuleSetSlug> unknownModules) {
-    List<ModuleSetPlanningProblem> problems = new ArrayList<>();
-    if (!duplicateModules.isEmpty()) {
-      problems.add(new DuplicateRequestedModuleSetModules(duplicateModules));
-    }
-    if (!unknownModules.isEmpty()) {
-      problems.add(new UnknownRequestedModuleSetModules(unknownModules));
-    }
-    return List.copyOf(problems);
-  }
-
-  private List<ModuleSetSlug> executionOrder(RequestedModuleSet requestedModules, ModuleSetRequestValidation requestValidation) {
-    return requestValidation.valid() ? catalog.sort(requestedModules.modules()) : List.of();
-  }
-
-  private SelectedModulesPlanning planSelectedModules(
-    ModuleSetPlanningRequest request,
-    List<ModuleSetSlug> executionOrder,
-    Map<ModuleSetSlug, ModuleSetModule> modulesBySlug
-  ) {
-    if (executionOrder.isEmpty()) {
-      return SelectedModulesPlanning.empty();
-    }
+  private SelectedModulesPlanning planSelectedModules(ModuleSetPlanningRequest request, ModuleSetRequestSelector.Selection selection) {
     ModuleSetPlanningHistory history = historyReader.history(request.projectPath());
-    List<ModuleSetDependencyValidation> dependencyValidations = dependencyPlanner.plan(executionOrder, modulesBySlug, history);
-    List<ModuleSetModule> selectedModules = executionOrder.stream().map(modulesBySlug::get).toList();
+    List<ModuleSetDependencyValidation> dependencyValidations = dependencyPlanner.plan(
+      selection.executionOrder(),
+      selection.modulesBySlug(),
+      history
+    );
     ModuleSetParameterPlanner.ParameterPlanning parameterPlanning = parameterPlanner.plan(
-      selectedModules,
+      selection.selectedModules(),
       request.explicitParameters(),
       history.parameters()
     );
     return new SelectedModulesPlanning(history.appliedModules(), dependencyValidations, parameterPlanning);
-  }
-
-  private record ModuleSetRequestValidation(Map<ModuleSetSlug, ModuleSetModule> modulesBySlug, List<ModuleSetPlanningProblem> problems) {
-    private ModuleSetRequestValidation {
-      modulesBySlug = Map.copyOf(modulesBySlug);
-      problems = List.copyOf(problems);
-    }
-
-    private boolean valid() {
-      return problems.isEmpty();
-    }
   }
 
   private record SelectedModulesPlanning(
