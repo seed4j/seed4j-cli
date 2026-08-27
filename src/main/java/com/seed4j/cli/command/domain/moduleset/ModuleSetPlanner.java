@@ -9,9 +9,8 @@ public class ModuleSetPlanner {
 
   private final ModuleSetCatalog catalog;
   private final ModuleSetPlanningHistoryReader historyReader;
-  private final ModuleSetProjectPathValidator projectPathValidator;
-  private final ModuleSetGitStateReader gitStateReader;
   private final ModuleSetDependencyPlanner dependencyPlanner;
+  private final ModuleSetPreflightEnvironmentInspector environmentInspector;
   private final ModuleSetParameterPlanner parameterPlanner;
   private final ModuleSetRequestSelector requestSelector;
 
@@ -27,9 +26,8 @@ public class ModuleSetPlanner {
     Assert.notNull("gitStateReader", gitStateReader);
     this.catalog = catalog;
     this.historyReader = historyReader;
-    this.projectPathValidator = projectPathValidator;
-    this.gitStateReader = gitStateReader;
     dependencyPlanner = new ModuleSetDependencyPlanner();
+    environmentInspector = new ModuleSetPreflightEnvironmentInspector(projectPathValidator, gitStateReader);
     parameterPlanner = new ModuleSetParameterPlanner();
     requestSelector = new ModuleSetRequestSelector(catalog);
   }
@@ -69,26 +67,14 @@ public class ModuleSetPlanner {
   }
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
-    List<ModuleSetPlanningProblem> pathProblems = projectPathProblems(request.projectPath());
+    List<ModuleSetPlanningProblem> pathProblems = environmentInspector.pathProblems(request.projectPath());
     ModuleSetRequestSelector.Selection selection = requestSelector.select(request.requestedModules());
     List<ModuleSetPlanningProblem> preselectionProblems = Stream.concat(pathProblems.stream(), selection.problems().stream()).toList();
     SelectedModulesPlanning selectedModulesPlanning = selection.approved()
       ? planSelectedModules(request, selection)
       : SelectedModulesPlanning.empty();
     ModuleSetPlan plan = selectedModulesPlanning.moduleSetPlan(request, selection.executionOrder(), preselectionProblems);
-    return plan.withWarnings(planningWarnings(plan));
-  }
-
-  private List<ModuleSetPlanningProblem> projectPathProblems(ModuleSetProjectPath projectPath) {
-    ModuleSetProjectPathStatus status = projectPathValidator.validate(projectPath);
-    return status.valid() ? List.of() : List.of(new InvalidModuleSetProjectPath(status));
-  }
-
-  private List<ModuleSetPlanningWarning> planningWarnings(ModuleSetPlan plan) {
-    if (!plan.valid() || plan.commitMode().disabled()) {
-      return List.of();
-    }
-    return gitStateReader.state(plan.projectPath()) == ModuleSetGitState.DIRTY ? List.of(new DirtyModuleSetGitWorktree()) : List.of();
+    return plan.withWarnings(environmentInspector.warnings(plan));
   }
 
   private SelectedModulesPlanning planSelectedModules(ModuleSetPlanningRequest request, ModuleSetRequestSelector.Selection selection) {
