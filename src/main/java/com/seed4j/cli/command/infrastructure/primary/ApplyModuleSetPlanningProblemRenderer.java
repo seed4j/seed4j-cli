@@ -19,13 +19,14 @@ import java.util.stream.Collectors;
 
 final class ApplyModuleSetPlanningProblemRenderer {
 
-  void appendProblems(StringBuilder output, List<ModuleSetPlanningProblem> problems) {
+  String problems(List<ModuleSetPlanningProblem> problems) {
     if (problems.isEmpty()) {
-      return;
+      return "";
     }
+    StringBuilder output = new StringBuilder();
     output.append("Validation problems:\n");
     problems.forEach(problem -> output.append("  ○ ").append(problemText(problem)).append('\n'));
-    output.append('\n');
+    return output.append('\n').toString();
   }
 
   private static String problemText(ModuleSetPlanningProblem problem) {
