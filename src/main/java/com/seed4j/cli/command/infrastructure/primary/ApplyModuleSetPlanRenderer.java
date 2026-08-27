@@ -16,10 +16,10 @@ class ApplyModuleSetPlanRenderer {
     output.append("Plan for module set\n\n");
     output.append("Project path: ").append(plan.projectPath().value()).append("\n\n");
     appendModules(output, "Requested modules", plan.requestedModules().modules());
-    ApplyModuleSetPreflightSectionsRenderer.appendExecutionOrder(output, plan.items());
+    output.append(ApplyModuleSetPreflightSectionsRenderer.executionOrder(plan.items()));
     appendDependencies(output, plan.dependencyValidations());
-    ApplyModuleSetPreflightSectionsRenderer.appendParameters(output, "Resolved parameters", plan.resolvedParameters());
-    ApplyModuleSetPreflightSectionsRenderer.appendCommitMode(output, plan);
+    output.append(ApplyModuleSetPreflightSectionsRenderer.parameters("Resolved parameters", plan.resolvedParameters()));
+    output.append(ApplyModuleSetPreflightSectionsRenderer.commitMode(plan));
     output.append('\n');
     appendMissingParameters(output, plan);
     problemRenderer.appendProblems(output, plan.problems());

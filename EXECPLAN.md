@@ -126,6 +126,22 @@ command, `./mvnw test`, and `habit-hooks`. Expected: every command exits `0`; `-
 `default (informational)`, execution never does, broken symlinks invalidate preflight without filesystem mutation, valid
 directory symlinks remain accepted, and no enforced Habit finding remains.
 
+### 7. Remove mutable caller-owned state from shared preflight formatting
+
+Refactor `ApplyModuleSetPreflightSectionsRenderer` so execution-order, parameter, and commit-mode sections each build and
+return one complete `String`. Update the detailed and compact renderers to append those returned values without passing
+their `StringBuilder` into the shared formatter. Keep parameter-value and source conversion as private pure helpers; do
+not add internal-method tests or change public APIs, domain types, options, streams, exit codes, or documentation.
+
+Validation: first run the unchanged public checkpoint `./mvnw -Dtest=Seed4JCommandsFactoryTest test`. After the edit run,
+in order, `npm run prettier:format`, `npm run prettier:check`, `git diff --check`,
+`./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,NioModuleSetProjectPathValidatorTest test`, `./mvnw test`, and
+`habit-hooks`. Expected: public output remains byte-for-byte protected by the Picocli journeys, all commands except an
+unauthorized pre-existing Habit baseline situation exit `0`, and no caller passes mutable rendering state to the shared
+formatter. Acceptance: `--plan` retains informational defaults, invalid preflight stays entirely on `stderr` and ends
+with `No changes were applied.`, execution retains only its compact sections and progress, and reapplication, warnings,
+and summaries remain unchanged.
+
 ## Progress
 
 - [x] Read the implementation request, normative specification, repository instructions, and existing planning/CLI flow.
@@ -143,6 +159,12 @@ directory symlinks remain accepted, and no enforced Habit finding remains.
 - [ ] Run the complete remediation validation sequence and resolve every enforceable Habit finding (`habit-hooks` remains
       pending only on the reviewed snooze baseline).
 - [x] Re-read the remediation request and update this plan with final evidence before handoff.
+- [x] Add the mutable out-parameter remediation milestone before production edits.
+- [x] Run the unchanged public Picocli checkpoint before the out-parameter refactor.
+- [x] Return independently built section strings and update both renderer callers.
+- [x] Run the requested out-parameter remediation validation sequence and analyze every Habit finding.
+- [ ] Obtain explicit authorization to refresh the reviewed Habit snooze baseline; no snooze file was changed.
+- [x] Re-read the request and update this plan with final out-parameter remediation evidence before handoff.
 
 ## Decisions
 
@@ -162,6 +184,9 @@ directory symlinks remain accepted, and no enforced Habit finding remains.
   renderer. This prevents presentation policy from changing the effective parameter map or the Seed4J core contract.
 - Detect physical path components without following links, then follow valid links for directory and access checks. This
   distinguishes a broken symlink from an absent creatable path without rejecting a usable directory symlink.
+- Make each shared preflight-section method own its local `StringBuilder` and return the completed section. This removes
+  caller-owned mutable state from the formatter boundary while leaving detailed-versus-compact selection in the two
+  policy renderers and preserving all observable text.
 
 ## Risks
 
@@ -254,6 +279,22 @@ Observed milestone evidence:
   and coincidental imports or independently owned bounded-context representations. Mechanical extraction would violate
   repository test/design guidance without improving responsibility boundaries. `.habit-hooks/snooze.json` is unchanged;
   repository policy requires explicit authorization before refreshing that baseline.
+- Before the mutable out-parameter refactor, `./mvnw -Dtest=Seed4JCommandsFactoryTest test` exited `0` with 82 tests and
+  no failures, errors, or skips. This is the public rendering baseline for the behavior-preserving change.
+- After the refactor, `npm run prettier:format`, `npm run prettier:check`, and `git diff --check` each exited `0` in the
+  requested order. Prettier reported the changed files unchanged.
+- `./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,NioModuleSetProjectPathValidatorTest test` exited `0` with
+  107 tests and no failures, errors, or skips. The existing Picocli journeys preserve informational defaults in
+  `--plan`, invalid-preflight stream isolation and final sentence, compact execution content, reapplication, warnings,
+  progress, and summaries.
+- `./mvnw test` exited `0` with 565 tests and no failures, errors, or skips.
+- `habit-hooks` exited `1` only because the reviewed snooze baseline remains unauthorized. File-scoped runs exited `0`
+  for `ApplyModuleSetPreflightSectionsRenderer` and `ApplyModuleSetExecutionPreflightRenderer`. The detailed
+  `ApplyModuleSetPlanRenderer` still reports its pre-existing `oversized-function` finding for `render`: the method has
+  one responsibility, ordering the complete detailed public output, and this change only replaced three mutating calls
+  with three `append(String)` calls without adding lines or concerns. Extracting another helper would be mechanical and
+  obscure that order. No new finding is related to the mutable-state remediation, and `.habit-hooks/snooze.json` remains
+  unchanged.
 
 Final remediation audit:
 
@@ -265,3 +306,7 @@ Final remediation audit:
 - Physical path existence uses `LinkOption.NOFOLLOW_LINKS`; directory and permission validation still follows usable
   directory links. Broken destination and intermediate links are rejected without creating targets or destinations.
 - Public documentation names the exact headings, sources, CLI options, default-exclusion rule, and symlink semantics.
+- Shared execution-order, parameter, and commit-mode formatting now returns independently built `String` sections; both
+  policy renderers concatenate those values and never pass caller-owned mutable state into the shared formatter.
+- No tests or public documentation changed. Existing Picocli behavior tests protect all requested output and stream
+  contracts; all allowed gates are green except the authorization-dependent Habit baseline.

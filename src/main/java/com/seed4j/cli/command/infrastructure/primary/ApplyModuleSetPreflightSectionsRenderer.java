@@ -14,7 +14,8 @@ final class ApplyModuleSetPreflightSectionsRenderer {
 
   private ApplyModuleSetPreflightSectionsRenderer() {}
 
-  static void appendExecutionOrder(StringBuilder output, List<ModuleSetPlanItem> items) {
+  static String executionOrder(List<ModuleSetPlanItem> items) {
+    StringBuilder output = new StringBuilder();
     output.append("Execution order:\n");
     for (int index = 0; index < items.size(); index++) {
       ModuleSetPlanItem item = items.get(index);
@@ -27,9 +28,11 @@ final class ApplyModuleSetPreflightSectionsRenderer {
         .append('\n');
     }
     output.append('\n');
+    return output.toString();
   }
 
-  static void appendParameters(StringBuilder output, String heading, List<ResolvedModuleSetParameter> parameters) {
+  static String parameters(String heading, List<ResolvedModuleSetParameter> parameters) {
+    StringBuilder output = new StringBuilder();
     output.append(heading).append(":\n");
     if (parameters.isEmpty()) {
       output.append("  (none)\n");
@@ -47,6 +50,7 @@ final class ApplyModuleSetPreflightSectionsRenderer {
         .append('\n');
     }
     output.append('\n');
+    return output.toString();
   }
 
   private static String parameterValue(ModuleSetParameterValue value) {
@@ -65,7 +69,8 @@ final class ApplyModuleSetPreflightSectionsRenderer {
     };
   }
 
-  static void appendCommitMode(StringBuilder output, ModuleSetPlan plan) {
+  static String commitMode(ModuleSetPlan plan) {
+    StringBuilder output = new StringBuilder();
     output
       .append("Commit mode: ")
       .append(
@@ -74,5 +79,6 @@ final class ApplyModuleSetPreflightSectionsRenderer {
           : "disabled; Git will not be initialized and no commits will be created"
       )
       .append('\n');
+    return output.toString();
   }
 }

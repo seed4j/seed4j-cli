@@ -6,9 +6,9 @@ class ApplyModuleSetExecutionPreflightRenderer {
 
   String render(ModuleSetPlan plan) {
     StringBuilder output = new StringBuilder("Preflight: VALID\n");
-    ApplyModuleSetPreflightSectionsRenderer.appendExecutionOrder(output, plan.items());
-    ApplyModuleSetPreflightSectionsRenderer.appendParameters(output, "Effective parameters", plan.effectiveResolvedParameters());
-    ApplyModuleSetPreflightSectionsRenderer.appendCommitMode(output, plan);
+    output.append(ApplyModuleSetPreflightSectionsRenderer.executionOrder(plan.items()));
+    output.append(ApplyModuleSetPreflightSectionsRenderer.parameters("Effective parameters", plan.effectiveResolvedParameters()));
+    output.append(ApplyModuleSetPreflightSectionsRenderer.commitMode(plan));
     return output.toString();
   }
 }
