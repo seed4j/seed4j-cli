@@ -1,6 +1,5 @@
 package com.seed4j.cli.command.application;
 
-import com.seed4j.cli.command.domain.moduleset.EffectiveModuleSetParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionEventListener;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionResult;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionStatus;
@@ -28,34 +27,71 @@ public class ModuleSetExecutionApplicationService {
   }
 
   public ModuleSetExecutionResult execute(ModuleSetPlan plan, ModuleSetExecutionEventListener eventListener) {
+    validateExecution(plan, eventListener);
+
+    ExecutionProgress progress = ExecutionProgress.empty(eventListener);
+    for (int index = 0; index < plan.items().size(); index++) {
+      ModuleSetPlanItem item = plan.items().get(index);
+      ModuleSetModuleStatus status = apply(plan, item, eventListener);
+      progress = progress.complete(item, status);
+      if (status == ModuleSetModuleStatus.FAILED) {
+        return partialFailure(plan, index, progress);
+      }
+    }
+    return progress.result(ModuleSetExecutionStatus.SUCCEEDED);
+  }
+
+  private static void validateExecution(ModuleSetPlan plan, ModuleSetExecutionEventListener eventListener) {
     Assert.notNull("plan", plan);
     Assert.notNull("eventListener", eventListener);
     if (!plan.valid()) {
       throw new IllegalArgumentException("Only a valid module set plan can be executed");
     }
+  }
 
-    EffectiveModuleSetParameters effectiveParameters = plan.effectiveParameters();
-    List<ModuleSetModuleResult> results = new ArrayList<>();
-    for (int index = 0; index < plan.items().size(); index++) {
-      ModuleSetPlanItem item = plan.items().get(index);
-      eventListener.on(new ModuleSetModuleExecutionStarted(item));
-      try {
-        moduleApplier.apply(new ModuleSetModuleApplication(item.slug(), plan.projectPath(), plan.commitMode(), effectiveParameters));
-      } catch (RuntimeException exception) {
-        ModuleSetModuleResult failed = new ModuleSetModuleResult(item, ModuleSetModuleStatus.FAILED);
-        results.add(failed);
-        eventListener.on(new ModuleSetModuleExecutionCompleted(item, failed.status()));
-        for (ModuleSetPlanItem skippedItem : plan.items().subList(index + 1, plan.items().size())) {
-          ModuleSetModuleResult skipped = new ModuleSetModuleResult(skippedItem, ModuleSetModuleStatus.SKIPPED);
-          results.add(skipped);
-          eventListener.on(new ModuleSetModuleExecutionCompleted(skippedItem, skipped.status()));
-        }
-        return new ModuleSetExecutionResult(results, ModuleSetExecutionStatus.PARTIAL_FAILURE);
-      }
-      ModuleSetModuleResult result = new ModuleSetModuleResult(item, ModuleSetModuleStatus.SUCCEEDED);
-      results.add(result);
-      eventListener.on(new ModuleSetModuleExecutionCompleted(item, result.status()));
+  private static ModuleSetExecutionResult partialFailure(ModuleSetPlan plan, int failedIndex, ExecutionProgress progress) {
+    return progress
+      .complete(plan.items().subList(failedIndex + 1, plan.items().size()), ModuleSetModuleStatus.SKIPPED)
+      .result(ModuleSetExecutionStatus.PARTIAL_FAILURE);
+  }
+
+  private ModuleSetModuleStatus apply(ModuleSetPlan plan, ModuleSetPlanItem item, ModuleSetExecutionEventListener eventListener) {
+    eventListener.on(new ModuleSetModuleExecutionStarted(item));
+    try {
+      moduleApplier.apply(new ModuleSetModuleApplication(item.slug(), plan.projectPath(), plan.commitMode(), plan.effectiveParameters()));
+      return ModuleSetModuleStatus.SUCCEEDED;
+    } catch (RuntimeException ignored) {
+      return ModuleSetModuleStatus.FAILED;
     }
-    return new ModuleSetExecutionResult(results, ModuleSetExecutionStatus.SUCCEEDED);
+  }
+
+  private record ExecutionProgress(List<ModuleSetModuleResult> results, ModuleSetExecutionEventListener eventListener) {
+    private ExecutionProgress {
+      results = List.copyOf(results);
+    }
+
+    private static ExecutionProgress empty(ModuleSetExecutionEventListener eventListener) {
+      return new ExecutionProgress(List.of(), eventListener);
+    }
+
+    private ExecutionProgress complete(ModuleSetPlanItem item, ModuleSetModuleStatus status) {
+      ModuleSetModuleResult result = new ModuleSetModuleResult(item, status);
+      List<ModuleSetModuleResult> nextResults = new ArrayList<>(results);
+      nextResults.add(result);
+      eventListener.on(new ModuleSetModuleExecutionCompleted(item, status));
+      return new ExecutionProgress(nextResults, eventListener);
+    }
+
+    private ExecutionProgress complete(List<ModuleSetPlanItem> items, ModuleSetModuleStatus status) {
+      ExecutionProgress progress = this;
+      for (ModuleSetPlanItem item : items) {
+        progress = progress.complete(item, status);
+      }
+      return progress;
+    }
+
+    private ModuleSetExecutionResult result(ModuleSetExecutionStatus status) {
+      return new ModuleSetExecutionResult(results, status);
+    }
   }
 }
