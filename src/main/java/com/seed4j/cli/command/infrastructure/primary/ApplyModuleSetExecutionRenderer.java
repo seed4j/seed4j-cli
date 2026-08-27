@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.domain.moduleset.ModuleSetCommitMode;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionEvent;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionResult;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionStatus;
@@ -9,33 +10,55 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetModuleResult;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModuleStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanItem;
+import com.seed4j.cli.shared.error.domain.Assert;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 final class ApplyModuleSetExecutionRenderer {
+
+  private final ModuleSetCommitMode commitMode;
+  private final Map<ModuleSetPlanItem, Integer> positions;
+  private final int totalItems;
+
+  ApplyModuleSetExecutionRenderer(ModuleSetPlan plan) {
+    Assert.notNull("plan", plan);
+    commitMode = plan.commitMode();
+    positions = executionPositions(plan);
+    totalItems = plan.items().size();
+  }
+
+  private static Map<ModuleSetPlanItem, Integer> executionPositions(ModuleSetPlan plan) {
+    Map<ModuleSetPlanItem, Integer> positions = new LinkedHashMap<>();
+    for (int index = 0; index < plan.items().size(); index++) {
+      positions.putIfAbsent(plan.items().get(index), index + 1);
+    }
+    return Map.copyOf(positions);
+  }
 
   String start() {
     return "\nApplying module set:\n";
   }
 
-  String event(ModuleSetPlan plan, ModuleSetExecutionEvent event) {
+  String event(ModuleSetExecutionEvent event) {
     return switch (event) {
-      case ModuleSetModuleExecutionStarted(ModuleSetPlanItem item) -> itemLine(plan, item);
-      case ModuleSetModuleExecutionCompleted(ModuleSetPlanItem item, ModuleSetModuleStatus status) -> completed(plan, item, status);
+      case ModuleSetModuleExecutionStarted(ModuleSetPlanItem item) -> itemLine(item);
+      case ModuleSetModuleExecutionCompleted(ModuleSetPlanItem item, ModuleSetModuleStatus status) -> completed(item, status);
     };
   }
 
-  private static String itemLine(ModuleSetPlan plan, ModuleSetPlanItem item) {
+  private String itemLine(ModuleSetPlanItem item) {
     return "[%d/%d] %s%s\n".formatted(
-      plan.items().indexOf(item) + 1,
-      plan.items().size(),
+      positions.getOrDefault(item, 0),
+      totalItems,
       item.slug().value(),
       item.reapplied() ? " (reapplied)" : ""
     );
   }
 
-  private static String completed(ModuleSetPlan plan, ModuleSetPlanItem item, ModuleSetModuleStatus status) {
+  private String completed(ModuleSetPlanItem item, ModuleSetModuleStatus status) {
     StringBuilder output = new StringBuilder();
     if (status == ModuleSetModuleStatus.SKIPPED) {
-      output.append(itemLine(plan, item));
+      output.append(itemLine(item));
     }
     output.append("      Status: ").append(status).append('\n');
     switch (status) {
@@ -43,7 +66,7 @@ final class ApplyModuleSetExecutionRenderer {
         .append("      History: updated\n")
         .append("      Events: dispatched\n")
         .append("      Commit: ")
-        .append(plan.commitMode().enabled() ? "created" : "disabled")
+        .append(commitMode.enabled() ? "created" : "disabled")
         .append('\n');
       case FAILED -> output.append("      Effects: indeterminate\n");
       case SKIPPED -> output.append("      Reason: not invoked after the first failure\n");

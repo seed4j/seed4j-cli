@@ -122,9 +122,9 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
 
   private int execute(ModuleSetPlan plan) {
     printOutput(new ApplyModuleSetExecutionPreflightRenderer().render(plan));
-    ApplyModuleSetExecutionRenderer renderer = new ApplyModuleSetExecutionRenderer();
+    ApplyModuleSetExecutionRenderer renderer = new ApplyModuleSetExecutionRenderer(plan);
     printOutput(renderer.start());
-    ModuleSetExecutionResult result = execution.execute(plan, event -> printOutput(renderer.event(plan, event)));
+    ModuleSetExecutionResult result = execution.execute(plan, event -> printOutput(renderer.event(event)));
     printOutput(renderer.summary(result));
     if (renderer.failed(result)) {
       printError(renderer.failure(result));
