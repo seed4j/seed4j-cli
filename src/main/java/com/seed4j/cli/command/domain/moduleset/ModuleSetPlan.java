@@ -39,10 +39,7 @@ public record ModuleSetPlan(
   }
 
   public List<ResolvedModuleSetParameter> effectiveResolvedParameters() {
-    return resolvedParameters
-      .stream()
-      .filter(parameter -> effectiveParameters.values().containsKey(parameter.key()))
-      .toList();
+    return resolvedParameters.stream().filter(effectiveParameters::includes).toList();
   }
 
   public ModuleSetPlan withWarnings(List<ModuleSetPlanningWarning> planWarnings) {

@@ -2,7 +2,6 @@ package com.seed4j.cli.command.domain.moduleset;
 
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ModuleSetPlanner {
@@ -136,22 +135,13 @@ public class ModuleSetPlanner {
           .map(slug -> new ModuleSetPlanItem(slug, applicationKind(slug)))
           .toList(),
         request.commitMode(),
-        effectiveParameters(),
+        EffectiveModuleSetParameters.from(parameterPlanning.resolvedParameters()),
         dependencyValidations,
         parameterPlanning.resolvedParameters(),
         parameterPlanning.missingRequiredParameters(),
         Stream.concat(requestProblems.stream(), parameterPlanning.problems().stream()).toList(),
         List.of()
       );
-    }
-
-    private EffectiveModuleSetParameters effectiveParameters() {
-      Map<ModuleSetPropertyKey, ModuleSetParameterValue> values = parameterPlanning
-        .resolvedParameters()
-        .stream()
-        .filter(parameter -> parameter.source() != ModuleSetPropertySource.DEFAULT)
-        .collect(Collectors.toMap(ResolvedModuleSetParameter::key, ResolvedModuleSetParameter::value));
-      return new EffectiveModuleSetParameters(values);
     }
 
     private ModuleSetApplicationKind applicationKind(ModuleSetSlug slug) {
