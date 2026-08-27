@@ -3,18 +3,26 @@ package com.seed4j.cli.command.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.command.domain.moduleset.DirtyModuleSetGitWorktree;
 import com.seed4j.cli.command.domain.moduleset.ExplicitModuleSetParameters;
+import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetApplicationKind;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetCommitMode;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -41,6 +49,201 @@ import org.junit.jupiter.api.Test;
 class ModuleSetPlanningApplicationServiceTest {
 
   @Test
+  void shouldWarnAndKeepPlanValidForDirtyGitWorktree() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(selected, List.of(), List.of(), Optional.empty())), List.of(selected));
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(
+      catalog,
+      projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+      projectPath -> ModuleSetProjectPathStatus.VALID,
+      projectPath -> ModuleSetGitState.DIRTY
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(selected)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.warnings()).containsExactly(new DirtyModuleSetGitWorktree());
+    assertThat(plan.valid()).isTrue();
+  }
+
+  @Test
+  void shouldSkipGitInspectionWhenCommitIsDisabled() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(selected, List.of(), List.of(), Optional.empty())), List.of(selected));
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(
+      catalog,
+      projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+      projectPath -> ModuleSetProjectPathStatus.VALID,
+      projectPath -> {
+        throw new AssertionError("Git must not be inspected when commit is disabled");
+      }
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(selected)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.DISABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.commitMode()).isEqualTo(ModuleSetCommitMode.DISABLED);
+    assertThat(plan.warnings()).isEmpty();
+    assertThat(plan.valid()).isTrue();
+  }
+
+  @Test
+  void shouldRejectInvalidProjectPathWithoutInspectingGit() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(selected, List.of(), List.of(), Optional.empty())), List.of(selected));
+    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(
+      catalog,
+      projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+      projectPath -> ModuleSetProjectPathStatus.NOT_DIRECTORY,
+      projectPath -> {
+        throw new AssertionError("Git must not be inspected after an invalid preflight");
+      }
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(selected)),
+      new ModuleSetProjectPath(Path.of("project.txt")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.problems()).containsExactly(new InvalidModuleSetProjectPath(ModuleSetProjectPathStatus.NOT_DIRECTORY));
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
+  void shouldMarkRequestedHistoricalModuleAsReapplied() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(selected, List.of(), List.of(), Optional.empty())), List.of(selected));
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(selected), new ModuleSetHistoryParameters(Map.of(), List.of()))
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(selected)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.items())
+      .singleElement()
+      .satisfies(item -> {
+        assertThat(item.slug()).isEqualTo(selected);
+        assertThat(item.applicationKind()).isEqualTo(ModuleSetApplicationKind.REAPPLICATION);
+      });
+    assertThat(plan.executionOrder()).containsExactly(selected);
+    assertThat(plan.valid()).isTrue();
+  }
+
+  @Test
+  void shouldRejectExecutionOrderMissingRequestedModule() {
+    ModuleSetSlug first = new ModuleSetSlug("first");
+    ModuleSetSlug second = new ModuleSetSlug("second");
+    ModuleSetCatalog catalog = catalog(
+      List.of(
+        new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+        new ModuleSetModule(second, List.of(), List.of(), Optional.empty())
+      ),
+      List.of(first)
+    );
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
+      new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+    );
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(first, second)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.executionOrder()).containsExactly(first);
+    assertThat(plan.problems()).containsExactly(new ModuleSetExecutionOrderMismatch(List.of(first, second), List.of(first)));
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
+  void shouldRejectExecutionOrderContainingUnrequestedModule() {
+    ModuleSetSlug first = new ModuleSetSlug("first");
+    ModuleSetSlug second = new ModuleSetSlug("second");
+    ModuleSetSlug extra = new ModuleSetSlug("extra");
+    ModuleSetCatalog catalog = new ModuleSetCatalog() {
+      @Override
+      public List<ModuleSetModule> modules() {
+        return List.of(
+          new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(second, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(extra, List.of(), List.of(), Optional.empty())
+        );
+      }
+
+      @Override
+      public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
+        return List.of(first, second, extra);
+      }
+    };
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath -> {
+      throw new AssertionError("History must not be read for an unsafe execution order");
+    });
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(first, second)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.executionOrder()).containsExactly(first, second, extra);
+    assertThat(plan.problems()).containsExactly(new ModuleSetExecutionOrderMismatch(List.of(first, second), List.of(first, second, extra)));
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
+  void shouldRejectExecutionOrderContainingDuplicateModule() {
+    ModuleSetSlug first = new ModuleSetSlug("first");
+    ModuleSetSlug second = new ModuleSetSlug("second");
+    ModuleSetCatalog catalog = catalog(
+      List.of(
+        new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+        new ModuleSetModule(second, List.of(), List.of(), Optional.empty())
+      ),
+      List.of(first, second, second)
+    );
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath -> {
+      throw new AssertionError("History must not be read for an unsafe execution order");
+    });
+    ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+      new RequestedModuleSet(List.of(first, second)),
+      new ModuleSetProjectPath(Path.of(".")),
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
+    );
+
+    ModuleSetPlan plan = service.plan(request);
+
+    assertThat(plan.executionOrder()).containsExactly(first, second, second);
+    assertThat(plan.problems()).containsExactly(
+      new ModuleSetExecutionOrderMismatch(List.of(first, second), List.of(first, second, second))
+    );
+    assertThat(plan.valid()).isFalse();
+  }
+
+  @Test
   void shouldResolveOptionalIntegerDefaultAsIntegerValue() {
     ModuleSetSlug selected = new ModuleSetSlug("selected");
     ModuleSetPropertyKey indentSize = new ModuleSetPropertyKey("indentSize");
@@ -56,13 +259,14 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(new ModuleSetModule(selected, List.of(), List.of(property), Optional.empty())),
       List.of(selected)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -101,13 +305,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(first, second)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -140,13 +345,14 @@ class ModuleSetPlanningApplicationServiceTest {
       java.util.Optional.of("java-build-tool")
     );
     ModuleSetCatalog catalog = catalog(List.of(initModule, mavenJavaModule), List.of(init, mavenJava));
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(mavenJava, init)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -182,7 +388,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(first, second)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(
         Set.of(),
         new ModuleSetHistoryParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.history")), List.of())
@@ -191,7 +397,8 @@ class ModuleSetPlanningApplicationServiceTest {
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
       new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.explicit")))
+      new ExplicitModuleSetParameters(Map.of(packageName, new ModuleSetStringParameterValue("com.explicit"))),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -235,13 +442,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(first, second)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(first, second)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -289,13 +497,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(selected, unselected)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
       new ModuleSetProjectPath(Path.of(".")),
-      new ExplicitModuleSetParameters(Map.of(unused, new ModuleSetStringParameterValue("value")))
+      new ExplicitModuleSetParameters(Map.of(unused, new ModuleSetStringParameterValue("value"))),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -318,13 +527,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(gradle, maven, consumer)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -353,13 +563,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(provider, consumer)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer, provider)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -386,13 +597,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(consumer, provider)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(provider, consumer)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -420,13 +632,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(provider, consumer)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(provider), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -455,13 +668,14 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(transitive, direct, requested)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(requested)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -485,13 +699,14 @@ class ModuleSetPlanningApplicationServiceTest {
       List.of(new ModuleSetModule(consumer, List.of(missing), List.of(), Optional.empty())),
       List.of(consumer)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
     );
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(consumer)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -543,7 +758,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ),
       List.of(selected)
     );
-    ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(catalog, projectPath ->
+    ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
       new ModuleSetPlanningHistory(
         Set.of(),
         new ModuleSetHistoryParameters(Map.of(historyKey, new ModuleSetStringParameterValue("from-history")), List.of())
@@ -552,7 +767,8 @@ class ModuleSetPlanningApplicationServiceTest {
     ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
       new RequestedModuleSet(List.of(selected)),
       new ModuleSetProjectPath(Path.of(".")),
-      ExplicitModuleSetParameters.empty()
+      ExplicitModuleSetParameters.empty(),
+      ModuleSetCommitMode.ENABLED
     );
 
     ModuleSetPlan plan = service.plan(request);
@@ -563,6 +779,9 @@ class ModuleSetPlanningApplicationServiceTest {
     assertThat(plan.resolvedParameters())
       .extracting(ResolvedModuleSetParameter::source)
       .containsExactly(ModuleSetPropertySource.PROJECT_HISTORY, ModuleSetPropertySource.DEFAULT);
+    assertThat(plan.effectiveParameters().values())
+      .containsExactlyEntriesOf(Map.of(historyKey, new ModuleSetStringParameterValue("from-history")))
+      .doesNotContainKeys(defaultKey, mandatoryKey);
     assertThat(plan.missingRequiredParameters())
       .extracting(parameter -> parameter.key().value())
       .containsExactly("mandatoryValue");
@@ -581,5 +800,17 @@ class ModuleSetPlanningApplicationServiceTest {
         return executionOrder.stream().filter(requestedModules::contains).toList();
       }
     };
+  }
+
+  private static ModuleSetPlanningApplicationService planningService(
+    ModuleSetCatalog catalog,
+    ModuleSetPlanningHistoryReader historyReader
+  ) {
+    return new ModuleSetPlanningApplicationService(
+      catalog,
+      historyReader,
+      projectPath -> ModuleSetProjectPathStatus.VALID,
+      projectPath -> ModuleSetGitState.NO_WORKTREE
+    );
   }
 }

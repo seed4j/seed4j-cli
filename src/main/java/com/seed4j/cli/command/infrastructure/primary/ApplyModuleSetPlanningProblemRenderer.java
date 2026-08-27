@@ -1,6 +1,8 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
@@ -29,11 +31,29 @@ final class ApplyModuleSetPlanningProblemRenderer {
   private static String problemText(ModuleSetPlanningProblem problem) {
     return switch (problem) {
       case DuplicateRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Duplicate requested modules", modules);
+      case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
+      case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
       case UnknownRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Unknown requested modules", modules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
       case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
     };
+  }
+
+  private static String invalidProjectPath(InvalidModuleSetProjectPath invalidPath) {
+    return switch (invalidPath.status()) {
+      case VALID -> throw new IllegalArgumentException("A valid project path is not a planning problem");
+      case NOT_DIRECTORY -> "Project path exists but is not a directory";
+      case NOT_ACCESSIBLE -> "Project path is not traversable and writable";
+      case NOT_APPARENTLY_CREATABLE -> "Project path does not have a traversable, writable directory ancestor";
+    };
+  }
+
+  private static String executionOrderMismatch(ModuleSetExecutionOrderMismatch mismatch) {
+    return "Calculated execution order does not contain exactly the requested modules: requested %s; calculated %s".formatted(
+      mismatch.requestedModules().stream().map(ModuleSetSlug::value).collect(Collectors.joining(", ")),
+      mismatch.executionOrder().stream().map(ModuleSetSlug::value).collect(Collectors.joining(", "))
+    );
   }
 
   private static String moduleValues(String label, List<ModuleSetSlug> modules) {

@@ -9,7 +9,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Version](#version)
   - [List Available Modules](#list-available-modules)
   - [Apply a Module](#apply-a-module)
-  - [Plan a Module Set](#plan-a-module-set)
+  - [Apply a Module Set](#apply-a-module-set)
   - [Bash Completion](#bash-completion)
   - [Install a Runtime Extension](#install-a-runtime-extension)
   - [Enable a Runtime Extension](#enable-a-runtime-extension)
@@ -284,9 +284,11 @@ Project-history values include a note telling callers they can omit that option 
 the plan are informational; they are not injected into normal `apply` parameters. JSON output and `--format` are not part
 of this text-only phase.
 
-### Plan a Module Set
+<a id="plan-a-module-set"></a>
 
-Use `apply-set` to validate an explicitly selected set of modules as one read-only operation:
+### Apply a Module Set
+
+Use `apply-set` to validate and sequentially apply an explicitly selected set of visible modules:
 
 ```bash
 seed4j apply-set init maven-java \
@@ -294,18 +296,29 @@ seed4j apply-set init maven-java \
   --project-name "Sample application" \
   --base-name sampleApplication \
   --node-package-manager npm \
-  --package-name com.mycompany.sample \
-  --plan
+  --package-name com.mycompany.sample
 ```
 
-The command requires at least one visible module slug and requires `--plan`. `--project-path` defaults to `.`. It accepts
-the union of property options declared by visible modules and does not expose `--commit`, because this issue implements
-planning only. Unknown and hidden slugs are treated alike. Duplicate slugs are rejected instead of normalized.
+The command requires at least one visible module slug. `--project-path` defaults to `.`, and the command accepts the union
+of property options declared by visible modules. Unknown, hidden, and duplicate slugs invalidate preflight. Omitting
+`--plan` executes after a valid preflight; adding `--plan` prints a fresh read-only snapshot and exits without authorizing
+or reserving a later execution.
+
+Before invoking any module, `apply-set` completes a read-only preflight. It validates the practical writability of the
+project path without creating it or using a write probe, requires the Seed4J landscape order to contain exactly the
+requested modules, checks dependencies and feature providers, reconciles property definitions, reads compatible history
+values, and reports every predictable problem together. An invalid preflight writes its complete report only to
+`stderr`, leaves `stdout` empty, ends with `No changes were applied.`, and exits with code 2.
+
+Every physically existing path component must resolve to a directory. A regular file or broken symbolic link at the
+destination invalidates it as a non-directory; either one in an intermediate component makes the destination not
+apparently creatable. A symbolic link that resolves to an accessible, writable directory remains valid. These checks do
+not create the destination, a missing link target, or a write probe.
 
 The output separates `Requested modules` from `Execution order`. Requested order preserves the command line. Execution
-order is calculated exclusively by the Seed4J landscape and is the order a future application command can reuse. A module
-already recorded in project history remains in this execution order; history can satisfy dependencies but does not remove
-an explicitly requested module.
+order is calculated exclusively by the Seed4J landscape and is the exact order used by the same invocation. A module
+already recorded in the preflight history remains in this order, is invoked again, and is annotated `(reapplied)` in the
+plan, progress, and summary. History can satisfy dependencies but never erases explicit execution intent.
 
 Dependencies are discovered recursively, rendered once, and annotated with every requested module that requires them. A
 module dependency is satisfied by project history or by an explicitly selected module ordered before the dependent. A
@@ -321,11 +334,13 @@ in this order:
 
 1. explicit CLI input;
 2. latest project history value;
-3. metadata default for an optional property.
+3. metadata default for display only.
 
 Defaults for mandatory properties remain informational and do not satisfy the requirement. Picocli converts explicit CLI
-input directly to the global option's declared type and rejects invalid typed values before planning. Passing a known
-property option that none of the selected modules uses invalidates the plan.
+input directly to the global option's declared type and rejects invalid typed values before planning. Only explicit and
+compatible history values enter the immutable effective parameter map sent unchanged to every individual module call;
+display defaults are never sent. Passing a known property option that none of the selected modules uses invalidates the
+plan.
 
 A project-history value is reused only when its stored type matches the selected property type. A relevant mismatch
 invalidates the plan without falling back to a default or also reporting the property as missing. The diagnostic names
@@ -335,18 +350,30 @@ irrelevant and do not invalidate the plan. History values outside Seed4J's `STRI
 reported as an unsupported value type when their key is relevant.
 
 The planner aggregates all predictable post-resolution problems, including recursive dependencies, feature choices,
-property conflicts, irrelevant options, history type mismatches, and every missing required parameter. A valid plan
-writes the structured plan to stdout and exits with code 0. Invalid usage or an invalid plan writes a clear diagnostic or
-complete plan to stderr and exits with code 2. Every result ends with `No changes were applied.`
+property conflicts, irrelevant options, history type mismatches, and every missing required parameter. A history-read
+exception is an unexpected pre-execution failure: the CLI does not inspect or expose it, invokes no module, prints a
+generic message to `stderr`, and exits with code 1.
+
+Add `--plan` to stop after the valid snapshot:
+
+```bash
+seed4j apply-set init maven-java \
+  --project-name "Sample application" \
+  --base-name sampleApplication \
+  --node-package-manager npm \
+  --package-name com.mycompany.sample \
+  --plan
+```
 
 ```text
+Preflight: VALID
 Plan for module set
 
 Project path: .
 
 Requested modules:
-  1. maven-java
-  2. init
+  1. init
+  2. maven-java
 
 Execution order:
   1. init
@@ -356,16 +383,87 @@ Dependency validation:
   ✓ module:init - satisfied by requested module: init; required by: maven-java
 
 Resolved parameters:
+  ✓ projectName: Sample application
+    Source: explicit CLI input
+    CLI option: --project-name
   ...
+  ✓ endOfLine: lf
+    Source: default (informational)
+    CLI option: --end-of-line
+
+Commit mode: one commit per succeeded module
 
 Status: VALID
 No changes were applied.
 ```
 
+Execution is sequential, non-atomic, and has no automatic rollback. The CLI calls the Seed4J individual-module API once
+per planned item. `SUCCEEDED` means the individual call, including synchronous event dispatch, returned normally. At the
+first thrown call, that module is `FAILED`, every later module is `SKIPPED`, earlier successes are preserved, and the
+overall result is `PARTIAL_FAILURE`. Effects of the failed module are indeterminate; inspect the working tree, project
+history, Git log, and relevant external event effects before deciding whether to retry.
+
+Commits are enabled by default. In this mode the individual flow initializes Git when needed and completes one commit per
+`SUCCEEDED` module. `--no-commit` disables both Git initialization and commits while files, history, and events continue
+normally. When commits are enabled for an existing dirty worktree, a warning on `stderr` explains that module commits can
+include or be affected by pre-existing changes and confirms that execution continues automatically.
+
+The execution output starts with a compact preflight intended for agents: execution order (including `(reapplied)`),
+effective parameters with their sources and CLI options, and commit mode. It omits requested modules, dependency
+validation, informational defaults, and the detailed `Status: VALID` footer. Informational defaults are display-only in
+`--plan`; they never enter this effective section or any call to the Seed4J core. Progress and a complete final summary
+follow immediately:
+
+```text
+Preflight: VALID
+Execution order:
+  1. init
+  2. maven-java
+
+Effective parameters:
+  ✓ projectName: Sample application
+    Source: explicit CLI input
+    CLI option: --project-name
+  ✓ baseName: sampleApplication
+    Source: explicit CLI input
+    CLI option: --base-name
+  ✓ nodePackageManager: npm
+    Source: explicit CLI input
+    CLI option: --node-package-manager
+  ✓ packageName: com.mycompany.sample
+    Source: explicit CLI input
+    CLI option: --package-name
+
+Commit mode: one commit per succeeded module
+
+Applying module set:
+[1/2] init
+      Status: SUCCEEDED
+      History: updated
+      Events: dispatched
+      Commit: created
+[2/2] maven-java
+      Status: SUCCEEDED
+      History: updated
+      Events: dispatched
+      Commit: created
+
+Summary:
+  init  SUCCEEDED
+  maven-java  SUCCEEDED
+Module set status: SUCCEEDED
+```
+
+Exit codes are stable for scripts and agents:
+
+- `0`: a valid `--plan`, or every module succeeded;
+- `2`: command usage or predictable preflight validation failed, with no module or Git mutation; and
+- `1`: an unexpected pre-execution failure or an execution ending in `PARTIAL_FAILURE`.
+
 `apply-set` is stricter than the existing single-module plan. `seed4j apply <module> --plan` remains informational and
-returns 0 with pending dependencies or parameters. `seed4j apply-set ... --plan` returns 2 whenever the combined plan is
-not ready. Applying the set, `--commit`, rollback, commit granularity, presets, JSON output, and changes to
-`seed4j apply <module>` remain outside this command.
+returns 0 with pending dependencies or parameters, while `seed4j apply-set ... --plan` returns 2 whenever the combined
+plan is not ready. Existing `seed4j apply <module>` behavior is unchanged. Presets, JSON output, parallel execution,
+automatic dependency/provider selection, and rollback remain outside this command.
 
 ### Bash Completion
 

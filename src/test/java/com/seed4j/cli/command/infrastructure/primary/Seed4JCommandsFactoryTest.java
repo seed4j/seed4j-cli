@@ -1,18 +1,23 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLine;
+import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupEmptyProjectTestFolder;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProjectTestFolder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.command.application.ModuleSetExecutionApplicationService;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
@@ -21,6 +26,8 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
+import com.seed4j.cli.command.infrastructure.secondary.JGitModuleSetGitStateReader;
+import com.seed4j.cli.command.infrastructure.secondary.NioModuleSetProjectPathValidator;
 import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
@@ -31,8 +38,11 @@ import com.seed4j.project.domain.history.ProjectAction;
 import com.seed4j.project.domain.history.ProjectActionToAppend;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +81,12 @@ class Seed4JCommandsFactoryTest {
   @Autowired
   private Seed4JCommandsFactory commandsFactory;
 
+  private static CommandLine capturing(CommandLine commandLine) {
+    commandLine.setOut(new PrintWriter(System.out, true));
+    commandLine.setErr(new PrintWriter(System.err, true));
+    return commandLine;
+  }
+
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
@@ -95,7 +111,7 @@ class Seed4JCommandsFactoryTest {
     Seed4JCommandsFactory factory = new Seed4JCommandsFactory(List.of(), new Seed4JVersionProvider("1", "2", unavailableRuntime));
     String[] args = { "--help" };
 
-    int exitCode = new CommandLine(factory.buildCommandSpec()).execute(args);
+    int exitCode = capturing(new CommandLine(factory.buildCommandSpec())).execute(args);
 
     assertThat(exitCode).isZero();
     assertThat(output).contains("Seed4J CLI").contains("--version");
@@ -116,17 +132,17 @@ class Seed4JCommandsFactoryTest {
   class ApplyModuleSet {
 
     @Test
-    void shouldRegisterReadOnlyModuleSetPlanningCommand(CapturedOutput output) {
+    void shouldRegisterExecutableModuleSetCommand(CapturedOutput output) {
       String[] args = { "--help" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(output).contains("apply-set").contains("Plan a set of Seed4J modules without applying changes");
+      assertThat(output).contains("apply-set").contains("Apply a validated set of Seed4J modules sequentially");
     }
 
     @Test
-    void shouldExposeReadOnlyModuleSetOptions(CapturedOutput output) {
+    void shouldExposePlanningAndCommitOptions(CapturedOutput output) {
       String[] args = { "apply-set", "--help" };
 
       int exitCode = commandLine(modules, projects).execute(args);
@@ -138,21 +154,21 @@ class Seed4JCommandsFactoryTest {
         .contains("--plan")
         .contains("--project-name")
         .contains("--package-name")
-        .doesNotContain("--commit");
+        .contains("--[no-]commit");
     }
 
     @Test
     void shouldKeepEarlierModuleSetCommandExecutableAfterBuildingAnotherCommandTree(CapturedOutput output) {
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+      ModuleSetPlanningApplicationService planning = planningService(
         new Seed4JModuleSetCatalog(modules),
         new ProjectsModuleSetPlanningHistoryReader(projects)
       );
-      ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(planning);
+      ApplyModuleSetCommand applyModuleSetCommand = applyModuleSetCommand(planning);
       Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
         List.of(applyModuleSetCommand),
         new Seed4JVersionProvider("1", "2", new RuntimeDisplayApplicationService(RuntimeDisplay::standard))
       );
-      CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
+      CommandLine earlierCommandLine = capturing(new CommandLine(factory.buildCommandSpec()));
       factory.buildCommandSpec();
       String[] args = {
         "apply-set",
@@ -233,8 +249,8 @@ class Seed4JCommandsFactoryTest {
             2. init
 
           Execution order:
-            1. init
-            2. maven-java
+            1. init (reapplied)
+            2. maven-java (reapplied)
           """
         )
         .contains("Dependency validation:")
@@ -324,13 +340,105 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
-    void shouldRequirePlanFlagForModuleSetCommand(CapturedOutput output) {
-      String[] args = { "apply-set", "init" };
+    void shouldExecuteValidModuleSetWithInSetDependencyAndOneCommitPerModule(CapturedOutput output) throws IOException {
+      Path projectPath = setupEmptyProjectTestFolder();
+      String[] args = {
+        "apply-set",
+        "init",
+        "maven-java",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--package-name",
+        "com.mycompany.sample",
+      };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
-      assertThat(exitCode).isEqualTo(2);
-      assertThat(output.getErr()).contains("Missing required option: '--plan'");
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions())
+        .extracting(action -> action.module().get())
+        .containsExactly("init", "maven-java");
+      assertThat(GitTestUtil.getCommits(projectPath)).hasLineCount(2);
+      assertThat(output.getOut())
+        .contains(
+          """
+          Preflight: VALID
+          Execution order:
+            1. init
+            2. maven-java
+
+          Effective parameters:
+            ✓ projectName: Sample application
+              Source: explicit CLI input
+              CLI option: --project-name
+            ✓ baseName: sampleApplication
+              Source: explicit CLI input
+              CLI option: --base-name
+            ✓ nodePackageManager: npm
+              Source: explicit CLI input
+              CLI option: --node-package-manager
+            ✓ packageName: com.mycompany.sample
+              Source: explicit CLI input
+              CLI option: --package-name
+
+          Commit mode: one commit per succeeded module
+
+          Applying module set:
+          """
+        )
+        .contains("[1/2] init", "[2/2] maven-java")
+        .containsOnlyOnce("  init  SUCCEEDED")
+        .containsOnlyOnce("  maven-java  SUCCEEDED")
+        .contains("Module set status: SUCCEEDED")
+        .doesNotContain(
+          "Plan for module set",
+          "Project path:",
+          "Requested modules:",
+          "Dependency validation:",
+          "default (informational)",
+          "Status: VALID"
+        );
+    }
+
+    @Test
+    void shouldExecuteModuleSetWithoutInitializingGitWhenCommitIsDisabled(CapturedOutput output) throws IOException {
+      Path projectPath = setupEmptyProjectTestFolder();
+      String[] args = {
+        "apply-set",
+        "init",
+        "maven-java",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--package-name",
+        "com.mycompany.sample",
+        "--no-commit",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions())
+        .extracting(action -> action.module().get())
+        .containsExactly("init", "maven-java");
+      assertThat(projectPath.resolve("pom.xml")).exists();
+      assertThat(projectPath.resolve(".git")).doesNotExist();
+      assertThat(output.getOut())
+        .contains("Commit mode: disabled; Git will not be initialized and no commits will be created")
+        .contains("[1/2] init", "[2/2] maven-java")
+        .contains("Module set status: SUCCEEDED");
+      assertThat(output.getOut().lines().filter("      Commit: disabled"::equals)).hasSize(2);
     }
 
     @Test
@@ -383,11 +491,187 @@ class Seed4JCommandsFactoryTest {
         .contains(
           """
           Execution order:
-            1. init
+            1. init (reapplied)
           """
         )
         .contains("Status: VALID")
         .contains("No changes were applied.");
+    }
+
+    @Test
+    void shouldReapplyRequestedModuleAlreadyPresentInHistory(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      String[] applyArgs = {
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+      };
+      int applyExitCode = commandLine(modules, projects).execute(applyArgs);
+      assertThat(applyExitCode).isZero();
+      String[] applySetArgs = { "apply-set", "init", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine(modules, projects).execute(applySetArgs);
+
+      assertThat(exitCode).isZero();
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions())
+        .extracting(action -> action.module().get())
+        .containsExactly("init", "init");
+      assertThat(GitTestUtil.getCommits(projectPath)).hasLineCount(2);
+      assertThat(output.getOut())
+        .contains("1. init (reapplied)")
+        .contains("[1/1] init (reapplied)")
+        .contains("  init  SUCCEEDED  reapplied")
+        .contains("Module set status: SUCCEEDED");
+    }
+
+    @Test
+    void shouldWarnAndContinueWhenCommitEnabledWorktreeIsDirty(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      java.nio.file.Files.writeString(projectPath.resolve("existing-change.txt"), "keep me");
+      String[] args = {
+        "apply-set",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+      };
+
+      int exitCode = commandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getErr())
+        .contains(
+          "WARNING: Git worktree "
+            + projectPath
+            + " is dirty; module commits can include or be affected by pre-existing changes. Execution will continue automatically."
+        )
+        .doesNotContain("ERROR:");
+      assertThat(output.getOut()).contains("[1/1] init").contains("Module set status: SUCCEEDED");
+    }
+
+    @Test
+    void shouldReportPartialFailureAndSkipModulesAfterFirstThrownApplication(CapturedOutput output) {
+      ModuleSetSlug first = new ModuleSetSlug("first-module");
+      ModuleSetSlug second = new ModuleSetSlug("second-module");
+      ModuleSetSlug third = new ModuleSetSlug("third-module");
+      ModuleSetCatalog catalog = catalog(
+        List.of(
+          new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(second, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(third, List.of(), List.of(), Optional.empty())
+        ),
+        List.of(first, second, third)
+      );
+      ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath ->
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ModuleSetExecutionApplicationService failingExecution = new ModuleSetExecutionApplicationService(application -> {
+        invokedModules.add(application.slug());
+        if (application.slug().equals(second)) {
+          throw new IllegalStateException("internal failure details");
+        }
+      });
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
+      String[] args = { "first-module", "second-module", "third-module" };
+
+      int exitCode = capturing(new CommandLine(command.spec())).execute(args);
+
+      assertThat(exitCode).isEqualTo(1);
+      assertThat(invokedModules).containsExactly(first, second);
+      assertThat(output.getOut())
+        .contains("[1/3] first-module", "[2/3] second-module", "[3/3] third-module")
+        .contains("  first-module  SUCCEEDED", "  second-module  FAILED", "  third-module  SKIPPED")
+        .contains("Module set status: PARTIAL_FAILURE");
+      assertThat(output.getErr())
+        .contains("ERROR: second-module failed: unable to complete module application.")
+        .contains("The failed module may have changed files, history, Git, dispatched events, or downstream event effects.")
+        .contains(
+          "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry."
+        )
+        .doesNotContain("internal failure details", "IllegalStateException");
+    }
+
+    @Test
+    void shouldReportOpaqueHistoryReadFailureBeforeAnyMutation() {
+      ModuleSetSlug module = new ModuleSetSlug("module");
+      ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(module, List.of(), List.of(), Optional.empty())), List.of(module));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath -> {
+        throw new IllegalStateException("sensitive history failure");
+      });
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+
+      int exitCode = commandLine.execute("module");
+
+      assertThat(exitCode).isEqualTo(1);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString()).isEqualTo("ERROR: Unable to complete module set preflight.\nNo changes were applied.\n");
+    }
+
+    @Test
+    void shouldWriteInvalidPreflightOnlyToStderrWithoutMutation() throws IOException {
+      Path projectPath = setupEmptyProjectTestFolder();
+      List<Path> pathsBefore;
+      try (Stream<Path> paths = java.nio.file.Files.walk(projectPath)) {
+        pathsBefore = paths.map(projectPath::relativize).sorted().toList();
+      }
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects),
+        new NioModuleSetProjectPathValidator(),
+        new JGitModuleSetGitStateReader()
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+      String[] args = { "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.sample" };
+
+      int exitCode = commandLine.execute(args);
+
+      List<Path> pathsAfter;
+      try (Stream<Path> paths = java.nio.file.Files.walk(projectPath)) {
+        pathsAfter = paths.map(projectPath::relativize).sorted().toList();
+      }
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString())
+        .startsWith("Preflight: INVALID")
+        .contains("module:init - missing; required by: maven-java")
+        .contains("Status: INVALID")
+        .endsWith("No changes were applied.\n");
+      assertThat(pathsAfter).containsExactlyElementsOf(pathsBefore);
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projectPath.resolve(".git")).doesNotExist();
     }
 
     @Test
@@ -675,13 +959,10 @@ class Seed4JCommandsFactoryTest {
           ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(parameters)
         )
       );
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        catalog,
-        new ProjectsModuleSetPlanningHistoryReader(projects)
-      );
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -720,13 +1001,10 @@ class Seed4JCommandsFactoryTest {
           ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(Map.of(featureEnabled.value(), true))
         )
       );
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        catalog,
-        new ProjectsModuleSetPlanningHistoryReader(projects)
-      );
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "boolean-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -759,13 +1037,10 @@ class Seed4JCommandsFactoryTest {
           ProjectAction.builder().module("history-fixture").date(Instant.EPOCH).parameters(Map.of(indentSize.value(), true))
         )
       );
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        catalog,
-        new ProjectsModuleSetPlanningHistoryReader(projects)
-      );
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = new CommandLine(new ApplyModuleSetCommand(planning).spec()).execute(args);
+      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -825,6 +1100,44 @@ class Seed4JCommandsFactoryTest {
     }
 
     @Test
+    void shouldRenderInformationalDefaultInDetailedModuleSetPlan(CapturedOutput output) {
+      ModuleSetSlug moduleSlug = new ModuleSetSlug("default-only-module");
+      ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(
+        new ModuleSetPropertyKey("informationalValue"),
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("informational-default"), "informational-default")),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
+        List.of(moduleSlug)
+      );
+      String[] args = { "default-only-module", "--plan" };
+
+      int exitCode = moduleSetCommandLine(
+        catalog,
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      ).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut())
+        .contains(
+          """
+          Resolved parameters:
+            ✓ informationalValue: informational-default
+              Source: default (informational)
+              CLI option: --informational-value
+
+          Commit mode: one commit per succeeded module
+          """
+        )
+        .contains("Status: VALID")
+        .endsWith("No changes were applied.\n");
+    }
+
+    @Test
     void shouldRenderAllSharedPropertyConflicts(CapturedOutput output) {
       ModuleSetSlug first = new ModuleSetSlug("first-module");
       ModuleSetSlug second = new ModuleSetSlug("second-module");
@@ -868,8 +1181,21 @@ class Seed4JCommandsFactoryTest {
     }
 
     private CommandLine moduleSetCommandLine(ModuleSetCatalog catalog, ModuleSetPlanningHistory history) {
-      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(catalog, projectPath -> history);
-      return new CommandLine(new ApplyModuleSetCommand(planning).spec());
+      ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath -> history);
+      return capturing(new CommandLine(applyModuleSetCommand(planning).spec()));
+    }
+
+    private ApplyModuleSetCommand applyModuleSetCommand(ModuleSetPlanningApplicationService planning) {
+      return new ApplyModuleSetCommand(planning, new ModuleSetExecutionApplicationService(application -> {}));
+    }
+
+    private ModuleSetPlanningApplicationService planningService(ModuleSetCatalog catalog, ModuleSetPlanningHistoryReader historyReader) {
+      return new ModuleSetPlanningApplicationService(
+        catalog,
+        historyReader,
+        projectPath -> ModuleSetProjectPathStatus.VALID,
+        projectPath -> ModuleSetGitState.NO_WORKTREE
+      );
     }
 
     private ModuleSetCatalog catalog(List<ModuleSetModule> catalogModules, List<ModuleSetSlug> executionOrder) {
@@ -923,6 +1249,7 @@ class Seed4JCommandsFactoryTest {
         .contains("--no-commit")
         .contains("--base-name")
         .contains("--project-name")
+        .containsPattern("(?m)^    'apply-set'\\) printf '%s' '[^']*--commit[^']*--no-commit[^']*--plan[^']*' ;;$")
         .doesNotContain("--complete-values");
     }
 
@@ -966,7 +1293,7 @@ class Seed4JCommandsFactoryTest {
 
     @Test
     void shouldKeepEarlierBashCompletionOptionsAfterBuildingAnotherCommandTree(CapturedOutput output) {
-      CommandLine earlierCommandLine = new CommandLine(commandsFactory.buildCommandSpec());
+      CommandLine earlierCommandLine = capturing(new CommandLine(commandsFactory.buildCommandSpec()));
       commandsFactory.buildCommandSpec();
       String[] args = { "completion", "bash", "--no-complete-values" };
 

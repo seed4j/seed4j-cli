@@ -10,14 +10,25 @@ public class ModuleSetPlanner {
 
   private final ModuleSetCatalog catalog;
   private final ModuleSetPlanningHistoryReader historyReader;
+  private final ModuleSetProjectPathValidator projectPathValidator;
+  private final ModuleSetGitStateReader gitStateReader;
   private final ModuleSetDependencyPlanner dependencyPlanner;
   private final ModuleSetParameterPlanner parameterPlanner;
 
-  public ModuleSetPlanner(ModuleSetCatalog catalog, ModuleSetPlanningHistoryReader historyReader) {
+  public ModuleSetPlanner(
+    ModuleSetCatalog catalog,
+    ModuleSetPlanningHistoryReader historyReader,
+    ModuleSetProjectPathValidator projectPathValidator,
+    ModuleSetGitStateReader gitStateReader
+  ) {
     Assert.notNull("catalog", catalog);
     Assert.notNull("historyReader", historyReader);
+    Assert.notNull("projectPathValidator", projectPathValidator);
+    Assert.notNull("gitStateReader", gitStateReader);
     this.catalog = catalog;
     this.historyReader = historyReader;
+    this.projectPathValidator = projectPathValidator;
+    this.gitStateReader = gitStateReader;
     dependencyPlanner = new ModuleSetDependencyPlanner();
     parameterPlanner = new ModuleSetParameterPlanner();
   }
@@ -57,10 +68,51 @@ public class ModuleSetPlanner {
   }
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
+    List<ModuleSetPlanningProblem> pathProblems = projectPathProblems(request.projectPath());
     ModuleSetRequestValidation requestValidation = validateRequestedModules(request.requestedModules());
     List<ModuleSetSlug> executionOrder = executionOrder(request.requestedModules(), requestValidation);
-    SelectedModulesPlanning selectedModulesPlanning = planSelectedModules(request, executionOrder, requestValidation.modulesBySlug());
-    return selectedModulesPlanning.moduleSetPlan(request, executionOrder, requestValidation.problems());
+    List<ModuleSetPlanningProblem> orderProblems = executionOrderProblems(request.requestedModules(), executionOrder, requestValidation);
+    List<ModuleSetPlanningProblem> preselectionProblems = Stream.of(
+      pathProblems.stream(),
+      requestValidation.problems().stream(),
+      orderProblems.stream()
+    )
+      .flatMap(Function.identity())
+      .toList();
+    SelectedModulesPlanning selectedModulesPlanning =
+      requestValidation.valid() && orderProblems.isEmpty()
+        ? planSelectedModules(request, executionOrder, requestValidation.modulesBySlug())
+        : SelectedModulesPlanning.empty();
+    ModuleSetPlan plan = selectedModulesPlanning.moduleSetPlan(request, executionOrder, preselectionProblems);
+    return plan.withWarnings(planningWarnings(plan));
+  }
+
+  private List<ModuleSetPlanningProblem> projectPathProblems(ModuleSetProjectPath projectPath) {
+    ModuleSetProjectPathStatus status = projectPathValidator.validate(projectPath);
+    return status.valid() ? List.of() : List.of(new InvalidModuleSetProjectPath(status));
+  }
+
+  private List<ModuleSetPlanningWarning> planningWarnings(ModuleSetPlan plan) {
+    if (!plan.valid() || plan.commitMode().disabled()) {
+      return List.of();
+    }
+    return gitStateReader.state(plan.projectPath()) == ModuleSetGitState.DIRTY ? List.of(new DirtyModuleSetGitWorktree()) : List.of();
+  }
+
+  private static List<ModuleSetPlanningProblem> executionOrderProblems(
+    RequestedModuleSet requestedModules,
+    List<ModuleSetSlug> executionOrder,
+    ModuleSetRequestValidation requestValidation
+  ) {
+    if (!requestValidation.valid()) {
+      return List.of();
+    }
+    Set<ModuleSetSlug> requestedSlugs = Set.copyOf(requestedModules.modules());
+    Set<ModuleSetSlug> orderedSlugs = Set.copyOf(executionOrder);
+    if (executionOrder.size() == requestedModules.modules().size() && orderedSlugs.equals(requestedSlugs)) {
+      return List.of();
+    }
+    return List.of(new ModuleSetExecutionOrderMismatch(requestedModules.modules(), executionOrder));
   }
 
   private ModuleSetRequestValidation validateRequestedModules(RequestedModuleSet requestedModules) {
@@ -126,7 +178,7 @@ public class ModuleSetPlanner {
       request.explicitParameters(),
       history.parameters()
     );
-    return new SelectedModulesPlanning(dependencyValidations, parameterPlanning);
+    return new SelectedModulesPlanning(history.appliedModules(), dependencyValidations, parameterPlanning);
   }
 
   private record ModuleSetRequestValidation(Map<ModuleSetSlug, ModuleSetModule> modulesBySlug, List<ModuleSetPlanningProblem> problems) {
@@ -141,10 +193,12 @@ public class ModuleSetPlanner {
   }
 
   private record SelectedModulesPlanning(
+    Set<ModuleSetSlug> appliedModules,
     List<ModuleSetDependencyValidation> dependencyValidations,
     ModuleSetParameterPlanner.ParameterPlanning parameterPlanning
   ) {
     private SelectedModulesPlanning {
+      appliedModules = Set.copyOf(appliedModules);
       dependencyValidations = List.copyOf(dependencyValidations);
     }
 
@@ -156,16 +210,39 @@ public class ModuleSetPlanner {
       return new ModuleSetPlan(
         request.requestedModules(),
         request.projectPath(),
-        executionOrder,
+        executionOrder
+          .stream()
+          .map(slug -> new ModuleSetPlanItem(slug, applicationKind(slug)))
+          .toList(),
+        request.commitMode(),
+        effectiveParameters(),
         dependencyValidations,
         parameterPlanning.resolvedParameters(),
         parameterPlanning.missingRequiredParameters(),
-        Stream.concat(requestProblems.stream(), parameterPlanning.problems().stream()).toList()
+        Stream.concat(requestProblems.stream(), parameterPlanning.problems().stream()).toList(),
+        List.of()
       );
     }
 
+    private EffectiveModuleSetParameters effectiveParameters() {
+      Map<ModuleSetPropertyKey, ModuleSetParameterValue> values = parameterPlanning
+        .resolvedParameters()
+        .stream()
+        .filter(parameter -> parameter.source() != ModuleSetPropertySource.DEFAULT)
+        .collect(Collectors.toMap(ResolvedModuleSetParameter::key, ResolvedModuleSetParameter::value));
+      return new EffectiveModuleSetParameters(values);
+    }
+
+    private ModuleSetApplicationKind applicationKind(ModuleSetSlug slug) {
+      return appliedModules.contains(slug) ? ModuleSetApplicationKind.REAPPLICATION : ModuleSetApplicationKind.APPLICATION;
+    }
+
     private static SelectedModulesPlanning empty() {
-      return new SelectedModulesPlanning(List.of(), new ModuleSetParameterPlanner.ParameterPlanning(List.of(), List.of(), List.of()));
+      return new SelectedModulesPlanning(
+        Set.of(),
+        List.of(),
+        new ModuleSetParameterPlanner.ParameterPlanning(List.of(), List.of(), List.of())
+      );
     }
   }
 }
