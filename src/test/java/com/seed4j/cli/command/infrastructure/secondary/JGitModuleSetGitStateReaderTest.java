@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.secondary;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
@@ -8,6 +9,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,6 +29,17 @@ class JGitModuleSetGitStateReaderTest {
   }
 
   @Test
+  void shouldReportNoWorktreeForBareRepository(@TempDir Path repositoryPath) throws Exception {
+    try (Git ignored = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
+    }
+    JGitModuleSetGitStateReader reader = new JGitModuleSetGitStateReader();
+
+    ModuleSetGitState state = reader.state(new ModuleSetProjectPath(repositoryPath));
+
+    assertThat(state).isEqualTo(ModuleSetGitState.NO_WORKTREE);
+  }
+
+  @Test
   void shouldReportCleanWorktree(@TempDir Path projectPath) throws Exception {
     initializeCleanWorktree(projectPath);
     JGitModuleSetGitStateReader reader = new JGitModuleSetGitStateReader();
@@ -34,6 +47,19 @@ class JGitModuleSetGitStateReaderTest {
     ModuleSetGitState state = reader.state(new ModuleSetProjectPath(projectPath));
 
     assertThat(state).isEqualTo(ModuleSetGitState.CLEAN);
+  }
+
+  @Test
+  void shouldNormalizeCorruptIndexFailureAndPreserveCause(@TempDir Path projectPath) throws Exception {
+    initializeCleanWorktree(projectPath);
+    Files.writeString(projectPath.resolve(".git/index"), "not a Git index");
+    JGitModuleSetGitStateReader reader = new JGitModuleSetGitStateReader();
+
+    assertThatThrownBy(() -> reader.state(new ModuleSetProjectPath(projectPath)))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessage("Unable to read Git worktree state")
+      .cause()
+      .isInstanceOf(JGitInternalException.class);
   }
 
   @ParameterizedTest

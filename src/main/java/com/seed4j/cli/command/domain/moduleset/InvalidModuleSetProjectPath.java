@@ -1,9 +1,7 @@
 package com.seed4j.cli.command.domain.moduleset;
 
-import com.seed4j.cli.shared.error.domain.Assert;
-
-public record InvalidModuleSetProjectPath(ModuleSetProjectPathStatus status) implements ModuleSetPlanningProblem {
-  public InvalidModuleSetProjectPath {
-    Assert.notNull("status", status);
-  }
+public enum InvalidModuleSetProjectPath implements ModuleSetPlanningProblem {
+  NOT_DIRECTORY,
+  NOT_ACCESSIBLE,
+  NOT_APPARENTLY_CREATABLE,
 }

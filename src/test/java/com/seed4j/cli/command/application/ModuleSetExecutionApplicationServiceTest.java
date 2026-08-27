@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.domain.moduleset.ExplicitModuleSetParameters;
@@ -92,6 +93,46 @@ class ModuleSetExecutionApplicationServiceTest {
       new ModuleSetModuleExecutionCompleted(plan.items().get(1), ModuleSetModuleStatus.FAILED),
       new ModuleSetModuleExecutionCompleted(plan.items().get(2), ModuleSetModuleStatus.SKIPPED)
     );
+  }
+
+  @Test
+  void shouldRejectInvalidPlanBeforeApplyingModulesOrPublishingEvents() {
+    ModuleSetSlug selected = new ModuleSetSlug("selected");
+    ModuleSetCatalog catalog = new ModuleSetCatalog() {
+      @Override
+      public List<ModuleSetModule> modules() {
+        return List.of(new ModuleSetModule(selected, List.of(), List.of(), Optional.empty()));
+      }
+
+      @Override
+      public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
+        return List.of(selected);
+      }
+    };
+    ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+      catalog,
+      projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+      projectPath -> ModuleSetProjectPathStatus.NOT_DIRECTORY,
+      projectPath -> ModuleSetGitState.NO_WORKTREE
+    );
+    ModuleSetPlan invalidPlan = planning.plan(
+      new ModuleSetPlanningRequest(
+        new RequestedModuleSet(List.of(selected)),
+        new ModuleSetProjectPath(Path.of("project.txt")),
+        ExplicitModuleSetParameters.empty(),
+        ModuleSetCommitMode.ENABLED
+      )
+    );
+    List<ModuleSetModuleApplication> applications = new ArrayList<>();
+    List<ModuleSetExecutionEvent> events = new ArrayList<>();
+    ModuleSetExecutionApplicationService execution = new ModuleSetExecutionApplicationService(applications::add);
+
+    assertThatThrownBy(() -> execution.execute(invalidPlan, events::add))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Only a valid module set plan can be executed");
+
+    assertThat(applications).isEmpty();
+    assertThat(events).isEmpty();
   }
 
   private static ModuleSetPlan plan(List<ModuleSetSlug> executionOrder) {

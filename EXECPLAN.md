@@ -1,312 +1,237 @@
-# Deliver executable `apply-set` with immutable preflight
+# Close JaCoCo gaps with real behavior and dead-code removal
 
 ## Purpose and success
 
-Implement issue #298 so `seed4j apply-set` validates one immutable, read-only preflight snapshot and, unless `--plan` is
-present, applies exactly the requested visible modules through the Seed4J individual-module API. Success means that the
-CLI preserves deterministic ordering and parameter-source explanations, supports default-on `--[no-]commit`, reports
-typed sequential progress, stops after the first thrown module application, preserves earlier successes, and never
-mutates on an invalid preflight.
+Eliminate the current 16 missed lines and 18 missed branches while preserving the repository's 100% line and branch
+coverage gate per class. Add tests only through public Picocli journeys, application-service contracts, or stable NIO and
+JGit adapter contracts. Remove states and branches proved unreachable instead of manufacturing coverage. Preserve the
+complete public output and behavior of `apply-set`; do not lower thresholds, exclude classes, test private helpers or
+wiring, or add mocks and seams for JGit internals.
 
-The normative contract is `.agent/specifications/apply-set-execution.md`. The implementation must not add implicit
-dependencies or providers, materialize informational defaults as effective input, use Seed4J's multi-module API, perform
-parallel work, or attempt rollback.
+Success is observable when the requested focused suites and `./mvnw test` pass, the JaCoCo CSV query prints no class,
+formatting and `git diff --check` pass, and every `habit-hooks` finding has been analyzed without changing the snooze
+file. The user remains responsible for the final aggregated `./mvnw clean verify` gate and will report its exit code.
 
 ## Context and limits
 
-Production code lives below `src/main/java/com/seed4j/cli/command`. Domain types and capability ports belong in
-`domain/moduleset`; application services orchestrate those ports; Picocli rendering stays in `infrastructure/primary`;
-NIO, JGit, project-history, and Seed4J-core integrations stay in `infrastructure/secondary`.
+The coverage baseline already present in `target/site/jacoco/jacoco.csv` reports exactly 16 missed lines and 18 missed
+branches across six classes:
 
-The existing read-only flow is `ApplyModuleSetCommand` -> `ModuleSetPlanningApplicationService` -> `ModuleSetPlanner`,
-with `Seed4JModuleSetCatalog` and `ProjectsModuleSetPlanningHistoryReader` as secondary adapters. Existing observable
-planning tests live in `ModuleSetPlanningApplicationServiceTest` and the `apply-set` nested suite of
-`Seed4JCommandsFactoryTest`. Those suites remain the primary behavior homes; new test classes are added only for stable
-capability or application contracts that do not belong there.
+| Class                                   | Missed lines | Missed branches | Classification                                                             |
+| --------------------------------------- | -----------: | --------------: | -------------------------------------------------------------------------- |
+| `ModuleSetExecutionApplicationService`  |            1 |               1 | Stable application-service rejection contract                              |
+| `JGitModuleSetGitStateReader`           |            3 |               3 | Real bare/corrupt JGit adapter behavior plus one external-failure boundary |
+| `NioModuleSetProjectPathValidator`      |            2 |               6 | Real POSIX permission behavior plus unreachable root traversal branches    |
+| `ModuleSetRequestSelector`              |            0 |               1 | Real same-cardinality/wrong-set catalog behavior through Picocli           |
+| `ApplyModuleSetPlanningProblemRenderer` |           10 |               6 | Three real invalid-path diagnostics plus impossible `VALID` representation |
+| `ApplyModuleSetExecutionRenderer`       |            0 |               1 | Compiler-generated exhaustive-switch artifact                              |
 
-Use Java 25 and Node.js 22+. Follow strict behavior-first TDD: introduce one failing observable test, run the complete
-relevant suite, implement the minimum passing behavior, and keep a public CLI checkpoint at least every two cycles. Do
-not run `./mvnw clean verify`; repository guidance reserves that complete gate for the user unless explicitly requested.
+Production and tests remain inside the existing hexagonal boundaries. Raw filesystem and Git mechanisms stay in
+`infrastructure.secondary`; planning facts stay in `domain`; application execution rejects an invalid plan before any
+side effect; presentation text stays in `infrastructure.primary`. Tests must not call or name private helpers and must
+observe only CLI streams/exit status, application ports/events, or stable adapter return values and failures.
 
-## Definitions
+POSIX permission cases run only when the file store supports the POSIX view. Tests set permissions explicitly, assert
+the behavior on Linux, and restore owner `rwx` in `finally` so temporary-directory cleanup remains possible. The NIO
+validator continues to use `NOFOLLOW_LINKS` for physical component discovery and follows usable links for directory and
+access checks.
 
-- **Preflight snapshot:** the immutable `ModuleSetPlan` produced from one invocation's catalog, project path, history,
-  explicit inputs, commit mode, path state, and applicable Git state.
-- **Effective parameters:** only explicit values and compatible latest history values; displayed metadata defaults are
-  excluded.
-- **Reapplied:** an execution-order item whose slug existed in the history snapshot and is still invoked.
-- **Partial failure:** one module call threw; preceding modules remain `SUCCEEDED`, that module is `FAILED`, and every
-  later module is `SKIPPED` without rollback.
+Characterization tests may start green where behavior already exists. A red/green cycle is required only for missing or
+incorrect behavior; production code will not be temporarily broken to manufacture a red test. The repository guidance
+forbids the agent from running `./mvnw clean verify` unless explicitly asked.
 
 ## Milestones
 
-### 1. Make planning produce an execution-safe immutable snapshot
+### 1. Represent invalid paths without an impossible valid state
 
-Add behavior tests to `ModuleSetPlanningApplicationServiceTest` for missing, extra, and duplicate calculated order;
-reapplication; exclusion of informational defaults from the effective map; path validation; commit mode; and conditional
-dirty-Git inspection. Evolve `ModuleSetPlanningRequest`, `ModuleSetPlan`, and `ModuleSetPlanner`, adding dedicated domain
-types, structured problems/warnings, and capability ports under `domain/moduleset`. Wire those ports through
-`ModuleSetPlanningApplicationService` without exposing filesystem or Git representations to application/domain.
+Convert `InvalidModuleSetProjectPath` from a record carrying all `ModuleSetProjectPathStatus` values into an enum with
+only `NOT_DIRECTORY`, `NOT_ACCESSIBLE`, and `NOT_APPARENTLY_CREATABLE`. Remove
+`ModuleSetProjectPathStatus.valid()`. In `ModuleSetPreflightEnvironmentInspector`, map all four validator statuses
+explicitly and exhaustively, including `VALID` to no problem. Update `ApplyModuleSetPlanningProblemRenderer` to translate
+only the three invalid problems. Reconcile existing domain expectations and add a parameterized public journey to
+`Seed4JCommandsFactoryTest` using the stable `ModuleSetProjectPathValidator` port. For each problem, assert exit `2`,
+empty stdout, the exact stderr diagnostic, `Status: INVALID`, final `No changes were applied.`, and no module application.
 
-Validation: run `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test`. Expected: every new test first fails for
-the intended missing behavior and the suite finishes green after each minimal implementation. Acceptance: the plan is an
-immutable snapshot, rejects any requested/order mismatch, retains explicitly requested historical modules as reapplied,
-contains the effective map without defaults, and consults Git only after every other preflight validation passes and only
-when commits are enabled.
+Validation: `./mvnw -Dtest=Seed4JCommandsFactoryTest,ModuleSetPlanningApplicationServiceTest test` must exit `0`.
+Acceptance: no invalid-path value can represent `VALID`, all three exact diagnostics are protected through Picocli, and
+the command remains read-only for invalid preflight.
 
-### 2. Execute an approved plan sequentially with typed progress
+### 2. Cover real permissions and remove impossible root traversal
 
-Add application-level behavior tests in `ModuleSetExecutionApplicationServiceTest` covering full success, one shared
-effective map for all calls, typed started/completed events, first-failure stop, complete result slots, and reapplied
-annotations. Add the stable execution result/event/status domain contracts and the capability-oriented
-`ModuleSetModuleApplier`; implement `ModuleSetExecutionApplicationService` so it accepts only an approved
-`ModuleSetPlan` and never replans.
+Add parameterized POSIX behavior cases in `NioModuleSetProjectPathValidatorTest` for an existing directory with owner
+`rw-------` and `r-x------`, both yielding `NOT_ACCESSIBLE`, and for an absent destination below an ancestor with those
+same permission sets, both yielding `NOT_APPARENTLY_CREATABLE`. Restore owner `rwx------` in `finally`. In
+`NioModuleSetProjectPathValidator`, remove the unreachable null checks around absolute-path ancestor traversal while
+retaining first-physical-component discovery and symlink semantics.
 
-Validation: run `./mvnw -Dtest=ModuleSetExecutionApplicationServiceTest test`, followed by
-`./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest test`. Expected: the
-execution suite demonstrates red then green behavior and both application suites finish green. Acceptance: one ordered
-pass calls the applier sequentially, the first throw yields `FAILED` plus later `SKIPPED`, and the final result always
-contains every planned module without rollback.
+Validation: `./mvnw -Dtest=NioModuleSetProjectPathValidatorTest test` must exit `0`.
+Acceptance: Linux permission failures are covered through the stable NIO adapter and absolute traversal has no synthetic
+`ancestor == null` branch.
 
-### 3. Implement read-only NIO/JGit checks and the individual-core adapter
+### 3. Protect selection and execution invariants
 
-Add stable adapter behavior suites under `src/test/java/com/seed4j/cli/command/infrastructure/secondary` for existing
-directories, non-directory targets, apparently creatable destinations, invalid intermediate components, absent/clean/
-dirty worktrees (tracked, staged, and untracked), and exact conversion to `Seed4JModuleToApply`. Add the explicit JGit
-version and dependency to `pom.xml`; implement secondary adapters with NIO, isolated JGit, and
-`Seed4JModulesApplicationService.apply(Seed4JModuleToApply)`. Keep path layouts out of domain records and map property
-value types exhaustively.
+Add a Picocli journey in `Seed4JCommandsFactoryTest` where the catalog returns an execution order with the requested
+cardinality but replaces one requested module. Assert exit `2`, empty stdout, the complete
+`ModuleSetExecutionOrderMismatch` diagnostic, and no history read or module application. Add an application-service test
+that passes an invalid `ModuleSetPlan` through `ModuleSetExecutionApplicationService.execute` and asserts rejection before
+the applier or event listener receives an effect.
 
-Validation: run focused Maven tests naming the new secondary test classes, then the application suites. Expected: no
-path test creates a probe or destination; all Git states map correctly; every core call carries slug, project path,
-commit mode, and the complete effective map exactly. Acceptance: no multi-module core API is referenced.
+Validation:
+`./mvnw -Dtest=Seed4JCommandsFactoryTest,ModuleSetExecutionApplicationServiceTest,ModuleSetPlanningApplicationServiceTest test`
+must exit `0`.
+Acceptance: equal cardinality cannot conceal a changed module set, and invalid plans cannot cross the execution
+side-effect boundary.
 
-### 4. Expose execution through Picocli and preserve the individual `apply` command
+### 4. Cover real JGit failure modes without internal mocks
 
-Extend the existing `apply-set` behavior suite in `Seed4JCommandsFactoryTest` one journey at a time: help/completion;
-`--plan`; real full success with an in-set dependency; immutable invalid-preflight behavior; per-module commits;
-`--no-commit`; reapplication; dirty-worktree warning; second-module failure; opaque history-read failure; and unchanged
-`seed4j apply`. Update `CliFixture` wiring and primary renderers so invalid preflight is only on stderr with exit `2`,
-unexpected pre-execution failure is generic with exit `1`, and partial results/progress use the normative literal
-statuses and inspection guidance.
+In `JGitModuleSetGitStateReaderTest`, create a real bare repository and assert `NO_WORKTREE`; create a normal repository,
+corrupt its index, and assert `IllegalStateException` with exact message `Unable to read Git worktree state` and the
+original JGit failure preserved as cause. In `JGitModuleSetGitStateReader`, retain no-worktree and clean/dirty detection
+but wrap JGit operations in one boundary catching `Exception`, never `Error`, so checked and runtime external failures
+share one stable adapter failure contract. Do not introduce test-only abstractions.
 
-Validation: run `./mvnw -Dtest=Seed4JCommandsFactoryTest test` after every behavior cycle and execute the command's public
-path through the test fixture at least every two cycles. Expected: stdout/stderr and exit codes match the normative
-contract, planning stays read-only, and execution uses one preflight plan. Acceptance: omitting `--plan` executes,
-`--[no-]commit` defaults enabled, completion exposes both forms, dirty Git only warns, and `seed4j apply` remains
-unchanged.
+Close the non-null `Repository` explicitly in `finally` rather than retaining the compiler's impossible nullable-resource
+branch from try-with-resources. The adapter must still close repositories for bare, clean/dirty, and failing status reads,
+and the outer failure boundary remains the only normalization point.
 
-### 5. Reconcile documentation and complete repository validation
+Validation: `./mvnw -Dtest=JGitModuleSetGitStateReaderTest test` must exit `0`.
+Acceptance: real bare and corrupt repositories exercise the adapter and technical failures preserve their cause.
 
-Update `documentation/Commands.md`, `documentation/hexagonal-architecture.md`, and README navigation with execution
-semantics, exact flags/statuses/exit codes, safety boundaries, and the new port/adapter flow. Run the formatter, review the
-green implementation for behavior-preserving structural improvements, run `habit-hooks`, analyze and resolve every
-finding, then run the repository's allowed agent-side gates.
+### 5. Remove the execution renderer's synthetic switch branch
 
-Validation: run `npm run prettier:format`, focused tests affected by formatting/refactoring,
-`npm run prettier:check`, `./mvnw test`, and `habit-hooks`. Expected: every command exits `0` and no enforced Habit
-finding remains. Acceptance: docs and implementation agree with the exact normative identifiers, tests remain centered
-on observable contracts, and the user is asked to run `./mvnw clean verify` as the final complete gate.
+Rewrite `ApplyModuleSetExecutionRenderer.completed` so an exhaustive switch expression produces the status-detail text
+for `SUCCEEDED`, `FAILED`, and `SKIPPED`, then append it to the existing output. Add no switch-specific test; existing
+public journeys already observe all three statuses and protect byte-for-byte output.
 
-### 6. Remediate execution rendering and broken-symlink preflight regressions
+If the final Java 25/JaCoCo report attributes synthetic `MatchException` handlers to exhaustive record-pattern dispatch
+switches, retain exhaustive switch expressions but replace record deconstruction patterns with type patterns plus stable
+record accessors. This removes compiler-only handler lines without inventing impossible tests or changing dispatch.
 
-Extend the public `apply-set` journeys in `Seed4JCommandsFactoryTest` so a valid `--plan` displays informational defaults,
-while a real execution displays a dedicated compact preflight containing only execution order, effective parameters with
-sources and CLI options, and commit mode. Preserve the complete detailed renderer for valid plans and invalid preflight,
-and keep informational defaults out of `effectiveResolvedParameters()` and every Seed4J core call. Add stable NIO adapter
-tests for a broken destination symlink, a broken intermediate symlink, and a valid directory symlink, including proof
-that validation creates no destination or target. Implement physical component discovery with
-`Files.exists(path, LinkOption.NOFOLLOW_LINKS)` while retaining followed-link directory and permission checks. Reconcile
-`documentation/Commands.md` with both output forms and the broken-symlink behavior.
+Validation: `./mvnw -Dtest=Seed4JCommandsFactoryTest,ModuleSetExecutionApplicationServiceTest test` must exit `0`.
+Acceptance: public progress output is unchanged and the compiler no longer reports an uncovered synthetic default branch.
 
-Validation: first run `./mvnw -Dtest=Seed4JCommandsFactoryTest test`, then
-`./mvnw -Dtest=NioModuleSetProjectPathValidatorTest,ModuleSetPlanningApplicationServiceTest test`. At completion run, in
-order, `npm run prettier:format`, `npm run prettier:check`, `git diff --check`, the requested combined focused Maven test
-command, `./mvnw test`, and `habit-hooks`. Expected: every command exits `0`; `--plan` alone shows defaults as
-`default (informational)`, execution never does, broken symlinks invalidate preflight without filesystem mutation, valid
-directory symlinks remain accepted, and no enforced Habit finding remains.
+### 6. Consolidate design and complete repository validation
 
-### 7. Remove mutable caller-owned state from shared preflight formatting
+Format the touched files, run the requested checks, review only the changed behavior and adjacent contracts for
+behavior-preserving structural risks, and analyze every Habit finding. Re-read every requirement and update this plan at
+handoff with actual command outcomes and any remaining limitation. Do not change `.habit-hooks/snooze.json` or run
+`habit-snooze` without explicit authorization.
 
-Refactor `ApplyModuleSetPreflightSectionsRenderer` so execution-order, parameter, and commit-mode sections each build and
-return one complete `String`. Update the detailed and compact renderers to append those returned values without passing
-their `StringBuilder` into the shared formatter. Keep parameter-value and source conversion as private pure helpers; do
-not add internal-method tests or change public APIs, domain types, options, streams, exit codes, or documentation.
+Validation, in order:
 
-Validation: first run the unchanged public checkpoint `./mvnw -Dtest=Seed4JCommandsFactoryTest test`. After the edit run,
-in order, `npm run prettier:format`, `npm run prettier:check`, `git diff --check`,
-`./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,NioModuleSetProjectPathValidatorTest test`, `./mvnw test`, and
-`habit-hooks`. Expected: public output remains byte-for-byte protected by the Picocli journeys, all commands except an
-unauthorized pre-existing Habit baseline situation exit `0`, and no caller passes mutable rendering state to the shared
-formatter. Acceptance: `--plan` retains informational defaults, invalid preflight stays entirely on `stderr` and ends
-with `No changes were applied.`, execution retains only its compact sections and progress, and reapplication, warnings,
-and summaries remain unchanged.
+1. `npm run prettier:format`
+2. `npm run prettier:check`
+3. `git diff --check`
+4. `./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest,NioModuleSetProjectPathValidatorTest,JGitModuleSetGitStateReaderTest test`
+5. `./mvnw test`
+6. `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0)' target/site/jacoco/jacoco.csv`
+7. `habit-hooks`
+
+Expected: formatting and all tests exit `0`; the `awk` command prints no row; zero missed branches and lines remain in
+every class; no threshold or class exclusion changes; Habit has no unresolved enforced finding.
 
 ## Progress
 
-- [x] Read the implementation request, normative specification, repository instructions, and existing planning/CLI flow.
-- [x] Create this self-contained ExecPlan before production implementation.
-- [x] Complete immutable planning/preflight snapshot behavior.
-- [x] Complete sequential execution and typed progress behavior.
-- [x] Complete NIO, JGit, and individual Seed4J adapters.
-- [x] Complete Picocli execution journeys and compatibility checks.
-- [ ] Complete the Habit baseline decision (implementation, documentation, formatting, focused tests, and full tests are
-      complete; refreshing the reviewed snooze baseline still requires explicit authorization).
-- [x] Add this remediation milestone before changing regression tests or production code.
-- [x] Write failing public rendering tests and separate detailed planning from compact execution preflight output.
-- [x] Write failing broken-symlink tests and harden read-only NIO component discovery.
-- [x] Reconcile command documentation with the two renderer contracts and symlink preflight rules.
-- [ ] Run the complete remediation validation sequence and resolve every enforceable Habit finding (`habit-hooks` remains
-      pending only on the reviewed snooze baseline).
-- [x] Re-read the remediation request and update this plan with final evidence before handoff.
-- [x] Add the mutable out-parameter remediation milestone before production edits.
-- [x] Run the unchanged public Picocli checkpoint before the out-parameter refactor.
-- [x] Return independently built section strings and update both renderer callers.
-- [x] Run the requested out-parameter remediation validation sequence and analyze every Habit finding.
-- [ ] Obtain explicit authorization to refresh the reviewed Habit snooze baseline; no snooze file was changed.
-- [x] Re-read the request and update this plan with final out-parameter remediation evidence before handoff.
+- [x] Read the request, repository instructions, current ExecPlan, and applicable execution/TDD skills.
+- [x] Record the observed JaCoCo baseline and classify all six affected classes before implementation.
+- [x] Remove the valid state from the invalid-path representation.
+- [x] Cover the three public invalid-path diagnostics.
+- [x] Cover inaccessible existing directories and non-creatable ancestors.
+- [x] Remove impossible absolute-root traversal branches.
+- [x] Cover equal-cardinality execution order with the wrong module set.
+- [x] Cover application-service rejection of an invalid plan without effects.
+- [x] Cover a real bare repository and real corrupt Git index.
+- [x] Normalize external JGit failures at one adapter boundary.
+- [x] Convert execution completion details to an exhaustive switch expression.
+- [x] Confirm zero missed JaCoCo lines and branches in every class.
+- [x] Run and analyze `habit-hooks` without altering the snooze baseline.
+- [x] Re-read the request and update this ExecPlan immediately before handoff.
 
 ## Decisions
 
-- Keep `ModuleSetPlan` as the sole approved execution input rather than introducing a second executable request. This
-  preserves the normative snapshot boundary and prevents catalog/history drift between preflight and application.
-- Represent operational checks as capability ports and structured domain facts, while concrete `Path`, NIO traversal,
-  JGit discovery, and Seed4J request conversion remain secondary-adapter concerns. This enforces the repository's
-  hexagonal boundary and keeps diagnostics renderable by Picocli rather than embedded in domain code.
-- Extend the existing planning and CLI behavior suites instead of mirroring each new production type with a test class.
-  A separate execution service suite and adapter suites are justified because those are stable caller-facing contracts.
-- Keep effective-parameter selection authoritative in `ModuleSetPlan`; the primary renderer now asks the approved plan for
-  resolved effective values instead of independently repeating the default-exclusion policy.
-- Treat the Habit findings reopened in previously snoozed, intentionally explicit integration-test files as reviewed
-  design decisions. Repository policy forbids refreshing that baseline without explicit user authorization, so the Habit
-  gate remains pending rather than silently changing `.habit-hooks/snooze.json`.
-- Keep the detailed renderer authoritative for `--plan` and invalid preflight, but introduce a dedicated compact execution
-  renderer. This prevents presentation policy from changing the effective parameter map or the Seed4J core contract.
-- Detect physical path components without following links, then follow valid links for directory and access checks. This
-  distinguishes a broken symlink from an absent creatable path without rejecting a usable directory symlink.
-- Make each shared preflight-section method own its local `StringBuilder` and return the completed section. This removes
-  caller-owned mutable state from the formatter boundary while leaving detailed-versus-compact selection in the two
-  policy renderers and preserving all observable text.
+- Invalid project paths use a closed enum containing only the three invalid business problems. The alternative—retaining
+  `ModuleSetProjectPathStatus` inside the problem—permits a contradictory `VALID` problem and forces unreachable renderer
+  behavior. The validator still returns all four environmental results, and the inspector owns their explicit mapping.
+- External JGit failures are normalized once at the secondary adapter boundary as
+  `IllegalStateException("Unable to read Git worktree state", cause)`. Test-only seams and mocks were rejected because
+  real repositories can cover caller-observable adapter behavior and JGit 7.5 has no concrete bytecode path for every
+  checked exception declared by its API.
+- `FileRepositoryBuilder.build()` either returns the repository or throws; the adapter does not model a nullable resource.
+  Explicit `finally` closure preserves resource ownership while removing the compiler-only null branch emitted by
+  try-with-resources.
+- Compiler-generated switch defaults and mathematically unreachable absolute-root branches are removed through exhaustive
+  source shapes, not tests written to trigger impossible states. This keeps coverage tied to executable behavior.
+- Java 25 record-pattern dispatch may emit synthetic accessor-failure handlers attributed to a source closing brace.
+  Type patterns with explicit record accessors preserve exhaustive typed dispatch while avoiding those unreachable lines.
 
 ## Risks
 
-- The Seed4J 2.2.0 individual request and history APIs are external contracts. Inspect their compiled signatures and test
-  exact conversion before committing to adapter shapes.
-- JGit version convergence can conflict with Seed4J transitive dependencies. Declare a compatible explicit version and
-  inspect the dependency tree if focused compilation reports convergence or linkage problems.
-- Capturing `System.out`/`System.err` can obscure stream assertions. CLI tests must assert each captured stream directly,
-  especially the empty-stdout invalid-preflight guarantee.
-- Real module integration can leave partial files by design. Tests must use isolated temporary projects and assert
-  preservation/skip semantics without implementing cleanup or rollback in production.
-
-## Documentation
-
-`documentation/Commands.md` is the public command guide and must explain execution as the default, `--plan` as a fresh
-read-only snapshot, default-enabled `--[no-]commit`, reapplication, dirty-Git warnings, literal statuses, partial effects,
-and exit codes. `documentation/hexagonal-architecture.md` must replace the read-only flow with the planning/execution
-boundary and name the capability ports and concrete secondary adapters. README navigation must continue to point readers
-to the canonical command and architecture guides without duplicating their normative detail.
+- POSIX access checks depend on the executing user. The supported Linux CI runs as a non-root user; tests first verify the
+  POSIX view and restore owner access in `finally`. A root-only local environment may not observe denied access and must
+  be reported as an environment limitation rather than weakened assertions.
+- Corrupting a repository index must be confined to a temporary directory. The fixture owns the repository and no user
+  checkout is modified.
+- Renderer refactoring must preserve exact whitespace and line ordering. Existing Picocli success, partial-failure, and
+  skipped-module journeys are the regression boundary; no internal renderer test will be added.
 
 ## Validation
 
-Validation proceeds from focused suites to public CLI journeys and then repository-wide allowed gates. Record actual
-exit status at milestone boundaries. The final expected command sequence is:
+Baseline evidence from the pre-existing report:
 
-1. `npm run prettier:format`
-2. focused Maven tests for planning, execution, secondary adapters, and CLI integration
-3. `npm run prettier:check`
-4. `./mvnw test`
-5. `habit-hooks`
+- `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0) { print; missed_branches += $6; missed_lines += $8 } END { ... }' target/site/jacoco/jacoco.csv`
+  printed the six classified classes and totals `TOTAL_MISSED_BRANCHES=18 TOTAL_MISSED_LINES=16`.
+- The worktree was clean on branch `codex/issue-298-apply-set-execution` before this ExecPlan update.
+- The new parameterized Picocli characterization for `NOT_DIRECTORY`, `NOT_ACCESSIBLE`, and
+  `NOT_APPARENTLY_CREATABLE` started green against the existing output. After replacing the contradictory record with a
+  closed enum and exhaustively mapping validator results, the milestone command
+  `./mvnw -Dtest=Seed4JCommandsFactoryTest,ModuleSetPlanningApplicationServiceTest test` exited `0` with 105 tests, no
+  failures, errors, or skips. Each case asserts exact stderr, empty stdout, exit `2`, and no module application.
+- The POSIX adapter cycle initially failed only because existence cannot be observed through an untraversable ancestor;
+  moving assertions after the required `finally` permission restoration made the no-write check reliable. Both
+  `rw-------` and `r-x------` now cover existing-directory and absent-destination behavior. After removing the impossible
+  null checks from absolute ancestor traversal, `./mvnw -Dtest=NioModuleSetProjectPathValidatorTest test` exited `0`
+  with 11 tests, no failures, errors, or skips.
+- The equal-cardinality/wrong-set Picocli characterization started green and its public suite exited `0` with 86 tests;
+  exact invalid-preflight output, empty stdout, no history read, and no module application are asserted. The invalid-plan
+  application-service characterization also started green. The milestone command covering Picocli, planning, and
+  execution exited `0` with 109 tests, no failures, errors, or skips; applier calls and published events remain empty on
+  rejection.
+- The real bare-repository characterization started green and exercised `NO_WORKTREE`. Corrupting the index produced the
+  intended red failure: JGit exposed `JGitInternalException: Not a DIRC file.` instead of the stable adapter contract.
+  After consolidating all JGit work inside one `catch (Exception)` boundary, the original JGit exception is the direct
+  cause of `IllegalStateException("Unable to read Git worktree state")`. The milestone command exited `0` with 7 tests,
+  no failures, errors, or skips.
+- `ApplyModuleSetExecutionRenderer.completed` now obtains status details from an exhaustive switch expression and appends
+  that text to the existing prefix. No internal switch test was added. The public Picocli and execution-service command
+  exited `0` with 89 tests, preserving success, failed, skipped, commit-enabled, and commit-disabled output.
+- The first full-suite JaCoCo query after all planned behaviors reported zero missed branches but one missed line in each
+  renderer. HTML and bytecode inspection traced both lines to compiler-generated `MatchException` handlers for exhaustive
+  record deconstruction patterns, not to uncovered business behavior. The two dispatch switches now keep exhaustive
+  type patterns while reading record components through their stable accessors.
+- After replacing record deconstruction, both renderer gaps disappeared. The next full-suite report exposed one remaining
+  missed branch at the JGit try-with-resources closing brace: bytecode showed the compiler's nullable-resource guard,
+  although `FileRepositoryBuilder.build()` returns a repository or throws. The adapter now expresses the non-null ownership
+  invariant with unconditional `finally` closure.
+- Final formatting and static checks succeeded: `npm run prettier:format`, `npm run prettier:check`, and
+  `git diff --check` all exited `0`.
+- The exact focused gate exited `0` with 145 tests, no failures, errors, or skips:
+  `./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest,NioModuleSetProjectPathValidatorTest,JGitModuleSetGitStateReaderTest test`.
+- The default agent-side gate `./mvnw test` exited `0` with 576 tests, no failures, errors, or skips. The final command
+  `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0)' target/site/jacoco/jacoco.csv` exited `0` without output, confirming zero missed
+  lines and zero missed branches in every reported class.
+- `habit-hooks` exited `1`. Every finding was reviewed: the reported parameter counts are in pre-existing composition and
+  fixture code; the reported large methods/files and duplicate fragments are explicit public/application/adapter journeys,
+  their safety cleanup, or imports. In the changed production adapter, the Git method remains one cohesive normalized
+  external boundary. Extracting the new test setup or exact-output assertions would hide Given/When/Then behavior or the
+  POSIX restoration guarantee. No enforced current-task design defect remained to fix, and `.habit-hooks/snooze.json` was
+  not changed.
+- The final behavior-preserving design review found no further refactor that would improve boundaries without weakening
+  the stable tests. The only structural adjustments were the exhaustive type-pattern dispatch and explicit non-null JGit
+  resource lifecycle documented above.
+- Commit-readiness revalidation repeated the final sequence: Prettier and `git diff --check` passed; the focused gate
+  passed with 145 tests; `./mvnw test` passed with 576 tests; and the JaCoCo CSV query remained empty. `habit-hooks`
+  again reported only the reviewed baseline, with no snooze-file change.
 
-The user, not the agent, runs `./mvnw clean verify` and reports its exit code plus any relevant failure summary.
-
-Observed milestone evidence:
-
-- `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test` exited `0` with 18 tests after red/green cycles for exact
-  order, reapplication, effective parameters, project-path failure, commit mode, and conditional Git inspection.
-- `./mvnw -Dtest=Seed4JCommandsFactoryTest test` exited `0` with 75 tests at the public-path checkpoint before the
-  planning-port expansion; the next CLI checkpoint will include concrete NIO/JGit adapters and updated rendering.
-- `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest test` exited `0` with
-  20 tests. Execution visits the approved items once, passes the same effective-parameter object to each application,
-  emits typed start/completion events, stops at the first runtime failure, and returns `FAILED`/`SKIPPED` slots for every
-  remaining planned item.
-- The focused planning, execution, NIO, JGit, and Seed4J-adapter command exited `0` with 30 tests. JGit
-  `7.5.0.202512021534-r` matches the Seed4J 2.2.0 dependency; NIO left nonexistent targets absent; JGit covered
-  `NO_WORKTREE`, `CLEAN`, and dirty tracked/staged/untracked states; the core adapter called only
-  `apply(Seed4JModuleToApply)` with exact typed values.
-- `./mvnw -Dtest=Seed4JCommandsFactoryTest test` exited `0` with 81 tests after the executable Picocli flow was wired.
-  The suite covers a real in-set dependency with one commit per module, disabled commits without Git initialization,
-  reapplication, dirty-worktree continuation, first-failure stop with a complete partial summary, opaque history-read
-  failure before mutation, invalid-preflight stream isolation, and completion candidates for `--commit`, `--no-commit`,
-  and `--plan`.
-- `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test` exited `0` with 20 tests after completing the exact-order
-  invariant for missing, extra, and duplicated landscape results.
-- After formatting and design review, the combined focused command exited `0` with 114 tests, and the planning plus public
-  CLI checkpoint after the final behavior-preserving refactor exited `0` with 102 tests.
-- `npm run prettier:format` and `npm run prettier:check` both exited `0`; all matched files use the repository format.
-- `./mvnw test` exited `0` with 565 tests, no failures, errors, or skips.
-- `habit-hooks` exited `1`. Its active findings are complexity/duplication heuristics for changed files, including large
-  integration tests already present in `.habit-hooks/snooze.json`; changing those files intentionally reopened their
-  baseline. The findings were reviewed: production orchestration methods are cohesive, import-block matches are not a
-  missing abstraction, and the explicit Given/When/Then journeys should not be replaced by mechanical helpers. One real
-  duplicate validation between the application service and planner was removed. Refreshing the reviewed baseline requires
-  explicit authorization because repository instructions prohibit `habit-snooze` or snooze-file edits otherwise.
-- The remediation public checkpoint `./mvnw -Dtest=Seed4JCommandsFactoryTest test` first failed on the missing
-  informational default and then on the missing compact execution contract. After separating the renderers, the same
-  82-test suite exited `0`: detailed plans include display defaults and always end with `No changes were applied.`, while
-  execution includes only order, effective parameters with provenance/CLI spelling, and commit mode before progress.
-- `./mvnw -Dtest=NioModuleSetProjectPathValidatorTest,ModuleSetPlanningApplicationServiceTest test` failed first for
-  each broken-link regression and then exited `0` with 27 tests. A broken destination link maps to `NOT_DIRECTORY`, a
-  broken intermediate link maps to `NOT_APPARENTLY_CREATABLE`, a usable directory link remains valid, and assertions
-  confirm that no missing target or nested destination is created.
-- The public CLI checkpoint exited `0` with 82 tests after the NIO cycles. One immediately preceding run observed the two
-  history actions in reverse order; the affected test passed alone and the unchanged complete public suite passed on
-  repetition, so no unrelated production or test semantics were changed.
-- `documentation/Commands.md` now shows an informational default in the detailed `--plan` output, the compact execution
-  preflight before progress, the exclusion of display defaults from core calls, and broken-link path rejection without
-  mutation. The normative specification required no change because it already permits these stable explanatory fields.
-- The design review classified duplicated section formatting as a design risk and consolidated it behind one
-  primary-adapter formatter while preserving two policy-owning renderers. The combined public, NIO, and planning
-  checkpoint exited `0` with 109 tests after this behavior-preserving refactor.
-- `npm run prettier:format`, `npm run prettier:check`, and `git diff --check` each exited `0` in the requested order.
-- The requested combined focused Maven command exited `0` with 135 tests, including architecture, planning, execution,
-  NIO, JGit, Seed4J-core conversion, and public CLI journeys.
-- `./mvnw test` exited `0` with 565 tests and no failures, errors, or skips.
-- `habit-hooks` exited `1`. Every finding was reviewed: the only material duplication in this remediation was the shared
-  preflight-section formatting and is resolved; the new NIO validator/tests, compact renderer, and shared formatter have
-  no file-scoped finding. Remaining findings are the previously reviewed baseline for cohesive planning/execution/CLI
-  orchestration signatures, explicit Given/When/Then integration journeys, intentionally broad public behavior suites,
-  and coincidental imports or independently owned bounded-context representations. Mechanical extraction would violate
-  repository test/design guidance without improving responsibility boundaries. `.habit-hooks/snooze.json` is unchanged;
-  repository policy requires explicit authorization before refreshing that baseline.
-- Before the mutable out-parameter refactor, `./mvnw -Dtest=Seed4JCommandsFactoryTest test` exited `0` with 82 tests and
-  no failures, errors, or skips. This is the public rendering baseline for the behavior-preserving change.
-- After the refactor, `npm run prettier:format`, `npm run prettier:check`, and `git diff --check` each exited `0` in the
-  requested order. Prettier reported the changed files unchanged.
-- `./mvnw -Dtest=HexagonalArchTest,Seed4JCommandsFactoryTest,NioModuleSetProjectPathValidatorTest test` exited `0` with
-  107 tests and no failures, errors, or skips. The existing Picocli journeys preserve informational defaults in
-  `--plan`, invalid-preflight stream isolation and final sentence, compact execution content, reapplication, warnings,
-  progress, and summaries.
-- `./mvnw test` exited `0` with 565 tests and no failures, errors, or skips.
-- `habit-hooks` exited `1` only because the reviewed snooze baseline remains unauthorized. File-scoped runs exited `0`
-  for `ApplyModuleSetPreflightSectionsRenderer` and `ApplyModuleSetExecutionPreflightRenderer`. The detailed
-  `ApplyModuleSetPlanRenderer` still reports its pre-existing `oversized-function` finding for `render`: the method has
-  one responsibility, ordering the complete detailed public output, and this change only replaced three mutating calls
-  with three `append(String)` calls without adding lines or concerns. Extracting another helper would be mechanical and
-  obscure that order. No new finding is related to the mutable-state remediation, and `.habit-hooks/snooze.json` remains
-  unchanged.
-
-Final remediation audit:
-
-- Detailed valid `--plan` and invalid preflight both use `resolvedParameters()` and always end with
-  `No changes were applied.`; invalid output remains isolated to `stderr` with exit `2`.
-- Execution explicitly selects the compact renderer, which receives `effectiveResolvedParameters()` and prints only the
-  approved preflight sections before typed progress; informational defaults remain absent from the effective map and core
-  adapter calls.
-- Physical path existence uses `LinkOption.NOFOLLOW_LINKS`; directory and permission validation still follows usable
-  directory links. Broken destination and intermediate links are rejected without creating targets or destinations.
-- Public documentation names the exact headings, sources, CLI options, default-exclusion rule, and symlink semantics.
-- Shared execution-order, parameter, and commit-mode formatting now returns independently built `String` sections; both
-  policy renderers concatenate those values and never pass caller-owned mutable state into the shared formatter.
-- No tests or public documentation changed. Existing Picocli behavior tests protect all requested output and stream
-  contracts; all allowed gates are green except the authorization-dependent Habit baseline.
+Focused validation ran at every milestone boundary. Picocli public-path checkpoints ran after milestones 1, 3, and 5,
+satisfying the at-least-every-two-behaviors cadence. The final agent-side gate was `./mvnw test`; after handoff the user
+runs `./mvnw clean verify` and reports the exit code plus any relevant failure summary.

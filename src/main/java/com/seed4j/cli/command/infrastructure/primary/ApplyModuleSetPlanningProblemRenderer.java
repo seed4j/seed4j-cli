@@ -31,10 +31,10 @@ final class ApplyModuleSetPlanningProblemRenderer {
 
   private static String problemText(ModuleSetPlanningProblem problem) {
     return switch (problem) {
-      case DuplicateRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Duplicate requested modules", modules);
+      case DuplicateRequestedModuleSetModules duplicateModules -> moduleValues("Duplicate requested modules", duplicateModules.modules());
       case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
       case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
-      case UnknownRequestedModuleSetModules(List<ModuleSetSlug> modules) -> moduleValues("Unknown requested modules", modules);
+      case UnknownRequestedModuleSetModules unknownModules -> moduleValues("Unknown requested modules", unknownModules.modules());
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
       case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
@@ -42,8 +42,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
   }
 
   private static String invalidProjectPath(InvalidModuleSetProjectPath invalidPath) {
-    return switch (invalidPath.status()) {
-      case VALID -> throw new IllegalArgumentException("A valid project path is not a planning problem");
+    return switch (invalidPath) {
       case NOT_DIRECTORY -> "Project path exists but is not a directory";
       case NOT_ACCESSIBLE -> "Project path is not traversable and writable";
       case NOT_APPARENTLY_CREATABLE -> "Project path does not have a traversable, writable directory ancestor";

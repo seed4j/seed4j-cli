@@ -118,7 +118,7 @@ class ModuleSetPlanningApplicationServiceTest {
 
     ModuleSetPlan plan = service.plan(request);
 
-    assertThat(plan.problems()).containsExactly(new InvalidModuleSetProjectPath(ModuleSetProjectPathStatus.NOT_DIRECTORY));
+    assertThat(plan.problems()).containsExactly(InvalidModuleSetProjectPath.NOT_DIRECTORY);
     assertThat(plan.valid()).isFalse();
   }
 

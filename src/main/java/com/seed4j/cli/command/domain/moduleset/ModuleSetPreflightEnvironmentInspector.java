@@ -13,8 +13,12 @@ final class ModuleSetPreflightEnvironmentInspector {
   }
 
   List<ModuleSetPlanningProblem> pathProblems(ModuleSetProjectPath projectPath) {
-    ModuleSetProjectPathStatus status = projectPathValidator.validate(projectPath);
-    return status.valid() ? List.of() : List.of(new InvalidModuleSetProjectPath(status));
+    return switch (projectPathValidator.validate(projectPath)) {
+      case VALID -> List.of();
+      case NOT_DIRECTORY -> List.of(InvalidModuleSetProjectPath.NOT_DIRECTORY);
+      case NOT_ACCESSIBLE -> List.of(InvalidModuleSetProjectPath.NOT_ACCESSIBLE);
+      case NOT_APPARENTLY_CREATABLE -> List.of(InvalidModuleSetProjectPath.NOT_APPARENTLY_CREATABLE);
+    };
   }
 
   List<ModuleSetPlanningWarning> warnings(ModuleSetPlan plan) {

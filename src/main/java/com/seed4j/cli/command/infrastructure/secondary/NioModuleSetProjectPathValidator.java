@@ -27,10 +27,10 @@ public class NioModuleSetProjectPathValidator implements ModuleSetProjectPathVal
 
   private static ModuleSetProjectPathStatus apparentlyCreatable(Path destination) {
     Path ancestor = destination.toAbsolutePath().normalize().getParent();
-    while (ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS)) {
+    while (!Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS)) {
       ancestor = ancestor.getParent();
     }
-    if (ancestor == null || !Files.isDirectory(ancestor)) {
+    if (!Files.isDirectory(ancestor)) {
       return ModuleSetProjectPathStatus.NOT_APPARENTLY_CREATABLE;
     }
     return Files.isExecutable(ancestor) && Files.isWritable(ancestor)

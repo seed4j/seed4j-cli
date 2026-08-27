@@ -41,8 +41,8 @@ final class ApplyModuleSetExecutionRenderer {
 
   String event(ModuleSetExecutionEvent event) {
     return switch (event) {
-      case ModuleSetModuleExecutionStarted(ModuleSetPlanItem item) -> itemLine(item);
-      case ModuleSetModuleExecutionCompleted(ModuleSetPlanItem item, ModuleSetModuleStatus status) -> completed(item, status);
+      case ModuleSetModuleExecutionStarted started -> itemLine(started.item());
+      case ModuleSetModuleExecutionCompleted completed -> completed(completed.item(), completed.status());
     };
   }
 
@@ -61,17 +61,16 @@ final class ApplyModuleSetExecutionRenderer {
       output.append(itemLine(item));
     }
     output.append("      Status: ").append(status).append('\n');
-    switch (status) {
-      case SUCCEEDED -> output
-        .append("      History: updated\n")
-        .append("      Events: dispatched\n")
-        .append("      Commit: ")
-        .append(commitMode.enabled() ? "created" : "disabled")
-        .append('\n');
-      case FAILED -> output.append("      Effects: indeterminate\n");
-      case SKIPPED -> output.append("      Reason: not invoked after the first failure\n");
-    }
-    return output.toString();
+    String details = switch (status) {
+      case SUCCEEDED -> "      History: updated\n"
+        + "      Events: dispatched\n"
+        + "      Commit: "
+        + (commitMode.enabled() ? "created" : "disabled")
+        + '\n';
+      case FAILED -> "      Effects: indeterminate\n";
+      case SKIPPED -> "      Reason: not invoked after the first failure\n";
+    };
+    return output.append(details).toString();
   }
 
   String summary(ModuleSetExecutionResult result) {

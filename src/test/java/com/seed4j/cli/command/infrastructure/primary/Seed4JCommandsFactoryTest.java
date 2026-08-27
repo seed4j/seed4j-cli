@@ -18,6 +18,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathValidator;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
@@ -54,6 +55,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -213,6 +215,146 @@ class Seed4JCommandsFactoryTest {
         )
         .contains("Status: INVALID")
         .contains("No changes were applied.");
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidProjectPaths")
+    void shouldReportInvalidProjectPathWithoutApplyingModules(ModuleSetProjectPathStatus pathStatus, String diagnostic) {
+      ModuleSetSlug module = new ModuleSetSlug("module");
+      ModuleSetCatalog catalog = catalog(List.of(new ModuleSetModule(module, List.of(), List.of(), Optional.empty())), List.of(module));
+      ModuleSetProjectPathValidator projectPathValidator = projectPath -> pathStatus;
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        catalog,
+        projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+        projectPathValidator,
+        projectPath -> ModuleSetGitState.NO_WORKTREE
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+
+      int exitCode = commandLine.execute("module");
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString()).isEqualTo(
+        """
+        Preflight: INVALID
+        Plan for module set
+
+        Project path: .
+
+        Requested modules:
+          1. module
+
+        Execution order:
+          1. module
+
+        Dependency validation:
+          ✓ No dependencies.
+
+        Resolved parameters:
+          (none)
+
+        Commit mode: one commit per succeeded module
+
+        Validation problems:
+          ○ %s
+
+        Status: INVALID
+        No changes were applied.
+        """.formatted(diagnostic)
+      );
+    }
+
+    private static Stream<Arguments> invalidProjectPaths() {
+      return Stream.of(
+        Arguments.of(ModuleSetProjectPathStatus.NOT_DIRECTORY, "Project path exists but is not a directory"),
+        Arguments.of(ModuleSetProjectPathStatus.NOT_ACCESSIBLE, "Project path is not traversable and writable"),
+        Arguments.of(
+          ModuleSetProjectPathStatus.NOT_APPARENTLY_CREATABLE,
+          "Project path does not have a traversable, writable directory ancestor"
+        )
+      );
+    }
+
+    @Test
+    void shouldRejectSameSizeExecutionOrderContainingAnotherModule() {
+      ModuleSetSlug first = new ModuleSetSlug("first");
+      ModuleSetSlug second = new ModuleSetSlug("second");
+      ModuleSetSlug replacement = new ModuleSetSlug("replacement");
+      ModuleSetCatalog catalog = new ModuleSetCatalog() {
+        @Override
+        public List<ModuleSetModule> modules() {
+          return List.of(
+            new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+            new ModuleSetModule(second, List.of(), List.of(), Optional.empty()),
+            new ModuleSetModule(replacement, List.of(), List.of(), Optional.empty())
+          );
+        }
+
+        @Override
+        public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
+          return List.of(first, replacement);
+        }
+      };
+      ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath -> {
+        throw new AssertionError("History must not be read for an unsafe execution order");
+      });
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+
+      int exitCode = commandLine.execute("first", "second", "--plan");
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString()).isEqualTo(
+        """
+        Preflight: INVALID
+        Plan for module set
+
+        Project path: .
+
+        Requested modules:
+          1. first
+          2. second
+
+        Execution order:
+          1. first
+          2. replacement
+
+        Dependency validation:
+          ✓ No dependencies.
+
+        Resolved parameters:
+          (none)
+
+        Commit mode: one commit per succeeded module
+
+        Validation problems:
+          ○ Calculated execution order does not contain exactly the requested modules: requested first, second; calculated first, replacement
+
+        Status: INVALID
+        No changes were applied.
+        """
+      );
     }
 
     @Test

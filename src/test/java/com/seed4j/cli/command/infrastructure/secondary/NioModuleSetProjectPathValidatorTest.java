@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.secondary;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
@@ -8,8 +9,12 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @UnitTest
 class NioModuleSetProjectPathValidatorTest {
@@ -21,6 +26,23 @@ class NioModuleSetProjectPathValidatorTest {
     ModuleSetProjectPathStatus status = validator.validate(new ModuleSetProjectPath(projectPath));
 
     assertThat(status).isEqualTo(ModuleSetProjectPathStatus.VALID);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "rw-------", "r-x------" })
+  void shouldRejectExistingDirectoryWithoutExecutionOrWriting(String permissions, @TempDir Path projectPath) throws IOException {
+    assumeTrue(Files.getFileStore(projectPath).supportsFileAttributeView(PosixFileAttributeView.class));
+    NioModuleSetProjectPathValidator validator = new NioModuleSetProjectPathValidator();
+    Files.setPosixFilePermissions(projectPath, PosixFilePermissions.fromString(permissions));
+    ModuleSetProjectPathStatus status;
+
+    try {
+      status = validator.validate(new ModuleSetProjectPath(projectPath));
+    } finally {
+      Files.setPosixFilePermissions(projectPath, PosixFilePermissions.fromString("rwx------"));
+    }
+
+    assertThat(status).isEqualTo(ModuleSetProjectPathStatus.NOT_ACCESSIBLE);
   }
 
   @Test
@@ -67,6 +89,26 @@ class NioModuleSetProjectPathValidatorTest {
     ModuleSetProjectPathStatus status = validator.validate(new ModuleSetProjectPath(projectPath));
 
     assertThat(status).isEqualTo(ModuleSetProjectPathStatus.VALID);
+    assertThat(projectPath).doesNotExist();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "rw-------", "r-x------" })
+  void shouldRejectAbsentDestinationBelowAncestorWithoutExecutionOrWriting(String permissions, @TempDir Path parent) throws IOException {
+    assumeTrue(Files.getFileStore(parent).supportsFileAttributeView(PosixFileAttributeView.class));
+    Path ancestor = Files.createDirectory(parent.resolve("ancestor"));
+    Path projectPath = ancestor.resolve("project");
+    NioModuleSetProjectPathValidator validator = new NioModuleSetProjectPathValidator();
+    Files.setPosixFilePermissions(ancestor, PosixFilePermissions.fromString(permissions));
+    ModuleSetProjectPathStatus status;
+
+    try {
+      status = validator.validate(new ModuleSetProjectPath(projectPath));
+    } finally {
+      Files.setPosixFilePermissions(ancestor, PosixFilePermissions.fromString("rwx------"));
+    }
+
+    assertThat(status).isEqualTo(ModuleSetProjectPathStatus.NOT_APPARENTLY_CREATABLE);
     assertThat(projectPath).doesNotExist();
   }
 
