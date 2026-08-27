@@ -81,12 +81,6 @@ class Seed4JCommandsFactoryTest {
   @Autowired
   private Seed4JCommandsFactory commandsFactory;
 
-  private static CommandLine capturing(CommandLine commandLine) {
-    commandLine.setOut(new PrintWriter(System.out, true));
-    commandLine.setErr(new PrintWriter(System.err, true));
-    return commandLine;
-  }
-
   @Test
   void shouldShowHelpMessageWhenNoCommand(CapturedOutput output) {
     String[] args = {};
@@ -111,7 +105,7 @@ class Seed4JCommandsFactoryTest {
     Seed4JCommandsFactory factory = new Seed4JCommandsFactory(List.of(), new Seed4JVersionProvider("1", "2", unavailableRuntime));
     String[] args = { "--help" };
 
-    int exitCode = capturing(new CommandLine(factory.buildCommandSpec())).execute(args);
+    int exitCode = new CommandLine(factory.buildCommandSpec()).execute(args);
 
     assertThat(exitCode).isZero();
     assertThat(output).contains("Seed4J CLI").contains("--version");
@@ -168,7 +162,7 @@ class Seed4JCommandsFactoryTest {
         List.of(applyModuleSetCommand),
         new Seed4JVersionProvider("1", "2", new RuntimeDisplayApplicationService(RuntimeDisplay::standard))
       );
-      CommandLine earlierCommandLine = capturing(new CommandLine(factory.buildCommandSpec()));
+      CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
       factory.buildCommandSpec();
       String[] args = {
         "apply-set",
@@ -587,7 +581,7 @@ class Seed4JCommandsFactoryTest {
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
       String[] args = { "first-module", "second-module", "third-module" };
 
-      int exitCode = capturing(new CommandLine(command.spec())).execute(args);
+      int exitCode = new CommandLine(command.spec()).execute(args);
 
       assertThat(exitCode).isEqualTo(1);
       assertThat(invokedModules).containsExactly(first, second);
@@ -962,7 +956,7 @@ class Seed4JCommandsFactoryTest {
       ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
+      int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -1004,7 +998,7 @@ class Seed4JCommandsFactoryTest {
       ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "boolean-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
+      int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
 
       assertThat(exitCode).isZero();
       assertThat(output)
@@ -1040,7 +1034,7 @@ class Seed4JCommandsFactoryTest {
       ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
-      int exitCode = capturing(new CommandLine(applyModuleSetCommand(planning).spec())).execute(args);
+      int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
       assertThat(output.getErr())
@@ -1182,7 +1176,7 @@ class Seed4JCommandsFactoryTest {
 
     private CommandLine moduleSetCommandLine(ModuleSetCatalog catalog, ModuleSetPlanningHistory history) {
       ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath -> history);
-      return capturing(new CommandLine(applyModuleSetCommand(planning).spec()));
+      return new CommandLine(applyModuleSetCommand(planning).spec());
     }
 
     private ApplyModuleSetCommand applyModuleSetCommand(ModuleSetPlanningApplicationService planning) {
@@ -1293,7 +1287,7 @@ class Seed4JCommandsFactoryTest {
 
     @Test
     void shouldKeepEarlierBashCompletionOptionsAfterBuildingAnotherCommandTree(CapturedOutput output) {
-      CommandLine earlierCommandLine = capturing(new CommandLine(commandsFactory.buildCommandSpec()));
+      CommandLine earlierCommandLine = new CommandLine(commandsFactory.buildCommandSpec());
       commandsFactory.buildCommandSpec();
       String[] args = { "completion", "bash", "--no-complete-values" };
 
