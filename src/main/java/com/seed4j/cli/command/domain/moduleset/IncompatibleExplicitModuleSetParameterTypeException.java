@@ -4,7 +4,7 @@ import com.seed4j.cli.shared.error.domain.Assert;
 
 public class IncompatibleExplicitModuleSetParameterTypeException extends RuntimeException {
 
-  private final ModuleSetPropertyKey key;
+  private final String key;
   private final ModuleSetPropertyType expectedType;
   private final ModuleSetPropertyType actualType;
 
@@ -14,7 +14,7 @@ public class IncompatibleExplicitModuleSetParameterTypeException extends Runtime
     ModuleSetPropertyType actualType
   ) {
     super(message(key, expectedType, actualType));
-    this.key = key;
+    this.key = key.value();
     this.expectedType = expectedType;
     this.actualType = actualType;
   }
@@ -27,7 +27,7 @@ public class IncompatibleExplicitModuleSetParameterTypeException extends Runtime
   }
 
   public ModuleSetPropertyKey key() {
-    return key;
+    return new ModuleSetPropertyKey(key);
   }
 
   public ModuleSetPropertyType expectedType() {
