@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 final class ModuleSetParameterPlanner {
 
@@ -17,54 +16,33 @@ final class ModuleSetParameterPlanner {
     ModuleSetHistoryParameters historyParameters
   ) {
     ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation = definitionReconciler.reconcile(selectedModules);
-    List<ModuleSetExplicitParameterTypeMismatch> explicitTypeMismatches = explicitTypeMismatches(
-      reconciliation.definitions(),
-      explicitParameters
-    );
-    Set<ModuleSetPropertyKey> mismatchedExplicitKeys = explicitTypeMismatches
-      .stream()
-      .map(ModuleSetExplicitParameterTypeMismatch::key)
-      .collect(Collectors.toUnmodifiableSet());
+    validateExplicitParameterTypes(reconciliation.definitions(), explicitParameters);
     ModuleSetParameterResolutionSummary resolutions = ModuleSetParameterResolutionSummary.from(
-      parameterResolver.resolve(
-        reconciliation
-          .definitions()
-          .stream()
-          .filter(definition -> !mismatchedExplicitKeys.contains(definition.key()))
-          .toList(),
-        explicitParameters,
-        historyParameters
-      )
+      parameterResolver.resolve(reconciliation.definitions(), explicitParameters, historyParameters)
     );
     return new ParameterPlanning(
       resolutions.resolvedParameters(),
       resolutions.missingRequiredParameters(),
-      planningProblems(reconciliation, explicitTypeMismatches, resolutions.historyMismatches(), explicitParameters)
+      planningProblems(reconciliation, resolutions.historyMismatches(), explicitParameters)
     );
   }
 
-  private static List<ModuleSetExplicitParameterTypeMismatch> explicitTypeMismatches(
+  private static void validateExplicitParameterTypes(
     List<ModuleSetPropertyDefinition> definitions,
     ExplicitModuleSetParameters explicitParameters
   ) {
-    return definitions
-      .stream()
-      .filter(definition -> explicitParameters.values().containsKey(definition.key()))
-      .filter(definition -> explicitParameters.values().get(definition.key()).type() != definition.type())
-      .map(definition ->
-        new ModuleSetExplicitParameterTypeMismatch(
-          definition.key(),
-          definition.type(),
-          explicitParameters.values().get(definition.key()).type()
-        )
-      )
-      .sorted(Comparator.comparing(mismatch -> mismatch.key().value()))
-      .toList();
+    for (ModuleSetPropertyDefinition definition : definitions) {
+      if (explicitParameters.values().containsKey(definition.key())) {
+        ModuleSetParameterValue explicitValue = explicitParameters.values().get(definition.key());
+        if (explicitValue.type() != definition.type()) {
+          throw new IncompatibleExplicitModuleSetParameterTypeException(definition.key(), definition.type(), explicitValue.type());
+        }
+      }
+    }
   }
 
   private static List<ModuleSetPlanningProblem> planningProblems(
     ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation,
-    List<ModuleSetExplicitParameterTypeMismatch> explicitTypeMismatches,
     List<ModuleSetHistoryParameterTypeMismatch> historyMismatches,
     ExplicitModuleSetParameters explicitParameters
   ) {
@@ -72,7 +50,6 @@ final class ModuleSetParameterPlanner {
     if (!reconciliation.conflicts().isEmpty()) {
       problems.add(new ModuleSetPropertyConflicts(reconciliation.conflicts()));
     }
-    problems.addAll(explicitTypeMismatches);
     problems.addAll(
       historyMismatches
         .stream()

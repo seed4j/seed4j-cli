@@ -104,6 +104,7 @@ public class ModuleSetPlanner {
         .map(slug -> new ModuleSetPlanItem(slug, ModuleSetApplicationKind.APPLICATION))
         .toList(),
       request.commitMode(),
+      ModuleSetDetailedPlanningStatus.NOT_EVALUATED,
       EffectiveModuleSetParameters.empty(),
       List.of(),
       List.of(),
@@ -136,6 +137,7 @@ public class ModuleSetPlanner {
           .map(slug -> new ModuleSetPlanItem(slug, applicationKind(slug)))
           .toList(),
         request.commitMode(),
+        ModuleSetDetailedPlanningStatus.EVALUATED,
         EffectiveModuleSetParameters.from(parameterPlanning.resolvedParameters()),
         dependencyValidations,
         parameterPlanning.resolvedParameters(),

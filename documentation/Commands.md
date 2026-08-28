@@ -317,8 +317,10 @@ not create the destination, a missing link target, or a write probe.
 
 A predictably invalid path stops every project-dependent stage before history is read. Duplicate, unknown-module, or
 execution-order problems already calculated remain in the invalid plan, but dependency and parameter sections remain
-empty and Git is not inspected. This makes the path diagnostic authoritative instead of allowing a history-read failure
-from an unusable destination to replace it.
+`NOT_EVALUATED` and Git is not inspected. They render as `Dependency validation: (not evaluated)` and
+`Resolved parameters: (not evaluated)`. `✓ No dependencies.` and `(none)` only describe evaluated empty results. This
+makes the path diagnostic authoritative instead of allowing a history-read failure from an unusable destination to
+replace it.
 
 The output separates `Requested modules` from `Execution order`. Requested order preserves the command line. Execution
 order is calculated exclusively by the Seed4J landscape and is the exact order used by the same invocation. A module
@@ -338,6 +340,10 @@ catalog makes selected conflicting types an invalid preflight, regardless of mod
 deterministically, the key is not also reported as an unused option, and no explicit input, history value, or default is
 resolved for it. Other keys continue to be validated and aggregated.
 
+The catalog is assembled from resources, landscape, and extensions before the Picocli tree is created and remains stable
+for the planner's lifetime. Each CLI process executes one command, so `apply-set` does not snapshot a changing catalog or
+support catalog hot reload.
+
 A property is mandatory when any selected module makes it mandatory, and at most one distinct default and description
 may remain. Compatible default and description conflicts retain the existing behavior. Display order follows the
 property's first occurrence in execution order and then its declaration order. Values resolve in this order:
@@ -347,12 +353,12 @@ property's first occurrence in execution order and then its declaration order. V
 3. metadata default for display only.
 
 Defaults for mandatory properties remain informational and do not satisfy the requirement. Picocli converts explicit CLI
-input directly to the global option's declared type and rejects invalid typed values before planning. As a domain safety
-check, an explicit value that still differs from the reconciled type produces
-`Explicit parameter type mismatch: <key> expects <EXPECTED> but input contains <ACTUAL>` and does not enter the effective
-map. Only explicit and compatible history values enter the immutable effective parameter map sent unchanged to every
-individual module call; display defaults are never sent. Passing a known property option that none of the selected
-modules uses invalidates the plan.
+input directly to the global option's declared type and rejects invalid typed values before planning. Programmatic
+callers must likewise provide correctly typed domain values. A value that differs from the reconciled type violates an
+internal invariant and throws a dedicated domain exception before resolution; it is not a correctable preflight problem
+or a CLI diagnostic. Only explicit and compatible history values enter the immutable effective parameter map sent
+unchanged to every individual module call; display defaults are never sent. Passing a known property option that none of
+the selected modules uses invalidates the plan.
 
 A project-history value is reused only when its stored type matches the selected property type. A relevant mismatch
 invalidates the plan without falling back to a default or also reporting the property as missing. The diagnostic names

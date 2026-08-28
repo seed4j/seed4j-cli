@@ -1,11 +1,13 @@
 package com.seed4j.cli.command.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.domain.moduleset.DirtyModuleSetGitWorktree;
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.ExplicitModuleSetParameters;
+import com.seed4j.cli.command.domain.moduleset.IncompatibleExplicitModuleSetParameterTypeException;
 import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetApplicationKind;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
@@ -13,8 +15,8 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetCommitMode;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetDetailedPlanningStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetExplicitParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
@@ -129,6 +131,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetPlan plan = service.plan(request);
 
       assertThat(plan.problems()).containsExactly(InvalidModuleSetProjectPath.NOT_DIRECTORY);
+      assertThat(plan.detailedPlanningStatus()).isEqualTo(ModuleSetDetailedPlanningStatus.NOT_EVALUATED);
       assertThat(plan.executionOrder()).containsExactly(selected);
       assertThat(plan.dependencyValidations()).isEmpty();
       assertThat(plan.resolvedParameters()).isEmpty();
@@ -712,14 +715,14 @@ class ModuleSetPlanningApplicationServiceTest {
         ModuleSetCommitMode.ENABLED
       );
 
-      ModuleSetPlan plan = service.plan(request);
-
-      assertThat(plan.problems()).containsExactly(
-        new ModuleSetExplicitParameterTypeMismatch(count, ModuleSetPropertyType.INTEGER, ModuleSetPropertyType.STRING)
+      assertThatThrownBy(() -> service.plan(request)).isInstanceOfSatisfying(
+        IncompatibleExplicitModuleSetParameterTypeException.class,
+        exception -> {
+          assertThat(exception.key()).isEqualTo(count);
+          assertThat(exception.expectedType()).isEqualTo(ModuleSetPropertyType.INTEGER);
+          assertThat(exception.actualType()).isEqualTo(ModuleSetPropertyType.STRING);
+        }
       );
-      assertThat(plan.resolvedParameters()).isEmpty();
-      assertThat(plan.effectiveParameters().values()).isEmpty();
-      assertThat(plan.valid()).isFalse();
     }
 
     @Test

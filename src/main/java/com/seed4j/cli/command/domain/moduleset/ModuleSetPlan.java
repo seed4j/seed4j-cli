@@ -8,6 +8,7 @@ public record ModuleSetPlan(
   ModuleSetProjectPath projectPath,
   List<ModuleSetPlanItem> items,
   ModuleSetCommitMode commitMode,
+  ModuleSetDetailedPlanningStatus detailedPlanningStatus,
   EffectiveModuleSetParameters effectiveParameters,
   List<ModuleSetDependencyValidation> dependencyValidations,
   List<ResolvedModuleSetParameter> resolvedParameters,
@@ -20,6 +21,7 @@ public record ModuleSetPlan(
     Assert.notNull("projectPath", projectPath);
     Assert.notNull("items", items);
     Assert.notNull("commitMode", commitMode);
+    Assert.notNull("detailedPlanningStatus", detailedPlanningStatus);
     Assert.notNull("effectiveParameters", effectiveParameters);
     Assert.notNull("dependencyValidations", dependencyValidations);
     Assert.notNull("resolvedParameters", resolvedParameters);
@@ -48,6 +50,7 @@ public record ModuleSetPlan(
       projectPath,
       items,
       commitMode,
+      detailedPlanningStatus,
       effectiveParameters,
       dependencyValidations,
       resolvedParameters,

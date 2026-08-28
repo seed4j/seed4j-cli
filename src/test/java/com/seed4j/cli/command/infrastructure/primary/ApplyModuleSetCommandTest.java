@@ -17,6 +17,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathValidator;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -40,7 +41,9 @@ import com.seed4j.project.domain.history.ProjectActionToAppend;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,8 +51,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -167,6 +170,7 @@ class ApplyModuleSetCommandTest {
       assertThat(output.getErr())
         .contains("Duplicate requested modules: init")
         .contains("Unknown requested modules: another-unknown, unknown-module")
+        .contains("Dependency validation: (not evaluated)", "Resolved parameters: (not evaluated)")
         .contains("No changes were applied.");
     }
 
@@ -183,7 +187,9 @@ class ApplyModuleSetCommandTest {
           """
           Execution order:
 
-          Dependency validation:
+          Dependency validation: (not evaluated)
+
+          Resolved parameters: (not evaluated)
           """
         )
         .contains("Status: INVALID")
@@ -233,11 +239,9 @@ class ApplyModuleSetCommandTest {
         Execution order:
           1. module
 
-        Dependency validation:
-          ✓ No dependencies.
+        Dependency validation: (not evaluated)
 
-        Resolved parameters:
-          (none)
+        Resolved parameters: (not evaluated)
 
         Commit mode: one commit per succeeded module
 
@@ -259,6 +263,57 @@ class ApplyModuleSetCommandTest {
           "Project path does not have a traversable, writable directory ancestor"
         )
       );
+    }
+
+    @Test
+    void shouldRejectInaccessiblePosixDirectoryWithoutApplyingOrMutatingProject() throws IOException {
+      Path projectPath = Files.createTempDirectory("seed4j-cli-apply-set-inaccessible-");
+      Assumptions.assumeTrue(Files.getFileStore(projectPath).supportsFileAttributeView("posix"));
+      Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(projectPath);
+      int historyActionsBefore = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      NioModuleSetProjectPathValidator projectPathValidator = new NioModuleSetProjectPathValidator();
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects),
+        projectPathValidator,
+        new JGitModuleSetGitStateReader()
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+      Files.setPosixFilePermissions(projectPath, Set.of());
+
+      int exitCode;
+      try {
+        Assumptions.assumeTrue(
+          projectPathValidator.validate(new ModuleSetProjectPath(projectPath)) == ModuleSetProjectPathStatus.NOT_ACCESSIBLE
+        );
+        exitCode = commandLine.execute("init", "--project-path", projectPath.toString());
+      } finally {
+        Files.setPosixFilePermissions(projectPath, originalPermissions);
+      }
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString())
+        .contains("Project path is not traversable and writable")
+        .contains("Dependency validation: (not evaluated)")
+        .contains("Resolved parameters: (not evaluated)")
+        .doesNotContain("ERROR: Unable to complete module set preflight.");
+      try (Stream<Path> paths = Files.list(projectPath)) {
+        assertThat(paths).isEmpty();
+      }
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBefore);
+      assertThat(projectPath.resolve(".git")).doesNotExist();
+      assertThat(Files.getPosixFilePermissions(projectPath)).isEqualTo(originalPermissions);
     }
 
     @Test
@@ -315,11 +370,9 @@ class ApplyModuleSetCommandTest {
           1. first
           2. replacement
 
-        Dependency validation:
-          ✓ No dependencies.
+        Dependency validation: (not evaluated)
 
-        Resolved parameters:
-          (none)
+        Resolved parameters: (not evaluated)
 
         Commit mode: one commit per succeeded module
 
@@ -1075,55 +1128,6 @@ class ApplyModuleSetCommandTest {
       assertThat(output.getErr())
         .contains("Property conflicts: shared: conflicting types (INTEGER, STRING)")
         .doesNotContain("Options not used by requested modules", "✓ shared:")
-        .contains("Status: INVALID")
-        .contains("No changes were applied.");
-    }
-
-    @Test
-    void shouldRejectExplicitValueWhenCatalogTypeChangesAfterOptionCreation(CapturedOutput output) {
-      ModuleSetSlug module = new ModuleSetSlug("changing-module");
-      ModuleSetPropertyKey count = new ModuleSetPropertyKey("count");
-      ModuleSetPropertyDefinition stringProperty = new ModuleSetPropertyDefinition(
-        count,
-        ModuleSetPropertyType.STRING,
-        ModuleSetPropertyRequirement.OPTIONAL,
-        Optional.empty(),
-        Optional.empty(),
-        List.of()
-      );
-      ModuleSetPropertyDefinition integerProperty = new ModuleSetPropertyDefinition(
-        count,
-        ModuleSetPropertyType.INTEGER,
-        ModuleSetPropertyRequirement.OPTIONAL,
-        Optional.empty(),
-        Optional.empty(),
-        List.of()
-      );
-      AtomicInteger catalogReads = new AtomicInteger();
-      ModuleSetCatalog catalog = new ModuleSetCatalog() {
-        @Override
-        public List<ModuleSetModule> modules() {
-          ModuleSetPropertyDefinition property = catalogReads.getAndIncrement() == 0 ? stringProperty : integerProperty;
-          return List.of(new ModuleSetModule(module, List.of(), List.of(property), Optional.empty()));
-        }
-
-        @Override
-        public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
-          return List.of(module);
-        }
-      };
-      String[] args = { "changing-module", "--count", "4" };
-
-      int exitCode = moduleSetCommandLine(
-        catalog,
-        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
-      ).execute(args);
-
-      assertThat(exitCode).isEqualTo(2);
-      assertThat(output.getOut()).isEmpty();
-      assertThat(output.getErr())
-        .contains("Explicit parameter type mismatch: count expects INTEGER but input contains STRING")
-        .doesNotContain("✓ count:")
         .contains("Status: INVALID")
         .contains("No changes were applied.");
     }

@@ -3,7 +3,6 @@ package com.seed4j.cli.command.infrastructure.primary;
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
-import com.seed4j.cli.command.domain.moduleset.ModuleSetExplicitParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
@@ -36,7 +35,6 @@ final class ApplyModuleSetPlanningProblemRenderer {
       case DuplicateRequestedModuleSetModules duplicateModules -> duplicateModules(duplicateModules);
       case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
       case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
-      case ModuleSetExplicitParameterTypeMismatch mismatch -> explicitMismatch(mismatch);
       case UnknownRequestedModuleSetModules unknownModules -> unknownModules(unknownModules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
@@ -112,14 +110,6 @@ final class ApplyModuleSetPlanningProblemRenderer {
     return "%s: conflicting types (%s)".formatted(
       conflict.key().value(),
       conflict.types().stream().map(Enum::name).collect(Collectors.joining(", "))
-    );
-  }
-
-  private static String explicitMismatch(ModuleSetExplicitParameterTypeMismatch mismatch) {
-    return "Explicit parameter type mismatch: %s expects %s but input contains %s".formatted(
-      mismatch.key().value(),
-      mismatch.expectedType(),
-      mismatch.actualType()
     );
   }
 

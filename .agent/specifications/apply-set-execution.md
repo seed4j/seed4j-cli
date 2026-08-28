@@ -57,6 +57,13 @@ Preflight MUST retain all validations performed by the current read-only `apply-
 
 Preflight MUST additionally validate the following execution invariants.
 
+`ModuleSetPlan` MUST distinguish detailed planning that was `EVALUATED` from detailed planning that was
+`NOT_EVALUATED`. A path problem, duplicate request, unknown module, or inexact landscape order stops planning before
+history, dependencies, and parameters and therefore produces `NOT_EVALUATED`. A plan that reaches the history read is
+`EVALUATED`, even when its dependency or resolved-parameter collection is genuinely empty. The CLI MUST render the two
+unevaluated sections as `Dependency validation: (not evaluated)` and `Resolved parameters: (not evaluated)`.
+`✓ No dependencies.` and `(none)` are reserved for evaluated empty results.
+
 ### Practical project-path validation
 
 Path validation is practical rather than a promise that later writes will succeed:
@@ -73,8 +80,9 @@ Path validation is practical rather than a promise that later writes will succee
 Path and requested-module selection are the only stages evaluated before this precedence decision. If the path has a
 predictable problem, preflight MUST preserve that path problem together with any duplicate, unknown-module, or exact-set
 problem already calculated, but MUST NOT read project history, inspect Git, validate dependencies, or resolve parameters.
-The rejected snapshot keeps the requested modules, any calculated execution order, and commit mode, with empty dependency
-and parameter sections. This avoids replacing the actionable path diagnostic with a project-dependent read failure.
+The rejected snapshot keeps the requested modules, any calculated execution order, and commit mode, while marking
+detailed planning `NOT_EVALUATED`. This avoids replacing the actionable path diagnostic with a project-dependent read
+failure or presenting unevaluated empty collections as successful validation.
 
 Reading project history, catalog metadata, filesystem metadata, and Git status is allowed. When the core history-read API
 returns normally:
@@ -132,16 +140,19 @@ fail deterministically as an internal inconsistency before exposing Picocli opti
 supplies selected definitions with distinct types, preflight MUST report them in deterministic type order, for example
 `shared: conflicting types (INTEGER, STRING)`, and remain invalid regardless of selected-module order.
 
+The catalog MUST remain stable for the lifetime of the planner. Resources, landscape, and extensions are fixed before the
+Picocli tree and its global property options are assembled, and one CLI process executes one command invocation. The
+planner does not snapshot a changing catalog and does not support catalog hot reload during `apply-set`.
+
 No reconciled definition may be produced for a type-conflicting key. That key remains known for unused-option validation,
 but MUST NOT resolve against explicit input, project history, or defaults and MUST NOT produce diagnostics derived from an
 arbitrarily chosen type. Other property keys continue reconciliation and validation so their independent problems remain
 aggregated.
 
-An explicit domain value whose type differs from the single reconciled type MUST NOT become a resolved or effective
-parameter. Preflight MUST add the structured problem rendered as
-`Explicit parameter type mismatch: <key> expects <EXPECTED> but input contains <ACTUAL>`. Picocli normally prevents this
-for a stable conforming catalog; the domain check protects programmatic callers and a catalog that changes after global
-option creation.
+Programmatic callers MUST provide explicit domain values whose types match the single reconciled types. A mismatch is an
+internal invariant violation, not caller-correctable preflight input: planning MUST throw a dedicated domain exception
+before parameter resolution and MUST NOT add a planning problem or CLI diagnostic for it. Picocli prevents this mismatch
+for the stable official catalog by parsing each option directly into its declared domain type.
 
 Parameter resolution keeps this precedence:
 
