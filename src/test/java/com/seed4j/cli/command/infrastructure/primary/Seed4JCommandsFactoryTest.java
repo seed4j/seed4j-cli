@@ -245,7 +245,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(exitCode).isEqualTo(2);
       assertThat(invokedModules).isEmpty();
       assertThat(stdout.toString()).isEmpty();
-      assertThat(stderr.toString()).isEqualTo(
+      assertThat(stderr).hasToString(
         """
         Preflight: INVALID
         Plan for module set
@@ -325,7 +325,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(exitCode).isEqualTo(2);
       assertThat(invokedModules).isEmpty();
       assertThat(stdout.toString()).isEmpty();
-      assertThat(stderr.toString()).isEqualTo(
+      assertThat(stderr).hasToString(
         """
         Preflight: INVALID
         Plan for module set
@@ -763,7 +763,7 @@ class Seed4JCommandsFactoryTest {
       assertThat(exitCode).isEqualTo(1);
       assertThat(invokedModules).isEmpty();
       assertThat(stdout.toString()).isEmpty();
-      assertThat(stderr.toString()).isEqualTo("ERROR: Unable to complete module set preflight.\nNo changes were applied.\n");
+      assertThat(stderr).hasToString("ERROR: Unable to complete module set preflight.\nNo changes were applied.\n");
     }
 
     @Test

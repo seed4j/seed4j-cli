@@ -60,7 +60,7 @@ public class ModuleSetExecutionApplicationService {
     try {
       moduleApplier.apply(new ModuleSetModuleApplication(item.slug(), plan.projectPath(), plan.commitMode(), plan.effectiveParameters()));
       return ModuleSetModuleStatus.SUCCEEDED;
-    } catch (RuntimeException ignored) {
+    } catch (RuntimeException _) {
       return ModuleSetModuleStatus.FAILED;
     }
   }

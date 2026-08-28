@@ -16,6 +16,8 @@ import java.util.Map;
 
 final class ApplyModuleSetExecutionRenderer {
 
+  static final String START = "\nApplying module set:\n";
+
   private final ModuleSetCommitMode commitMode;
   private final Map<ModuleSetPlanItem, Integer> positions;
   private final int totalItems;
@@ -35,23 +37,25 @@ final class ApplyModuleSetExecutionRenderer {
     return Map.copyOf(positions);
   }
 
-  String start() {
-    return "\nApplying module set:\n";
-  }
-
   String event(ModuleSetExecutionEvent event) {
     return switch (event) {
-      case ModuleSetModuleExecutionStarted started -> itemLine(started.item());
-      case ModuleSetModuleExecutionCompleted completed -> completed(completed.item(), completed.status());
+      case ModuleSetModuleExecutionStarted started -> started(started);
+      case ModuleSetModuleExecutionCompleted completed -> completed(completed);
     };
   }
 
+  private String started(ModuleSetModuleExecutionStarted started) {
+    return itemLine(started.item());
+  }
+
+  private String completed(ModuleSetModuleExecutionCompleted completed) {
+    return completed(completed.item(), completed.status());
+  }
+
   private String itemLine(ModuleSetPlanItem item) {
-    return "[%d/%d] %s%s\n".formatted(
-      positions.getOrDefault(item, 0),
-      totalItems,
-      item.slug().value(),
-      item.reapplied() ? " (reapplied)" : ""
+    return (
+      "[%d/%d] %s%s".formatted(positions.getOrDefault(item, 0), totalItems, item.slug().value(), item.reapplied() ? " (reapplied)" : "")
+      + '\n'
     );
   }
 
@@ -95,7 +99,8 @@ final class ApplyModuleSetExecutionRenderer {
       .findFirst()
       .orElseThrow();
     return (
-      "ERROR: %s failed: unable to complete module application.\n".formatted(failed.item().slug().value())
+      "ERROR: %s failed: unable to complete module application.".formatted(failed.item().slug().value())
+      + '\n'
       + "The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.\n"
       + "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.\n"
     );

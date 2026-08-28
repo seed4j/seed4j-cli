@@ -98,7 +98,7 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
     ModuleSetPlan plan;
     try {
       plan = planning.plan(request());
-    } catch (RuntimeException exception) {
+    } catch (RuntimeException _) {
       printError("ERROR: Unable to complete module set preflight.\nNo changes were applied.\n");
       return ExitCode.SOFTWARE;
     }
@@ -123,7 +123,7 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
   private int execute(ModuleSetPlan plan) {
     printOutput(new ApplyModuleSetExecutionPreflightRenderer().render(plan));
     ApplyModuleSetExecutionRenderer renderer = new ApplyModuleSetExecutionRenderer(plan);
-    printOutput(renderer.start());
+    printOutput(ApplyModuleSetExecutionRenderer.START);
     ModuleSetExecutionResult result = execution.execute(plan, event -> printOutput(renderer.event(event)));
     printOutput(renderer.summary(result));
     if (renderer.failed(result)) {

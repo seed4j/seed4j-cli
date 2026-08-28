@@ -31,14 +31,22 @@ final class ApplyModuleSetPlanningProblemRenderer {
 
   private static String problemText(ModuleSetPlanningProblem problem) {
     return switch (problem) {
-      case DuplicateRequestedModuleSetModules duplicateModules -> moduleValues("Duplicate requested modules", duplicateModules.modules());
+      case DuplicateRequestedModuleSetModules duplicateModules -> duplicateModules(duplicateModules);
       case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
       case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
-      case UnknownRequestedModuleSetModules unknownModules -> moduleValues("Unknown requested modules", unknownModules.modules());
+      case UnknownRequestedModuleSetModules unknownModules -> unknownModules(unknownModules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
       case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
     };
+  }
+
+  private static String duplicateModules(DuplicateRequestedModuleSetModules duplicateModules) {
+    return moduleValues("Duplicate requested modules", duplicateModules.modules());
+  }
+
+  private static String unknownModules(UnknownRequestedModuleSetModules unknownModules) {
+    return moduleValues("Unknown requested modules", unknownModules.modules());
   }
 
   private static String invalidProjectPath(InvalidModuleSetProjectPath invalidPath) {

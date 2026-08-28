@@ -30,8 +30,7 @@ class JGitModuleSetGitStateReaderTest {
 
   @Test
   void shouldReportNoWorktreeForBareRepository(@TempDir Path repositoryPath) throws Exception {
-    try (Git ignored = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
-    }
+    Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call().close();
     JGitModuleSetGitStateReader reader = new JGitModuleSetGitStateReader();
 
     ModuleSetGitState state = reader.state(new ModuleSetProjectPath(repositoryPath));
