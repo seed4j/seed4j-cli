@@ -89,7 +89,7 @@ seed4j --version
 ```
 
 - [Apply one module or inspect its read-only plan](documentation/Commands.md#apply-a-module)
-- [Validate a module set without changing the project](documentation/Commands.md#plan-a-module-set)
+- [Apply a validated module set or inspect its read-only preflight](documentation/Commands.md#apply-a-module-set)
 - [Create a project step by step](documentation/workflows.md#create-a-project-with-modules)
 - [Install Bash completion](documentation/Commands.md#bash-completion)
 - [Install or switch an extension runtime](documentation/Commands.md#install-a-runtime-extension)

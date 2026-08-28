@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.BashCompletionInstallApplicationService;
+import com.seed4j.cli.command.application.ModuleSetExecutionApplicationService;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.application.RuntimeExtensionInstallApplicationService;
@@ -12,12 +13,16 @@ import com.seed4j.cli.command.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionReplacementStatus;
 import com.seed4j.cli.command.domain.RuntimeModeConfigurationPath;
+import com.seed4j.cli.command.infrastructure.secondary.JGitModuleSetGitStateReader;
+import com.seed4j.cli.command.infrastructure.secondary.NioModuleSetProjectPathValidator;
 import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
+import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetModuleApplier;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
 import com.seed4j.project.application.ProjectsApplicationService;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -33,9 +38,15 @@ class CliFixture {
   """;
 
   static Path setupProjectTestFolder() throws IOException {
+    Path projectPath = setupEmptyProjectTestFolder();
+    loadGitConfig(projectPath);
+
+    return projectPath;
+  }
+
+  static Path setupEmptyProjectTestFolder() throws IOException {
     Path projectPath = Files.createTempDirectory("seed4j-cli-");
     setupSeed4JHistory(projectPath);
-    loadGitConfig(projectPath);
 
     return projectPath;
   }
@@ -109,9 +120,14 @@ class CliFixture {
     ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
     ModuleSetPlanningApplicationService moduleSetPlanningApplicationService = new ModuleSetPlanningApplicationService(
       new Seed4JModuleSetCatalog(modules),
-      new ProjectsModuleSetPlanningHistoryReader(projects)
+      new ProjectsModuleSetPlanningHistoryReader(projects),
+      new NioModuleSetProjectPathValidator(),
+      new JGitModuleSetGitStateReader()
     );
-    ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(moduleSetPlanningApplicationService);
+    ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(
+      moduleSetPlanningApplicationService,
+      new ModuleSetExecutionApplicationService(new Seed4JModuleSetModuleApplier(modules))
+    );
     RuntimeExtensionInstallApplicationService runtimeExtensionInstallApplicationService = new RuntimeExtensionInstallApplicationService(
       request ->
         new RuntimeExtensionInstallResult(
@@ -143,7 +159,10 @@ class CliFixture {
       versionProvider
     );
 
-    return new CommandLine(seed4JCommandsFactory.buildCommandSpec());
+    CommandLine commandLine = new CommandLine(seed4JCommandsFactory.buildCommandSpec());
+    commandLine.setOut(new PrintWriter(System.out, true));
+    commandLine.setErr(new PrintWriter(System.err, true));
+    return commandLine;
   }
 
   private static final class RuntimeExtensionModeSwitcherStub implements com.seed4j.cli.command.domain.RuntimeExtensionModeSwitcher {

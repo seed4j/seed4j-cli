@@ -6,25 +6,55 @@ import java.util.List;
 public record ModuleSetPlan(
   RequestedModuleSet requestedModules,
   ModuleSetProjectPath projectPath,
-  List<ModuleSetSlug> executionOrder,
+  List<ModuleSetPlanItem> items,
+  ModuleSetCommitMode commitMode,
+  EffectiveModuleSetParameters effectiveParameters,
   List<ModuleSetDependencyValidation> dependencyValidations,
   List<ResolvedModuleSetParameter> resolvedParameters,
   List<MissingRequiredModuleSetParameter> missingRequiredParameters,
-  List<ModuleSetPlanningProblem> problems
+  List<ModuleSetPlanningProblem> problems,
+  List<ModuleSetPlanningWarning> warnings
 ) {
   public ModuleSetPlan {
     Assert.notNull("requestedModules", requestedModules);
     Assert.notNull("projectPath", projectPath);
-    Assert.notNull("executionOrder", executionOrder);
+    Assert.notNull("items", items);
+    Assert.notNull("commitMode", commitMode);
+    Assert.notNull("effectiveParameters", effectiveParameters);
     Assert.notNull("dependencyValidations", dependencyValidations);
     Assert.notNull("resolvedParameters", resolvedParameters);
     Assert.notNull("missingRequiredParameters", missingRequiredParameters);
     Assert.notNull("problems", problems);
-    executionOrder = List.copyOf(executionOrder);
+    Assert.notNull("warnings", warnings);
+    items = List.copyOf(items);
     dependencyValidations = List.copyOf(dependencyValidations);
     resolvedParameters = List.copyOf(resolvedParameters);
     missingRequiredParameters = List.copyOf(missingRequiredParameters);
     problems = List.copyOf(problems);
+    warnings = List.copyOf(warnings);
+  }
+
+  public List<ModuleSetSlug> executionOrder() {
+    return items.stream().map(ModuleSetPlanItem::slug).toList();
+  }
+
+  public List<ResolvedModuleSetParameter> effectiveResolvedParameters() {
+    return resolvedParameters.stream().filter(effectiveParameters::includes).toList();
+  }
+
+  public ModuleSetPlan withWarnings(List<ModuleSetPlanningWarning> planWarnings) {
+    return new ModuleSetPlan(
+      requestedModules,
+      projectPath,
+      items,
+      commitMode,
+      effectiveParameters,
+      dependencyValidations,
+      resolvedParameters,
+      missingRequiredParameters,
+      problems,
+      planWarnings
+    );
   }
 
   public boolean valid() {

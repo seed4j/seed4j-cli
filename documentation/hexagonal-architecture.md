@@ -134,28 +134,41 @@ Secondary infrastructure can also define its own technical interfaces when it ne
 
 A secondary adapter must not call its own bounded context's application layer. It may integrate an external bounded context through that context's public application API when the external API is the mechanism behind a domain capability. In a Spring runtime, make these adapters ordinary components with constructor injection. Reserve explicit `composition` packages for manual wiring that must happen before Spring exists, such as bootstrap selection; do not add them for application flows already created inside the Spring context.
 
-### Module-set planning flow
+### Module-set planning and execution flow
 
-The read-only `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is a primary Picocli
-adapter: it creates the global options before parsing, lets Picocli produce their declared value types, and converts module
-slugs, the user-visible project path, property keys, and parsed property values into module-set domain types before calling
-`ModuleSetPlanningApplicationService`. The primary adapter does not call the Seed4J core application services directly.
+The executable `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is the primary
+Picocli adapter. It creates global options before parsing, lets Picocli produce their declared value types, translates raw
+slugs, project path, commit selection, property keys, and values into domain types, then renders the plan, warnings,
+progress, summary, streams, and exit codes. No interface wording or formatting enters domain or application code.
 
-`ModuleSetPlanningApplicationService` orchestrates the immutable module-set request and produces a reusable
-`ModuleSetPlan`. The plan retains requested order, the execution order, dependency statuses and providers, reconciled and
-resolved parameters, missing parameters, and typed validation problems. Ordering is delegated through `ModuleSetCatalog`,
-whose implementation calls `Seed4JLandscape.sort(...)`; the CLI does not reproduce the landscape algorithm.
+`ModuleSetPlanningApplicationService` orchestrates a read-only request and produces an immutable `ModuleSetPlan`. That
+snapshot contains the exact landscape order, application/reapplication annotations, dependency facts, resolved parameter
+explanations, one effective map containing only explicit and compatible history values, commit mode, problems, and
+warnings. It is the sole input accepted by `ModuleSetExecutionApplicationService`; execution never reads the catalog or
+history and never recalculates order or parameters.
 
-The domain capability interfaces are `ModuleSetCatalog` and `ModuleSetPlanningHistoryReader`.
-`Seed4JModuleSetCatalog` is a secondary adapter around `Seed4JModulesApplicationService`; it translates visible module
-resources, dependency metadata, features, properties, and landscape ordering into CLI-owned domain values. Textual catalog
-defaults are converted according to their declared `STRING`, `INTEGER`, or `BOOLEAN` type while retaining the original
-literal for conflict detection, help, and completion.
-`ProjectsModuleSetPlanningHistoryReader` is a secondary adapter around `ProjectsApplicationService`; it translates applied
-module history and latest Java/JSON scalar properties into the same closed parameter-value variants without exposing
-persistence paths or `.seed4j` layout to application or domain. Values outside those variants become structured unsupported
-history facts so the domain never receives a raw `Object`.
-Both adapters are Spring components and receive those external application services directly through their constructors.
+Planning depends on four domain capabilities:
+
+- `ModuleSetCatalog` exposes visible module metadata and deterministic landscape ordering;
+- `ModuleSetPlanningHistoryReader` exposes applied modules and latest parameter facts through the Seed4J public history
+  API;
+- `ModuleSetProjectPathValidator` reports whether the user-visible destination is valid or apparently creatable without a
+  write probe; and
+- `ModuleSetGitStateReader` reports `NO_WORKTREE`, `CLEAN`, or `DIRTY` without exposing JGit types.
+
+Their secondary implementations are `Seed4JModuleSetCatalog`, `ProjectsModuleSetPlanningHistoryReader`,
+`NioModuleSetProjectPathValidator`, and `JGitModuleSetGitStateReader`. The NIO adapter owns filesystem metadata checks, and
+the JGit adapter owns repository discovery and tracked, staged, and untracked status inspection. Neither adapter leaks
+storage layouts or framework representations into the plan.
+
+Execution depends only on `ModuleSetModuleApplier`. `Seed4JModuleSetModuleApplier` converts each planned item, project
+path, commit mode, and the unchanged complete effective parameter map into `Seed4JModuleToApply`, then calls the existing
+individual `Seed4JModulesApplicationService.apply(...)` API. The CLI does not use the core multi-module API and does not
+duplicate file generation, history persistence, Git initialization/commit, or event dispatch behavior.
+
+`ModuleSetExecutionApplicationService` visits the approved order sequentially and publishes typed start/completion events.
+On the first thrown individual call, it preserves preceding successes, marks the current item `FAILED`, marks every later
+item `SKIPPED`, and returns a complete `PARTIAL_FAILURE` result without rollback.
 
 The resulting dependency direction is:
 
@@ -163,8 +176,12 @@ The resulting dependency direction is:
 Picocli ApplyModuleSetCommand
   -> ModuleSetPlanningApplicationService
     -> ModuleSetCatalog / ModuleSetPlanningHistoryReader
-      <- Seed4JModuleSetCatalog / ProjectsModuleSetPlanningHistoryReader
+    -> ModuleSetProjectPathValidator / ModuleSetGitStateReader
+      <- Seed4J / Projects / NIO / JGit secondary adapters
+  -> ModuleSetExecutionApplicationService
+    -> ModuleSetModuleApplier
+      <- Seed4JModuleSetModuleApplier -> individual Seed4J apply API
 ```
 
-Rendering stays in the primary adapter because text layout, stdout/stderr selection, and Picocli option names are delivery
-concerns. Applying modules, filesystem mutation, Git initialization, history writes, and commits are absent from this flow.
+This split makes the mutation boundary explicit: planning reads external state and returns facts; only execution invokes
+the mutating capability, and it does so using the same approved plan instance.
