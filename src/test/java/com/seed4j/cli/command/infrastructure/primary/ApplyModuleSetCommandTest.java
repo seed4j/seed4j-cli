@@ -56,6 +56,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -266,8 +267,7 @@ class ApplyModuleSetCommandTest {
     }
 
     @Test
-    void shouldRejectInaccessiblePosixDirectoryWithoutApplyingOrMutatingProject() throws IOException {
-      Path projectPath = Files.createTempDirectory("seed4j-cli-apply-set-inaccessible-");
+    void shouldRejectInaccessiblePosixDirectoryWithoutApplyingOrMutatingProject(@TempDir Path projectPath) throws IOException {
       Assumptions.assumeTrue(Files.getFileStore(projectPath).supportsFileAttributeView("posix"));
       Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(projectPath);
       int historyActionsBefore = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
