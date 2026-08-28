@@ -161,6 +161,12 @@ Their secondary implementations are `Seed4JModuleSetCatalog`, `ProjectsModuleSet
 the JGit adapter owns repository discovery and tracked, staged, and untracked status inspection. Neither adapter leaks
 storage layouts or framework representations into the plan.
 
+`Seed4JModuleSetCatalog` also owns the external-metadata consistency boundary for property types. After mapping every
+visible Seed4J resource into domain definitions, it verifies that each global property key has one type across the entire
+catalog. Divergent external resources fail deterministically as an internal adapter inconsistency before the primary
+adapter can expose Picocli options. The domain reconciler remains defensive for other `ModuleSetCatalog` implementations:
+selected type conflicts produce structured invalid-preflight facts without choosing an arbitrary definition.
+
 Execution depends only on `ModuleSetModuleApplier`. `Seed4JModuleSetModuleApplier` converts each planned item, project
 path, commit mode, and the unchanged complete effective parameter map into `Seed4JModuleToApply`, then calls the existing
 individual `Seed4JModulesApplicationService.apply(...)` API. The CLI does not use the core multi-module API and does not

@@ -5,6 +5,7 @@ public sealed interface ModuleSetPlanningProblem
     DuplicateRequestedModuleSetModules,
     InvalidModuleSetProjectPath,
     ModuleSetExecutionOrderMismatch,
+    ModuleSetExplicitParameterTypeMismatch,
     UnknownRequestedModuleSetModules,
     ModuleSetPropertyConflicts,
     ModuleSetHistoryParameterTypeMismatch,

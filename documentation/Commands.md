@@ -315,6 +315,11 @@ destination invalidates it as a non-directory; either one in an intermediate com
 apparently creatable. A symbolic link that resolves to an accessible, writable directory remains valid. These checks do
 not create the destination, a missing link target, or a write probe.
 
+A predictably invalid path stops every project-dependent stage before history is read. Duplicate, unknown-module, or
+execution-order problems already calculated remain in the invalid plan, but dependency and parameter sections remain
+empty and Git is not inspected. This makes the path diagnostic authoritative instead of allowing a history-read failure
+from an unusable destination to replace it.
+
 The output separates `Requested modules` from `Execution order`. Requested order preserves the command line. Execution
 order is calculated exclusively by the Seed4J landscape and is the exact order used by the same invocation. A module
 already recorded in the preflight history remains in this order, is invoked again, and is annotated `(reapplied)` in the
@@ -326,21 +331,28 @@ feature dependency is satisfied by a visible provider in history or by an explic
 dependent. The planner never selects a provider implicitly. When a provider is absent, it lists visible candidates in
 alphabetical order so the caller can add one explicitly.
 
-Selected property definitions are reconciled by key and shown once. Seed4J treats repeated keys having the same type as a
-catalog invariant, so the first visible definition supplies the type of the single global Picocli option. A property is
-mandatory when any selected module makes it mandatory, and at most one distinct default and description may remain.
-Display order follows the property's first occurrence in execution order and then its declaration order. Values resolve
-in this order:
+Selected property definitions are reconciled by key and shown once. A key is a global catalog concept and has exactly one
+type across all visible modules; `STRING`, `INTEGER`, and `BOOLEAN` definitions for the same key cannot be mixed. The
+official Seed4J catalog validates this before exposing the single global Picocli option. A nonconforming alternate
+catalog makes selected conflicting types an invalid preflight, regardless of module order. The conflict lists types
+deterministically, the key is not also reported as an unused option, and no explicit input, history value, or default is
+resolved for it. Other keys continue to be validated and aggregated.
+
+A property is mandatory when any selected module makes it mandatory, and at most one distinct default and description
+may remain. Compatible default and description conflicts retain the existing behavior. Display order follows the
+property's first occurrence in execution order and then its declaration order. Values resolve in this order:
 
 1. explicit CLI input;
 2. latest project history value;
 3. metadata default for display only.
 
 Defaults for mandatory properties remain informational and do not satisfy the requirement. Picocli converts explicit CLI
-input directly to the global option's declared type and rejects invalid typed values before planning. Only explicit and
-compatible history values enter the immutable effective parameter map sent unchanged to every individual module call;
-display defaults are never sent. Passing a known property option that none of the selected modules uses invalidates the
-plan.
+input directly to the global option's declared type and rejects invalid typed values before planning. As a domain safety
+check, an explicit value that still differs from the reconciled type produces
+`Explicit parameter type mismatch: <key> expects <EXPECTED> but input contains <ACTUAL>` and does not enter the effective
+map. Only explicit and compatible history values enter the immutable effective parameter map sent unchanged to every
+individual module call; display defaults are never sent. Passing a known property option that none of the selected
+modules uses invalidates the plan.
 
 A project-history value is reused only when its stored type matches the selected property type. A relevant mismatch
 invalidates the plan without falling back to a default or also reporting the property as missing. The diagnostic names
@@ -401,12 +413,15 @@ Execution is sequential, non-atomic, and has no automatic rollback. The CLI call
 per planned item. `SUCCEEDED` means the individual call, including synchronous event dispatch, returned normally. At the
 first thrown call, that module is `FAILED`, every later module is `SKIPPED`, earlier successes are preserved, and the
 overall result is `PARTIAL_FAILURE`. Effects of the failed module are indeterminate; inspect the working tree, project
-history, Git log, and relevant external event effects before deciding whether to retry.
+history, and relevant external event effects before deciding whether to retry. Inspect Git log as well when commits were
+enabled; `--no-commit` failure guidance does not mention Git or Git log.
 
 Commits are enabled by default. In this mode the individual flow initializes Git when needed and completes one commit per
 `SUCCEEDED` module. `--no-commit` disables both Git initialization and commits while files, history, and events continue
 normally. When commits are enabled for an existing dirty worktree, a warning on `stderr` explains that module commits can
-include or be affected by pre-existing changes and confirms that execution continues automatically.
+include or be affected by pre-existing changes. Execution confirms that it continues automatically. `--plan` instead
+says that commits in a later execution can be affected and explicitly confirms that the current plan is read-only and no
+modules will be applied. `--plan --no-commit` performs no Git inspection and emits no Git warning.
 
 The execution output starts with a compact preflight intended for agents: execution order (including `(reapplied)`),
 effective parameters with their sources and CLI options, and commit mode. It omits requested modules, dependency

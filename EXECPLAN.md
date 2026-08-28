@@ -22,6 +22,13 @@ discoverable. Success additionally requires the 20 module-set planning tests to 
 existing class; the 35 `apply-set`, 28 `apply`, seven completion, and four listing tests to live in dedicated suites; and
 the root suite to retain root help, debug, versioning, extension-tree registration, and no unrelated command journeys.
 
+The current contract-correction milestone aligns `apply-set` with `.agent/specifications/apply-set-execution.md` in four
+observable areas: invalid project paths stop project-dependent planning before history reads; a property key has one
+global catalog type and conflicting or explicitly mistyped values produce structured invalid-preflight diagnostics;
+partial-failure guidance mentions Git only when module commits are enabled; and dirty-worktree warnings distinguish a
+read-only plan from an execution that continues automatically. Success requires public-boundary tests, reconciled
+documentation, `./mvnw test` passing, and no missed JaCoCo line or branch. The agent must not run `./mvnw clean verify`.
+
 ## Context and limits
 
 The coverage baseline already present in `target/site/jacoco/jacoco.csv` reports exactly 16 missed lines and 18 missed
@@ -67,6 +74,13 @@ deconstruction reintroduces compiler-generated `MatchException` handlers that ca
 The compatible source shape is an exhaustive type-pattern switch that passes the complete record to a named helper; the
 helper reads components outside pattern matching. This satisfies the analyzer without restoring synthetic uncovered
 bytecode.
+
+For the current work, selection and path facts are calculated together, but a predictably invalid path prevents history,
+dependency, parameter, Git, and application work. Selection problems already calculated remain aggregated. Property
+types are global catalog facts: the official Seed4J adapter rejects inconsistent external metadata before exposing it,
+while a planner supplied by another adapter returns an invalid preflight with a deterministic type conflict. Independent
+properties continue to be reconciled and validated. Existing CLI syntax, exit codes, module order, rollback, core
+behavior, and per-module commit behavior remain outside the change.
 
 ## Milestones
 
@@ -224,6 +238,85 @@ Acceptance: all method names, annotations that determine executions, Given/When/
 messages, exit codes, filesystem/history/Git effects, and the total test count remain unchanged. Only test ownership,
 nested grouping, imports, and this durable plan may differ.
 
+### 9. Preserve predictable invalid-path precedence
+
+Update `ModuleSetPlanner` so it still computes path and selection results, but calls its selected-module planning flow
+only when the path has no problem and selection is approved. Preserve requested modules, computed order, commit mode,
+and accumulated selection/path problems in a rejected plan while leaving dependencies and effective parameters empty.
+Strengthen `ModuleSetPlanningApplicationServiceTest` and `ApplyModuleSetCommandTest` so history access fails if reached
+and public output asserts exit `2`, empty stdout, the exact path diagnostic, `Status: INVALID`, and
+`No changes were applied.`, with no project-dependent read, Git inspection, or application.
+
+Validation:
+`./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ApplyModuleSetCommandTest test` must exit `0`.
+Acceptance: a predictable invalid path wins before every project-dependent step while already-calculated selection
+problems remain observable.
+
+### 10. Make property types globally invariant and safely validated
+
+Extend the sealed `ModuleSetPropertyConflict` hierarchy with `ModuleSetPropertyTypeConflict`, reconcile the distinct
+types for each key deterministically, emit no reconciled definition for a conflicting key, and keep that key known for
+unused-option validation. Add a structured planning problem for an explicit value whose runtime type differs from the
+reconciled definition; render the exact required mismatch and type-conflict diagnostics, omit incompatible values from
+effective parameters, and continue aggregating independent property problems. Update `Seed4JModuleSetCatalog` to reject
+repeated mapped definitions whose types differ with deterministic `IllegalArgumentException` text before CLI exposure.
+Protect module-order invariance, absence of derived diagnostics, independent validation, explicit mismatch behavior,
+official-adapter rejection, and preserved compatible default/description conflict behavior in
+`ModuleSetPlanningApplicationServiceTest`, `Seed4JModuleSetCatalogTest`, and `ApplyModuleSetCommandTest`.
+
+Validation:
+`./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,Seed4JModuleSetCatalogTest,ApplyModuleSetCommandTest test` must
+exit `0`.
+Acceptance: every property key has one type across a valid catalog, inconsistent alternate adapters produce invalid
+preflight without execution, and no conflicting or explicitly mistyped value reaches effective parameters.
+
+### 11. Make partial-failure guidance follow commit mode
+
+Update `ApplyModuleSetExecutionRenderer` to derive failure effects and next-action text from `ModuleSetCommitMode`.
+Preserve the current commit-enabled wording byte for byte; omit both `Git` and `Git log` from the `--no-commit` wording.
+Add a public partial-failure journey in `ApplyModuleSetCommandTest` that observes exit `1`, ordered
+`SUCCEEDED`/`FAILED`/`SKIPPED` statuses, `PARTIAL_FAILURE`, hidden exception internals, and commit-disabled guidance.
+Retain commit-enabled regression coverage and application-service behavior in
+`ModuleSetExecutionApplicationServiceTest`.
+
+Validation: `./mvnw -Dtest=ApplyModuleSetCommandTest,ModuleSetExecutionApplicationServiceTest test` must exit `0`.
+Acceptance: failure recovery guidance mentions Git only when the invocation was allowed to create module commits.
+
+### 12. Contextualize dirty-worktree warnings for planning and execution
+
+Update `ApplyModuleSetInvocation` to determine intent before warning rendering. Give
+`ApplyModuleSetWarningRenderer` named planning and execution paths instead of a behavioral boolean. Preserve the exact
+execution warning and add the exact read-only planning warning. Extend `ApplyModuleSetCommandTest` with a real dirty Git
+repository under `--plan`, observing exit `0`, planning-only warning, `No changes were applied.`, unchanged history and
+commits, and no application. Preserve automatic execution continuation and ensure `--plan --no-commit` still performs
+no Git inspection. Retain the real adapter contract in `JGitModuleSetGitStateReaderTest`.
+
+Validation: `./mvnw -Dtest=ApplyModuleSetCommandTest,JGitModuleSetGitStateReaderTest test` must exit `0`.
+Acceptance: only execution claims automatic continuation, while a plan explicitly states that it is read-only.
+
+### 13. Reconcile documentation and complete local validation
+
+Update `.agent/specifications/apply-set-execution.md`, `documentation/Commands.md`, and
+`documentation/hexagonal-architecture.md` with path precedence, globally invariant types, commit-mode-specific recovery
+guidance, distinct dirty warnings, and official-adapter consistency responsibility. Audit every sealed switch and new
+branch through public or stable application/adapter behavior, without JaCoCo exclusions or artificial helper tests.
+Format, run the exact focused and repository-wide checks, analyze every Habit finding, confirm the snooze file is
+unchanged, re-read all requirements, and record actual outcomes here immediately before handoff.
+
+Validation, in order:
+
+1. `npm run prettier:format`
+2. `npm run prettier:check`
+3. `git diff --check`
+4. `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest,ApplyModuleSetCommandTest,Seed4JModuleSetCatalogTest,NioModuleSetProjectPathValidatorTest,JGitModuleSetGitStateReaderTest test`
+5. `./mvnw test`
+6. `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0)' target/site/jacoco/jacoco.csv`
+7. `habit-hooks`
+
+Expected: formatting, diff, and tests exit `0`; the JaCoCo query prints nothing; no introduced or unresolved enforced
+Habit finding remains; `.habit-hooks/snooze.json` is unchanged and `habit-snooze` is never run. The user then runs
+`./mvnw clean verify` and reports its exit code plus a concise relevant failure summary, if any.
+
 ## Progress
 
 - [x] Read the request, repository instructions, current ExecPlan, and applicable execution/TDD skills.
@@ -240,6 +333,14 @@ nested grouping, imports, and this durable plan may differ.
 - [x] Confirm zero missed JaCoCo lines and branches in every class.
 - [x] Run and analyze `habit-hooks` without altering the snooze baseline.
 - [x] Re-read the request and update this ExecPlan immediately before handoff.
+- [x] Read the four-contract request and add milestones 9–13 while preserving all history and the pending Sonar gate.
+- [x] Preserve invalid-path precedence before project-dependent planning and validate it at public boundaries.
+- [x] Enforce global property types, explicit input type safety, and deterministic catalog rejection.
+- [x] Make partial-failure recovery guidance conditional on commit mode.
+- [x] Render distinct dirty-worktree warnings for read-only planning and automatic execution.
+- [x] Reconcile the specification and public architecture/command documentation.
+- [x] Run the requested local validation sequence, analyze Habit, audit scope, and update this plan before handoff.
+- [x] Re-audit the green change with the explicitly requested quiet behavior-TDD skill without manufacturing a retroactive red.
 - [x] Confirm HEAD `a280a2c`, a clean worktree, and record the 14-issue Sonar milestone before implementation.
 - [x] Resolve all 14 Sonar source occurrences without changing tests or observable behavior.
 - [x] Run the seven requested local validation commands in order and analyze every Habit finding.
@@ -271,6 +372,19 @@ nested grouping, imports, and this durable plan may differ.
   For the four `java:S6878` occurrences, exhaustive type patterns delegate the complete records to named helpers, and
   those helpers use explicit record accessors outside pattern matching. This satisfies Sonar while avoiding the
   unreachable lines produced by record deconstruction.
+- Predictably invalid paths short-circuit only project-dependent planning; requested modules, computed order, commit mode,
+  and path/selection problems remain in the rejected plan. Continuing history or parameter work was rejected because it
+  can mask the actionable path diagnostic and touch a project already known to be unusable.
+- Property type is a global key invariant. The official catalog rejects inconsistent external metadata as an internal
+  adapter error, while the domain planner still diagnoses inconsistent input from alternate catalog implementations.
+  Conflicting keys are excluded from value resolution but remain known, preventing arbitrary-type and unused-option
+  follow-on diagnostics.
+- Warning rendering uses named planning and execution operations. A boolean renderer argument was rejected because it
+  obscures the caller's intent and makes the two human/agent-facing contracts easier to accidentally interchange.
+- The quiet behavior-TDD request arrived after production and behavior tests were already green. Reverting working code
+  merely to manufacture a red state was rejected. The completed audit instead verifies that every added test lives in an
+  existing behavioral suite, uses Given/When/Then, observes a CLI journey, application contract, or official adapter
+  contract, and remains insensitive to private helper or production-file topology.
 
 ## Risks
 
@@ -281,8 +395,81 @@ nested grouping, imports, and this durable plan may differ.
   checkout is modified.
 - Renderer refactoring must preserve exact whitespace and line ordering. Existing Picocli success, partial-failure, and
   skipped-module journeys are the regression boundary; no internal renderer test will be added.
+- The new sealed conflict and mismatch variants add exhaustive branches in reconciliation and rendering. Each must be
+  reached through a selected-module planning or public CLI journey so the zero-miss JaCoCo gate remains meaningful.
+- Short-circuiting an invalid path deliberately reduces dependency/history/parameter aggregation; selection diagnostics
+  are the only already-computed problems preserved alongside it.
+- External catalog inconsistency is not actionable CLI input and must never be reformatted as an ordinary invalid option.
 
 ## Validation
+
+Current contract-correction evidence:
+
+- Milestone 9 focused validation
+  `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ApplyModuleSetCommandTest test` exited `0` with 59 tests, no
+  failures, errors, or skips. The application contract now throws if history is read after `NOT_DIRECTORY`; the
+  parameterized CLI path cases throw on any history read, assert exit `2`, empty stdout, exact path diagnostics and final
+  invalid/no-change output, and observe no module application. Git readers also remain fail-fast in the invalid-path
+  application case. The rejected plan preserves its selected item and has empty dependencies and parameters.
+  A second application journey combines an invalid path with duplicate and unknown requested modules, proving that the
+  already-computed selection diagnostics are preserved while history and Git reads remain unreachable.
+- Milestone 10 focused validation
+  `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,Seed4JModuleSetCatalogTest,ApplyModuleSetCommandTest test`
+  exited `0` with 68 tests, no failures, errors, or skips. Selected modules with `INTEGER`/`STRING` definitions yield the
+  same sorted type conflict in either execution order; their key is neither resolved nor reported unused, independent
+  input still resolves, and an unrelated unused option still aggregates. A programmatic explicit `STRING` for an
+  `INTEGER` definition yields the structured mismatch and an empty effective map. Public CLI journeys render both exact
+  diagnostics and invoke no module. The official adapter accepts compatible resources and rejects divergent mapped
+  resources with `Conflicting module set property types for shared: INTEGER, STRING`.
+- Milestone 11 focused validation
+  `./mvnw -Dtest=ApplyModuleSetCommandTest,ModuleSetExecutionApplicationServiceTest test` exited `0` with 45 tests, no
+  failures, errors, or skips. The existing commit-enabled partial failure retains the exact Git/Git-log wording. The new
+  `--no-commit` journey exits `1`, invokes only the first two of three modules, reports
+  `SUCCEEDED`/`FAILED`/`SKIPPED` and `PARTIAL_FAILURE`, omits exception internals, and uses the exact two recovery lines
+  without any `Git` reference on stderr.
+- Milestone 12 focused validation
+  `./mvnw -Dtest=ApplyModuleSetCommandTest,JGitModuleSetGitStateReaderTest test` exited `0` with 50 tests, no failures,
+  errors, or skips. The existing real dirty execution keeps the automatic-continuation text. A new real dirty `--plan`
+  exits `0`, emits only the exact later-execution/read-only warning, ends the plan with `No changes were applied.`, invokes
+  no module, and leaves project history and Git commits byte-for-byte unchanged. The seven real JGit adapter cases remain
+  green; commit-disabled planning still skips Git inspection through the application contract.
+- Milestone 13 documentation and final validation are complete. `.agent/specifications/apply-set-execution.md` now fixes
+  invalid-path precedence, global type invariance, explicit mismatch behavior, commit-mode-specific failure guidance, and
+  both exact dirty-warning contracts. `documentation/Commands.md` removes the first-definition type rule and documents
+  conditional Git-log guidance; `documentation/hexagonal-architecture.md` assigns whole-catalog type validation to the
+  official secondary adapter before Picocli exposure.
+- `npm run prettier:format`, `npm run prettier:check`, and `git diff --check` exited `0` in the requested order. Formatting
+  changed only the already touched Java files; the check reported that every matched file uses repository style and the
+  diff check emitted no output.
+- The exact combined command
+  `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest,ModuleSetExecutionApplicationServiceTest,ApplyModuleSetCommandTest,Seed4JModuleSetCatalogTest,NioModuleSetProjectPathValidatorTest,JGitModuleSetGitStateReaderTest test`
+  exited `0` with 92 tests, no failures, errors, or skips. Checkstyle reported zero violations.
+- `./mvnw test` exited `0` with 585 tests, no failures, errors, or skips. The subsequent exact JaCoCo query
+  `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0)' target/site/jacoco/jacoco.csv` exited `0` without output, confirming zero missed
+  lines and branches in all 273 reported classes.
+- The post-green design review classified the new structures as behavior-preserving and cohesive. The type reconciler
+  owns one invariant per key, the parameter problem collector receives distinct ordered facts without a missing domain
+  abstraction, adapter validation remains at the external trust boundary, renderer policy stays primary, and metadata
+  rereads are defended by the explicit mismatch problem. No supported refactor reduced risk without creating a bag,
+  scattering one policy, or hiding public Given/When/Then evidence, so no refactor was applied.
+- The subsequent `tdd-behavior-autonomous-quiet` audit found no implementation-detail test, new one-class-per-production-
+  class suite, private helper assertion, annotation assertion, or missing public-path checkpoint. The added tests remain
+  grouped by behavior in the existing application, CLI journey, and official-adapter suites. Because the skill was named
+  only after the implementation was green, no false red/green history is claimed and no code was deliberately broken to
+  reconstruct one.
+- `habit-hooks` exited `1` with 162 reviewed heuristic locations/signals: 2 high-parameter signatures, 29 oversized
+  methods, 2 cohesive public-journey files, and 129 duplicate locations across 69 groups. The changed production findings
+  are the cohesive shared-property reconciliation, ordered problem aggregation, short-lived invocation routing, and
+  import-block matches; the test findings are explicit public/application/adapter journeys, repeated domain setup, and
+  exact output/effect assertions. The remaining constructor and most journey signals are baseline. Extracting them would
+  create method-shaped bags, scatter one invariant, or hide the observable contracts required by this milestone. No
+  enforced current-task defect remained, `habit-snooze` was not run, and
+  `git diff --exit-code -- .habit-hooks/snooze.json` exited `0`.
+- Final scope audit found only the ExecPlan, the three requested documentation files, module-set domain/planner types, the
+  three primary renderers plus invocation, the official catalog adapter, and the three requested test suites changed. Two
+  new domain records represent the authorized diagnostics. CLI syntax, three exit codes, Seed4J core, module order,
+  rollback, and per-module commit behavior are unchanged. The pending authorized server-side Sonar milestone remains
+  unchecked and was preserved.
 
 Current test-organization evidence:
 

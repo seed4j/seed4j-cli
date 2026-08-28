@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 final class ModuleSetPropertyDefinitionReconciler {
 
@@ -15,10 +16,10 @@ final class ModuleSetPropertyDefinitionReconciler {
     List<ModuleSetPropertyConflict> conflicts = new ArrayList<>();
     for (List<ModuleSetPropertyDefinition> sharedDefinitions : definitionsByKey.values()) {
       SharedDefinitionReconciliation reconciliation = reconcileSharedDefinitions(sharedDefinitions);
-      definitions.add(reconciliation.definition());
+      reconciliation.definition().ifPresent(definitions::add);
       conflicts.addAll(reconciliation.conflicts());
     }
-    return new Reconciliation(definitions, conflicts);
+    return new Reconciliation(definitions, conflicts, definitionsByKey.keySet());
   }
 
   private static Map<ModuleSetPropertyKey, List<ModuleSetPropertyDefinition>> indexDefinitions(List<ModuleSetModule> selectedModules) {
@@ -32,6 +33,10 @@ final class ModuleSetPropertyDefinitionReconciler {
 
   private static SharedDefinitionReconciliation reconcileSharedDefinitions(List<ModuleSetPropertyDefinition> definitions) {
     ModuleSetPropertyDefinition first = definitions.getFirst();
+    List<ModuleSetPropertyType> types = definitions.stream().map(ModuleSetPropertyDefinition::type).distinct().sorted().toList();
+    if (types.size() > 1) {
+      return new SharedDefinitionReconciliation(Optional.empty(), List.of(new ModuleSetPropertyTypeConflict(first.key(), types)));
+    }
     List<ModuleSetPropertyDefaultValue> defaults = definitions
       .stream()
       .flatMap(definition -> definition.defaultValue().stream())
@@ -52,32 +57,42 @@ final class ModuleSetPropertyDefinitionReconciler {
       conflicts.add(new ModuleSetPropertyDescriptionConflict(first.key(), descriptions));
     }
     return new SharedDefinitionReconciliation(
-      new ModuleSetPropertyDefinition(
-        first.key(),
-        first.type(),
-        definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
-          ? ModuleSetPropertyRequirement.REQUIRED
-          : ModuleSetPropertyRequirement.OPTIONAL,
-        descriptions.size() == 1 ? Optional.of(descriptions.getFirst()) : Optional.empty(),
-        defaults.size() == 1 ? Optional.of(defaults.getFirst()) : Optional.empty(),
-        definitions
-          .stream()
-          .flatMap(definition -> definition.completionCandidates().stream())
-          .distinct()
-          .toList()
+      Optional.of(
+        new ModuleSetPropertyDefinition(
+          first.key(),
+          types.getFirst(),
+          definitions.stream().anyMatch(ModuleSetPropertyDefinition::mandatory)
+            ? ModuleSetPropertyRequirement.REQUIRED
+            : ModuleSetPropertyRequirement.OPTIONAL,
+          descriptions.size() == 1 ? Optional.of(descriptions.getFirst()) : Optional.empty(),
+          defaults.size() == 1 ? Optional.of(defaults.getFirst()) : Optional.empty(),
+          definitions
+            .stream()
+            .flatMap(definition -> definition.completionCandidates().stream())
+            .distinct()
+            .toList()
+        )
       ),
       conflicts
     );
   }
 
-  record Reconciliation(List<ModuleSetPropertyDefinition> definitions, List<ModuleSetPropertyConflict> conflicts) {
+  record Reconciliation(
+    List<ModuleSetPropertyDefinition> definitions,
+    List<ModuleSetPropertyConflict> conflicts,
+    Set<ModuleSetPropertyKey> knownKeys
+  ) {
     Reconciliation {
       definitions = List.copyOf(definitions);
       conflicts = List.copyOf(conflicts);
+      knownKeys = Set.copyOf(knownKeys);
     }
   }
 
-  private record SharedDefinitionReconciliation(ModuleSetPropertyDefinition definition, List<ModuleSetPropertyConflict> conflicts) {
+  private record SharedDefinitionReconciliation(
+    Optional<ModuleSetPropertyDefinition> definition,
+    List<ModuleSetPropertyConflict> conflicts
+  ) {
     private SharedDefinitionReconciliation {
       conflicts = List.copyOf(conflicts);
     }

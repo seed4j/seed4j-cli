@@ -3,6 +3,7 @@ package com.seed4j.cli.command.infrastructure.primary;
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetExplicitParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
@@ -11,6 +12,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyTypeConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
@@ -34,6 +36,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
       case DuplicateRequestedModuleSetModules duplicateModules -> duplicateModules(duplicateModules);
       case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
       case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
+      case ModuleSetExplicitParameterTypeMismatch mismatch -> explicitMismatch(mismatch);
       case UnknownRequestedModuleSetModules unknownModules -> unknownModules(unknownModules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
@@ -83,6 +86,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
     return switch (conflict) {
       case ModuleSetPropertyDefaultConflict defaultConflict -> defaultConflict(defaultConflict);
       case ModuleSetPropertyDescriptionConflict descriptionConflict -> descriptionConflict(descriptionConflict);
+      case ModuleSetPropertyTypeConflict typeConflict -> typeConflict(typeConflict);
     };
   }
 
@@ -101,6 +105,21 @@ final class ApplyModuleSetPlanningProblemRenderer {
         .stream()
         .map(description -> description.value())
         .collect(Collectors.joining(", "))
+    );
+  }
+
+  private static String typeConflict(ModuleSetPropertyTypeConflict conflict) {
+    return "%s: conflicting types (%s)".formatted(
+      conflict.key().value(),
+      conflict.types().stream().map(Enum::name).collect(Collectors.joining(", "))
+    );
+  }
+
+  private static String explicitMismatch(ModuleSetExplicitParameterTypeMismatch mismatch) {
+    return "Explicit parameter type mismatch: %s expects %s but input contains %s".formatted(
+      mismatch.key().value(),
+      mismatch.expectedType(),
+      mismatch.actualType()
     );
   }
 

@@ -65,31 +65,63 @@ class Seed4JModuleSetCatalogTest {
       .hasMessage("Invalid BOOLEAN module set property default: yes");
   }
 
+  @Test
+  void shouldRejectConflictingPropertyTypesAcrossExternalResources() {
+    Seed4JModulePropertyDefinition stringProperty = Seed4JModulePropertyDefinition.optionalStringProperty("shared").build();
+    Seed4JModulePropertyDefinition integerProperty = Seed4JModulePropertyDefinition.optionalIntegerProperty("shared").build();
+    Seed4JModulesApplicationService modules = modulesWith(
+      module(TestModuleSlug.STRING_PROPERTY, stringProperty),
+      module(TestModuleSlug.INTEGER_PROPERTY, integerProperty)
+    );
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules);
+
+    assertThatThrownBy(catalog::modules)
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Conflicting module set property types for shared: INTEGER, STRING");
+  }
+
   private static Seed4JModulesApplicationService modulesWith(Seed4JModulePropertyDefinition property) {
-    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    return modulesWith(module(TestModuleSlug.BOOLEAN_DEFAULT, property));
+  }
+
+  private static Seed4JModuleResource module(TestModuleSlug slug, Seed4JModulePropertyDefinition property) {
     Seed4JModuleFactory noOpFactory = properties -> null;
-    Seed4JModuleResource module = Seed4JModuleResource.builder()
-      .slug(TestModuleSlug.BOOLEAN_DEFAULT)
+    return Seed4JModuleResource.builder()
+      .slug(slug)
       .propertiesDefinition(Seed4JModulePropertiesDefinition.builder().add(property).build())
-      .apiDoc("Test", "Boolean default")
+      .apiDoc("Test", "Property definition")
       .standalone()
       .tags("test")
       .factory(noOpFactory);
-    when(modules.resources()).thenReturn(new Seed4JModulesResources(List.of(module), new Seed4JHiddenModules(List.of(), List.of())));
+  }
+
+  private static Seed4JModulesApplicationService modulesWith(Seed4JModuleResource... resources) {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    when(modules.resources()).thenReturn(new Seed4JModulesResources(List.of(resources), new Seed4JHiddenModules(List.of(), List.of())));
     return modules;
   }
 
   private enum TestModuleSlug implements Seed4JModuleSlugFactory {
-    BOOLEAN_DEFAULT;
+    BOOLEAN_DEFAULT(Seed4JModuleRank.RANK_D, "boolean-default"),
+    STRING_PROPERTY(Seed4JModuleRank.RANK_C, "string-property"),
+    INTEGER_PROPERTY(Seed4JModuleRank.RANK_B, "integer-property");
+
+    private final Seed4JModuleRank rank;
+    private final String slug;
+
+    TestModuleSlug(Seed4JModuleRank rank, String slug) {
+      this.rank = rank;
+      this.slug = slug;
+    }
 
     @Override
     public String get() {
-      return "boolean-default";
+      return slug;
     }
 
     @Override
     public Seed4JModuleRank rank() {
-      return Seed4JModuleRank.RANK_D;
+      return rank;
     }
   }
 }
