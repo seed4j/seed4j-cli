@@ -12,7 +12,6 @@ import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.nio.file.Path;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,8 +21,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-@DisplayName("apply")
-class ApplyModuleCommandIntegrationTest {
+class ApplyModuleCommandTest {
 
   private static final String PROJECT_NAME = "projectName";
   private static final String BASE_NAME = "baseName";

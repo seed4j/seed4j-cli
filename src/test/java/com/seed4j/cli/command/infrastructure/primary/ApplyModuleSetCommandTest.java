@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,7 +64,6 @@ import picocli.CommandLine;
 
 @ExtendWith(OutputCaptureExtension.class)
 @IntegrationTest
-@DisplayName("apply-set")
 class ApplyModuleSetCommandTest {
 
   @Autowired
@@ -73,9 +71,6 @@ class ApplyModuleSetCommandTest {
 
   @Autowired
   private Seed4JModulesApplicationService modules;
-
-  @Autowired
-  private Seed4JCommandsFactory commandsFactory;
 
   @Nested
   class CommandContract {

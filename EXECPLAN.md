@@ -197,9 +197,9 @@ In `ModuleSetPlanningApplicationServiceTest`, place the existing 20 methods into
 `PreflightEnvironment`, `RequestSelection`, `DependencyPlanning`, and `ParameterPlanning`. Move the existing 35
 `apply-set` methods to `ApplyModuleSetCommandTest`, grouped as `CommandContract`, `PlanValidation`,
 `ParameterResolution`, and `Execution`. Move the existing 28 `apply` methods to
-`ApplyModuleCommandIntegrationTest`, grouped as `CommandContract`, `Planning`, and `Execution`; retain its four version
-methods in `Seed4JCommandsFactoryTest`. Move the seven completion methods to `CompletionCommandIntegrationTest` and the
-four listing methods to `ListModulesCommandIntegrationTest`.
+`ApplyModuleCommandTest`, grouped as `CommandContract`, `Planning`, and `Execution`; retain its four version methods in
+`Seed4JCommandsFactoryTest`. Move the seven completion methods to `CompletionCommandTest` and the four listing methods
+to `ListModulesCommandCliTest`, avoiding the existing unit-level `ListModulesCommandTest` contract.
 
 Each extracted integration suite keeps `@IntegrationTest`, `OutputCaptureExtension`, the real command tree, injected
 application services, and `CliFixture`. Keep helpers inside the narrowest suite or nested journey that uses them; do not
@@ -211,8 +211,8 @@ Validation, from narrow to broad:
 1. `npm run prettier:format`
 2. `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test` — exactly 20 tests
 3. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest test`
-4. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest test`
-5. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest,CompletionCommandIntegrationTest,ListModulesCommandIntegrationTest test` — exactly 86 CLI tests
+4. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandTest test`
+5. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandTest,CompletionCommandTest,ListModulesCommandCliTest test` — exactly 86 CLI tests
 6. Combined planning and CLI command — exactly 106 tests
 7. `npm run prettier:check`
 8. `git diff --check`
@@ -293,8 +293,8 @@ Current test-organization evidence:
   `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest test` exited `0` with 47 executions: 8 root and 39
   `apply-set` parameter-expanded scenarios, with no failures, errors, or skips. Checkstyle also reported zero violations.
 - After extracting the 28 single-module methods and moving the four version methods to the root suite,
-  `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest test` exited `0`
-  with exactly 75 executions, no failures, errors, or skips.
+  `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandTest test` exited `0` with exactly
+  75 executions, no failures, errors, or skips.
 - The five reorganized CLI suites together exited `0` with exactly 86 executions: 8 root, 39 parameter-expanded
   `apply-set`, 28 `apply`, 7 completion, and 4 listing scenarios, with no failures, errors, or skips.
 - The combined planning and CLI command exited `0` with exactly 106 executions, no failures, errors, or skips.
@@ -317,6 +317,10 @@ Current test-organization evidence:
 - Final scope audit found changes only in this ExecPlan and the six requested test paths: the existing planning and root
   suites plus four new journey suites. No production API, code, assertion, test name, message, CLI argument, exit code,
   filesystem/history/Git effect, Spring property, or public documentation changed.
+- Follow-up naming review replaced the three `*IntegrationTest` class names with repository-style `*Test` names, removed
+  top-level `@DisplayName` metadata from all four extracted suites, and removed the unused `commandsFactory` field from
+  `ApplyModuleSetCommandTest`. The listing journey uses `ListModulesCommandCliTest` because `ListModulesCommandTest`
+  already owns a distinct unit-level contract. The focused 86 CLI executions and all 576 repository tests remained green.
 
 Baseline evidence from the pre-existing report:
 
