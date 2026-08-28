@@ -17,6 +17,11 @@ Success is observable when the requested focused suites and `./mvnw test` pass, 
 formatting and `git diff --check` pass, and every `habit-hooks` finding has been analyzed without changing the snooze
 file. The user remains responsible for the final aggregated `./mvnw clean verify` gate and will report its exit code.
 
+The current test-organization milestone preserves all 576 behaviors while making public CLI journeys independently
+discoverable. Success additionally requires the 20 module-set planning tests to be grouped by contract inside their
+existing class; the 35 `apply-set`, 28 `apply`, seven completion, and four listing tests to live in dedicated suites; and
+the root suite to retain root help, debug, versioning, extension-tree registration, and no unrelated command journeys.
+
 ## Context and limits
 
 The coverage baseline already present in `target/site/jacoco/jacoco.csv` reports exactly 16 missed lines and 18 missed
@@ -186,6 +191,39 @@ user must run or explicitly authorize
 `./mvnw clean verify sonar:sonar -Dsonar.token=<token>`. After the Sonar task completes, its API must report zero open new
 issues, Quality Gate `OK`, and no issue introduced by the helper organization.
 
+### 8. Reorganize tests around public command journeys
+
+In `ModuleSetPlanningApplicationServiceTest`, place the existing 20 methods into `@Nested` classes named
+`PreflightEnvironment`, `RequestSelection`, `DependencyPlanning`, and `ParameterPlanning`. Move the existing 35
+`apply-set` methods to `ApplyModuleSetCommandTest`, grouped as `CommandContract`, `PlanValidation`,
+`ParameterResolution`, and `Execution`. Move the existing 28 `apply` methods to
+`ApplyModuleCommandIntegrationTest`, grouped as `CommandContract`, `Planning`, and `Execution`; retain its four version
+methods in `Seed4JCommandsFactoryTest`. Move the seven completion methods to `CompletionCommandIntegrationTest` and the
+four listing methods to `ListModulesCommandIntegrationTest`.
+
+Each extracted integration suite keeps `@IntegrationTest`, `OutputCaptureExtension`, the real command tree, injected
+application services, and `CliFixture`. Keep helpers inside the narrowest suite or nested journey that uses them; do not
+introduce inheritance, shared fixture bases, distinct Spring properties, context mutation, production changes, renamed
+tests, changed assertions, or altered observable effects.
+
+Validation, from narrow to broad:
+
+1. `npm run prettier:format`
+2. `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test` — exactly 20 tests
+3. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest test`
+4. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest test`
+5. `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest,CompletionCommandIntegrationTest,ListModulesCommandIntegrationTest test` — exactly 86 CLI tests
+6. Combined planning and CLI command — exactly 106 tests
+7. `npm run prettier:check`
+8. `git diff --check`
+9. `./mvnw test` — exactly 576 tests
+10. `awk -F, 'NR > 1 && ($6 > 0 || $8 > 0)' target/site/jacoco/jacoco.csv` — no output
+11. `habit-hooks`, with every finding analyzed and `.habit-hooks/snooze.json` unchanged
+
+Acceptance: all method names, annotations that determine executions, Given/When/Then bodies, arguments, assertions,
+messages, exit codes, filesystem/history/Git effects, and the total test count remain unchanged. Only test ownership,
+nested grouping, imports, and this durable plan may differ.
+
 ## Progress
 
 - [x] Read the request, repository instructions, current ExecPlan, and applicable execution/TDD skills.
@@ -207,6 +245,13 @@ issues, Quality Gate `OK`, and no issue introduced by the helper organization.
 - [x] Run the seven requested local validation commands in order and analyze every Habit finding.
 - [x] Re-read the Sonar request and update this ExecPlan immediately before handoff.
 - [ ] Obtain the authorized complete Sonar gate and confirm the asynchronous result through the Sonar API.
+- [x] Read the test-journey request and inventory the existing planning and CLI methods.
+- [x] Group the 20 planning tests into four behavioral nested classes.
+- [x] Extract and group the 35 `apply-set` CLI tests.
+- [x] Extract and group the 28 `apply` CLI tests while returning four version tests to the root suite.
+- [x] Extract the seven completion and four listing CLI tests.
+- [x] Run focused and repository-wide validation, analyze Habit findings, and audit the final structure and counts.
+- [x] Re-read the request and update this ExecPlan immediately before handoff.
 
 ## Decisions
 
@@ -238,6 +283,40 @@ issues, Quality Gate `OK`, and no issue introduced by the helper organization.
   skipped-module journeys are the regression boundary; no internal renderer test will be added.
 
 ## Validation
+
+Current test-organization evidence:
+
+- `npm run prettier:format` exited `0`; only `ModuleSetPlanningApplicationServiceTest` required formatting.
+- `./mvnw -Dtest=ModuleSetPlanningApplicationServiceTest test` exited `0` with exactly 20 tests: three preflight, four
+  request-selection, seven dependency-planning, and six parameter-planning scenarios, with no failures, errors, or skips.
+- After extracting the 35 `apply-set` methods, `npm run prettier:format` exited `0` and
+  `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest test` exited `0` with 47 executions: 8 root and 39
+  `apply-set` parameter-expanded scenarios, with no failures, errors, or skips. Checkstyle also reported zero violations.
+- After extracting the 28 single-module methods and moving the four version methods to the root suite,
+  `./mvnw -Dtest=Seed4JCommandsFactoryTest,ApplyModuleSetCommandTest,ApplyModuleCommandIntegrationTest test` exited `0`
+  with exactly 75 executions, no failures, errors, or skips.
+- The five reorganized CLI suites together exited `0` with exactly 86 executions: 8 root, 39 parameter-expanded
+  `apply-set`, 28 `apply`, 7 completion, and 4 listing scenarios, with no failures, errors, or skips.
+- The combined planning and CLI command exited `0` with exactly 106 executions, no failures, errors, or skips.
+- `npm run prettier:check` and `git diff --check` exited `0`. A path audit confirmed no `src/main` change, and the four
+  extracted suites use the same `@IntegrationTest` plus `OutputCaptureExtension` configuration as the root suite, with
+  no distinct properties, context mutation, inheritance, or shared fixture base.
+- `./mvnw test` exited `0` with the unchanged 576 tests, no failures, errors, or skips. The subsequent JaCoCo CSV query
+  exited `0` without output, confirming zero missed lines and branches in every reported class.
+- A sorted method-name comparison against the original `Seed4JCommandsFactoryTest` produced no diff. The final suites
+  contain exactly 8 root, 35 `apply-set`, 28 `apply`, 7 completion, and 4 listing methods; parameter expansion accounts
+  for the unchanged 86 CLI executions.
+- `habit-hooks` exited `1` with 203 reviewed signals: 4 pre-existing excessive-parameter locations, 32 oversized
+  production/test methods, 3 cohesive journey files over the generic size threshold, and 164 duplicate-code locations
+  across 91 groups. The moved test bodies and existing production/fixture code account for the method findings; the
+  three large files each represent one requested public or application-service journey; and the duplicate findings are
+  preserved Given/When/Then setup, exact expectations, or the repeated package/import/annotation structure necessarily
+  introduced by the four requested standalone suites. Extracting those fragments would change assertions or introduce
+  the artificial inheritance/fixture coupling prohibited by this milestone. No enforced current-task defect remained,
+  `habit-snooze` was not run, and `.habit-hooks/snooze.json` is unchanged.
+- Final scope audit found changes only in this ExecPlan and the six requested test paths: the existing planning and root
+  suites plus four new journey suites. No production API, code, assertion, test name, message, CLI argument, exit code,
+  filesystem/history/Git effect, Spring property, or public documentation changed.
 
 Baseline evidence from the pre-existing report:
 
