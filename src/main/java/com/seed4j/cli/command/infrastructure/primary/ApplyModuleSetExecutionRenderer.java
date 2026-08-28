@@ -98,25 +98,15 @@ final class ApplyModuleSetExecutionRenderer {
       .filter(module -> module.status() == ModuleSetModuleStatus.FAILED)
       .findFirst()
       .orElseThrow();
-    return (
-      "ERROR: %s failed: unable to complete module application.".formatted(failed.item().slug().value())
-      + '\n'
-      + failureEffects()
-      + failureNextAction()
-    );
+    return "ERROR: %s failed: unable to complete module application.".formatted(failed.item().slug().value()) + '\n' + failureGuidance();
   }
 
-  private String failureEffects() {
+  private String failureGuidance() {
     return switch (commitMode) {
-      case ENABLED -> "The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.\n";
-      case DISABLED -> "The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved.\n";
-    };
-  }
-
-  private String failureNextAction() {
-    return switch (commitMode) {
-      case ENABLED -> "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.\n";
-      case DISABLED -> "Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.\n";
+      case ENABLED -> "The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.\n"
+        + "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.\n";
+      case DISABLED -> "The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved.\n"
+        + "Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.\n";
     };
   }
 
