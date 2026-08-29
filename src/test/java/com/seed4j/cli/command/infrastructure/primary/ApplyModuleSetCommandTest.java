@@ -1408,9 +1408,17 @@ class ApplyModuleSetCommandTest {
         }
       });
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setErr(new PrintWriter(stderr));
       String[] args = { "first-module", "second-module", "third-module" };
+      String expectedError = """
+      ERROR: second-module failed: unable to complete module application.
+      The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.
+      Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.
+      """;
 
-      int exitCode = new CommandLine(command.spec()).execute(args);
+      int exitCode = commandLine.execute(args);
 
       assertThat(exitCode).isEqualTo(1);
       assertThat(invokedModules).containsExactly(first, second);
@@ -1418,13 +1426,7 @@ class ApplyModuleSetCommandTest {
         .contains("[1/3] first-module", "[2/3] second-module", "[3/3] third-module")
         .contains("  first-module  SUCCEEDED", "  second-module  FAILED", "  third-module  SKIPPED")
         .contains("Module set status: PARTIAL_FAILURE");
-      assertThat(output.getErr())
-        .contains("ERROR: second-module failed: unable to complete module application.")
-        .contains("The failed module may have changed files, history, Git, dispatched events, or downstream event effects.")
-        .contains(
-          "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry."
-        )
-        .doesNotContain("internal failure details", "IllegalStateException");
+      assertThat(stderr).hasToString(expectedError);
     }
 
     @Test
@@ -1451,9 +1453,17 @@ class ApplyModuleSetCommandTest {
         }
       });
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setErr(new PrintWriter(stderr));
       String[] args = { "first-module", "second-module", "third-module", "--no-commit" };
+      String expectedError = """
+      ERROR: second-module failed: unable to complete module application.
+      The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved.
+      Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.
+      """;
 
-      int exitCode = new CommandLine(command.spec()).execute(args);
+      int exitCode = commandLine.execute(args);
 
       assertThat(exitCode).isEqualTo(1);
       assertThat(invokedModules).containsExactly(first, second);
@@ -1461,13 +1471,7 @@ class ApplyModuleSetCommandTest {
         .contains("[1/3] first-module", "[2/3] second-module", "[3/3] third-module")
         .contains("  first-module  SUCCEEDED", "  second-module  FAILED", "  third-module  SKIPPED")
         .contains("Module set status: PARTIAL_FAILURE");
-      assertThat(output.getErr())
-        .contains("ERROR: second-module failed: unable to complete module application.")
-        .contains(
-          "The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved."
-        )
-        .contains("Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.")
-        .doesNotContain("Git", "internal failure details", "IllegalStateException");
+      assertThat(stderr).hasToString(expectedError);
     }
   }
 
