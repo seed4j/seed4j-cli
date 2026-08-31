@@ -85,7 +85,7 @@
     <surefire-plugin.version>3.5.6</surefire-plugin.version>
     <failsafe-plugin.version>3.5.6</failsafe-plugin.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-    <checkstyle.version>14.0.0</checkstyle.version>
+    <checkstyle.version>14.1.0</checkstyle.version>
     <jacoco.version>0.8.15</jacoco.version>
     <jgit.version>7.7.1.202607240634-r</jgit.version>
     <pitest-maven.version>1.30.0</pitest-maven.version>
