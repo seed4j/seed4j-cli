@@ -144,10 +144,14 @@ progress, summary, streams, and exit codes. No interface wording or formatting e
 `ModuleSetPlanningApplicationService` orchestrates a read-only request and produces an immutable `ModuleSetPlan`. That
 snapshot contains the exact landscape order, application/reapplication annotations, dependency facts, resolved parameter
 explanations, one effective map containing only explicit and compatible history values, commit mode, problems, and
-warnings. It is the sole input accepted by `ModuleSetExecutionApplicationService`; execution never reads the catalog or
-history and never recalculates order or parameters.
+warnings. It also records whether detailed dependency and parameter planning was `EVALUATED` or `NOT_EVALUATED`, so empty
+evaluated results cannot be confused with stages skipped after an early validation problem. It is the sole input accepted
+by `ModuleSetExecutionApplicationService`; execution never reads the catalog or history and never recalculates order or
+parameters.
 
-Planning depends on four domain capabilities:
+Planning depends on four domain capabilities. The `ModuleSetCatalog` contract is stable for the lifetime of its planner;
+resources, landscape, and extensions are assembled before the Picocli tree, and the process executes one command without
+catalog hot reload:
 
 - `ModuleSetCatalog` exposes visible module metadata and deterministic landscape ordering;
 - `ModuleSetPlanningHistoryReader` exposes applied modules and latest parameter facts through the Seed4J public history
@@ -160,6 +164,15 @@ Their secondary implementations are `Seed4JModuleSetCatalog`, `ProjectsModuleSet
 `NioModuleSetProjectPathValidator`, and `JGitModuleSetGitStateReader`. The NIO adapter owns filesystem metadata checks, and
 the JGit adapter owns repository discovery and tracked, staged, and untracked status inspection. Neither adapter leaks
 storage layouts or framework representations into the plan.
+
+`Seed4JModuleSetCatalog` also owns the external-metadata consistency boundary for property types. After mapping every
+visible Seed4J resource into domain definitions, it verifies that each global property key has one type across the entire
+catalog. Divergent external resources fail deterministically as an internal adapter inconsistency before the primary
+adapter can expose Picocli options. The domain reconciler remains defensive for other `ModuleSetCatalog` implementations:
+selected type conflicts produce structured invalid-preflight facts without choosing an arbitrary definition.
+An explicit domain value incompatible with its reconciled property type instead violates an internal invariant. The
+planner throws a dedicated domain exception before parameter resolution rather than exposing an unreachable preflight
+problem or CLI diagnostic.
 
 Execution depends only on `ModuleSetModuleApplier`. `Seed4JModuleSetModuleApplier` converts each planned item, project
 path, commit mode, and the unchanged complete effective parameter map into `Seed4JModuleToApply`, then calls the existing

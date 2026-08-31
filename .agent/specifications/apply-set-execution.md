@@ -57,6 +57,13 @@ Preflight MUST retain all validations performed by the current read-only `apply-
 
 Preflight MUST additionally validate the following execution invariants.
 
+`ModuleSetPlan` MUST distinguish detailed planning that was `EVALUATED` from detailed planning that was
+`NOT_EVALUATED`. A path problem, duplicate request, unknown module, or inexact landscape order stops planning before
+history, dependencies, and parameters and therefore produces `NOT_EVALUATED`. A plan that reaches the history read is
+`EVALUATED`, even when its dependency or resolved-parameter collection is genuinely empty. The CLI MUST render the two
+unevaluated sections as `Dependency validation: (not evaluated)` and `Resolved parameters: (not evaluated)`.
+`✓ No dependencies.` and `(none)` are reserved for evaluated empty results.
+
 ### Practical project-path validation
 
 Path validation is practical rather than a promise that later writes will succeed:
@@ -69,6 +76,13 @@ Path validation is practical rather than a promise that later writes will succee
   create a write probe, or otherwise test the path by mutation.
 - A path accepted as apparently creatable can still fail during execution because permissions, concurrent changes,
   storage, or other external conditions can change. That failure follows the unexpected-failure contract.
+
+Path and requested-module selection are the only stages evaluated before this precedence decision. If the path has a
+predictable problem, preflight MUST preserve that path problem together with any duplicate, unknown-module, or exact-set
+problem already calculated, but MUST NOT read project history, inspect Git, validate dependencies, or resolve parameters.
+The rejected snapshot keeps the requested modules, any calculated execution order, and commit mode, while marking
+detailed planning `NOT_EVALUATED`. This avoids replacing the actionable path diagnostic with a project-dependent read
+failure or presenting unevaluated empty collections as successful validation.
 
 Reading project history, catalog metadata, filesystem metadata, and Git status is allowed. When the core history-read API
 returns normally:
@@ -95,17 +109,50 @@ it.
 ### Dirty Git warning
 
 When commits are enabled and the destination belongs to an existing dirty Git worktree, preflight MUST emit a `WARNING`
-on `stderr` and continue. Dirty means that Git reports tracked, staged, or untracked changes relevant to that worktree.
+on `stderr`. Dirty means that Git reports tracked, staged, or untracked changes relevant to that worktree.
 
-The warning MUST explain that per-module commits can include or be affected by pre-existing changes and explicitly confirm
-that execution will continue automatically. It is strictly informational: it MUST NOT recommend cleaning, stashing, any
-other intervention, or `--no-commit`; invalidate the plan; prevent execution; or change an otherwise successful exit code
-`0`.
+For an execution invocation, the warning MUST explain that per-module commits can include or be affected by pre-existing
+changes and explicitly confirm that execution will continue automatically:
+
+```text
+WARNING: Git worktree <path> is dirty; module commits can include or be affected by pre-existing changes. Execution will continue automatically.
+```
+
+For `--plan`, the warning MUST instead describe only a possible later execution and confirm that the current invocation is
+read-only:
+
+```text
+WARNING: Git worktree <path> is dirty; module commits in a later execution can include or be affected by pre-existing changes. This plan is read-only; no modules will be applied.
+```
+
+Both warnings are strictly informational. Neither may recommend cleaning, stashing, another intervention, or
+`--no-commit`; invalidate the plan; prevent the requested planning or execution flow; or change an otherwise successful
+exit code `0`. Only the execution warning may claim automatic continuation.
 
 The dirty-worktree check is not required when `--no-commit` is selected because this command will perform no Git
 initialization or commit in that mode.
 
 ## Parameter and history semantics
+
+A property key is one global catalog concept and MUST have exactly one `STRING`, `INTEGER`, or `BOOLEAN` type across the
+complete catalog. The official Seed4J catalog adapter MUST validate that invariant after mapping external resources and
+fail deterministically as an internal inconsistency before exposing Picocli options. If another catalog implementation
+supplies selected definitions with distinct types, preflight MUST report them in deterministic type order, for example
+`shared: conflicting types (INTEGER, STRING)`, and remain invalid regardless of selected-module order.
+
+The catalog MUST remain stable for the lifetime of the planner. Resources, landscape, and extensions are fixed before the
+Picocli tree and its global property options are assembled, and one CLI process executes one command invocation. The
+planner does not snapshot a changing catalog and does not support catalog hot reload during `apply-set`.
+
+No reconciled definition may be produced for a type-conflicting key. That key remains known for unused-option validation,
+but MUST NOT resolve against explicit input, project history, or defaults and MUST NOT produce diagnostics derived from an
+arbitrarily chosen type. Other property keys continue reconciliation and validation so their independent problems remain
+aggregated.
+
+Programmatic callers MUST provide explicit domain values whose types match the single reconciled types. A mismatch is an
+internal invariant violation, not caller-correctable preflight input: planning MUST throw a dedicated domain exception
+before parameter resolution and MUST NOT add a planning problem or CLI diagnostic for it. Picocli prevents this mismatch
+for the stable official catalog by parsing each option directly into its declared domain type.
 
 Parameter resolution keeps this precedence:
 
@@ -239,9 +286,16 @@ The exit-code contract is:
 | `2`       | Command usage or preflight is invalid, including a relevant unsupported history value or one incompatible with its catalog type after a normal history read. No individual module was invoked, and no project or Git mutation was made.                                                                     |
 | `1`       | An unexpected failure occurred, including every exception from the core history-read API, whether caused by malformed persisted content, I/O, or another condition. If execution started, there can be partial progress and indeterminate effects from the `FAILED` module; otherwise no mutation occurred. |
 
-On exit code `1` after execution starts, `stderr` MUST tell the caller to inspect the working tree, project history, Git
-log when applicable, and relevant external event effects before deciding whether to retry. It MUST NOT recommend an
-automatic blind retry or claim rollback.
+On exit code `1` after execution starts, `stderr` MUST tell the caller to inspect the working tree, project history,
+relevant external event effects, and—only when commits are enabled—Git log before deciding whether to retry. With commits
+enabled, it preserves the exact two guidance lines shown in the partial-progress example. With `--no-commit`, it MUST use:
+
+```text
+The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved.
+Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.
+```
+
+It MUST NOT recommend an automatic blind retry or claim rollback.
 
 ## Complete output examples
 

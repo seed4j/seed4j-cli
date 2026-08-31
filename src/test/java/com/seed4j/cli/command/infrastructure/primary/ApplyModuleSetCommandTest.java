@@ -17,6 +17,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistory;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningHistoryReader;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPathValidator;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -40,7 +41,9 @@ import com.seed4j.project.domain.history.ProjectActionToAppend;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,9 +52,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -166,6 +171,7 @@ class ApplyModuleSetCommandTest {
       assertThat(output.getErr())
         .contains("Duplicate requested modules: init")
         .contains("Unknown requested modules: another-unknown, unknown-module")
+        .contains("Dependency validation: (not evaluated)", "Resolved parameters: (not evaluated)")
         .contains("No changes were applied.");
     }
 
@@ -182,7 +188,9 @@ class ApplyModuleSetCommandTest {
           """
           Execution order:
 
-          Dependency validation:
+          Dependency validation: (not evaluated)
+
+          Resolved parameters: (not evaluated)
           """
         )
         .contains("Status: INVALID")
@@ -197,7 +205,9 @@ class ApplyModuleSetCommandTest {
       ModuleSetProjectPathValidator projectPathValidator = projectPath -> pathStatus;
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
         catalog,
-        projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
+        projectPath -> {
+          throw new AssertionError("History must not be read after an invalid project path");
+        },
         projectPathValidator,
         projectPath -> ModuleSetGitState.NO_WORKTREE
       );
@@ -230,11 +240,9 @@ class ApplyModuleSetCommandTest {
         Execution order:
           1. module
 
-        Dependency validation:
-          ✓ No dependencies.
+        Dependency validation: (not evaluated)
 
-        Resolved parameters:
-          (none)
+        Resolved parameters: (not evaluated)
 
         Commit mode: one commit per succeeded module
 
@@ -256,6 +264,56 @@ class ApplyModuleSetCommandTest {
           "Project path does not have a traversable, writable directory ancestor"
         )
       );
+    }
+
+    @Test
+    void shouldRejectInaccessiblePosixDirectoryWithoutApplyingOrMutatingProject(@TempDir Path projectPath) throws IOException {
+      Assumptions.assumeTrue(Files.getFileStore(projectPath).supportsFileAttributeView("posix"));
+      Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(projectPath);
+      int historyActionsBefore = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
+      NioModuleSetProjectPathValidator projectPathValidator = new NioModuleSetProjectPathValidator();
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects),
+        projectPathValidator,
+        new JGitModuleSetGitStateReader()
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      StringWriter stdout = new StringWriter();
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setOut(new PrintWriter(stdout));
+      commandLine.setErr(new PrintWriter(stderr));
+      Files.setPosixFilePermissions(projectPath, Set.of());
+
+      int exitCode;
+      try {
+        Assumptions.assumeTrue(
+          projectPathValidator.validate(new ModuleSetProjectPath(projectPath)) == ModuleSetProjectPathStatus.NOT_ACCESSIBLE
+        );
+        exitCode = commandLine.execute("init", "--project-path", projectPath.toString());
+      } finally {
+        Files.setPosixFilePermissions(projectPath, originalPermissions);
+      }
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(stdout.toString()).isEmpty();
+      assertThat(stderr.toString())
+        .contains("Project path is not traversable and writable")
+        .contains("Dependency validation: (not evaluated)")
+        .contains("Resolved parameters: (not evaluated)")
+        .doesNotContain("ERROR: Unable to complete module set preflight.");
+      try (Stream<Path> paths = Files.list(projectPath)) {
+        assertThat(paths).isEmpty();
+      }
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBefore);
+      assertThat(projectPath.resolve(".git")).doesNotExist();
+      assertThat(Files.getPosixFilePermissions(projectPath)).isEqualTo(originalPermissions);
     }
 
     @Test
@@ -312,11 +370,9 @@ class ApplyModuleSetCommandTest {
           1. first
           2. replacement
 
-        Dependency validation:
-          ✓ No dependencies.
+        Dependency validation: (not evaluated)
 
-        Resolved parameters:
-          (none)
+        Resolved parameters: (not evaluated)
 
         Commit mode: one commit per succeeded module
 
@@ -1026,6 +1082,55 @@ class ApplyModuleSetCommandTest {
         .contains("Status: INVALID")
         .contains("No changes were applied.");
     }
+
+    @Test
+    void shouldRejectConflictingPropertyTypesWithoutApplyingModules(CapturedOutput output) {
+      ModuleSetSlug first = new ModuleSetSlug("first-module");
+      ModuleSetSlug second = new ModuleSetSlug("second-module");
+      ModuleSetPropertyKey key = new ModuleSetPropertyKey("shared");
+      ModuleSetPropertyDefinition stringProperty = new ModuleSetPropertyDefinition(
+        key,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetPropertyDefinition integerProperty = new ModuleSetPropertyDefinition(
+        key,
+        ModuleSetPropertyType.INTEGER,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(
+          new ModuleSetModule(first, List.of(), List.of(stringProperty), Optional.empty()),
+          new ModuleSetModule(second, List.of(), List.of(integerProperty), Optional.empty())
+        ),
+        List.of(first, second)
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planningService(catalog, projectPath ->
+          new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+        ),
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      String[] args = { "first-module", "second-module" };
+
+      int exitCode = new CommandLine(command.spec()).execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(invokedModules).isEmpty();
+      assertThat(output.getOut()).isEmpty();
+      assertThat(output.getErr())
+        .contains("Property conflicts: shared: conflicting types (INTEGER, STRING)")
+        .doesNotContain("Options not used by requested modules", "✓ shared:")
+        .contains("Status: INVALID")
+        .contains("No changes were applied.");
+    }
   }
 
   @Nested
@@ -1234,6 +1339,52 @@ class ApplyModuleSetCommandTest {
     }
 
     @Test
+    void shouldWarnThatDirtyWorktreePlanIsReadOnlyWithoutApplyingModules(CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      java.nio.file.Files.writeString(projectPath.resolve("existing-change.txt"), "keep me");
+      List<ProjectAction> historyBefore = List.copyOf(projects.getHistory(new ProjectPath(projectPath.toString())).actions());
+      String commitsBefore = GitTestUtil.getCommits(projectPath);
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        new Seed4JModuleSetCatalog(modules),
+        new ProjectsModuleSetPlanningHistoryReader(projects),
+        new NioModuleSetProjectPathValidator(),
+        new JGitModuleSetGitStateReader()
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(
+        planning,
+        new ModuleSetExecutionApplicationService(application -> invokedModules.add(application.slug()))
+      );
+      String[] args = {
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Sample application",
+        "--base-name",
+        "sampleApplication",
+        "--node-package-manager",
+        "npm",
+        "--plan",
+      };
+
+      int exitCode = new CommandLine(command.spec()).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(invokedModules).isEmpty();
+      assertThat(output.getErr())
+        .contains(
+          "WARNING: Git worktree "
+            + projectPath
+            + " is dirty; module commits in a later execution can include or be affected by pre-existing changes. This plan is read-only; no modules will be applied."
+        )
+        .doesNotContain("Execution will continue automatically.");
+      assertThat(output.getOut()).contains("Status: VALID").contains("No changes were applied.").doesNotContain("Applying module set:");
+      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).containsExactlyElementsOf(historyBefore);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBefore);
+    }
+
+    @Test
     void shouldReportPartialFailureAndSkipModulesAfterFirstThrownApplication(CapturedOutput output) {
       ModuleSetSlug first = new ModuleSetSlug("first-module");
       ModuleSetSlug second = new ModuleSetSlug("second-module");
@@ -1257,9 +1408,17 @@ class ApplyModuleSetCommandTest {
         }
       });
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setErr(new PrintWriter(stderr));
       String[] args = { "first-module", "second-module", "third-module" };
+      String expectedError = """
+      ERROR: second-module failed: unable to complete module application.
+      The failed module may have changed files, history, Git, dispatched events, or downstream event effects. Earlier successes were preserved.
+      Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry.
+      """;
 
-      int exitCode = new CommandLine(command.spec()).execute(args);
+      int exitCode = commandLine.execute(args);
 
       assertThat(exitCode).isEqualTo(1);
       assertThat(invokedModules).containsExactly(first, second);
@@ -1267,13 +1426,52 @@ class ApplyModuleSetCommandTest {
         .contains("[1/3] first-module", "[2/3] second-module", "[3/3] third-module")
         .contains("  first-module  SUCCEEDED", "  second-module  FAILED", "  third-module  SKIPPED")
         .contains("Module set status: PARTIAL_FAILURE");
-      assertThat(output.getErr())
-        .contains("ERROR: second-module failed: unable to complete module application.")
-        .contains("The failed module may have changed files, history, Git, dispatched events, or downstream event effects.")
-        .contains(
-          "Next action: inspect the working tree, project history, Git log, and relevant event effects before deciding whether to retry."
-        )
-        .doesNotContain("internal failure details", "IllegalStateException");
+      assertThat(stderr).hasToString(expectedError);
+    }
+
+    @Test
+    void shouldReportPartialFailureWithoutGitGuidanceWhenCommitIsDisabled(CapturedOutput output) {
+      ModuleSetSlug first = new ModuleSetSlug("first-module");
+      ModuleSetSlug second = new ModuleSetSlug("second-module");
+      ModuleSetSlug third = new ModuleSetSlug("third-module");
+      ModuleSetCatalog catalog = catalog(
+        List.of(
+          new ModuleSetModule(first, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(second, List.of(), List.of(), Optional.empty()),
+          new ModuleSetModule(third, List.of(), List.of(), Optional.empty())
+        ),
+        List.of(first, second, third)
+      );
+      ModuleSetPlanningApplicationService planning = planningService(catalog, projectPath ->
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      );
+      List<ModuleSetSlug> invokedModules = new ArrayList<>();
+      ModuleSetExecutionApplicationService failingExecution = new ModuleSetExecutionApplicationService(application -> {
+        invokedModules.add(application.slug());
+        if (application.slug().equals(second)) {
+          throw new IllegalStateException("internal failure details");
+        }
+      });
+      ApplyModuleSetCommand command = new ApplyModuleSetCommand(planning, failingExecution);
+      StringWriter stderr = new StringWriter();
+      CommandLine commandLine = new CommandLine(command.spec());
+      commandLine.setErr(new PrintWriter(stderr));
+      String[] args = { "first-module", "second-module", "third-module", "--no-commit" };
+      String expectedError = """
+      ERROR: second-module failed: unable to complete module application.
+      The failed module may have changed files, history, dispatched events, or downstream event effects. Earlier successes were preserved.
+      Next action: inspect the working tree, project history, and relevant event effects before deciding whether to retry.
+      """;
+
+      int exitCode = commandLine.execute(args);
+
+      assertThat(exitCode).isEqualTo(1);
+      assertThat(invokedModules).containsExactly(first, second);
+      assertThat(output.getOut())
+        .contains("[1/3] first-module", "[2/3] second-module", "[3/3] third-module")
+        .contains("  first-module  SUCCEEDED", "  second-module  FAILED", "  third-module  SKIPPED")
+        .contains("Module set status: PARTIAL_FAILURE");
+      assertThat(stderr).hasToString(expectedError);
     }
   }
 

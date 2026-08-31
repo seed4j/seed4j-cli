@@ -24,6 +24,11 @@ import com.seed4j.module.domain.landscape.Seed4JLandscapeElementType;
 import com.seed4j.module.domain.properties.Seed4JPropertyType;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -38,7 +43,7 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
 
   @Override
   public List<ModuleSetModule> modules() {
-    return modules
+    List<ModuleSetModule> catalogModules = modules
       .resources()
       .stream()
       .map(resource ->
@@ -50,6 +55,28 @@ public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
         )
       )
       .toList();
+    validatePropertyTypes(catalogModules);
+    return catalogModules;
+  }
+
+  private static void validatePropertyTypes(List<ModuleSetModule> modules) {
+    Map<ModuleSetPropertyKey, Set<ModuleSetPropertyType>> typesByKey = new TreeMap<>((first, second) ->
+      first.value().compareTo(second.value())
+    );
+    modules
+      .stream()
+      .flatMap(module -> module.properties().stream())
+      .forEach(definition -> typesByKey.computeIfAbsent(definition.key(), ignored -> new TreeSet<>()).add(definition.type()));
+    typesByKey.forEach((key, types) -> {
+      if (types.size() > 1) {
+        throw new IllegalArgumentException(
+          "Conflicting module set property types for %s: %s".formatted(
+            key.value(),
+            types.stream().map(Enum::name).collect(Collectors.joining(", "))
+          )
+        );
+      }
+    });
   }
 
   private static ModuleSetDependency dependency(Seed4JLandscapeDependency dependency) {

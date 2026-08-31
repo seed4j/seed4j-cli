@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 final class ModuleSetParameterPlanner {
 
@@ -17,6 +16,7 @@ final class ModuleSetParameterPlanner {
     ModuleSetHistoryParameters historyParameters
   ) {
     ModuleSetPropertyDefinitionReconciler.Reconciliation reconciliation = definitionReconciler.reconcile(selectedModules);
+    validateExplicitParameterTypes(reconciliation.definitions(), explicitParameters);
     ModuleSetParameterResolutionSummary resolutions = ModuleSetParameterResolutionSummary.from(
       parameterResolver.resolve(reconciliation.definitions(), explicitParameters, historyParameters)
     );
@@ -25,6 +25,20 @@ final class ModuleSetParameterPlanner {
       resolutions.missingRequiredParameters(),
       planningProblems(reconciliation, resolutions.historyMismatches(), explicitParameters)
     );
+  }
+
+  private static void validateExplicitParameterTypes(
+    List<ModuleSetPropertyDefinition> definitions,
+    ExplicitModuleSetParameters explicitParameters
+  ) {
+    for (ModuleSetPropertyDefinition definition : definitions) {
+      if (explicitParameters.values().containsKey(definition.key())) {
+        ModuleSetParameterValue explicitValue = explicitParameters.values().get(definition.key());
+        if (explicitValue.type() != definition.type()) {
+          throw new IncompatibleExplicitModuleSetParameterTypeException(definition.key(), definition.type(), explicitValue.type());
+        }
+      }
+    }
   }
 
   private static List<ModuleSetPlanningProblem> planningProblems(
@@ -42,7 +56,7 @@ final class ModuleSetParameterPlanner {
         .sorted(Comparator.comparing(mismatch -> mismatch.key().value()))
         .toList()
     );
-    List<ModuleSetPropertyKey> unusedParameters = unusedExplicitParameters(reconciliation.definitions(), explicitParameters);
+    List<ModuleSetPropertyKey> unusedParameters = unusedExplicitParameters(reconciliation.knownKeys(), explicitParameters);
     if (!unusedParameters.isEmpty()) {
       problems.add(new UnusedExplicitModuleSetParameters(unusedParameters));
     }
@@ -50,13 +64,9 @@ final class ModuleSetParameterPlanner {
   }
 
   private static List<ModuleSetPropertyKey> unusedExplicitParameters(
-    List<ModuleSetPropertyDefinition> definitions,
+    Set<ModuleSetPropertyKey> definedKeys,
     ExplicitModuleSetParameters explicitParameters
   ) {
-    Set<ModuleSetPropertyKey> definedKeys = definitions
-      .stream()
-      .map(ModuleSetPropertyDefinition::key)
-      .collect(Collectors.toUnmodifiableSet());
     return explicitParameters
       .values()
       .keySet()

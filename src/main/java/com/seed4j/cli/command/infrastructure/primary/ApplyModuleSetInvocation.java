@@ -111,12 +111,14 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
       return ExitCode.USAGE;
     }
 
-    printError(new ApplyModuleSetWarningRenderer().render(plan));
     boolean planOnly = Boolean.TRUE.equals(commandSpec.findOption(PLAN_OPTION).getValue());
+    ApplyModuleSetWarningRenderer warningRenderer = new ApplyModuleSetWarningRenderer();
     if (planOnly) {
+      printError(warningRenderer.planning(plan));
       printOutput(new ApplyModuleSetPlanRenderer().render(plan));
       return ExitCode.OK;
     }
+    printError(warningRenderer.execution(plan));
     return execute(plan);
   }
 

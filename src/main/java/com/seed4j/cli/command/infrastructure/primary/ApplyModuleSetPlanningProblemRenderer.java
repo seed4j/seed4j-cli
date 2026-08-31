@@ -11,6 +11,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyTypeConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
@@ -83,6 +84,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
     return switch (conflict) {
       case ModuleSetPropertyDefaultConflict defaultConflict -> defaultConflict(defaultConflict);
       case ModuleSetPropertyDescriptionConflict descriptionConflict -> descriptionConflict(descriptionConflict);
+      case ModuleSetPropertyTypeConflict typeConflict -> typeConflict(typeConflict);
     };
   }
 
@@ -101,6 +103,13 @@ final class ApplyModuleSetPlanningProblemRenderer {
         .stream()
         .map(description -> description.value())
         .collect(Collectors.joining(", "))
+    );
+  }
+
+  private static String typeConflict(ModuleSetPropertyTypeConflict conflict) {
+    return "%s: conflicting types (%s)".formatted(
+      conflict.key().value(),
+      conflict.types().stream().map(Enum::name).collect(Collectors.joining(", "))
     );
   }
 

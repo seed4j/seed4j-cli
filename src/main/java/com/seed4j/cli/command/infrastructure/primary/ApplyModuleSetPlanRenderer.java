@@ -29,12 +29,21 @@ class ApplyModuleSetPlanRenderer {
   }
 
   private String validation(ModuleSetPlan plan) {
-    StringBuilder output = new StringBuilder(dependencies(plan.dependencyValidations()));
-    output.append(ApplyModuleSetPreflightSectionsRenderer.parameters("Resolved parameters", plan.resolvedParameters()));
+    StringBuilder output = new StringBuilder(detailedPlanning(plan));
     output.append(ApplyModuleSetPreflightSectionsRenderer.commitMode(plan)).append('\n');
     output.append(missingParameters(plan));
     output.append(problemRenderer.problems(plan.problems()));
     return output.append(status(plan.valid())).toString();
+  }
+
+  private static String detailedPlanning(ModuleSetPlan plan) {
+    if (plan.detailedPlanningStatus().notEvaluated()) {
+      return "Dependency validation: (not evaluated)\n\nResolved parameters: (not evaluated)\n\n";
+    }
+    return (
+      dependencies(plan.dependencyValidations())
+      + ApplyModuleSetPreflightSectionsRenderer.parameters("Resolved parameters", plan.resolvedParameters())
+    );
   }
 
   private static String modules(String heading, List<ModuleSetSlug> modules) {

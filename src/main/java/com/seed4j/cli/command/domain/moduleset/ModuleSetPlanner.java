@@ -69,9 +69,10 @@ public class ModuleSetPlanner {
     List<ModuleSetPlanningProblem> pathProblems = environmentInspector.pathProblems(request.projectPath());
     ModuleSetRequestSelector.Selection selection = requestSelector.select(request.requestedModules());
     List<ModuleSetPlanningProblem> preselectionProblems = Stream.concat(pathProblems.stream(), selection.problems().stream()).toList();
-    ModuleSetPlan plan = selection.approved()
-      ? planSelectedModules(request, selection).moduleSetPlan(request, selection.executionOrder(), preselectionProblems)
-      : rejectedSelectionPlan(request, selection.executionOrder(), preselectionProblems);
+    ModuleSetPlan plan =
+      pathProblems.isEmpty() && selection.approved()
+        ? planSelectedModules(request, selection).moduleSetPlan(request, selection.executionOrder(), preselectionProblems)
+        : rejectedPlan(request, selection.executionOrder(), preselectionProblems);
     return plan.withWarnings(environmentInspector.warnings(plan));
   }
 
@@ -90,7 +91,7 @@ public class ModuleSetPlanner {
     return new SelectedModulesPlanning(history.appliedModules(), dependencyValidations, parameterPlanning);
   }
 
-  private static ModuleSetPlan rejectedSelectionPlan(
+  private static ModuleSetPlan rejectedPlan(
     ModuleSetPlanningRequest request,
     List<ModuleSetSlug> executionOrder,
     List<ModuleSetPlanningProblem> problems
@@ -103,6 +104,7 @@ public class ModuleSetPlanner {
         .map(slug -> new ModuleSetPlanItem(slug, ModuleSetApplicationKind.APPLICATION))
         .toList(),
       request.commitMode(),
+      ModuleSetDetailedPlanningStatus.NOT_EVALUATED,
       EffectiveModuleSetParameters.empty(),
       List.of(),
       List.of(),
@@ -135,6 +137,7 @@ public class ModuleSetPlanner {
           .map(slug -> new ModuleSetPlanItem(slug, applicationKind(slug)))
           .toList(),
         request.commitMode(),
+        ModuleSetDetailedPlanningStatus.EVALUATED,
         EffectiveModuleSetParameters.from(parameterPlanning.resolvedParameters()),
         dependencyValidations,
         parameterPlanning.resolvedParameters(),
