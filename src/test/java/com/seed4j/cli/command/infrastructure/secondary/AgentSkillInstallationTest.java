@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -35,8 +36,12 @@ class AgentSkillInstallationTest {
   void shouldPublishTheCompleteBundledSkillForALocalFirstInstallation(@TempDir Path workingDirectory) throws Exception {
     Path destination = workingDirectory.resolve(".agents/skills/seed4j-cli");
     Map<Path, byte[]> bundledFiles = bundledFiles();
+    CurrentAgentSkillInstallationPathResolver pathResolver = new CurrentAgentSkillInstallationPathResolver(
+      new JavaSeed4JCliHomeReader(new Seed4JCliHome(workingDirectory.resolve("home"))),
+      workingDirectory
+    );
     FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
-      scope -> destination,
+      pathResolver,
       () -> bundledFiles,
       new NioAgentSkillFileOperations()
     );
@@ -99,7 +104,7 @@ class AgentSkillInstallationTest {
     Files.createDirectories(workingDirectory);
     CurrentAgentSkillInstallationPathResolver pathResolver = new CurrentAgentSkillInstallationPathResolver(
       new JavaSeed4JCliHomeReader(new Seed4JCliHome(userHome)),
-      () -> workingDirectory
+      workingDirectory
     );
     FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
       pathResolver,
@@ -169,6 +174,35 @@ class AgentSkillInstallationTest {
   }
 
   @Test
+  void shouldLeaveThePreviousInstallationUntouchedWhenStagingCannotBePrepared(@TempDir Path skillsDirectory) throws Exception {
+    Path destination = skillsDirectory.resolve("seed4j-cli");
+    Path siblingSkill = skillsDirectory.resolve("sibling-skill/SKILL.md");
+    byte[] previousEntrypoint = { 0, 1, 2, 3 };
+    byte[] previousReference = { 4, 5, 6 };
+    Files.createDirectories(destination.resolve("references"));
+    Files.write(destination.resolve("SKILL.md"), previousEntrypoint);
+    Files.write(destination.resolve("references/legacy.md"), previousReference);
+    Files.createDirectories(siblingSkill.getParent());
+    Files.writeString(siblingSkill, "sibling\n");
+    FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
+      scope -> destination,
+      AgentSkillInstallationTest::bundledFiles,
+      new TemporaryDirectoryFailingFileOperations()
+    );
+
+    assertThatThrownBy(() -> installer.install(AgentSkillInstallationScope.LOCAL))
+      .isExactlyInstanceOf(AgentSkillInstallationException.class)
+      .hasMessage("Could not install Seed4J CLI skill at %s.".formatted(destination.toAbsolutePath().normalize()))
+      .hasCauseInstanceOf(IOException.class);
+    assertThat(Files.readAllBytes(destination.resolve("SKILL.md"))).isEqualTo(previousEntrypoint);
+    assertThat(Files.readAllBytes(destination.resolve("references/legacy.md"))).isEqualTo(previousReference);
+    assertThat(Files.readString(siblingSkill)).isEqualTo("sibling\n");
+    try (Stream<Path> skillsEntries = Files.list(skillsDirectory)) {
+      assertThat(skillsEntries.map(path -> path.getFileName().toString())).noneMatch(name -> name.startsWith(".seed4j-cli-"));
+    }
+  }
+
+  @Test
   void shouldRestoreThePreviousInstallationWhenPublicationFailsBeforeCommit(@TempDir Path skillsDirectory) throws Exception {
     Path destination = skillsDirectory.resolve("seed4j-cli");
     Path siblingSkill = skillsDirectory.resolve("sibling-skill/SKILL.md");
@@ -190,6 +224,39 @@ class AgentSkillInstallationTest {
     try (Stream<Path> operationalResidues = Files.list(skillsDirectory)) {
       assertThat(operationalResidues.map(path -> path.getFileName().toString())).noneMatch(name -> name.startsWith(".seed4j-cli-"));
     }
+  }
+
+  @Test
+  void shouldDiagnoseResidualStagingWhenItsCleanupFailsAfterRestoration(@TempDir Path skillsDirectory) throws Exception {
+    Path destination = skillsDirectory.resolve("seed4j-cli");
+    Path siblingSkill = skillsDirectory.resolve("sibling-skill/SKILL.md");
+    byte[] previousEntrypoint = { 0, 1, 2, 3 };
+    byte[] previousReference = { 4, 5, 6 };
+    Files.createDirectories(destination.resolve("references"));
+    Files.write(destination.resolve("SKILL.md"), previousEntrypoint);
+    Files.write(destination.resolve("references/legacy.md"), previousReference);
+    Files.createDirectories(siblingSkill.getParent());
+    Files.writeString(siblingSkill, "sibling\n");
+    FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
+      scope -> destination,
+      AgentSkillInstallationTest::bundledFiles,
+      new PublicationAndStagingCleanupFailingFileOperations()
+    );
+
+    assertThatThrownBy(() -> installer.install(AgentSkillInstallationScope.LOCAL))
+      .isExactlyInstanceOf(AgentSkillInstallationException.class)
+      .hasMessageContaining("Staging remains at")
+      .hasMessageNotContaining("Backup remains at")
+      .hasCauseInstanceOf(IOException.class);
+    assertThat(Files.readAllBytes(destination.resolve("SKILL.md"))).isEqualTo(previousEntrypoint);
+    assertThat(Files.readAllBytes(destination.resolve("references/legacy.md"))).isEqualTo(previousReference);
+    assertThat(Files.readString(siblingSkill)).isEqualTo("sibling\n");
+    List<String> skillEntries;
+    try (Stream<Path> entries = Files.list(skillsDirectory)) {
+      skillEntries = entries.map(path -> path.getFileName().toString()).toList();
+    }
+    assertThat(skillEntries).anyMatch(name -> name.startsWith(".seed4j-cli-staging-"));
+    assertThat(skillEntries).noneMatch(name -> name.startsWith(".seed4j-cli-backup-"));
   }
 
   @Test
@@ -245,6 +312,33 @@ class AgentSkillInstallationTest {
   }
 
   @Test
+  void shouldKeepTheCommittedUpdateWithoutDiagnosingAnAlreadyRemovedBackup(@TempDir Path skillsDirectory) throws Exception {
+    Path destination = skillsDirectory.resolve("seed4j-cli");
+    Path siblingSkill = skillsDirectory.resolve("sibling-skill/SKILL.md");
+    Files.createDirectories(destination);
+    Files.writeString(destination.resolve("SKILL.md"), "previous skill\n");
+    Files.createDirectories(siblingSkill.getParent());
+    Files.writeString(siblingSkill, "sibling\n");
+    Map<Path, byte[]> bundledFiles = bundledFiles();
+    FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
+      scope -> destination,
+      () -> bundledFiles,
+      new DeleteThenFailingFileOperations()
+    );
+
+    assertThatThrownBy(() -> installer.install(AgentSkillInstallationScope.LOCAL))
+      .isInstanceOf(AgentSkillInstallationException.class)
+      .hasMessageContaining("The updated skill remains installed at %s".formatted(destination.toAbsolutePath().normalize()))
+      .hasMessageNotContaining("Backup remains at")
+      .hasCauseInstanceOf(IOException.class);
+    assertThat(Files.readAllBytes(destination.resolve("SKILL.md"))).isEqualTo(bundledFiles.get(Path.of("SKILL.md")));
+    assertThat(Files.readString(siblingSkill)).isEqualTo("sibling\n");
+    try (Stream<Path> skillsEntries = Files.list(skillsDirectory)) {
+      assertThat(skillsEntries.map(path -> path.getFileName().toString())).noneMatch(name -> name.startsWith(".seed4j-cli-"));
+    }
+  }
+
+  @Test
   void shouldReplaceAnOwnedDestinationSymlinkWithoutFollowingIt(@TempDir Path temporaryDirectory) throws Exception {
     Path skillsDirectory = temporaryDirectory.resolve("skills");
     Path externalSkill = temporaryDirectory.resolve("external-skill");
@@ -283,6 +377,14 @@ class AgentSkillInstallationTest {
     }
   }
 
+  private static final class TemporaryDirectoryFailingFileOperations extends NioAgentSkillFileOperations {
+
+    @Override
+    public Path createTemporaryDirectory(Path directory, String prefix) throws IOException {
+      throw new IOException("staging directory denied");
+    }
+  }
+
   private static final class MoveFailingFileOperations extends NioAgentSkillFileOperations {
 
     private final Set<Integer> failingMoves;
@@ -307,6 +409,34 @@ class AgentSkillInstallationTest {
     @Override
     public void delete(Path path) throws IOException {
       throw new IOException("cleanup denied");
+    }
+  }
+
+  private static final class DeleteThenFailingFileOperations extends NioAgentSkillFileOperations {
+
+    @Override
+    public void delete(Path path) throws IOException {
+      super.delete(path);
+      throw new IOException("cleanup failed after deletion");
+    }
+  }
+
+  private static final class PublicationAndStagingCleanupFailingFileOperations extends NioAgentSkillFileOperations {
+
+    private int moveCount;
+
+    @Override
+    public void move(Path source, Path destination) throws IOException {
+      moveCount++;
+      if (moveCount == 2) {
+        throw new IOException("publication denied");
+      }
+      super.move(source, destination);
+    }
+
+    @Override
+    public void delete(Path path) throws IOException {
+      throw new IOException("staging cleanup denied");
     }
   }
 }

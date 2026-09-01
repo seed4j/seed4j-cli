@@ -11,7 +11,8 @@ class AgentSkillInstallationConfiguration {
 
   @Bean
   AgentSkillInstaller agentSkillInstaller(JavaSeed4JCliHomeReader cliHomeReader) {
-    CurrentAgentSkillInstallationPathResolver pathResolver = new CurrentAgentSkillInstallationPathResolver(cliHomeReader, () ->
+    CurrentAgentSkillInstallationPathResolver pathResolver = new CurrentAgentSkillInstallationPathResolver(
+      cliHomeReader,
       Path.of("").toAbsolutePath().normalize()
     );
     return new FileSystemAgentSkillInstaller(pathResolver, new BaseJarAgentSkillResources(), new NioAgentSkillFileOperations());

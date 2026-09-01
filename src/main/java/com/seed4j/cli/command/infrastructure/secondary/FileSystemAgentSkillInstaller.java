@@ -59,12 +59,9 @@ class FileSystemAgentSkillInstaller implements AgentSkillInstaller {
     } catch (PostCommitCleanupException exception) {
       throw exception;
     } catch (IOException exception) {
-      Optional<Path> unrestoredBackup = recover(progress, exception);
-      String restorationDiagnostic = unrestoredBackup
-        .map(backup -> " Previous installation could not be restored. Backup remains at %s.".formatted(backup))
-        .orElse("");
+      RecoveryOutcome recovery = recover(progress, exception);
       throw new AgentSkillInstallationException(
-        "Could not install Seed4J CLI skill at %s.%s".formatted(destination, restorationDiagnostic),
+        "Could not install Seed4J CLI skill at %s.%s".formatted(destination, recovery.diagnostic()),
         exception
       );
     }
@@ -101,27 +98,52 @@ class FileSystemAgentSkillInstaller implements AgentSkillInstaller {
     }
   }
 
-  private Optional<Path> recover(PublicationProgress progress, IOException failure) {
-    Optional<Path> unrestoredBackup = Optional.empty();
+  private RecoveryOutcome recover(PublicationProgress progress, IOException failure) {
+    Optional<Path> unrestoredBackup = restorePreviousInstallation(progress, failure);
+    Optional<Path> residualStaging = cleanStaging(progress, failure);
+    return new RecoveryOutcome(unrestoredBackup, residualStaging);
+  }
+
+  private Optional<Path> restorePreviousInstallation(PublicationProgress progress, IOException failure) {
     Optional<Path> availableBackup = progress.backup().filter(fileOperations::exists);
-    if (availableBackup.isPresent()) {
-      Path backup = availableBackup.orElseThrow();
-      try {
-        fileOperations.move(backup, progress.destination());
-      } catch (IOException restorationFailure) {
-        failure.addSuppressed(restorationFailure);
-        unrestoredBackup = Optional.of(backup);
-      }
+    if (availableBackup.isEmpty()) {
+      return Optional.empty();
     }
+
+    Path backup = availableBackup.orElseThrow();
+    try {
+      fileOperations.move(backup, progress.destination());
+      return Optional.empty();
+    } catch (IOException restorationFailure) {
+      failure.addSuppressed(restorationFailure);
+      return Optional.of(backup);
+    }
+  }
+
+  private Optional<Path> cleanStaging(PublicationProgress progress, IOException failure) {
     Optional<Path> availableStaging = progress.staging().filter(fileOperations::exists);
-    if (availableStaging.isPresent()) {
-      try {
-        fileOperations.delete(availableStaging.orElseThrow());
-      } catch (IOException cleanupFailure) {
-        failure.addSuppressed(cleanupFailure);
-      }
+    if (availableStaging.isEmpty()) {
+      return Optional.empty();
     }
-    return unrestoredBackup;
+
+    Path staging = availableStaging.orElseThrow();
+    try {
+      fileOperations.delete(staging);
+      return Optional.empty();
+    } catch (IOException cleanupFailure) {
+      failure.addSuppressed(cleanupFailure);
+      return Optional.of(staging).filter(fileOperations::exists);
+    }
+  }
+
+  private record RecoveryOutcome(Optional<Path> unrestoredBackup, Optional<Path> residualStaging) {
+    private String diagnostic() {
+      String backupDiagnostic = unrestoredBackup
+        .map(backup -> " Previous installation could not be restored. Backup remains at %s.".formatted(backup))
+        .orElse("");
+      String stagingDiagnostic = residualStaging.map(staging -> " Staging remains at %s.".formatted(staging)).orElse("");
+      return backupDiagnostic + stagingDiagnostic;
+    }
   }
 
   private record PublicationProgress(Path destination, Optional<Path> staging, Optional<Path> backup) {
@@ -142,7 +164,7 @@ class FileSystemAgentSkillInstaller implements AgentSkillInstaller {
     }
 
     private Path requiredStaging() {
-      return staging.orElseThrow(() -> new IllegalStateException("Agent skill staging is not prepared."));
+      return staging.orElseThrow();
     }
   }
 

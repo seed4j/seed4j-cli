@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
-import java.security.CodeSource;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -35,12 +34,7 @@ class BaseJarAgentSkillResources implements BundledAgentSkillResources {
   }
 
   private static URL resource(Path relativePath) throws IOException {
-    CodeSource codeSource = Seed4JCliApp.class.getProtectionDomain().getCodeSource();
-    if (codeSource == null) {
-      throw new IOException("Could not locate the Seed4J CLI code source.");
-    }
-    String codeSourceRoot = codeSource.getLocation().toExternalForm();
-    String separator = codeSourceRoot.endsWith("/") ? "" : "/";
-    return URI.create(codeSourceRoot + separator + RESOURCE_ROOT + relativePath.toString().replace('\\', '/')).toURL();
+    String codeSourceRoot = Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toExternalForm();
+    return URI.create(codeSourceRoot + RESOURCE_ROOT + relativePath.toString().replace('\\', '/')).toURL();
   }
 }

@@ -10,20 +10,20 @@ class CurrentAgentSkillInstallationPathResolver implements AgentSkillInstallatio
   private static final Path SKILL_PATH = Path.of(".agents/skills/seed4j-cli");
 
   private final JavaSeed4JCliHomeReader cliHomeReader;
-  private final WorkingDirectoryReader workingDirectoryReader;
+  private final Path workingDirectory;
 
-  CurrentAgentSkillInstallationPathResolver(JavaSeed4JCliHomeReader cliHomeReader, WorkingDirectoryReader workingDirectoryReader) {
+  CurrentAgentSkillInstallationPathResolver(JavaSeed4JCliHomeReader cliHomeReader, Path workingDirectory) {
     Assert.notNull("cliHomeReader", cliHomeReader);
-    Assert.notNull("workingDirectoryReader", workingDirectoryReader);
+    Assert.notNull("workingDirectory", workingDirectory);
     this.cliHomeReader = cliHomeReader;
-    this.workingDirectoryReader = workingDirectoryReader;
+    this.workingDirectory = workingDirectory;
   }
 
   @Override
   public Path resolve(AgentSkillInstallationScope scope) {
     Assert.notNull("scope", scope);
     Path base = switch (scope) {
-      case LOCAL -> workingDirectoryReader.current();
+      case LOCAL -> workingDirectory;
       case GLOBAL -> cliHomeReader.path();
     };
     return base.resolve(SKILL_PATH).toAbsolutePath().normalize();

@@ -37,9 +37,6 @@ class NioAgentSkillFileOperations implements AgentSkillFileOperations {
 
   @Override
   public void delete(Path path) throws IOException {
-    if (!exists(path)) {
-      return;
-    }
     Files.walkFileTree(
       path,
       new SimpleFileVisitor<>() {
@@ -51,11 +48,9 @@ class NioAgentSkillFileOperations implements AgentSkillFileOperations {
 
         @Override
         public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
-          if (exception != null) {
-            throw exception;
-          }
+          FileVisitResult result = super.postVisitDirectory(directory, exception);
           Files.delete(directory);
-          return FileVisitResult.CONTINUE;
+          return result;
         }
       }
     );
