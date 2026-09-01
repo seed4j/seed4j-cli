@@ -23,7 +23,8 @@
     "prepare": "husky",
     "prettier:check": "prettier --check .",
     "prettier:format": "prettier --write .",
-    "test:npm-package": "node --test test/npm/*.test.js"
+    "test:npm-package": "node --test test/npm/*.test.js",
+    "test:npm-packed-skill": "node tests-ci/npm-packed-skill.js"
   },
   "devDependencies": {
     "@prettier/plugin-xml": "3.4.2",

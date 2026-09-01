@@ -31,6 +31,8 @@ jobs:
           distribution: 'temurin'
           java-version: 25
           cache: maven
+      - name: 'Setup: npm dependencies'
+        run: npm ci
       - name: 'Start local Sonar'
         run: |
           docker compose -f src/main/docker/sonar.yml up -d \
@@ -39,6 +41,11 @@ jobs:
       - name: 'Test: run tests'
         run: |
           ./mvnw --batch-mode -ntp clean verify
+      - name: 'Test: npm package and bundled skill'
+        run: |
+          npm run test:npm-package
+          npm run package:prepare
+          npm run test:npm-packed-skill
       - name: 'Analysis: local Sonar'
         run: |
           SONAR_TOKEN=$(docker logs sonar-token)

@@ -36,6 +36,7 @@ Build the Java package and prepare the npm package contents:
 ```bash
 ./mvnw --batch-mode -ntp clean package
 npm run package:prepare
+npm run test:npm-packed-skill
 ```
 
 The preparation step copies the Maven-built JAR to `dist/seed4j-cli.jar`, which is the JAR shipped by npm.

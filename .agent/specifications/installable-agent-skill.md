@@ -102,10 +102,22 @@ Before replacing an existing installation, the installer MUST prepare the comple
 the selected `skills` directory. A failure reported while reading or staging the bundle MUST leave the previous entry
 untouched.
 
-Publication MUST preserve or restore the previous entry if the replacement cannot complete. Temporary and backup entries
-MUST be cleaned after success and after a recoverable failure. The guarantee applies to failures observed and reported by
-the command; the specification does not claim crash consistency across process termination, operating-system failure, or
-storage loss.
+Publication is committed only when the complete staged tree occupies the owned destination. Before that commit point,
+any recoverable failure MUST restore the previous installation byte for byte and remove temporary and backup entries.
+This includes a failure after the previous entry was moved to a backup but before the staged tree fully occupies the
+destination.
+
+After commit, the installer MUST delete the previous-installation backup before reporting success. If that cleanup fails,
+the command MUST return exit code `1`, MUST NOT print a success line, and MUST diagnose that the updated skill remains
+installed. When a residual backup exists, the diagnostic MUST identify its path. The new complete tree and every sibling
+skill MUST remain untouched.
+
+Once deletion of the previous-installation backup has started, cleanup failure is not recoverable within that invocation:
+the installer MUST NOT roll the new destination back because the backup may already be partial. Such a failure may leave
+only installer-owned operational residue. Temporary and backup entries MUST otherwise be cleaned after success and after
+a recoverable failure. These guarantees apply to failures observed and reported by the command; the specification does
+not claim crash consistency across process termination, operating-system failure, concurrent installations, or storage
+loss.
 
 ## Bundling and version correspondence
 
@@ -361,6 +373,7 @@ Automated tests MUST validate observable behavior rather than constructor wiring
 | Reinstall over stale and modified content     | Stale files removed and owned files restored from the bundle; sibling skill preserved.                                  |
 | Staging failure                               | Exit `1`, no success output, and byte-equivalent previous installation preserved.                                       |
 | Publication failure with recoverable previous | Exit `1` and previous installation restored; sibling skills preserved.                                                  |
+| Backup cleanup failure after commit           | Exit `1`, no success output, complete updated tree preserved, sibling skills preserved, and residual backup diagnosed.  |
 | Installation side effects                     | No `.seed4j` history, Git initialization, commit, module application, or network dependency.                            |
 | Packaged JAR                                  | Real Spring Boot JAR contains the exact canonical skill resources and installs them offline.                            |
 | Packed npm artifact                           | Real tarball installs into an isolated prefix; its `seed4j` binary performs local and global skill installation.        |

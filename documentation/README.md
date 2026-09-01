@@ -8,6 +8,9 @@ Start at the repository [Quick Start](../README.md#quick-start), then use the [c
 
 For a concrete end-to-end outcome, follow the [project creation workflow](workflows.md#create-a-project-with-modules). To extend the CLI runtime, follow the [runtime extension workflow](workflows.md#create-and-install-a-runtime-extension) together with the normative [extension command reference](Commands.md#install-a-runtime-extension).
 
+Coding agents can optionally install the bundled [Seed4J CLI agent skill](Commands.md#install-the-agent-skill). Local
+installation is the recommended default because it scopes discovery to the project that selected Seed4J.
+
 ## Contribute or maintain
 
 Use the [contributor and maintainer guide](development.md) to prepare the toolchain, start the CLI locally, build and test the npm package, run opt-in mutation testing, and perform a release.
