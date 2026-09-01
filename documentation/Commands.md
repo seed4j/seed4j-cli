@@ -11,6 +11,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Apply a Module](#apply-a-module)
   - [Apply a Module Set](#apply-a-module-set)
   - [Bash Completion](#bash-completion)
+  - [Install the Agent Skill](#install-the-agent-skill)
   - [Install a Runtime Extension](#install-a-runtime-extension)
   - [Enable a Runtime Extension](#enable-a-runtime-extension)
   - [Disable a Runtime Extension](#disable-a-runtime-extension)
@@ -527,6 +528,61 @@ seed4j completion bash --no-complete-values --install
 Value completion is limited to explicit static candidates in CLI metadata, known module property values, and module default values. It does not complete filesystem paths, shell history values, project history values, or values inferred from `.seed4j`.
 
 The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
+
+### Install the Agent Skill
+
+The official Seed4J CLI agent skill is optional. Install it locally from the project directory by default:
+
+```bash
+seed4j skill install
+```
+
+This uses the process working directory exactly; it does not search for Git or Seed4J roots and does not accept
+`--project-path`. The destination is:
+
+```text
+<current-working-directory>/.agents/skills/seed4j-cli
+```
+
+Choose user-level discovery explicitly with:
+
+```bash
+seed4j skill install --global
+```
+
+The global destination is `<user-home>/.agents/skills/seed4j-cli`, using the CLI's configured home derived from
+`user.home`. Both result paths are absolute and lexically normalized.
+
+The first successful installation prints exactly:
+
+```text
+Installed Seed4J CLI skill at <absolute-normalized-path>.
+```
+
+When any filesystem entry already occupied the destination, a successful replacement prints:
+
+```text
+Updated Seed4J CLI skill at <absolute-normalized-path>.
+```
+
+An identical reinstall is still `Updated`. The CLI owns and replaces the complete `seed4j-cli` entry, including manual
+changes and stale files, while preserving sibling skills. A destination symbolic link is replaced without following it.
+The bundled files come from the same CLI JAR and require no download.
+
+| Exit code | Meaning                                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| `0`       | The complete bundled skill was installed or updated.                                                          |
+| `2`       | Picocli usage was invalid; installation was not attempted.                                                    |
+| `1`       | A resource, path, staging, publication, restoration, or cleanup operation failed; no success line is printed. |
+
+Updates stage the complete tree before replacing the owned destination. Failures before publication commits restore the
+previous installation when possible. If deletion of the previous backup fails after the new tree is committed, exit `1`
+reports that the updated skill remains installed and identifies any residual backup; the new tree is not rolled back.
+
+Codex workspace permissions may protect an existing `.agents` directory, so installation can require Full Access or an
+invocation outside the restricted sandbox. The installed skill also explains the separate Git-metadata permission needed
+for Seed4J's default commits. Missing Git permission is not a reason to add `--no-commit`; use that option only when the
+user explicitly requested no Git initialization or Seed4J commits.
 
 ### Install a Runtime Extension
 

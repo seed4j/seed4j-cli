@@ -82,10 +82,7 @@ jobs:
       - name: 'Test: packed npm package'
         run: |
           npm pack --dry-run
-          TARBALL="$(npm pack --silent)"
-          PREFIX="$(mktemp -d)"
-          npm install --global --prefix "$PREFIX" "./$TARBALL"
-          "$PREFIX/bin/seed4j" --version
+          npm run test:npm-packed-skill
 
       - name: 'Release: publish npm package'
         run: npm publish --provenance

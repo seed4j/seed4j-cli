@@ -198,3 +198,19 @@ Picocli ApplyModuleSetCommand
 
 This split makes the mutation boundary explicit: planning reads external state and returns facts; only execution invokes
 the mutating capability, and it does so using the same approved plan instance.
+
+### Agent-skill installation flow
+
+Agent-skill installation follows the primary → application → domain port → secondary dependency flow. The primary adapter
+maps CLI input to domain types and renders the result; the application service invokes the domain capability; the secondary
+adapter owns working-directory and CLI-home resolution, bundled-resource access, and filesystem operations.
+
+```text
+SkillInstallCommand (primary)
+  -> AgentSkillInstallApplicationService (application)
+    -> AgentSkillInstaller (domain port)
+      <- FileSystemAgentSkillInstaller (secondary)
+```
+
+The canonical transactional publication, recovery, cleanup, and symlink guarantees are defined in the
+[installable agent skill specification](../.agent/specifications/installable-agent-skill.md).
