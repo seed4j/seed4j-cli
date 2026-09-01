@@ -9,7 +9,9 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.stereotype.Component;
 
+@Component
 class BaseJarAgentSkillResources implements BundledAgentSkillResources {
 
   private static final Path APPLYING_MODULES = Path.of("references/applying-modules.md");

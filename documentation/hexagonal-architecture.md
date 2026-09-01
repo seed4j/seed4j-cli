@@ -201,27 +201,16 @@ the mutating capability, and it does so using the same approved plan instance.
 
 ### Agent-skill installation flow
 
-`SkillInstallCommand` owns Picocli syntax, maps the raw `--global` flag to `AgentSkillInstallationScope`, renders the
-typed result, and maps installation exceptions to exit code `1`. `AgentSkillInstallApplicationService` delegates only to
-the domain capability `AgentSkillInstaller`; application and domain code do not read paths, classpath resources, or the
-filesystem.
-
-`FileSystemAgentSkillInstaller` is the secondary implementation. Its location resolver reads the process working
-directory for local installation and consumes `JavaSeed4JCliHomeReader`, a bootstrap primary Java boundary, for the
-configured global home. `BaseJarAgentSkillResources` pins reads to the CLI class code source so extension `loader.path`
-resources cannot shadow the canonical skill. NIO staging, sibling backup, publication, restoration, and no-follow
-deletion remain secondary details.
+Agent-skill installation follows the primary → application → domain port → secondary dependency flow. The primary adapter
+maps CLI input to domain types and renders the result; the application service invokes the domain capability; the secondary
+adapter owns working-directory and CLI-home resolution, bundled-resource access, and filesystem operations.
 
 ```text
-Picocli SkillInstallCommand
-  -> AgentSkillInstallApplicationService
-    -> AgentSkillInstaller
-      <- FileSystemAgentSkillInstaller
-         -> CLI-code-source resources
-         -> working directory / JavaSeed4JCliHomeReader
-         -> NIO staging, publication, recovery, and cleanup
+SkillInstallCommand (primary)
+  -> AgentSkillInstallApplicationService (application)
+    -> AgentSkillInstaller (domain port)
+      <- FileSystemAgentSkillInstaller (secondary)
 ```
 
-Publication commits when the complete staged tree occupies the owned destination. Before that point, observed failures
-restore the previous entry when possible. After commit, backup cleanup failure preserves the new tree and reports any
-residual backup instead of attempting rollback from a potentially partial backup.
+The canonical transactional publication, recovery, cleanup, and symlink guarantees are defined in the
+[installable agent skill specification](../.agent/specifications/installable-agent-skill.md).

@@ -95,7 +95,7 @@ class AgentSkillContentAndScopeTest {
     AgentSkillInstallationFixture fixture = new AgentSkillInstallationFixture(skillsDirectory);
     CurrentAgentSkillInstallationPathResolver pathResolver = new CurrentAgentSkillInstallationPathResolver(
       new JavaSeed4JCliHomeReader(new Seed4JCliHome(userHome)),
-      workingDirectory
+      workingDirectory.toString()
     );
     FileSystemAgentSkillInstaller installer = new FileSystemAgentSkillInstaller(
       pathResolver,

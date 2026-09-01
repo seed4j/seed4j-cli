@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 @UnitTest
-class AgentSkillInstallationCliTest {
+class AgentSkillInstallationCliIT {
 
   @Test
   void shouldInstallTheSkillUnderTheProcessWorkingDirectory(@TempDir Path temporaryDirectory) throws IOException, InterruptedException {

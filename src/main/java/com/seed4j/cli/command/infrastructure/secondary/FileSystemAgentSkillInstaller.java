@@ -7,7 +7,9 @@ import com.seed4j.cli.command.domain.AgentSkillInstallationStatus;
 import com.seed4j.cli.command.domain.AgentSkillInstaller;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.nio.file.Path;
+import org.springframework.stereotype.Component;
 
+@Component
 class FileSystemAgentSkillInstaller implements AgentSkillInstaller {
 
   private final AgentSkillInstallationPathResolver installationPathResolver;
