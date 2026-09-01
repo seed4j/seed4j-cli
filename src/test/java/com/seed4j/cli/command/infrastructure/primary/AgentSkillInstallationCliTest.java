@@ -21,25 +21,29 @@ class AgentSkillInstallationCliTest {
 
   @Test
   void shouldInstallTheSkillUnderTheProcessWorkingDirectory(@TempDir Path temporaryDirectory) throws IOException, InterruptedException {
-    Path workingDirectory = temporaryDirectory.resolve("chosen-project");
-    Path userHome = temporaryDirectory.resolve("home");
-    Files.createDirectories(workingDirectory);
-    Files.createDirectories(userHome);
-    Path destination = workingDirectory.resolve(".agents/skills/seed4j-cli").toAbsolutePath().normalize();
+    IsolatedCliInvocation invocation = invokeSkillInstall(temporaryDirectory);
 
-    CliRunResult result = runSkillInstall(workingDirectory, userHome);
-
-    assertThat(result.finished()).isTrue();
-    assertThat(result.exitCode()).withFailMessage(result.output()).isZero();
-    assertThat(result.output()).contains("Installed Seed4J CLI skill at %s.".formatted(destination));
-    try (Stream<Path> installedFiles = Files.walk(destination)) {
-      assertThat(installedFiles.filter(Files::isRegularFile).map(destination::relativize)).containsExactlyInAnyOrder(
+    assertThat(invocation.result().finished()).isTrue();
+    assertThat(invocation.result().exitCode()).withFailMessage(invocation.result().output()).isZero();
+    assertThat(invocation.result().output()).contains("Installed Seed4J CLI skill at %s.".formatted(invocation.destination()));
+    try (Stream<Path> installedFiles = Files.walk(invocation.destination())) {
+      assertThat(installedFiles.filter(Files::isRegularFile).map(invocation.destination()::relativize)).containsExactlyInAnyOrder(
         Path.of("SKILL.md"),
         Path.of("references/applying-modules.md"),
         Path.of("references/module-set-planning.md")
       );
     }
-    assertThat(userHome.resolve(".agents")).doesNotExist();
+    assertThat(invocation.userHome().resolve(".agents")).doesNotExist();
+  }
+
+  private static IsolatedCliInvocation invokeSkillInstall(Path temporaryDirectory) throws IOException, InterruptedException {
+    Path workingDirectory = temporaryDirectory.resolve("chosen-project");
+    Path userHome = temporaryDirectory.resolve("home");
+    Files.createDirectories(workingDirectory);
+    Files.createDirectories(userHome);
+    Path destination = workingDirectory.resolve(".agents/skills/seed4j-cli").toAbsolutePath().normalize();
+    CliRunResult result = runSkillInstall(workingDirectory, userHome);
+    return new IsolatedCliInvocation(userHome, destination, result);
   }
 
   private static CliRunResult runSkillInstall(Path workingDirectory, Path userHome) throws IOException, InterruptedException {
@@ -79,4 +83,6 @@ class AgentSkillInstallationCliTest {
   }
 
   private record CliRunResult(boolean finished, int exitCode, String output) {}
+
+  private record IsolatedCliInvocation(Path userHome, Path destination, CliRunResult result) {}
 }
