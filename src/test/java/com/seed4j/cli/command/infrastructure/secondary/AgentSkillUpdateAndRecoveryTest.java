@@ -71,6 +71,7 @@ class AgentSkillUpdateAndRecoveryTest {
 
     assertThatThrownBy(() -> installer.install(AgentSkillInstallationScope.LOCAL))
       .isExactlyInstanceOf(AgentSkillInstallationException.class)
+      .hasMessage("Could not install Seed4J CLI skill at %s.".formatted(fixture.destination().toAbsolutePath().normalize()))
       .hasCauseInstanceOf(IOException.class);
     assertThat(fixture.destinationFileSnapshot()).isEqualTo(fixture.previousTextFileSnapshot());
     assertThat(Files.readString(fixture.siblingSkill())).isEqualTo("sibling\n");

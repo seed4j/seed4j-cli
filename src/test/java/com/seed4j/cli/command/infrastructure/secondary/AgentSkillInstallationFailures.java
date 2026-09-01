@@ -16,6 +16,22 @@ final class AgentSkillInstallationFailures {
     return new TemporaryDirectoryFailingFileOperations();
   }
 
+  static AgentSkillFileOperations firstInstallationPublication() {
+    return new MoveFailingFileOperations(Set.of(1));
+  }
+
+  static AgentSkillFileOperations previousInstallationBackup() {
+    return new MoveFailingFileOperations(Set.of(1));
+  }
+
+  static AgentSkillFileOperations stagingDisappearsDuringFirstInstallationPublication() {
+    return new StagingDisappearingPublicationFileOperations();
+  }
+
+  static AgentSkillFileOperations backupDisappearsDuringUpdatePublication(Path destination) {
+    return new BackupDisappearingUpdatePublicationFileOperations(destination);
+  }
+
   static AgentSkillFileOperations publication() {
     return new MoveFailingFileOperations(Set.of(2));
   }
@@ -68,6 +84,40 @@ final class AgentSkillInstallationFailures {
         throw new IOException("move denied");
       }
       super.move(source, destination);
+    }
+  }
+
+  private static final class StagingDisappearingPublicationFileOperations extends NioAgentSkillFileOperations {
+
+    @Override
+    public void move(Path source, Path destination) throws IOException {
+      super.delete(source);
+      throw new IOException("publication failed after staging disappeared");
+    }
+  }
+
+  private static final class BackupDisappearingUpdatePublicationFileOperations extends NioAgentSkillFileOperations {
+
+    private final Path installedSkill;
+    private Path backup;
+
+    private BackupDisappearingUpdatePublicationFileOperations(Path installedSkill) {
+      this.installedSkill = installedSkill;
+    }
+
+    @Override
+    public void move(Path source, Path destination) throws IOException {
+      if (source.equals(installedSkill)) {
+        super.move(source, destination);
+        backup = destination;
+        return;
+      }
+      if (source.equals(backup)) {
+        super.move(source, destination);
+        return;
+      }
+      super.delete(backup);
+      throw new IOException("publication failed after backup disappeared");
     }
   }
 
