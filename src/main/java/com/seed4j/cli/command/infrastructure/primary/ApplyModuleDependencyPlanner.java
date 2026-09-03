@@ -1,12 +1,11 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JSlug;
 import com.seed4j.module.domain.landscape.Seed4JLandscape;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
-import com.seed4j.project.domain.ModuleSlug;
-import com.seed4j.project.domain.history.ProjectAction;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,28 +19,15 @@ import java.util.stream.Collectors;
 
 class ApplyModuleDependencyPlanner {
 
-  ApplyModuleDependencyPlan plan(
-    Seed4JModuleResource module,
-    Seed4JModulesResources resources,
-    Seed4JLandscape landscape,
-    ProjectHistory history
-  ) {
-    DependencyPlanningContext context = DependencyPlanningContext.from(resources, history);
+  ApplyModuleDependencyPlan plan(Seed4JModuleResource module, Seed4JModulesApplicationService modules, ProjectHistory history) {
+    DependencyPlanningContext context = DependencyPlanningContext.from(modules.resources(), history);
     DependencyDiscoveryProgress progress = discoverDependencies(module, context, DependencyDiscoveryProgress.empty());
-    List<ApplyModuleDependencyPlanLine> lines = orderedDependencies(progress.dependencies(), landscape)
+    List<ApplyModuleDependencyPlanLine> lines = orderedDependencies(progress.dependencies(), modules.landscape())
       .stream()
       .map(dependency -> toPlanLine(dependency, context))
       .toList();
 
     return new ApplyModuleDependencyPlan(lines);
-  }
-
-  private static Set<String> appliedModules(ProjectHistory history) {
-    return history.actions().stream().map(ProjectAction::module).map(ModuleSlug::get).collect(Collectors.toUnmodifiableSet());
-  }
-
-  private static Comparator<Seed4JModuleResource> byModuleSlug() {
-    return Comparator.comparing(module -> module.slug().get());
   }
 
   private static DependencyDiscoveryProgress discoverDependencies(
@@ -171,8 +157,16 @@ class ApplyModuleDependencyPlanner {
       return new DependencyPlanningContext(
         visibleModules.stream().collect(Collectors.toMap(resource -> resource.slug().get(), Function.identity())),
         visibleModules,
-        ApplyModuleDependencyPlanner.appliedModules(history)
+        history
+          .actions()
+          .stream()
+          .map(action -> action.module().get())
+          .collect(Collectors.toUnmodifiableSet())
       );
+    }
+
+    private static Comparator<Seed4JModuleResource> byModuleSlug() {
+      return Comparator.comparing(module -> module.slug().get());
     }
 
     private Optional<Seed4JModuleResource> module(String slug) {
