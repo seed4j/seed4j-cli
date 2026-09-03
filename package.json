@@ -1,6 +1,6 @@
 {
   "name": "seed4j-cli",
-  "version": "0.0.4-SNAPSHOT",
+  "version": "0.0.4",
   "private": false,
   "description": "Seed4J CLI",
   "repository": {
