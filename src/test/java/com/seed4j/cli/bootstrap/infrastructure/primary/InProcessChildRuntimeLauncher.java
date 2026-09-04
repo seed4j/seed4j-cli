@@ -94,7 +94,8 @@ final class InProcessChildRuntimeLauncher implements ChildRuntimeLauncher {
   ) {
     Thread currentThread = Thread.currentThread();
     ClassLoader originalContextClassLoader = currentThread.getContextClassLoader();
-    try (ScopedRuntimeProperties _ = ScopedRuntimeProperties.capture(systemProperties.keySet())) {
+    ScopedRuntimeProperties runtimeProperties = ScopedRuntimeProperties.capture(systemProperties.keySet());
+    try (runtimeProperties) {
       currentThread.setContextClassLoader(childRuntimeClassLoader);
       systemProperties.forEach(System::setProperty);
       return localCliRunner.run(request.arguments());

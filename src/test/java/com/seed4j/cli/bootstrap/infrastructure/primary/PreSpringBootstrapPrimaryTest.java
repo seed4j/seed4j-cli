@@ -310,7 +310,8 @@ class PreSpringBootstrapPrimaryTest {
       Path userHome = Files.createTempDirectory("seed4j-cli-invalid-extension-primary-");
       ExtensionRuntimeFixture.installWithFlatJar(userHome);
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         CliLaunchResult versionLaunch = launchCapturingOutput(InProcessChildRuntimeLauncher.runner(userHome), "--version");
 
         assertThat(versionLaunch.exitCode()).isNotZero();
@@ -361,7 +362,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldExecuteVersionCommandInExtensionMode() throws IOException {
       ExtensionCatalogFixture fixture = ExtensionCatalogFixture.withExtension();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         CliLaunchResult versionLaunch = fixture.launch("--version");
 
         assertThat(versionLaunch.exitCode()).isZero();
@@ -377,7 +379,8 @@ class PreSpringBootstrapPrimaryTest {
 
     @Test
     void shouldKeepStandardCatalogAndAddOnlyTheExtensionOnlySlug() throws IOException {
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         Comparison catalogs = ExtensionCatalogFixture.compareStandardWithListExtensionCatalogs();
 
         assertThat(catalogs.exitCodes()).containsExactly(0, 0);
@@ -395,7 +398,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldCompleteExtensionOnlySlugInExtensionMode() throws IOException {
       ExtensionCatalogFixture fixture = ExtensionCatalogFixture.withListExtension();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         CliLaunchResult completionLaunch = fixture.launch("completion", "bash");
 
         assertThat(completionLaunch.exitCode()).isZero();
@@ -410,7 +414,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldListCustomPackageExtensionOnlySlug() throws IOException {
       ExtensionCatalogFixture fixture = ExtensionCatalogFixture.withCustomPackageListExtension();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         CliLaunchResult listLaunch = fixture.launch("list");
 
         assertThat(listLaunch.exitCode()).isZero();
@@ -425,7 +430,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldKeepCoreModulesVisibleWhenExtensionPublishesHiddenResourceOverrides() throws IOException {
       ExtensionCatalogFixture fixture = ExtensionCatalogFixture.withHiddenResourceOverrides();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         CliLaunchResult listLaunch = fixture.launch("list");
 
         assertThat(listLaunch.exitCode()).isZero();
@@ -440,7 +446,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldKeepOperationalOutputCleanWhenExtensionPublishesLoggingOverrides() throws IOException {
       ExtensionCatalogFixture fixture = ExtensionCatalogFixture.withRegressionOverrides();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         VersionAndListLaunch launches = fixture.launchVersionAndList();
 
         assertThat(launches.exitCodes()).containsExactly(0, 0);
@@ -465,7 +472,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldApplyExtensionModuleUsingSharedRuntimeResources() throws IOException {
       SharedRuntimeApplyScenario scenario = SharedRuntimeApplyScenario.create();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         SharedRuntimeApplyResults results = scenario.execute();
 
         assertThat(results.exitCodes()).containsExactly(0, 0);
@@ -481,7 +489,8 @@ class PreSpringBootstrapPrimaryTest {
     void shouldOverrideCorePrettierDependencyVersionsOnlyInExtensionMode() throws IOException {
       PrettierOverrideScenario scenario = PrettierOverrideScenario.create();
 
-      try (ScopedRuntimeProperties _ = baselineRuntimeProperties()) {
+      ScopedRuntimeProperties runtimeProperties = baselineRuntimeProperties();
+      try (runtimeProperties) {
         PrettierOverrideResults results = scenario.execute();
 
         assertThat(results.exitCodes()).containsExactly(0, 0, 0, 0);
@@ -529,10 +538,6 @@ class PreSpringBootstrapPrimaryTest {
           "--no-commit"
         );
         return new SharedRuntimeApplyResults(initResult, extensionModuleApplyResult);
-      }
-
-      private Path projectPath() {
-        return projectPath;
       }
 
       private String packageJsonContent() throws IOException {

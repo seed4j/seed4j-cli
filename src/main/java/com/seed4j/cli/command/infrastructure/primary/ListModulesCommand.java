@@ -161,20 +161,20 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       current = chunks.getLast();
     }
 
+    private static List<String> hardWrapToken(String token, int width) {
+      List<String> chunks = new ArrayList<>();
+      for (int start = 0; start < token.length(); start += width) {
+        int end = Math.min(start + width, token.length());
+        chunks.add(token.substring(start, end));
+      }
+
+      return chunks;
+    }
+
     private List<String> finish() {
       completed.add(current);
       return completed;
     }
-  }
-
-  private static List<String> hardWrapToken(String token, int width) {
-    List<String> chunks = new ArrayList<>();
-    for (int start = 0; start < token.length(); start += width) {
-      int end = Math.min(start + width, token.length());
-      chunks.add(token.substring(start, end));
-    }
-
-    return chunks;
   }
 
   private static String padRight(String value, int width) {
