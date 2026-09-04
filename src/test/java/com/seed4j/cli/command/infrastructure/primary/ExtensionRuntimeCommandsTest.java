@@ -1,30 +1,36 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.seed4j.cli.IntegrationTest;
+import com.seed4j.cli.command.infrastructure.primary.ExtensionRuntimeCommandsFixture.ActiveRuntimeArtifacts;
+import com.seed4j.cli.command.infrastructure.primary.ExtensionRuntimeCommandsFixture.ExtensionRuntimePaths;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.List;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import picocli.CommandLine;
 
-abstract class ExtensionRuntimeCommandsTest {
+@ExtendWith(OutputCaptureExtension.class)
+@Execution(ExecutionMode.SAME_THREAD)
+@IntegrationTest
+class ExtensionRuntimeCommandsTest {
 
-  protected static final String DISTRIBUTION_ID = "company-extension";
-  protected static final String DISTRIBUTION_VERSION = "1.0.0";
-  protected static final Path USER_HOME = temporaryDirectory();
+  private static final Path USER_HOME = ExtensionRuntimeCommandsFixture.temporaryUserHome();
 
   @Autowired
   private Seed4JCommandsFactory commandsFactory;
+
+  private ExtensionRuntimeCommandsFixture fixture;
 
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
@@ -32,120 +38,145 @@ abstract class ExtensionRuntimeCommandsTest {
   }
 
   @BeforeEach
-  void cleanUserHomeConfiguration() throws IOException {
-    deleteRecursively(USER_HOME.resolve(".config/seed4j-cli"));
+  void prepareFixture() throws IOException {
+    fixture = new ExtensionRuntimeCommandsFixture(USER_HOME, commandsFactory);
+    fixture.cleanUserHomeConfiguration();
   }
 
-  private static void deleteRecursively(Path path) throws IOException {
-    if (Files.notExists(path)) {
-      return;
+  @Nested
+  class Install {
+
+    @Test
+    void shouldInstallExtensionRuntime(CapturedOutput output) throws IOException {
+      Path extensionJarPath = fixture.createFatJar(USER_HOME.resolve("company-extension.jar"));
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+
+      int exitCode = fixture.commandLine().execute(fixture.installArguments(extensionJarPath));
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut())
+        .contains("Extension runtime installed successfully.")
+        .containsSubsequence("Validate installation with:", "  seed4j --version", "  seed4j list")
+        .doesNotContain("Replaced active runtime extension.");
+      assertThat(Files.readString(runtimePaths.configPath())).contains("mode: extension");
+      assertThat(Files.readAllBytes(runtimePaths.runtimeJarPath())).isEqualTo(Files.readAllBytes(extensionJarPath));
+      assertThat(runtimePaths.metadataPath()).exists();
+      assertThat(Files.readString(runtimePaths.metadataPath())).contains("id: company-extension").contains("version: 1.0.0");
     }
 
-    try (Stream<Path> paths = Files.walk(path)) {
-      for (Path currentPath : paths.sorted(Comparator.reverseOrder()).toList()) {
-        Files.delete(currentPath);
-      }
-    }
-  }
+    @Test
+    void shouldReplaceActiveExtensionRuntime(CapturedOutput output) throws IOException {
+      Path extensionJarPath = fixture.createFatJarWithClass(
+        USER_HOME.resolve("company-extension.jar"),
+        "BOOT-INF/classes/com/company/New.class",
+        new byte[] { 2, 3 }
+      );
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      Files.createDirectories(runtimePaths.runtimeJarPath().getParent());
+      fixture.createFatJarWithClass(runtimePaths.runtimeJarPath(), "BOOT-INF/classes/com/company/Legacy.class", new byte[] { 1 });
+      fixture.writeRuntimeMetadata(runtimePaths.metadataPath(), "legacy-extension", "0.9.0");
 
-  protected CommandLine commandLine() {
-    return new CommandLine(commandsFactory.buildCommandSpec());
-  }
+      int exitCode = fixture.commandLine().execute(fixture.installArguments(extensionJarPath));
 
-  protected String[] installArguments(Path extensionJarPath) {
-    return new String[] {
-      "extension",
-      "install",
-      extensionJarPath.toString(),
-      "--distribution-id",
-      DISTRIBUTION_ID,
-      "--distribution-version",
-      DISTRIBUTION_VERSION,
-    };
-  }
-
-  protected ExtensionRuntimePaths runtimePaths() {
-    Path runtimeDirectory = USER_HOME.resolve(".config/seed4j-cli/runtime/active");
-    return new ExtensionRuntimePaths(
-      USER_HOME.resolve(".config/seed4j-cli/config.yml"),
-      runtimeDirectory.resolve("extension.jar"),
-      runtimeDirectory.resolve("metadata.yml")
-    );
-  }
-
-  protected ActiveRuntimeArtifacts installActiveRuntime(ExtensionRuntimePaths runtimePaths) throws IOException {
-    Files.createDirectories(runtimePaths.runtimeJarPath().getParent());
-    createFatJar(runtimePaths.runtimeJarPath());
-    writeRuntimeMetadata(runtimePaths.metadataPath(), DISTRIBUTION_ID, DISTRIBUTION_VERSION);
-    return new ActiveRuntimeArtifacts(Files.readAllBytes(runtimePaths.runtimeJarPath()), Files.readString(runtimePaths.metadataPath()));
-  }
-
-  protected void installRuntimeWithoutMetadata(ExtensionRuntimePaths runtimePaths) throws IOException {
-    Files.createDirectories(runtimePaths.runtimeJarPath().getParent());
-    createFatJar(runtimePaths.runtimeJarPath());
-  }
-
-  protected String writeRuntimeMode(Path configPath, String mode) throws IOException {
-    Files.createDirectories(configPath.getParent());
-    String config = """
-    seed4j:
-      runtime:
-        mode: %s
-    """.formatted(mode);
-    Files.writeString(configPath, config);
-    return config;
-  }
-
-  protected void writeRuntimeMetadata(Path metadataPath, String distributionId, String distributionVersion) throws IOException {
-    Files.writeString(
-      metadataPath,
-      """
-      distribution:
-        id: %s
-        version: %s
-      """.formatted(distributionId, distributionVersion)
-    );
-  }
-
-  protected Path createFatJar(Path jarPath) throws IOException {
-    return writeFatJar(jarPath, List.of());
-  }
-
-  private Path writeFatJar(Path jarPath, List<TestJarEntry> additionalEntries) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      writeJarEntry(jarOutputStream, new TestJarEntry("BOOT-INF/", new byte[] {}));
-      writeJarEntry(jarOutputStream, new TestJarEntry("BOOT-INF/classes/", new byte[] {}));
-      for (TestJarEntry additionalEntry : additionalEntries) {
-        writeJarEntry(jarOutputStream, additionalEntry);
-      }
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut()).contains("Replaced active runtime extension.").contains("Extension runtime installed successfully.");
+      assertThat(Files.readAllBytes(runtimePaths.runtimeJarPath())).isEqualTo(Files.readAllBytes(extensionJarPath));
+      assertThat(Files.readString(runtimePaths.metadataPath())).contains("id: company-extension").contains("version: 1.0.0");
     }
 
-    return jarPath;
-  }
+    @Test
+    void shouldReturnNonZeroAndShowObjectiveErrorWhenRuntimeConfigIsInvalid(CapturedOutput output) throws IOException {
+      Path extensionJarPath = fixture.createFatJar(USER_HOME.resolve("company-extension.jar"));
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      fixture.writeRuntimeMode(runtimePaths.configPath(), "42");
 
-  private void writeJarEntry(JarOutputStream jarOutputStream, TestJarEntry entry) throws IOException {
-    jarOutputStream.putNextEntry(new JarEntry(entry.name()));
-    jarOutputStream.write(entry.content());
-    jarOutputStream.closeEntry();
-  }
+      int exitCode = fixture.commandLine().execute(fixture.installArguments(extensionJarPath));
 
-  protected Path createFatJarWithClass(Path jarPath, String entryName, byte[] entryContent) throws IOException {
-    return writeFatJar(jarPath, List.of(new TestJarEntry(entryName, entryContent)));
-  }
-
-  private static Path temporaryDirectory() {
-    try {
-      return Files.createTempDirectory("seed4j-cli-spring-context-");
-    } catch (IOException exception) {
-      throw new UncheckedIOException(exception);
+      assertThat(exitCode).isNotZero();
+      assertThat(output.getErr()).contains("Invalid ~/.config/seed4j-cli/config.yml").contains("seed4j.runtime.mode must be a string");
+      assertThat(output.getOut()).doesNotContain("Extension runtime installed successfully.");
     }
   }
 
-  protected record ExtensionRuntimePaths(Path configPath, Path runtimeJarPath, Path metadataPath) {}
+  @Nested
+  class Enable {
 
-  protected record ActiveRuntimeArtifacts(byte[] jarContent, String metadataContent) {}
+    @Test
+    void shouldEnableExtensionRuntime(CapturedOutput output) throws IOException {
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      fixture.writeRuntimeMode(runtimePaths.configPath(), "standard");
+      fixture.installActiveRuntime(runtimePaths);
 
-  private record TestJarEntry(String name, byte[] content) {}
+      int exitCode = fixture.commandLine().execute("extension", "enable");
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut())
+        .contains("Extension runtime enabled successfully.")
+        .contains("Config: " + runtimePaths.configPath());
+      assertThat(Files.readString(runtimePaths.configPath())).contains("mode: extension");
+    }
+
+    @Test
+    void shouldReturnNonZeroAndNotChangeConfigWhenEnablingInvalidExtensionRuntime(CapturedOutput output) throws IOException {
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      String originalConfig = fixture.writeRuntimeMode(runtimePaths.configPath(), "standard");
+      fixture.installRuntimeWithoutMetadata(runtimePaths);
+
+      int exitCode = fixture.commandLine().execute("extension", "enable");
+
+      assertThat(exitCode).isNotZero();
+      assertThat(output.getErr()).contains("Invalid runtime metadata file");
+      assertThat(output.getOut()).doesNotContain("Extension runtime enabled successfully.");
+      assertThat(Files.readString(runtimePaths.configPath())).isEqualTo(originalConfig);
+    }
+  }
+
+  @Nested
+  class Disable {
+
+    @Test
+    void shouldDisableExtensionRuntimeAndPreserveArtifacts(CapturedOutput output) throws IOException {
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      ActiveRuntimeArtifacts activeRuntimeArtifacts = fixture.installActiveRuntime(runtimePaths);
+
+      int exitCode = fixture.commandLine().execute("extension", "disable");
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut())
+        .contains("Extension runtime disabled successfully.")
+        .contains("Config: " + runtimePaths.configPath());
+      assertThat(Files.readString(runtimePaths.configPath())).contains("mode: standard");
+      assertThat(Files.readAllBytes(runtimePaths.runtimeJarPath())).isEqualTo(activeRuntimeArtifacts.jarContent());
+      assertThat(Files.readString(runtimePaths.metadataPath())).isEqualTo(activeRuntimeArtifacts.metadataContent());
+    }
+
+    @Test
+    void shouldReturnNonZeroAndPreserveInvalidConfigWhenDisabling(CapturedOutput output) throws IOException {
+      ExtensionRuntimePaths runtimePaths = fixture.runtimePaths();
+      Files.createDirectories(runtimePaths.configPath().getParent());
+      Files.writeString(runtimePaths.configPath(), "seed4j: [broken");
+
+      int exitCode = fixture.commandLine().execute("extension", "disable");
+
+      assertThat(exitCode).isNotZero();
+      assertThat(output.getErr()).contains("Could not read ~/.config/seed4j-cli/config.yml.").contains("Details:");
+      assertThat(output.getOut()).doesNotContain("Extension runtime disabled successfully.");
+      assertThat(Files.readString(runtimePaths.configPath())).isEqualTo("seed4j: [broken");
+    }
+  }
+
+  @Nested
+  class Version {
+
+    @Test
+    void shouldShowStandardRuntimeInVersionOutput(CapturedOutput output) {
+      int exitCode = fixture.commandLine().execute("--version");
+
+      assertThat(exitCode).isZero();
+      assertThat(output.getOut())
+        .contains("Runtime mode: standard")
+        .doesNotContain("Distribution ID")
+        .doesNotContain("Distribution version");
+    }
+  }
 }
