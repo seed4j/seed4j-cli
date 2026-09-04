@@ -88,6 +88,24 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
   }
 
   @Test
+  void shouldIgnoreMissingCommandJarInFavorOfValidClasspathJar() throws IOException {
+    Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
+    Path codeSourcePath = Files.createDirectories(workingDirectory.resolve("classes"));
+    Path missingCommandJarPath = workingDirectory.resolve("missing-seed4j-cli.jar");
+    Path classpathJarPath = workingDirectory.resolve("classpath-seed4j-cli.jar");
+    Files.writeString(classpathJarPath, "jar");
+
+    Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
+      codeSourcePath,
+      missingCommandJarPath + " --version",
+      classpathJarPath.toString(),
+      workingDirectory
+    );
+
+    assertThat(executablePath).isEqualTo(classpathJarPath);
+  }
+
+  @Test
   void shouldResolveExecutableJarPathFromRelativeJavaCommandUsingCurrentWorkingDirectory() throws IOException {
     Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
     Path codeSourcePath = workingDirectory.resolve("classes");
@@ -109,11 +127,13 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
   void shouldKeepCodeSourcePathWhenCodeSourceIsARegularJar() throws IOException {
     Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
     Path codeSourceJarPath = workingDirectory.resolve("seed4j-cli.jar");
+    Path commandJarPath = workingDirectory.resolve("other-seed4j-cli.jar");
     Files.writeString(codeSourceJarPath, "jar");
+    Files.writeString(commandJarPath, "other jar");
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourceJarPath,
-      "org.springframework.boot.loader.launch.PropertiesLauncher --version",
+      commandJarPath + " --version",
       "",
       workingDirectory
     );
@@ -122,15 +142,18 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
   }
 
   @Test
-  void shouldFallbackToCodeSourcePathWhenJavaCommandAndClasspathAreBlank() throws IOException {
+  void shouldFallbackToCodeSourcePathWhenNoExecutableCandidateIsValid() throws IOException {
     Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
     Path codeSourcePath = workingDirectory.resolve("classes.bin");
+    Path commandNonJarPath = workingDirectory.resolve("seed4j-cli");
+    Path classpathJarPath = workingDirectory.resolve("missing-seed4j-cli.jar");
     Files.writeString(codeSourcePath, "classes");
+    Files.writeString(commandNonJarPath, "not a jar");
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      "   ",
-      "   ",
+      commandNonJarPath + " --version",
+      classpathJarPath.toString(),
       workingDirectory
     );
 
