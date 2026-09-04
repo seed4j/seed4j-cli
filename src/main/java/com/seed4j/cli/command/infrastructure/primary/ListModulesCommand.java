@@ -188,11 +188,9 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
     private List<String> hardWrapToken(String token, int width) {
       List<String> chunks = new ArrayList<>();
-      int start = 0;
-      while (start < token.length()) {
+      for (int start = 0; start < token.length(); start += width) {
         int end = Math.min(start + width, token.length());
         chunks.add(token.substring(start, end));
-        start = end;
       }
 
       return chunks;
