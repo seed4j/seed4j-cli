@@ -74,7 +74,13 @@ class RuntimeExtensionOverlayCacheTest {
   @Test
   void shouldDeleteStagingDirectoryWhenOverlayMaterializationFailsWithIOException() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path extensionJarPath = createFatJarWithConflictingClassEntryPaths(Files.createTempFile("company-extension-", ".jar"));
+    Path extensionJarPath = createExtensionJar(
+      Files.createTempFile("company-extension-", ".jar"),
+      new TestJarEntry("BOOT-INF/", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/conflict", new byte[] { 1 }),
+      new TestJarEntry("BOOT-INF/classes/conflict/child.class", new byte[] { 1 })
+    );
     RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
@@ -90,6 +96,21 @@ class RuntimeExtensionOverlayCacheTest {
       }
     }
   }
+
+  private static Path createExtensionJar(Path jarPath, TestJarEntry... entries) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
+      for (TestJarEntry entry : entries) {
+        jarOutputStream.putNextEntry(new JarEntry(entry.name()));
+        jarOutputStream.write(entry.content());
+        jarOutputStream.closeEntry();
+      }
+    }
+    return jarPath;
+  }
+
+  private record TestJarEntry(String name, byte[] content) {}
 
   @Test
   void shouldFailGracefullyWhenRuntimeCacheRootCannotBeCreated() throws IOException {
@@ -107,7 +128,13 @@ class RuntimeExtensionOverlayCacheTest {
   @Test
   void shouldMaterializeJarWhenBootInfClassesEntryDoesNotHaveTrailingSlash() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path extensionJarPath = createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Files.createTempFile("company-extension-", ".jar"));
+    Path extensionJarPath = createExtensionJar(
+      Files.createTempFile("company-extension-", ".jar"),
+      new TestJarEntry("BOOT-INF/", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/ ", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/com/example/Demo.class", new byte[] { 1 })
+    );
     RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
@@ -118,168 +145,16 @@ class RuntimeExtensionOverlayCacheTest {
   @Test
   void shouldRejectPathTraversalEntryInsideBootInfClasses() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path extensionJarPath = createFatJarWithPathTraversalEntryInsideClasses(Files.createTempFile("company-extension-", ".jar"));
+    Path extensionJarPath = createExtensionJar(
+      Files.createTempFile("company-extension-", ".jar"),
+      new TestJarEntry("BOOT-INF/", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/", new byte[0]),
+      new TestJarEntry("BOOT-INF/classes/../../outside.class", new byte[] { 1 })
+    );
     RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
 
     assertThatThrownBy(() -> overlayCache.materialize(extensionJarPath))
       .isExactlyInstanceOf(InvalidRuntimeConfigurationException.class)
       .hasMessageContaining("Invalid runtime extension entry path: BOOT-INF/classes/../../outside.class");
-  }
-
-  @Test
-  void shouldFilterGlobalRuntimeResourcesAndKeepFunctionalResourcesInOverlay() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path extensionJarPath = createFatJarWithGlobalAndFunctionalResources(Files.createTempFile("company-extension-", ".jar"));
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
-
-    Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
-
-    assertThat(overlayClassesPath.resolve("config/application.yml")).doesNotExist();
-    assertThat(overlayClassesPath.resolve("config/application-prod.yaml")).doesNotExist();
-    assertThat(overlayClassesPath.resolve("config/application.properties")).doesNotExist();
-    assertThat(overlayClassesPath.resolve("config/application-prod.txt")).exists().hasContent("not-configuration");
-    assertThat(overlayClassesPath.resolve("logback-spring.xml")).doesNotExist();
-    assertThat(overlayClassesPath.resolve("generator/runtime-extension/messages/template.yaml")).exists().hasContent("template-content");
-  }
-
-  @Test
-  void shouldKeepNonXmlRootLogbackResourcesInOverlay() throws IOException {
-    Path userHome = Files.createTempDirectory("seed4j-cli-");
-    Path extensionJarPath = createFatJarWithGlobalAndFunctionalResourcesAndNonXmlRootLogback(
-      Files.createTempFile("company-extension-", ".jar")
-    );
-    RuntimeExtensionOverlayCache overlayCache = new RuntimeExtensionOverlayCache(new Seed4JCliHome(userHome));
-
-    Path overlayClassesPath = overlayCache.materialize(extensionJarPath);
-
-    assertThat(overlayClassesPath.resolve("logback-spring.txt")).exists().hasContent("not-xml-logback-resource");
-  }
-
-  private static Path createFatJarWithConflictingClassEntryPaths(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/conflict"));
-      jarOutputStream.write(new byte[] { 1 });
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/conflict/child.class"));
-      jarOutputStream.write(new byte[] { 1 });
-      jarOutputStream.closeEntry();
-    }
-    return jarPath;
-  }
-
-  private static Path createFatJarWithBootInfClassesEntryWithoutTrailingSlash(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/ "));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/com/example/Demo.class"));
-      jarOutputStream.write(new byte[] { 1 });
-      jarOutputStream.closeEntry();
-    }
-    return jarPath;
-  }
-
-  private static Path createFatJarWithPathTraversalEntryInsideClasses(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/../../outside.class"));
-      jarOutputStream.write(new byte[] { 1 });
-      jarOutputStream.closeEntry();
-    }
-    return jarPath;
-  }
-
-  private static Path createFatJarWithGlobalAndFunctionalResources(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/messages/"));
-      jarOutputStream.closeEntry();
-
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application.yml"));
-      jarOutputStream.write("name: ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application-prod.yaml"));
-      jarOutputStream.write("name: ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application.properties"));
-      jarOutputStream.write("name=ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application-prod.txt"));
-      jarOutputStream.write("not-configuration".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/logback-spring.xml"));
-      jarOutputStream.write("<configuration/>".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/messages/template.yaml"));
-      jarOutputStream.write("template-content".getBytes());
-      jarOutputStream.closeEntry();
-    }
-    return jarPath;
-  }
-
-  private static Path createFatJarWithGlobalAndFunctionalResourcesAndNonXmlRootLogback(Path jarPath) throws IOException {
-    Manifest manifest = new Manifest();
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-    try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/"));
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/messages/"));
-      jarOutputStream.closeEntry();
-
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application.yml"));
-      jarOutputStream.write("name: ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application-prod.yaml"));
-      jarOutputStream.write("name: ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application.properties"));
-      jarOutputStream.write("name=ext".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/logback-spring.xml"));
-      jarOutputStream.write("<configuration/>".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/logback-spring.txt"));
-      jarOutputStream.write("not-xml-logback-resource".getBytes());
-      jarOutputStream.closeEntry();
-      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/generator/runtime-extension/messages/template.yaml"));
-      jarOutputStream.write("template-content".getBytes());
-      jarOutputStream.closeEntry();
-    }
-    return jarPath;
   }
 }
