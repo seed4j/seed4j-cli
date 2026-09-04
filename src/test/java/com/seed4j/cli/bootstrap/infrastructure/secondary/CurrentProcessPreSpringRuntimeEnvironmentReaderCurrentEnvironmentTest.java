@@ -2,10 +2,12 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,13 +20,29 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderCurrentEnvironmentTest {
   void shouldReadCurrentRuntimeEnvironmentFromProcessProperties() throws IOException {
     CurrentProcessPaths paths = CurrentProcessPaths.create();
     try (ProcessProperties processProperties = new ProcessProperties()) {
-      processProperties.configure(paths);
+      processProperties.configureChildRuntime(paths);
 
       PreSpringRuntimeEnvironment environment = new CurrentProcessPreSpringRuntimeEnvironmentReader().current();
 
       assertThat(environment.cliHome()).isEqualTo(new Seed4JCliHome(paths.userHome()));
       assertThat(environment.executablePath().path()).isEqualTo(paths.executableJar());
       assertThat(environment.processMode().child()).isTrue();
+      assertThat(environment.javaExecutablePath().path()).isEqualTo(Path.of(System.getProperty("java.home"), "bin", "java"));
+    }
+  }
+
+  @Test
+  void shouldFallBackToCodeSourceInParentModeWithoutLaunchMetadata() throws IOException, URISyntaxException {
+    CurrentProcessPaths paths = CurrentProcessPaths.create();
+    Path expectedExecutablePath = Path.of(Seed4JCliApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    try (ProcessProperties processProperties = new ProcessProperties()) {
+      processProperties.configureParentRuntimeWithoutLaunchMetadata(paths);
+
+      PreSpringRuntimeEnvironment environment = new CurrentProcessPreSpringRuntimeEnvironmentReader().current();
+
+      assertThat(environment.cliHome()).isEqualTo(new Seed4JCliHome(paths.userHome()));
+      assertThat(environment.executablePath().path()).isEqualTo(expectedExecutablePath);
+      assertThat(environment.processMode().child()).isFalse();
       assertThat(environment.javaExecutablePath().path()).isEqualTo(Path.of(System.getProperty("java.home"), "bin", "java"));
     }
   }
@@ -51,12 +69,20 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderCurrentEnvironmentTest {
 
     private final List<OriginalProperty> originals = MANAGED_PROPERTIES.stream().map(OriginalProperty::capture).toList();
 
-    private void configure(CurrentProcessPaths paths) {
+    private void configureChildRuntime(CurrentProcessPaths paths) {
       System.setProperty("user.home", paths.userHome().toString());
       System.setProperty("user.dir", paths.workingDirectory().toString());
       System.setProperty("java.class.path", "");
       System.setProperty("sun.java.command", paths.executableJar() + " --version");
       System.setProperty(CHILD_MODE_PROPERTY, "true");
+    }
+
+    private void configureParentRuntimeWithoutLaunchMetadata(CurrentProcessPaths paths) {
+      System.setProperty("user.home", paths.userHome().toString());
+      System.setProperty("user.dir", paths.workingDirectory().toString());
+      System.clearProperty("java.class.path");
+      System.clearProperty("sun.java.command");
+      System.clearProperty(CHILD_MODE_PROPERTY);
     }
 
     @Override

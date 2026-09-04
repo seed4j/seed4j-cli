@@ -21,9 +21,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      executableJarPath + " --version",
-      "",
-      tempDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(executableJarPath + " --version", "", tempDirectory)
     );
 
     assertThat(executablePath).isEqualTo(executableJarPath);
@@ -39,9 +37,11 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      "org.springframework.boot.loader.launch.PropertiesLauncher --version",
-      executableJarPath.toString(),
-      tempDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(
+        "org.springframework.boot.loader.launch.PropertiesLauncher --version",
+        executableJarPath.toString(),
+        tempDirectory
+      )
     );
 
     assertThat(executablePath).isEqualTo(executableJarPath);
@@ -57,9 +57,11 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      missingCommandJarPath + " --version",
-      classpathJarPath.toString(),
-      workingDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(
+        missingCommandJarPath + " --version",
+        classpathJarPath.toString(),
+        workingDirectory
+      )
     );
 
     assertThat(executablePath).isEqualTo(classpathJarPath);
@@ -75,9 +77,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      "seed4j-cli.jar --version",
-      "",
-      workingDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata("seed4j-cli.jar --version", "", workingDirectory)
     );
 
     assertThat(executablePath).isEqualTo(executableJarPath);
@@ -93,9 +93,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourceJarPath,
-      commandJarPath + " --version",
-      "",
-      workingDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(commandJarPath + " --version", "", workingDirectory)
     );
 
     assertThat(executablePath).isEqualTo(codeSourceJarPath);
@@ -112,9 +110,11 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      commandNonJarPath + " --version",
-      classpathJarPath.toString(),
-      workingDirectory
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(
+        commandNonJarPath + " --version",
+        classpathJarPath.toString(),
+        workingDirectory
+      )
     );
 
     assertThat(executablePath).isEqualTo(codeSourcePath);
