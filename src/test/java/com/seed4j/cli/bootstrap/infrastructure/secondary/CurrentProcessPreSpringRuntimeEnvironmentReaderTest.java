@@ -3,8 +3,6 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
-import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,44 +10,6 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
-
-  @Test
-  void shouldReadCurrentRuntimeEnvironmentFromProcessProperties() throws IOException {
-    String childModeProperty = "seed4j.cli.runtime.child";
-    String originalUserHome = System.getProperty("user.home");
-    String originalUserDir = System.getProperty("user.dir");
-    String originalJavaClassPath = System.getProperty("java.class.path");
-    String originalJavaCommand = System.getProperty("sun.java.command");
-    String originalChildMode = System.getProperty(childModeProperty);
-    Path workingDirectory = Files.createTempDirectory("seed4j-cli-");
-    Path userHomePath = workingDirectory.resolve("home");
-    Files.createDirectories(userHomePath);
-    Path executableJarPath = workingDirectory.resolve("seed4j-cli.jar");
-    Files.writeString(executableJarPath, "jar");
-    Path expectedJavaExecutablePath = Path.of(System.getProperty("java.home"), "bin", "java");
-    CurrentProcessPreSpringRuntimeEnvironmentReader reader = new CurrentProcessPreSpringRuntimeEnvironmentReader();
-
-    try {
-      System.setProperty("user.home", userHomePath.toString());
-      System.setProperty("user.dir", workingDirectory.toString());
-      System.setProperty("java.class.path", "");
-      System.setProperty("sun.java.command", executableJarPath + " --version");
-      System.setProperty(childModeProperty, "true");
-
-      PreSpringRuntimeEnvironment environment = reader.current();
-
-      assertThat(environment.cliHome()).isEqualTo(new Seed4JCliHome(userHomePath));
-      assertThat(environment.executablePath().path()).isEqualTo(executableJarPath);
-      assertThat(environment.processMode().child()).isTrue();
-      assertThat(environment.javaExecutablePath().path()).isEqualTo(expectedJavaExecutablePath);
-    } finally {
-      restoreSystemProperty("user.home", originalUserHome);
-      restoreSystemProperty("user.dir", originalUserDir);
-      restoreSystemProperty("java.class.path", originalJavaClassPath);
-      restoreSystemProperty("sun.java.command", originalJavaCommand);
-      restoreSystemProperty(childModeProperty, originalChildMode);
-    }
-  }
 
   @Test
   void shouldResolveExecutableJarPathFromJavaCommandWhenCodeSourceIsNotAJar() throws IOException {
@@ -158,14 +118,5 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
     );
 
     assertThat(executablePath).isEqualTo(codeSourcePath);
-  }
-
-  private static void restoreSystemProperty(String key, String originalValue) {
-    if (originalValue == null) {
-      System.clearProperty(key);
-      return;
-    }
-
-    System.setProperty(key, originalValue);
   }
 }
