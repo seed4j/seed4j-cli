@@ -1,7 +1,5 @@
 package com.seed4j.cli.bootstrap.infrastructure.primary;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.seed4j.cli.SystemOutputCaptor;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,13 +35,6 @@ final class PreSpringBootstrapTestSupport {
     System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
     System.clearProperty(LOADER_PATH_PROPERTY);
     return runtimeProperties;
-  }
-
-  static void assertBaselineRuntimePropertiesRestored() {
-    assertThat(System.getProperty(RUNTIME_MODE_PROPERTY)).isEqualTo(BASELINE_RUNTIME_MODE);
-    assertThat(System.getProperty(DISTRIBUTION_ID_PROPERTY)).isNull();
-    assertThat(System.getProperty(DISTRIBUTION_VERSION_PROPERTY)).isNull();
-    assertThat(System.getProperty(LOADER_PATH_PROPERTY)).isNull();
   }
 
   static void writeRuntimeConfiguration(Path userHome, String content) throws IOException {
