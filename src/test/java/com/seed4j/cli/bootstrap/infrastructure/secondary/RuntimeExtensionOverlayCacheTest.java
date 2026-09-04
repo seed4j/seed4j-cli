@@ -137,6 +137,7 @@ class RuntimeExtensionOverlayCacheTest {
     assertThat(overlayClassesPath.resolve("config/application.yml")).doesNotExist();
     assertThat(overlayClassesPath.resolve("config/application-prod.yaml")).doesNotExist();
     assertThat(overlayClassesPath.resolve("config/application.properties")).doesNotExist();
+    assertThat(overlayClassesPath.resolve("config/application-prod.txt")).exists().hasContent("not-configuration");
     assertThat(overlayClassesPath.resolve("logback-spring.xml")).doesNotExist();
     assertThat(overlayClassesPath.resolve("generator/runtime-extension/messages/template.yaml")).exists().hasContent("template-content");
   }
@@ -229,6 +230,9 @@ class RuntimeExtensionOverlayCacheTest {
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application.properties"));
       jarOutputStream.write("name=ext".getBytes());
+      jarOutputStream.closeEntry();
+      jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/config/application-prod.txt"));
+      jarOutputStream.write("not-configuration".getBytes());
       jarOutputStream.closeEntry();
       jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/classes/logback-spring.xml"));
       jarOutputStream.write("<configuration/>".getBytes());

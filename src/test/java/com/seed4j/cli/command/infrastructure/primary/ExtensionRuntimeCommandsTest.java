@@ -63,7 +63,10 @@ class ExtensionRuntimeCommandsTest {
     int exitCode = commandLine().execute(args);
 
     assertThat(exitCode).isZero();
-    assertThat(output.getOut()).contains("Extension runtime installed successfully.");
+    assertThat(output.getOut())
+      .contains("Extension runtime installed successfully.")
+      .containsSubsequence("Validate installation with:", "  seed4j --version", "  seed4j list")
+      .doesNotContain("Replaced active runtime extension.");
     assertThat(configPath).exists();
     assertThat(Files.readString(configPath)).contains("mode: extension");
     assertThat(runtimeJarPath).exists();
