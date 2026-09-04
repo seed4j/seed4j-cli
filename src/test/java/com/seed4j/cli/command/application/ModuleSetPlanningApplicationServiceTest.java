@@ -18,6 +18,8 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDetailedPlanningStatus;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionOrderMismatch;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterTypeMismatch;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameterValueType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
@@ -43,6 +45,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
+import com.seed4j.cli.command.domain.moduleset.UnsupportedModuleSetHistoryParameter;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.nio.file.Path;
 import java.util.List;
@@ -452,6 +455,37 @@ class ModuleSetPlanningApplicationServiceTest {
     }
 
     @Test
+    void shouldNotLetModuleSatisfyItsOwnFeatureDependency() {
+      ModuleSetSlug selfProvider = new ModuleSetSlug("self-provider");
+      ModuleSetDependency feature = new ModuleSetDependency(ModuleSetDependencyType.FEATURE, "feature");
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(selfProvider, List.of(feature), List.of(), Optional.of("feature"))),
+        List.of(selfProvider)
+      );
+      ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
+        new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of()))
+      );
+      ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+        new RequestedModuleSet(List.of(selfProvider)),
+        new ModuleSetProjectPath(Path.of(".")),
+        ExplicitModuleSetParameters.empty(),
+        ModuleSetCommitMode.ENABLED
+      );
+
+      ModuleSetPlan plan = service.plan(request);
+
+      assertThat(plan.dependencyValidations())
+        .singleElement()
+        .satisfies(validation -> {
+          assertThat(validation.status()).isEqualTo(ModuleSetDependencyStatus.MISSING);
+          assertThat(validation.candidates()).containsExactly(selfProvider);
+          assertThat(validation.provider()).isEmpty();
+          assertThat(validation.requiredBy()).containsExactly(selfProvider);
+        });
+      assertThat(plan.valid()).isFalse();
+    }
+
+    @Test
     void shouldSatisfyFeatureDependencyWithProviderFromProjectHistory() {
       ModuleSetSlug consumer = new ModuleSetSlug("consumer");
       ModuleSetSlug provider = new ModuleSetSlug("provider");
@@ -485,7 +519,7 @@ class ModuleSetPlanningApplicationServiceTest {
     }
 
     @Test
-    void shouldPlanRecursiveDependenciesOnceAndAttributeThemToRequestedModule() {
+    void shouldPlanRecursiveDependenciesOnceInTokenOrderAndAttributeThemToRequestedModule() {
       ModuleSetSlug requested = new ModuleSetSlug("requested");
       ModuleSetSlug direct = new ModuleSetSlug("direct");
       ModuleSetSlug transitive = new ModuleSetSlug("transitive");
@@ -493,7 +527,7 @@ class ModuleSetPlanningApplicationServiceTest {
       ModuleSetDependency transitiveDependency = new ModuleSetDependency(ModuleSetDependencyType.MODULE, transitive.value());
       ModuleSetCatalog catalog = catalog(
         List.of(
-          new ModuleSetModule(requested, List.of(directDependency, transitiveDependency), List.of(), Optional.empty()),
+          new ModuleSetModule(requested, List.of(transitiveDependency, directDependency), List.of(), Optional.empty()),
           new ModuleSetModule(direct, List.of(transitiveDependency), List.of(), Optional.empty()),
           new ModuleSetModule(transitive, List.of(), List.of(), Optional.empty())
         ),
@@ -684,6 +718,58 @@ class ModuleSetPlanningApplicationServiceTest {
 
       assertThat(forwardPlan.problems()).containsExactly(expected);
       assertThat(reversedPlan.problems()).containsExactly(expected);
+    }
+
+    @Test
+    void shouldKeepUnsupportedHistoryParameterScopedToItsOwnProperty() {
+      ModuleSetSlug selected = new ModuleSetSlug("selected");
+      ModuleSetPropertyKey unsupported = new ModuleSetPropertyKey("unsupported");
+      ModuleSetPropertyKey independent = new ModuleSetPropertyKey("independent");
+      ModuleSetPropertyDefinition unsupportedProperty = new ModuleSetPropertyDefinition(
+        unsupported,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of()
+      );
+      ModuleSetPropertyDefinition independentProperty = new ModuleSetPropertyDefinition(
+        independent,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.of(new ModuleSetPropertyDefaultValue(new ModuleSetStringParameterValue("fallback"), "fallback")),
+        List.of()
+      );
+      ModuleSetCatalog catalog = catalog(
+        List.of(new ModuleSetModule(selected, List.of(), List.of(unsupportedProperty, independentProperty), Optional.empty())),
+        List.of(selected)
+      );
+      ModuleSetPlanningApplicationService service = planningService(catalog, projectPath ->
+        new ModuleSetPlanningHistory(
+          Set.of(),
+          new ModuleSetHistoryParameters(Map.of(), List.of(new UnsupportedModuleSetHistoryParameter(unsupported)))
+        )
+      );
+      ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+        new RequestedModuleSet(List.of(selected)),
+        new ModuleSetProjectPath(Path.of(".")),
+        ExplicitModuleSetParameters.empty(),
+        ModuleSetCommitMode.ENABLED
+      );
+
+      ModuleSetPlan plan = service.plan(request);
+
+      assertThat(plan.problems()).containsExactly(
+        new ModuleSetHistoryParameterTypeMismatch(unsupported, ModuleSetPropertyType.STRING, ModuleSetHistoryParameterValueType.UNSUPPORTED)
+      );
+      assertThat(plan.resolvedParameters())
+        .singleElement()
+        .satisfies(parameter -> {
+          assertThat(parameter.key()).isEqualTo(independent);
+          assertThat(parameter.value()).isEqualTo(new ModuleSetStringParameterValue("fallback"));
+          assertThat(parameter.source()).isEqualTo(ModuleSetPropertySource.DEFAULT);
+        });
     }
 
     @Test
