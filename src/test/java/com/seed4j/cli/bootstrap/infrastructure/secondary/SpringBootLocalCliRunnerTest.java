@@ -2,6 +2,7 @@ package com.seed4j.cli.bootstrap.infrastructure.secondary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.seed4j.cli.Seed4JCliApp;
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
@@ -11,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @UnitTest
 class SpringBootLocalCliRunnerTest {
@@ -105,6 +107,15 @@ class SpringBootLocalCliRunnerTest {
 
     assertThat(exitCode).isEqualTo(37);
     assertThat(recordingSpringBootExitCodeResolver.resolveCalls()).isEqualTo(1);
+  }
+
+  @Test
+  void shouldReturnNonZeroWhenCommandFails(@TempDir Path temporaryDirectory) {
+    SpringBootLocalCliRunner runner = new SpringBootLocalCliRunner(Seed4JCliApp.class, new Seed4JCliHome(temporaryDirectory));
+
+    int exitCode = runner.run(arguments("unknown-command"));
+
+    assertThat(exitCode).isNotZero();
   }
 
   @Test

@@ -337,6 +337,18 @@ class PreSpringBootstrapPrimaryTest {
   }
 
   @Test
+  void shouldPropagateChildRuntimeExitCode() throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-child-exit-code-primary-");
+    PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+    int expectedExitCode = 37;
+    fixture.childRuntimeReturns(expectedExitCode);
+
+    CliLaunchResult launch = launchCapturingOutput(fixture.runner(), "--version");
+
+    assertThat(launch.exitCode()).isEqualTo(expectedExitCode);
+  }
+
+  @Test
   void shouldIgnoreLegacyRuntimeConfigPath() throws IOException {
     Path userHome = Files.createTempDirectory("seed4j-cli-legacy-config-primary-");
     Path legacyConfigPath = userHome.resolve(".config/seed4j-cli.yml");
@@ -766,6 +778,10 @@ class PreSpringBootstrapPrimaryTest {
       return childRuntimeLauncher.request();
     }
 
+    private void childRuntimeReturns(int exitCode) {
+      childRuntimeLauncher.returns(exitCode);
+    }
+
     private List<String> localRunArguments() {
       return localCliRunner.arguments();
     }
@@ -778,15 +794,20 @@ class PreSpringBootstrapPrimaryTest {
   private static final class RecordingChildRuntimeLauncher implements ChildRuntimeLauncher {
 
     private ChildRuntimeLaunchRequest request;
+    private int exitCode;
 
     @Override
     public int launch(ChildRuntimeLaunchRequest request) {
       this.request = request;
-      return 0;
+      return exitCode;
     }
 
     private ChildRuntimeLaunchRequest request() {
       return request;
+    }
+
+    private void returns(int exitCode) {
+      this.exitCode = exitCode;
     }
   }
 
