@@ -1,0 +1,57 @@
+package com.seed4j.cli.bootstrap.infrastructure.primary;
+
+import static com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapTestSupport.launchCapturingOutput;
+
+import com.seed4j.cli.bootstrap.fixture.ExtensionRuntimeFixture;
+import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapTestSupport.CliLaunchResult;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+final class ExtensionCatalogFixture {
+
+  private final PreSpringBootstrapRunner runner;
+
+  private ExtensionCatalogFixture(Path userHome) throws IOException {
+    runner = InProcessChildRuntimeLauncher.runner(userHome);
+  }
+
+  static ExtensionCatalogFixture standard() throws IOException {
+    return new ExtensionCatalogFixture(Files.createTempDirectory("seed4j-cli-standard-catalog-primary-"));
+  }
+
+  static ExtensionCatalogFixture withExtension() throws IOException {
+    return withRuntime("version", ExtensionRuntimeFixture::install);
+  }
+
+  static ExtensionCatalogFixture withListExtension() throws IOException {
+    return withRuntime("extension-catalog", ExtensionRuntimeFixture::installWithListExtensionModule);
+  }
+
+  static ExtensionCatalogFixture withCustomPackageListExtension() throws IOException {
+    return withRuntime("custom-extension-catalog", ExtensionRuntimeFixture::installWithCustomPackageListExtensionModule);
+  }
+
+  static ExtensionCatalogFixture withHiddenResourceOverrides() throws IOException {
+    return withRuntime("extension-hidden-resources", ExtensionRuntimeFixture::installWithListExtensionModuleAndHiddenResourcesOverrides);
+  }
+
+  static ExtensionCatalogFixture withRegressionOverrides() throws IOException {
+    return withRuntime("extension-logging", ExtensionRuntimeFixture::installWithListExtensionModuleAndRegressionOverrides);
+  }
+
+  private static ExtensionCatalogFixture withRuntime(String temporaryDirectoryName, RuntimeInstaller runtimeInstaller) throws IOException {
+    Path userHome = Files.createTempDirectory("seed4j-cli-" + temporaryDirectoryName + "-primary-");
+    runtimeInstaller.install(userHome);
+    return new ExtensionCatalogFixture(userHome);
+  }
+
+  CliLaunchResult launch(String... arguments) {
+    return launchCapturingOutput(runner, arguments);
+  }
+
+  @FunctionalInterface
+  private interface RuntimeInstaller {
+    void install(Path userHome) throws IOException;
+  }
+}
