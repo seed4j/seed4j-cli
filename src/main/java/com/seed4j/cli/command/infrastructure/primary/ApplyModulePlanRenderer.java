@@ -4,6 +4,7 @@ class ApplyModulePlanRenderer {
 
   private static final String PROJECT_HISTORY_NOTE = "already selected by project history; omit this option to keep it.";
   private static final String MISSING_REQUIRED_NOTE = "pass this option or apply a module that records it in project history.";
+  private static final String FOOTER = "\nNo changes were applied.\n";
 
   String render(String moduleSlug, String projectPath, ApplyModuleDependencyPlan dependencyPlan, ResolvedModuleParameters parameters) {
     return (
@@ -11,7 +12,7 @@ class ApplyModulePlanRenderer {
       + renderDependencyPlan(dependencyPlan)
       + renderResolvedParameters(parameters)
       + renderMissingRequiredParameters(parameters)
-      + renderFooter()
+      + FOOTER
     );
   }
 
@@ -100,9 +101,5 @@ class ApplyModulePlanRenderer {
     plan.append("  Note: ").append(MISSING_REQUIRED_NOTE).append('\n');
 
     return plan.toString();
-  }
-
-  private String renderFooter() {
-    return "\nNo changes were applied.\n";
   }
 }
