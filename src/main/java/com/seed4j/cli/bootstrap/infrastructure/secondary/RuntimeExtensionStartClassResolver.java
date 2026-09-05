@@ -10,21 +10,9 @@ public final class RuntimeExtensionStartClassResolver {
 
   public String resolve(Path extensionJarPath) {
     try (JarFile extensionJarFile = new JarFile(extensionJarPath.toFile())) {
-      Manifest manifest = extensionJarFile.getManifest();
-      if (manifest == null) {
-        throw invalidStartClass(extensionJarPath, "Missing manifest Start-Class.");
-      }
-
-      String startClass = manifest.getMainAttributes().getValue("Start-Class");
-      if (startClass == null || startClass.isBlank()) {
-        throw invalidStartClass(extensionJarPath, "Missing manifest Start-Class.");
-      }
-
-      String resolvedStartClass = startClass.trim();
-      String classEntryName = "BOOT-INF/classes/" + resolvedStartClass.replace('.', '/') + ".class";
-      if (extensionJarFile.getEntry(classEntryName) == null) {
-        throw invalidStartClass(extensionJarPath, "Start-Class does not exist inside BOOT-INF/classes: " + resolvedStartClass);
-      }
+      Manifest manifest = requiredManifest(extensionJarFile, extensionJarPath);
+      String resolvedStartClass = requiredStartClass(manifest, extensionJarPath);
+      validateStartClassEntry(extensionJarFile, extensionJarPath, resolvedStartClass);
 
       return resolvedStartClass;
     } catch (IOException ioException) {
@@ -32,6 +20,31 @@ public final class RuntimeExtensionStartClassResolver {
         invalidStartClassMessage(extensionJarPath, "Could not read manifest Start-Class."),
         ioException
       );
+    }
+  }
+
+  private static Manifest requiredManifest(JarFile extensionJarFile, Path extensionJarPath) throws IOException {
+    Manifest manifest = extensionJarFile.getManifest();
+    if (manifest == null) {
+      throw invalidStartClass(extensionJarPath, "Missing manifest Start-Class.");
+    }
+
+    return manifest;
+  }
+
+  private static String requiredStartClass(Manifest manifest, Path extensionJarPath) {
+    String startClass = manifest.getMainAttributes().getValue("Start-Class");
+    if (startClass == null || startClass.isBlank()) {
+      throw invalidStartClass(extensionJarPath, "Missing manifest Start-Class.");
+    }
+
+    return startClass.trim();
+  }
+
+  private static void validateStartClassEntry(JarFile extensionJarFile, Path extensionJarPath, String resolvedStartClass) {
+    String classEntryName = "BOOT-INF/classes/" + resolvedStartClass.replace('.', '/') + ".class";
+    if (extensionJarFile.getEntry(classEntryName) == null) {
+      throw invalidStartClass(extensionJarPath, "Start-Class does not exist inside BOOT-INF/classes: " + resolvedStartClass);
     }
   }
 
