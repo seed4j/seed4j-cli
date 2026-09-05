@@ -26,9 +26,11 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader {
       new Seed4JCliExecutablePath(
         resolveExecutablePath(
           codeSourcePath,
-          System.getProperty("sun.java.command", ""),
-          System.getProperty("java.class.path", ""),
-          Path.of(System.getProperty("user.dir"))
+          new ProcessLaunchMetadata(
+            System.getProperty("sun.java.command", ""),
+            System.getProperty("java.class.path", ""),
+            Path.of(System.getProperty("user.dir"))
+          )
         )
       ),
       RuntimeProcessMode.from(Boolean.parseBoolean(System.getProperty(CHILD_MODE_PROPERTY))),
@@ -45,18 +47,20 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader {
     }
   }
 
-  static Path resolveExecutablePath(Path codeSourcePath, String javaCommand, String javaClassPath, Path workingDirectory) {
+  static Path resolveExecutablePath(Path codeSourcePath, ProcessLaunchMetadata launchMetadata) {
     if (Files.isRegularFile(codeSourcePath) && codeSourcePath.getFileName().toString().endsWith(".jar")) {
       return codeSourcePath;
     }
 
-    Optional<Path> executablePathFromCommand = executablePathFromJavaCommand(javaCommand, workingDirectory);
+    Optional<Path> executablePathFromCommand = executablePathFromJavaCommand(
+      launchMetadata.javaCommand(),
+      launchMetadata.workingDirectory()
+    );
     if (executablePathFromCommand.isPresent()) {
       return executablePathFromCommand.orElseThrow();
     }
 
-    return Optional.ofNullable(javaClassPath)
-      .filter(classPath -> !classPath.isBlank())
+    return Optional.ofNullable(launchMetadata.javaClassPath())
       .stream()
       .flatMap(classPath -> Arrays.stream(classPath.split(java.util.regex.Pattern.quote(File.pathSeparator))))
       .map(String::trim)
@@ -66,10 +70,11 @@ public class CurrentProcessPreSpringRuntimeEnvironmentReader {
       .orElse(codeSourcePath);
   }
 
+  record ProcessLaunchMetadata(String javaCommand, String javaClassPath, Path workingDirectory) {}
+
   private static Optional<Path> executablePathFromJavaCommand(String javaCommand, Path workingDirectory) {
     return Optional.ofNullable(javaCommand)
       .map(String::trim)
-      .filter(command -> !command.isEmpty())
       .map(command -> command.split("\\s+", 2)[0])
       .map(Path::of)
       .map(path -> path.isAbsolute() ? path : workingDirectory.resolve(path).normalize())

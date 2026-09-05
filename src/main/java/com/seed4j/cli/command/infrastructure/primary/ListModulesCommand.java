@@ -1,17 +1,14 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
-import com.seed4j.cli.shared.generation.domain.ExcludeFromGeneratedCodeCoverage;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -21,7 +18,7 @@ import picocli.CommandLine.Model.CommandSpec;
 class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
   private static final int MAX_DEPENDENCIES_COLUMN_WIDTH = 60;
-  private static final int MINIMAL_SPACES_BETWEEN_COLUMNS = 2;
+  private static final String COLUMN_SEPARATOR = "  ";
 
   private final Seed4JModulesApplicationService modules;
 
@@ -81,11 +78,7 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       .stream()
       .map(dependency -> dependencyToken(dependency, visibleModuleSlugs))
       .toList();
-    if (dependencies.isEmpty()) {
-      return "-";
-    }
-
-    return String.join(", ", dependencies);
+    return dependencies.isEmpty() ? "-" : String.join(", ", dependencies);
   }
 
   private static String dependencyToken(Seed4JLandscapeDependency dependency, Set<String> visibleModuleSlugs) {
@@ -107,9 +100,9 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
     System.out.printf(
       "  %s%s%s%s%s%n",
       padRight("Module", columnsLayout.moduleWidth()),
-      columnSeparator(),
+      COLUMN_SEPARATOR,
       padRight("Dependencies", columnsLayout.dependenciesWidth()),
-      columnSeparator(),
+      COLUMN_SEPARATOR,
       "Description"
     );
   }
@@ -119,9 +112,9 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
     System.out.printf(
       "  %s%s%s%s%s%n",
       padRight(row.module(), columnsLayout.moduleWidth()),
-      columnSeparator(),
+      COLUMN_SEPARATOR,
       padRight(wrappedDependencies.getFirst(), columnsLayout.dependenciesWidth()),
-      columnSeparator(),
+      COLUMN_SEPARATOR,
       row.description()
     );
 
@@ -129,88 +122,59 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
       System.out.printf(
         "  %s%s%s%s%n",
         padRight("", columnsLayout.moduleWidth()),
-        columnSeparator(),
+        COLUMN_SEPARATOR,
         padRight(wrappedDependencies.get(index), columnsLayout.dependenciesWidth()),
-        columnSeparator()
+        COLUMN_SEPARATOR
       );
     }
   }
 
   private static List<String> wrapDependencies(String dependencies, int width) {
-    if (dependencies.length() <= width) {
-      return List.of(dependencies);
+    DependencyLines lines = new DependencyLines(width);
+    for (String dependency : dependencies.split(", ")) {
+      lines.append(dependency);
     }
-
-    return Arrays.stream(dependencies.split(", "))
-      .sequential()
-      .collect(
-        Collector.of(
-          () -> new WrapDependenciesAccumulator(width),
-          WrapDependenciesAccumulator::accept,
-          WrapDependenciesAccumulator::mergeUnsupported,
-          WrapDependenciesAccumulator::finish
-        )
-      );
+    return lines.finish();
   }
 
-  private static final class WrapDependenciesAccumulator {
+  private static final class DependencyLines {
 
     private final int width;
-    private final List<String> lines;
-    private String currentLine;
+    private final List<String> completed = new ArrayList<>();
+    private String current = "";
 
-    private WrapDependenciesAccumulator(int width) {
+    private DependencyLines(int width) {
       this.width = width;
-      this.lines = new ArrayList<>();
-      this.currentLine = "";
     }
 
-    private void accept(String token) {
-      String candidateLine = currentLine.isEmpty() ? token : currentLine + ", " + token;
-      if (candidateLine.length() <= width) {
-        currentLine = candidateLine;
-      } else {
-        if (!currentLine.isEmpty()) {
-          lines.add(currentLine);
-        }
-
-        if (token.length() <= width) {
-          currentLine = token;
-        } else {
-          List<String> tokenChunks = hardWrapToken(token, width);
-          for (int index = 0; index < tokenChunks.size() - 1; index++) {
-            lines.add(tokenChunks.get(index));
-          }
-          currentLine = tokenChunks.getLast();
-        }
+    private void append(String dependency) {
+      String candidate = current.isEmpty() ? dependency : current + ", " + dependency;
+      if (candidate.length() <= width) {
+        current = candidate;
+        return;
       }
+      if (!current.isEmpty()) {
+        completed.add(current);
+      }
+      List<String> chunks = hardWrapToken(dependency, width);
+      completed.addAll(chunks.subList(0, chunks.size() - 1));
+      current = chunks.getLast();
     }
 
-    private List<String> hardWrapToken(String token, int width) {
+    private static List<String> hardWrapToken(String token, int width) {
       List<String> chunks = new ArrayList<>();
-      int start = 0;
-      while (start < token.length()) {
+      for (int start = 0; start < token.length(); start += width) {
         int end = Math.min(start + width, token.length());
         chunks.add(token.substring(start, end));
-        start = end;
       }
 
       return chunks;
     }
 
-    @ExcludeFromGeneratedCodeCoverage(reason = "Collector combiner is unreachable because wrapDependencies uses sequential stream")
-    private WrapDependenciesAccumulator mergeUnsupported(WrapDependenciesAccumulator other) {
-      throw new UnsupportedOperationException("Parallel stream is not supported");
-    }
-
     private List<String> finish() {
-      lines.add(currentLine);
-      return lines;
+      completed.add(current);
+      return completed;
     }
-  }
-
-  private static String columnSeparator() {
-    return " ".repeat(MINIMAL_SPACES_BETWEEN_COLUMNS);
   }
 
   private static String padRight(String value, int width) {
@@ -222,19 +186,14 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
 
   private record ListColumnsLayout(int moduleWidth, int dependenciesWidth) {
     private static ListColumnsLayout from(List<ListModuleRow> rows) {
-      int moduleWidth = Math.max("Module".length(), maxModuleWidth(rows));
-      int dependenciesNaturalWidth = Math.max("Dependencies".length(), maxDependenciesWidth(rows));
+      int moduleWidth = Math.max("Module".length(), rows.stream().map(ListModuleRow::module).mapToInt(String::length).max().orElse(0));
+      int dependenciesNaturalWidth = Math.max(
+        "Dependencies".length(),
+        rows.stream().map(ListModuleRow::dependencies).mapToInt(String::length).max().orElse(0)
+      );
       int dependenciesWidth = Math.min(dependenciesNaturalWidth, MAX_DEPENDENCIES_COLUMN_WIDTH);
 
       return new ListColumnsLayout(moduleWidth, dependenciesWidth);
-    }
-
-    private static int maxModuleWidth(List<ListModuleRow> rows) {
-      return rows.stream().map(ListModuleRow::module).mapToInt(String::length).max().orElse(0);
-    }
-
-    private static int maxDependenciesWidth(List<ListModuleRow> rows) {
-      return rows.stream().map(ListModuleRow::dependencies).mapToInt(String::length).max().orElse(0);
     }
   }
 }

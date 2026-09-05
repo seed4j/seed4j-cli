@@ -1,2 +1,6 @@
 plugins = ["java", "generic"]
 transformers = ["snooze-until-changed"]
+
+# Test suites may grow around one public API; the size gate protects production code.
+[sensors.line-count]
+files = ["src/main/**/*.java"]
