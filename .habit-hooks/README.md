@@ -1,28 +1,15 @@
-# Habit Hooks snooze baseline
+# Habit Hooks
 
-The snooze baseline records findings that have been reviewed but are not being changed now. It has
-two classifications:
+Habit Hooks analyzes only Java production sources under `src/main`. The Java plugin runs PMD with
+the repository ruleset in `.habit-hooks/pmd-ruleset.xml`.
 
-- **No action:** the finding reflects an intentional design, boundary, symmetry, or explicit test
-  style. No change is planned while that rationale remains valid.
-- **Deferred debt:** the finding identifies a possible improvement that is not required for the
-  current refactoring. Reassess it when related code is changed.
+The target is zero raw production findings. Findings should be resolved in the code or configuration
+rather than hidden behind a checked-in baseline.
 
-A snoozed finding has not disappeared and is not necessarily a false positive. Snoozing records the
-review decision while keeping the original sensor output intact.
-
-The `snooze-until-changed` transformer ties entries to their files. Any change to a snoozed file
-reopens all findings anchored to that file, so new work cannot inherit an old review automatically.
-Findings in new files also remain active.
-
-To audit every finding, including the reviewed baseline, run:
+Run the production gate with:
 
 ```bash
-habit-hooks --all --no-snooze
+habit-hooks
 ```
 
-After files or findings are removed, prune obsolete baseline entries with:
-
-```bash
-habit-snooze --prune
-```
+Snoozing a finding or creating a snooze baseline is allowed only with explicit user authorization.

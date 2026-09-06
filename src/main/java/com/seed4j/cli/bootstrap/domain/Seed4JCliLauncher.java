@@ -12,7 +12,7 @@ public class Seed4JCliLauncher {
   private final BootstrapOutput bootstrapOutput;
 
   // Pre-Spring bootstrap is composed manually because Spring is not available yet.
-  @SuppressWarnings("java:S107")
+  @SuppressWarnings({ "java:S107", "PMD.ExcessiveParameterList" })
   public Seed4JCliLauncher(
     Seed4JCliRuntime seed4jCliRuntime,
     RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
