@@ -853,7 +853,7 @@ class ApplyModuleSetCommandTest {
         List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
         List.of(moduleSlug)
       );
-      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-unsupported-history-");
+      Path projectPath = setupEmptyProjectTestFolder();
       Map<String, Object> parameters = new HashMap<>();
       parameters.put(indentSize.value(), unsupportedHistoryValue);
       projects.append(
@@ -897,7 +897,7 @@ class ApplyModuleSetCommandTest {
         List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
         List.of(moduleSlug)
       );
-      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-boolean-history-");
+      Path projectPath = setupEmptyProjectTestFolder();
       projects.append(
         new ProjectActionToAppend(
           new ProjectPath(projectPath.toString()),
@@ -933,7 +933,7 @@ class ApplyModuleSetCommandTest {
         List.of(new ModuleSetModule(moduleSlug, List.of(), List.of(property), Optional.empty())),
         List.of(moduleSlug)
       );
-      Path projectPath = java.nio.file.Files.createTempDirectory("seed4j-cli-apply-set-boolean-mismatch-");
+      Path projectPath = setupEmptyProjectTestFolder();
       projects.append(
         new ProjectActionToAppend(
           new ProjectPath(projectPath.toString()),
