@@ -1,22 +1,181 @@
 name: release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Publish current main or recover an existing release
+        required: true
+        default: release
+        type: choice
+        options:
+          - release
+          - recover
+      version:
+        description: Stable version without v; required only for recovery
+        required: false
+        type: string
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
+    branches:
+      - main
 
-permissions:
-  contents: write
-  id-token: write
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions: {}
 
 jobs:
-  npm:
-    name: npm
+  publish:
+    name: publish release
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.repository == 'seed4j/seed4j-cli' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.repository == 'seed4j/seed4j-cli' &&
+       github.ref == 'refs/heads/main' &&
+       inputs.operation == 'release')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      pull-requests: read
     steps:
-      - name: 'Setup: checkout project'
+      - name: 'Setup: checkout release revision'
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+
+      - name: 'Release: verify current main revision'
+        id: current-main
+        env:
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git fetch origin main --tags
+          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+
+          if [ "$RELEASE_EVENT" = "workflow_run" ]; then
+            if [ "$BUILT_SHA" != "$CURRENT_MAIN_SHA" ]; then
+              echo "Skipping stale build ${BUILT_SHA}; current main is ${CURRENT_MAIN_SHA}."
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            node scripts/release-request.cjs dispatch
+            SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml \
+              --commit "$CHECKED_OUT_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
+            RELEASE_TAGS="$(git tag --points-at "$CHECKED_OUT_SHA" --list 'v*')"
+            export CHECKED_OUT_SHA CURRENT_MAIN_SHA RELEASE_TAGS SUCCESSFUL_BUILD_COUNT
+            node scripts/release-request.cjs manual
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+      - name: 'Setup: Node.js'
+        if: steps.current-main.outputs.release == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: 'Setup: Java'
+        if: steps.current-main.outputs.release == 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: 25
+          cache: maven
+
+      - name: 'Setup: npm dependencies'
+        if: steps.current-main.outputs.release == 'true'
+        run: npm ci
+
+      - name: 'Release: evaluate and publish npm package'
+        if: steps.current-main.outputs.release == 'true'
+        id: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+          SEED4J_MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'release' }}
+        run: npx --no-install semantic-release
+
+      - name: 'Release: publish drafted GitHub release'
+        if: steps.semantic-release.outputs.released == 'true'
+        uses: release-drafter/release-drafter@v7
+        with:
+          commitish: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          name: v${{ steps.semantic-release.outputs.version }}
+          publish: true
+          tag: v${{ steps.semantic-release.outputs.version }}
+          version: ${{ steps.semantic-release.outputs.version }}
+
+      - name: 'Release: upload CLI JAR'
+        if: steps.semantic-release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.semantic-release.outputs.version }}
+        run: |
+          gh release upload "v${RELEASE_VERSION}" \
+            "target/release/seed4j-cli-${RELEASE_VERSION}.jar#Seed4J CLI ${RELEASE_VERSION}"
+
+  recover:
+    name: recover release
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'seed4j/seed4j-cli' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.operation == 'recover'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NPM_CONFIG_PROVENANCE: true
+      RELEASE_OPERATION: ${{ inputs.operation }}
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - name: 'Setup: checkout recovery workflow'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: 'Recovery: validate request and immutable tag'
+        id: release-tag
+        run: |
+          node scripts/release-request.cjs dispatch
+          git fetch origin main --tags
+          RELEASE_TAG="v${RELEASE_VERSION}"
+          git checkout --detach "refs/tags/${RELEASE_TAG}"
+          TAG_SHA="$(git rev-list -n 1 "$RELEASE_TAG")"
+          if [ "$TAG_SHA" != "$(git rev-parse HEAD)" ]; then
+            echo "Checked out revision does not match ${RELEASE_TAG}." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TAG_SHA" origin/main; then
+            echo "Release tag ${RELEASE_TAG} does not belong to main." >&2
+            exit 1
+          fi
+          echo "sha=$TAG_SHA" >> "$GITHUB_OUTPUT"
 
       - name: 'Setup: Node.js'
         uses: actions/setup-node@v7
@@ -32,76 +191,56 @@ jobs:
           java-version: 25
           cache: maven
 
-      - name: 'Release: validate version'
-        run: |
-          VERSION="$(./mvnw --batch-mode -ntp help:evaluate -Dexpression=project.version -q -DforceStdout)"
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-            echo "Maven project.version must be semver, got ${VERSION}" >&2
-            exit 1
-          fi
-          if printf '%s' "$VERSION" | grep -Eq -- '-SNAPSHOT$'; then
-            echo "Release version must not be a SNAPSHOT, got ${VERSION}" >&2
-            exit 1
-          fi
-          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
-            echo "Release tag ${GITHUB_REF_NAME} must match pom.xml version v${VERSION}" >&2
-            exit 1
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
       - name: 'Setup: npm dependencies'
         run: npm ci
 
-      - name: 'Release: validate npm metadata'
+      - name: 'Recovery: prepare release artifacts'
+        run: node scripts/prepare-release.js "$RELEASE_VERSION"
+
+      - name: 'Recovery: inspect npm package'
+        id: npm-package
         run: |
-          PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
-          LOCK_VERSION="$(node -p 'require("./package-lock.json").version')"
-          LOCK_ROOT_VERSION="$(node -p 'require("./package-lock.json").packages[""].version')"
-          if [ "$PACKAGE_VERSION" != "$VERSION" ]; then
-            echo "package.json version ${PACKAGE_VERSION} must match Maven version ${VERSION}" >&2
-            exit 1
-          fi
-          if [ "$LOCK_VERSION" != "$VERSION" ]; then
-            echo "package-lock.json version ${LOCK_VERSION} must match Maven version ${VERSION}" >&2
-            exit 1
-          fi
-          if [ "$LOCK_ROOT_VERSION" != "$VERSION" ]; then
-            echo "package-lock.json root package version ${LOCK_ROOT_VERSION} must match Maven version ${VERSION}" >&2
-            exit 1
-          fi
+          REGISTRY_STATUS="$(curl --silent --output "$RUNNER_TEMP/npm-package.json" --write-out '%{http_code}' \
+            "https://registry.npmjs.org/seed4j-cli/${RELEASE_VERSION}")"
+          case "$REGISTRY_STATUS" in
+            200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "Unable to inspect seed4j-cli ${RELEASE_VERSION}: npm registry returned ${REGISTRY_STATUS}." >&2
+              exit 1
+              ;;
+          esac
 
-      - name: 'Test: npm wrapper'
-        run: npm run test:npm-package
-
-      - name: 'Build: Java package'
-        run: ./mvnw --batch-mode -ntp clean package
-
-      - name: 'Build: prepare npm package'
-        run: npm run package:prepare
-
-      - name: 'Test: packed npm package'
-        run: |
-          npm pack --dry-run
-          npm run test:npm-packed-skill
-
-      - name: 'Release: publish npm package'
+      - name: 'Recovery: publish missing npm package'
+        if: steps.npm-package.outputs.published == 'false'
         run: npm publish --provenance
 
-      - name: 'Release: publish GitHub release'
-        id: release-drafter
+      - name: 'Recovery: inspect GitHub release'
+        id: github-release
+        run: |
+          if [ "$(gh release view "v${RELEASE_VERSION}" --json isDraft --jq '.isDraft' 2>/dev/null)" = "false" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 'Recovery: publish missing drafted GitHub release'
+        if: steps.github-release.outputs.published == 'false'
         uses: release-drafter/release-drafter@v7
         with:
+          commitish: ${{ steps.release-tag.outputs.sha }}
+          name: v${{ inputs.version }}
           publish: true
-          tag: v${{ env.VERSION }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ inputs.version }}
+          version: ${{ inputs.version }}
 
-      - name: 'Release: upload CLI JAR'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release-drafter.outputs.upload_url }}
-          asset_path: target/seed4j-cli-${{ env.VERSION }}.jar
-          asset_name: seed4j-cli-${{ env.VERSION }}.jar
-          asset_content_type: application/java-archive
+      - name: 'Recovery: upload missing CLI JAR'
+        run: |
+          RELEASE_TAG="v${RELEASE_VERSION}"
+          RELEASE_ASSET="seed4j-cli-${RELEASE_VERSION}.jar"
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$RELEASE_ASSET"; then
+            echo "GitHub release ${RELEASE_TAG} already contains ${RELEASE_ASSET}."
+            exit 0
+          fi
+          gh release upload "$RELEASE_TAG" \
+            "target/release/${RELEASE_ASSET}#Seed4J CLI ${RELEASE_VERSION}"

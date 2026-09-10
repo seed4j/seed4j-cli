@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: 'Setup: checkout project'
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: 'Setup: Node.js'
         uses: actions/setup-node@v7
         with:
@@ -33,6 +35,18 @@ jobs:
           cache: maven
       - name: 'Setup: npm dependencies'
         run: npm ci
+      - name: 'Test: pull request commit messages'
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npx --no-install commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+      - name: 'Test: pushed commit messages'
+        if: github.event_name == 'push'
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: npx --no-install commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
       - name: 'Start local Sonar'
         run: |
           docker compose -f src/main/docker/sonar.yml up -d \
@@ -43,6 +57,7 @@ jobs:
           ./mvnw --batch-mode -ntp clean verify
       - name: 'Test: npm package and bundled skill'
         run: |
+          npm run test:release
           npm run test:npm-package
           npm run package:prepare
           npm run test:npm-packed-skill
