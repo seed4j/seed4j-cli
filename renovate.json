@@ -6,6 +6,7 @@
     "schedule:daily",
     ":maintainLockFilesWeekly",
     ":disableDependencyDashboard",
+    ":semanticCommits",
     ":automergeMinor",
     ":automergePr",
     ":automergeRequireAllStatusChecks",

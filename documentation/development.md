@@ -68,54 +68,84 @@ PIT writes its HTML report under `target/pit-reports/`. A surviving mutant is a 
 
 The npm package name is `seed4j-cli`, and it exposes the command `seed4j`.
 
-Release Drafter keeps a draft GitHub Release updated from pull requests merged into `main`. The draft changelog is grouped by PR labels, so release notes are only as precise as the labels applied before merging.
+Release Drafter updates the next draft GitHub Release whenever a pull request is merged into `main`. It groups pull
+requests using the labels and categories in `.github/release-drafter.yml`, preserving the categorized release notes,
+links, and contributors until that draft is published.
 
-The categories currently used by the draft are:
+Every successful `main` build also starts the automatic publication workflow. Semantic-release examines commits after
+the latest `v*` tag and applies ordinary Semantic Versioning:
 
-- `theme: important`
-- `area: feature request :bulb:`
-- `area: enhancement :wrench:`
-- `area: refactoring`
-- `area: bug :bug:`
-- `area: breaking change`
-- `server: spring boot`
-- `theme: security`
-- `theme: maven`
-- `theme: gradle`
-- `area: documentation :books:`
-- `area: remove`
-- `area: invalid`
-- `area: spam`
-- `area: dependencies`
+| Change                                                                  | Release |
+| ----------------------------------------------------------------------- | ------- |
+| `fix`, `perf`, `revert`, or a shipped runtime dependency update         | patch   |
+| `feat`                                                                  | minor   |
+| `!` after the type/scope or a `BREAKING CHANGE:` footer                 | major   |
+| `build`, `chore`, `ci`, `docs`, `refactor`, `style`, or `test` alone    | none    |
+| Build, test, formatting, and lock-file dependency maintenance by itself | none    |
 
-`pom.xml` is the source of truth for the release version. Prepare a release by committing the Maven version and matching npm metadata, then push a tag with the same version:
+There is no special rule keeping the project below `1.0.0`. For example, a breaking change after `0.1.0` releases
+`1.0.0`. Conventional Commit validation runs in CI so malformed commit messages cannot silently bypass release
+classification.
 
-```bash
-git switch main
-./mvnw versions:set -DnewVersion=0.0.2 -DgenerateBackupPoms=false
-npm version 0.0.2 --no-git-tag-version
-git add pom.xml package.json package-lock.json
-git commit -m "chore(release): prepare 0.0.2"
-git tag v0.0.2
-git push origin main
-git push origin v0.0.2
-```
+Renovate uses `fix(deps)` for Maven dependencies shipped at runtime and `chore(deps)` for build or test tooling. An
+update to `com.seed4j:seed4j`, Spring Boot, JGit, or another runtime dependency therefore releases a patch after its
+checks pass. If a major dependency update changes the CLI contract incompatibly, mark the merge commit with `!` or a
+`BREAKING CHANGE:` footer instead.
 
-The release workflow reads the version from `pom.xml`, rejects snapshot versions, requires the tag to match `v<project.version>`, checks that `package.json` and `package-lock.json` match the Maven version, runs the wrapper tests, builds the JAR, prepares and smoke-tests the npm package, publishes with `npm publish --provenance`, then publishes the matching GitHub Release from the maintained draft. The GitHub Release attaches the versioned JAR, such as `seed4j-cli-0.0.2.jar`, but npm remains the primary installation channel:
+Git tags are the release-version source of truth. `pom.xml`, `package.json`, and `package-lock.json` intentionally stay
+at `0.0.0-SNAPSHOT` in source. When a release is required, semantic-release calculates the stable version, prepares the
+ephemeral checkout, creates the tag, and publishes the npm package through Trusted Publishing. Release Drafter then
+refreshes and publishes the existing draft with that exact version, and the workflow attaches a versioned JAR such as
+`seed4j-cli-0.1.0.jar`.
+
+npm remains the primary stable installation channel:
 
 ```bash
 npm install -g seed4j-cli
 ```
 
-After the release is published, bump `pom.xml`, `package.json`, and `package-lock.json` to the next snapshot development version, for example `0.0.3-SNAPSHOT`, in a follow-up commit.
+There is no npm `next` channel. To inspect or run an unreleased `main` revision, check out that source revision and use
+the build instructions in this guide.
 
-Before the first Trusted Publishing release, configure the `seed4j-cli` package on npm with this GitHub publisher:
+The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
 
 - Repository: `seed4j/seed4j-cli`
 - Workflow: `.github/workflows/release.yml`
-- Environment: leave empty unless the workflow is later changed to use one
+- Environment: empty
 
-If the package does not exist yet and npm requires a manual first publish, build from source, run `npm run package:prepare`, inspect `npm pack --dry-run`, then publish once from a maintainer machine with `npm publish --provenance` or, if provenance is not available locally, `npm publish`. After that, use the tag workflow for releases.
+Keep the existing Release Drafter draft. It will continue accumulating merged pull requests and will be published by the
+next automatic or manual release.
+
+### Publishing current main manually
+
+Automatic publication is the normal path. To explicitly publish the current `main`, open **Actions**, select the
+**release** workflow, choose **Run workflow** from `main`, select `operation: release`, leave `version` empty, and run the
+workflow.
+
+The manual operation uses the same Conventional Commit analysis as automatic publication. A fix remains patch, a
+feature remains minor, and a breaking change remains major. Only when the accumulated commits would normally produce no
+release does the manual operation force a patch. The workflow rejects manual publication unless the selected revision
+is the current `main`, its push build succeeded, and no stable release tag already points to it.
+
+Do not use the GitHub draft's **Publish release** button. That would bypass the coordinated npm publication, artifact
+preparation, and recovery guarantees.
+
+### Recovering a partial release
+
+Publication spans several systems and can fail after the tag exists but before npm, the GitHub Release, or the JAR is
+available. Recovery completes that existing version; it never chooses or creates a new version.
+
+If publication fails before pushing its tag, rerun the normal release for the same successful `main` revision. If the
+`v*` tag already exists, open **Actions**, select the **release** workflow, choose **Run workflow** from `main`, select
+`operation: recover`, enter the stable `version` without the `v` prefix, and run the workflow. Recovery verifies that
+the immutable tag belongs to `main`, rebuilds from that tag, and then:
+
+- publishes the npm package only when that exact version is absent;
+- publishes the maintained Release Drafter draft only when the GitHub Release is absent;
+- uploads the versioned JAR only when the release does not already contain it.
+
+If the GitHub Release already exists, recovery preserves its published notes. Never move or delete the release tag,
+unpublish a released npm version, or select a replacement version during recovery.
 
 ## Local Sonar analysis
 
