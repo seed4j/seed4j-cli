@@ -1,5 +1,6 @@
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/;
 const STABLE_TAG = /^v(\d+\.\d+\.\d+)$/;
+const RELEASE_TAG = /^v\d+\.\d+\.\d+(?:-experimental\.\d+)?$/;
 
 function validateDispatchRequest({ operation, version }) {
   if (operation === 'release') {
@@ -39,6 +40,33 @@ function validateManualRelease({ checkedOutSha, currentMainSha, releaseTags, suc
   }
 }
 
+function validateExperimentalRelease({
+  buildConclusion,
+  buildEvent,
+  buildHeadBranch,
+  builtSha,
+  checkedOutSha,
+  currentExperimentalSha,
+  releaseTags,
+}) {
+  if (buildEvent !== 'push' || buildHeadBranch !== 'experimental') {
+    throw new Error('Experimental release requires an experimental push build.');
+  }
+  if (buildConclusion !== 'success') {
+    throw new Error('Experimental release requires a successful build.');
+  }
+  if (!checkedOutSha || checkedOutSha !== currentExperimentalSha || builtSha !== currentExperimentalSha) {
+    throw new Error(
+      `Experimental release requires current experimental HEAD ${currentExperimentalSha}; built ${builtSha} and checked out ${checkedOutSha}.`,
+    );
+  }
+
+  const existingReleaseTag = releaseTags.find(tag => RELEASE_TAG.test(tag));
+  if (existingReleaseTag) {
+    throw new Error(`Current experimental HEAD already has ${existingReleaseTag}.`);
+  }
+}
+
 function run() {
   const command = process.argv[2];
 
@@ -58,6 +86,18 @@ function run() {
     });
     return;
   }
+  if (command === 'experimental') {
+    validateExperimentalRelease({
+      buildConclusion: process.env.BUILD_CONCLUSION,
+      buildEvent: process.env.BUILD_EVENT,
+      buildHeadBranch: process.env.BUILD_HEAD_BRANCH,
+      builtSha: process.env.BUILT_SHA,
+      checkedOutSha: process.env.CHECKED_OUT_SHA,
+      currentExperimentalSha: process.env.CURRENT_EXPERIMENTAL_SHA,
+      releaseTags: (process.env.RELEASE_TAGS ?? '').split(/\r?\n/).filter(Boolean),
+    });
+    return;
+  }
 
   throw new Error(`Unsupported release request command '${command ?? ''}'.`);
 }
@@ -71,4 +111,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { validateDispatchRequest, validateManualRelease, validateRecoveryVersion };
+module.exports = { validateDispatchRequest, validateExperimentalRelease, validateManualRelease, validateRecoveryVersion };

@@ -5,6 +5,7 @@ This document provides an overview of the Seed4J CLI commands available in this 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+  - [Distribution Channels](#distribution-channels)
 - [Basic Commands](#basic-commands)
   - [Version](#version)
   - [List Available Modules](#list-available-modules)
@@ -33,6 +34,18 @@ To use Seed4J CLI, make sure it's installed and available in your PATH. You can 
 ```bash
 seed4j --version
 ```
+
+### Distribution Channels
+
+`npm install -g seed4j-cli@latest` installs stable and remains the default. Once activated,
+`npm install -g seed4j-cli@experimental` deliberately opts into an unofficial snapshot of Seed4J `main` that may expire
+or break compatibility. Experimental root help warns about that contract, and `seed4j --version` adds the release
+channel, personal snapshot version, and exact official upstream SHA.
+
+The experimental channel does not expose the `seed4j-extension` generator through list, apply help, apply-set catalogs,
+or completion. A direct apply request exits `2` before inspecting or changing the project. The separate
+`seed4j extension` runtime-management commands remain supported. See the
+[complete channel and diagnostic contract](experimental-channel.md).
 
 ## Basic Commands
 

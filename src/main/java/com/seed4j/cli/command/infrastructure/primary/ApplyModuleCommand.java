@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import java.util.Comparator;
@@ -11,10 +12,16 @@ class ApplyModuleCommand implements Seed4JCommand {
 
   private final Seed4JModulesApplicationService modules;
   private final ApplyModuleSubCommandsFactory subCommandsFactory;
+  private final DistributionMetadataApplicationService distribution;
 
-  public ApplyModuleCommand(Seed4JModulesApplicationService modules, ApplyModuleSubCommandsFactory subCommandsFactory) {
+  public ApplyModuleCommand(
+    Seed4JModulesApplicationService modules,
+    ApplyModuleSubCommandsFactory subCommandsFactory,
+    DistributionMetadataApplicationService distribution
+  ) {
     this.modules = modules;
     this.subCommandsFactory = subCommandsFactory;
+    this.distribution = distribution;
   }
 
   @Override
@@ -42,7 +49,19 @@ class ApplyModuleCommand implements Seed4JCommand {
       .resources()
       .stream()
       .sorted(byModuleSlug())
-      .forEach(module -> spec.addSubcommand(module.slug().get(), subCommandsFactory.create(module).commandSpec()));
+      .forEach(module -> addModuleSubcommand(spec, module));
+  }
+
+  private void addModuleSubcommand(CommandSpec spec, Seed4JModuleResource module) {
+    if (distribution.metadata().moduleAvailability().available(module.slug().get())) {
+      spec.addSubcommand(module.slug().get(), subCommandsFactory.create(module).commandSpec());
+      return;
+    }
+
+    spec.addSubcommand(
+      module.slug().get(),
+      subCommandsFactory.createUnavailable(module, distribution.metadata().identity().channel()).commandSpec()
+    );
   }
 
   private static Comparator<Seed4JModuleResource> byModuleSlug() {

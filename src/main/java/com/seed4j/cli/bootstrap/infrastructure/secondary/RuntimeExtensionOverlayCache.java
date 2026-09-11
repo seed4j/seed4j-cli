@@ -24,6 +24,7 @@ public final class RuntimeExtensionOverlayCache {
   private static final String BOOT_INF_CLASSES_DIRECTORY = "BOOT-INF/classes/";
   private static final String BOOT_INF_CLASSES_DIRECTORY_WITHOUT_TRAILING_SLASH = "BOOT-INF/classes";
   private static final String APPLICATION_RESOURCE_PREFIX = "config/application";
+  private static final String DISTRIBUTION_METADATA_RESOURCE = "META-INF/seed4j-cli-distribution.properties";
   private static final List<String> APPLICATION_RESOURCE_SUFFIXES = List.of(".yml", ".yaml", ".properties");
 
   private final Seed4JCliHome cliHome;
@@ -130,7 +131,11 @@ public final class RuntimeExtensionOverlayCache {
   }
 
   private static boolean globalRuntimeResource(String relativeEntryPath) {
-    return applicationConfigurationResource(relativeEntryPath) || logbackConfigurationResource(relativeEntryPath);
+    return (
+      applicationConfigurationResource(relativeEntryPath)
+      || logbackConfigurationResource(relativeEntryPath)
+      || DISTRIBUTION_METADATA_RESOURCE.equals(relativeEntryPath)
+    );
   }
 
   private static boolean applicationConfigurationResource(String relativeEntryPath) {

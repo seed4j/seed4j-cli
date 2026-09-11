@@ -454,7 +454,8 @@ final class ModuleSetPlanningFixture {
         catalog,
         historyReader,
         projectPathValidator,
-        gitStateReader
+        gitStateReader,
+        new DistributionMetadataApplicationService(com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable)
       );
       return service.plan(requestDetails.request());
     }

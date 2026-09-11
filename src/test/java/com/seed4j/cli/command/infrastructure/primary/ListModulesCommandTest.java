@@ -5,6 +5,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
+import com.seed4j.cli.command.domain.distribution.DistributionIdentity;
+import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
+import com.seed4j.cli.command.domain.distribution.DistributionModuleSlug;
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
+import com.seed4j.cli.command.domain.distribution.Seed4JDependencyCoordinate;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
+import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleFactory;
 import com.seed4j.module.domain.resource.Seed4JHiddenModules;
@@ -14,6 +22,8 @@ import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModuleSlugFactory;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -26,7 +36,7 @@ class ListModulesCommandTest {
   @Test
   void shouldDescribeListCommandAsListingDependencies() {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
-    ListModulesCommand command = new ListModulesCommand(modules);
+    ListModulesCommand command = new ListModulesCommand(modules, stableDistribution());
 
     String[] description = command.spec().usageMessage().description();
 
@@ -37,7 +47,7 @@ class ListModulesCommandTest {
   void shouldRenderWrappedDependenciesAsExactAlignedLinesInAlphabeticalModuleOrder(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     when(modules.resources()).thenReturn(resourcesWithDependencyWrappingBoundaries());
-    ListModulesCommand command = new ListModulesCommand(modules);
+    ListModulesCommand command = new ListModulesCommand(modules, stableDistribution());
     List<String> expectedLines = List.of(
       "Available seed4j modules (3):",
       "  %-7s  %-60s  %s".formatted("Module", "Dependencies", "Description"),
@@ -61,12 +71,49 @@ class ListModulesCommandTest {
   void shouldAppendHiddenMarkerToModuleDependencyNotVisibleInResources(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     when(modules.resources()).thenReturn(resourcesWithHiddenModuleDependency());
-    ListModulesCommand command = new ListModulesCommand(modules);
+    ListModulesCommand command = new ListModulesCommand(modules, stableDistribution());
 
     int exitCode = command.call();
 
     assertThat(exitCode).isZero();
     assertThat(output).containsPattern("(?m)^\\s{2}visible-module\\s{2,}module:missing-module \\(hidden\\)\\s{2,}Visible module\\s*$");
+  }
+
+  @Test
+  void shouldOmitUnavailableModuleFromExperimentalList(CapturedOutput output) {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    Seed4JHiddenModules hiddenModules = new Seed4JHiddenModules(List.of(), List.of());
+    when(modules.resources()).thenReturn(
+      new Seed4JModulesResources(
+        List.of(
+          module(TestModuleSlug.VISIBLE_MODULE, "Visible module", Seed4JModuleOrganization.builder().build()),
+          module(TestModuleSlug.SEED4J_EXTENSION, "Generate extension", Seed4JModuleOrganization.builder().build())
+        ),
+        hiddenModules
+      )
+    );
+    ListModulesCommand command = new ListModulesCommand(modules, experimentalDistribution());
+
+    int exitCode = command.call();
+
+    assertThat(exitCode).isZero();
+    assertThat(output.getOut()).contains("Available seed4j modules (1):").contains("visible-module").doesNotContain("seed4j-extension");
+  }
+
+  private static DistributionMetadataApplicationService experimentalDistribution() {
+    DistributionMetadata metadata = new DistributionMetadata(
+      new DistributionIdentity(
+        ReleaseChannel.EXPERIMENTAL,
+        Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", "snapshot-version"),
+        Optional.of(new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567"))
+      ),
+      new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug("seed4j-extension")))
+    );
+    return new DistributionMetadataApplicationService(() -> metadata);
+  }
+
+  private static DistributionMetadataApplicationService stableDistribution() {
+    return new DistributionMetadataApplicationService(DistributionMetadata::stable);
   }
 
   private static Seed4JModulesResources resourcesWithDependencyWrappingBoundaries() {
@@ -120,7 +167,8 @@ class ListModulesCommandTest {
 
   private enum TestModuleSlug implements Seed4JModuleSlugFactory {
     VISIBLE_MODULE("visible-module"),
-    MISSING_MODULE("missing-module");
+    MISSING_MODULE("missing-module"),
+    SEED4J_EXTENSION("seed4j-extension");
 
     private final String slug;
 

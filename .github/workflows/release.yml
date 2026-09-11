@@ -22,9 +22,10 @@ on:
       - completed
     branches:
       - main
+      - experimental
 
 concurrency:
-  group: release-main
+  group: release-${{ github.event.workflow_run.head_branch || 'main' }}
   cancel-in-progress: false
 
 permissions: {}
@@ -37,7 +38,8 @@ jobs:
        github.repository == 'seed4j/seed4j-cli' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'main') ||
+       (github.event.workflow_run.head_branch == 'main' ||
+        github.event.workflow_run.head_branch == 'experimental')) ||
       (github.event_name == 'workflow_dispatch' &&
        github.repository == 'seed4j/seed4j-cli' &&
        github.ref == 'refs/heads/main' &&
@@ -51,73 +53,90 @@ jobs:
       pull-requests: read
     steps:
       - name: 'Setup: checkout release revision'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
 
-      - name: 'Release: verify current main revision'
-        id: current-main
+      - name: 'Release: verify current distribution revision'
+        id: release-revision
         env:
+          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BUILD_EVENT: ${{ github.event.workflow_run.event }}
+          BUILD_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_EVENT: ${{ github.event_name }}
           RELEASE_OPERATION: ${{ inputs.operation }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          git fetch origin main --tags
-          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
           CHECKED_OUT_SHA="$(git rev-parse HEAD)"
 
           if [ "$RELEASE_EVENT" = "workflow_run" ]; then
-            if [ "$BUILT_SHA" != "$CURRENT_MAIN_SHA" ]; then
-              echo "Skipping stale build ${BUILT_SHA}; current main is ${CURRENT_MAIN_SHA}."
-              echo "release=false" >> "$GITHUB_OUTPUT"
-              exit 0
+            git fetch origin "$BUILD_HEAD_BRANCH" --tags
+            CURRENT_BRANCH_SHA="$(git rev-parse "origin/${BUILD_HEAD_BRANCH}")"
+            RELEASE_TAGS="$(git tag --points-at "$CHECKED_OUT_SHA" --list 'v*')"
+
+            if [ "$BUILD_HEAD_BRANCH" = "experimental" ]; then
+              CURRENT_EXPERIMENTAL_SHA="$CURRENT_BRANCH_SHA"
+              export BUILD_CONCLUSION BUILD_EVENT BUILD_HEAD_BRANCH BUILT_SHA CHECKED_OUT_SHA CURRENT_EXPERIMENTAL_SHA RELEASE_TAGS
+              node scripts/release-request.cjs experimental
+              echo "channel=experimental" >> "$GITHUB_OUTPUT"
+            else
+              if [ "$BUILT_SHA" != "$CURRENT_BRANCH_SHA" ]; then
+                echo "Skipping stale build ${BUILT_SHA}; current main is ${CURRENT_BRANCH_SHA}."
+                echo "release=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "channel=stable" >> "$GITHUB_OUTPUT"
             fi
           else
+            git fetch origin main --tags
+            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
             node scripts/release-request.cjs dispatch
             SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml \
               --commit "$CHECKED_OUT_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
             RELEASE_TAGS="$(git tag --points-at "$CHECKED_OUT_SHA" --list 'v*')"
             export CHECKED_OUT_SHA CURRENT_MAIN_SHA RELEASE_TAGS SUCCESSFUL_BUILD_COUNT
             node scripts/release-request.cjs manual
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
           fi
 
           echo "release=true" >> "$GITHUB_OUTPUT"
 
       - name: 'Setup: Node.js'
-        if: steps.current-main.outputs.release == 'true'
-        uses: actions/setup-node@v7
+        if: steps.release-revision.outputs.release == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24.20.0
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
       - name: 'Setup: Java'
-        if: steps.current-main.outputs.release == 'true'
-        uses: actions/setup-java@v6
+        if: steps.release-revision.outputs.release == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: 'temurin'
           java-version: 25
           cache: maven
 
       - name: 'Setup: npm dependencies'
-        if: steps.current-main.outputs.release == 'true'
+        if: steps.release-revision.outputs.release == 'true'
         run: npm ci
 
       - name: 'Release: evaluate and publish npm package'
-        if: steps.current-main.outputs.release == 'true'
+        if: steps.release-revision.outputs.release == 'true'
         id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+          SEED4J_RELEASE_CHANNEL: ${{ steps.release-revision.outputs.channel }}
           SEED4J_MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'release' }}
         run: npx --no-install semantic-release
 
       - name: 'Release: publish drafted GitHub release'
-        if: steps.semantic-release.outputs.released == 'true'
-        uses: release-drafter/release-drafter@v7
+        if: steps.semantic-release.outputs.released == 'true' && steps.release-revision.outputs.channel == 'stable'
+        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
         with:
           commitish: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           name: v${{ steps.semantic-release.outputs.version }}
@@ -126,7 +145,7 @@ jobs:
           version: ${{ steps.semantic-release.outputs.version }}
 
       - name: 'Release: upload CLI JAR'
-        if: steps.semantic-release.outputs.released == 'true'
+        if: steps.semantic-release.outputs.released == 'true' && steps.release-revision.outputs.channel == 'stable'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ steps.semantic-release.outputs.version }}
@@ -154,7 +173,7 @@ jobs:
       RELEASE_VERSION: ${{ inputs.version }}
     steps:
       - name: 'Setup: checkout recovery workflow'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: main
@@ -178,14 +197,14 @@ jobs:
           echo "sha=$TAG_SHA" >> "$GITHUB_OUTPUT"
 
       - name: 'Setup: Node.js'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24.21.0
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
       - name: 'Setup: Java'
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: 'temurin'
           java-version: 25
@@ -226,7 +245,7 @@ jobs:
 
       - name: 'Recovery: publish missing drafted GitHub release'
         if: steps.github-release.outputs.published == 'false'
-        uses: release-drafter/release-drafter@v7
+        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
         with:
           commitish: ${{ steps.release-tag.outputs.sha }}
           name: v${{ inputs.version }}

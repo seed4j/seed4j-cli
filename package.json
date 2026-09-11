@@ -25,7 +25,8 @@
     "prettier:format": "prettier --write .",
     "test:npm-package": "node --test test/npm/*.test.js",
     "test:npm-packed-skill": "node tests-ci/npm-packed-skill.js",
-    "test:release": "node --test test/release/*.test.js"
+    "test:release": "node --test test/release/*.test.js",
+    "test:workflows": "node --test test/workflows/*.test.js"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.2",

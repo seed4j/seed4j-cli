@@ -2,6 +2,9 @@
 
 These recipes organize commands around concrete outcomes. Use the [commands reference](Commands.md) when you need exact options, exit behavior, configuration keys, or failure contracts.
 
+Stable installation is the default. Before evaluating the opt-in npm experimental channel, read its
+[provenance, retention, unsupported-module, update, and rollback contract](experimental-channel.md).
+
 ## Create a project with modules
 
 A typical workflow to initialize a new project might look like:

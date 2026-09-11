@@ -1,5 +1,5 @@
 module.exports = {
-  branches: ['main'],
+  branches: ['main', { name: 'experimental', channel: 'experimental', prerelease: 'experimental' }],
   tagFormat: 'v${version}',
   plugins: [
     './scripts/release-analyzer.cjs',

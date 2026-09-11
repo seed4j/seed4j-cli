@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.project.application.ProjectsApplicationService;
@@ -18,5 +19,9 @@ class ApplyModuleSubCommandsFactory {
 
   public ApplyModuleSubCommand create(Seed4JModuleResource module) {
     return new ApplyModuleSubCommand(modules, module, projects);
+  }
+
+  public UnavailableApplyModuleSubCommand createUnavailable(Seed4JModuleResource module, ReleaseChannel channel) {
+    return new UnavailableApplyModuleSubCommand(module, channel);
   }
 }

@@ -31,6 +31,11 @@ You can also run it without a global install:
 npx --package seed4j-cli seed4j --help
 ```
 
+Stable is the default. Once the separately operated experimental channel is activated, deliberate early adopters can
+install `npm install -g seed4j-cli@experimental`; it follows an unofficial, retention-limited snapshot of Seed4J `main`
+and is not recommended for production generation. Read the
+[experimental channel contract and support policy](documentation/experimental-channel.md) before opting in.
+
 Then choose the outcome you need:
 
 - [Create a project with Seed4J modules](documentation/workflows.md#create-a-project-with-modules)
@@ -135,6 +140,7 @@ seed4j --version
 - [Commands Guide](documentation/Commands.md)
 - [Task workflows](documentation/workflows.md)
 - [Contributor and maintainer guide](documentation/development.md)
+- [Experimental channel contract and operations](documentation/experimental-channel.md)
 - [Hexagonal architecture](documentation/hexagonal-architecture.md)
 - [Package types](documentation/package-types.md)
 - [Assertions](documentation/assertions.md)

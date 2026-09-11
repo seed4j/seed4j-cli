@@ -104,8 +104,10 @@ npm remains the primary stable installation channel:
 npm install -g seed4j-cli
 ```
 
-There is no npm `next` channel. To inspect or run an unreleased `main` revision, check out that source revision and use
-the build instructions in this guide.
+The separate `experimental` branch uses semantic-release prereleases shaped as `<next-stable>-experimental.<n>` and npm
+dist-tag `experimental`. It publishes only after the exact current experimental push passes the standard build. It does
+not publish a GitHub Release, Release Drafter draft, or stable JAR asset. The complete opt-in, provenance, publisher,
+monitoring, rollback, and official-exit procedure is the [experimental channel runbook](experimental-channel.md).
 
 The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
 
@@ -115,6 +117,13 @@ The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
 
 Keep the existing Release Drafter draft. It will continue accumulating merged pull requests and will be published by the
 next automatic or manual release.
+
+Run release and workflow policy tests locally with:
+
+```bash
+npm run test:release
+npm run test:workflows
+```
 
 ### Publishing current main manually
 

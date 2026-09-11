@@ -1,7 +1,12 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { validateDispatchRequest, validateManualRelease, validateRecoveryVersion } = require('../../scripts/release-request.cjs');
+const {
+  validateDispatchRequest,
+  validateExperimentalRelease,
+  validateManualRelease,
+  validateRecoveryVersion,
+} = require('../../scripts/release-request.cjs');
 
 test('accepts release dispatch without a manually selected version', () => {
   const request = validateDispatchRequest({ operation: 'release', version: '' });
@@ -61,5 +66,30 @@ test('rejects stale, unverified, or already released manual revisions', () => {
         successfulBuildCount: 1,
       }),
     /operation=recover.*0\.1\.0/,
+  );
+});
+
+test('accepts only an unreleased successful push build of current experimental HEAD', () => {
+  const eligible = {
+    buildConclusion: 'success',
+    buildEvent: 'push',
+    buildHeadBranch: 'experimental',
+    builtSha: 'current-experimental',
+    checkedOutSha: 'current-experimental',
+    currentExperimentalSha: 'current-experimental',
+    releaseTags: [],
+  };
+
+  assert.doesNotThrow(() => validateExperimentalRelease(eligible));
+  assert.throws(
+    () => validateExperimentalRelease({ ...eligible, currentExperimentalSha: 'newer-experimental' }),
+    /current experimental HEAD/,
+  );
+  assert.throws(() => validateExperimentalRelease({ ...eligible, buildHeadBranch: 'main' }), /experimental push build/);
+  assert.throws(() => validateExperimentalRelease({ ...eligible, buildEvent: 'pull_request' }), /experimental push build/);
+  assert.throws(() => validateExperimentalRelease({ ...eligible, buildConclusion: 'failure' }), /successful/);
+  assert.throws(
+    () => validateExperimentalRelease({ ...eligible, releaseTags: ['v1.2.3-experimental.4'] }),
+    /already has v1\.2\.3-experimental\.4/,
   );
 });

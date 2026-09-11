@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { analyzeCommits } = require('../../scripts/release-analyzer.cjs');
+const { validateReleaseVersion } = require('../../scripts/release-version.cjs');
+const releaseConfiguration = require('../../release.config.cjs');
 
 const logger = { log() {} };
 
@@ -69,6 +71,29 @@ test('manual publication changes only no-release analysis to patch', async () =>
   assert.equal(fixRelease, 'patch');
   assert.equal(featureRelease, 'minor');
   assert.equal(breakingRelease, 'major');
+});
+
+test('publishes main as stable and experimental as an experimental prerelease', () => {
+  assert.deepEqual(releaseConfiguration.branches, [
+    'main',
+    {
+      channel: 'experimental',
+      name: 'experimental',
+      prerelease: 'experimental',
+    },
+  ]);
+  assert.equal(releaseConfiguration.tagFormat, 'v${version}');
+  assert.ok(releaseConfiguration.plugins.includes('@semantic-release/npm'));
+  assert.equal(releaseConfiguration.plugins.includes('@semantic-release/github'), false);
+});
+
+test('prepares only stable versions for stable releases and experimental versions for experimental releases', () => {
+  assert.equal(validateReleaseVersion('1.2.3', 'stable'), '1.2.3');
+  assert.equal(validateReleaseVersion('1.3.0-experimental.4', 'experimental'), '1.3.0-experimental.4');
+  assert.throws(() => validateReleaseVersion('1.2.3-experimental.1', 'stable'), /stable semantic version/);
+  assert.throws(() => validateReleaseVersion('1.2.3', 'experimental'), /experimental semantic version/);
+  assert.throws(() => validateReleaseVersion('1.2.3-next.1', 'experimental'), /experimental semantic version/);
+  assert.throws(() => validateReleaseVersion('1.2.3-experimental.1', 'preview'), /Unknown release channel/);
 });
 
 function context(...messages) {

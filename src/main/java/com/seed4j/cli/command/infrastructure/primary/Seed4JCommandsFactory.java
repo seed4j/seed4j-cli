@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
 import java.util.List;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
@@ -12,10 +13,16 @@ class Seed4JCommandsFactory {
 
   private final List<Seed4JCommand> seed4JCommands;
   private final Seed4JVersionProvider versionProvider;
+  private final DistributionMetadataApplicationService distribution;
 
-  public Seed4JCommandsFactory(List<Seed4JCommand> seed4JCommands, Seed4JVersionProvider versionProvider) {
+  public Seed4JCommandsFactory(
+    List<Seed4JCommand> seed4JCommands,
+    Seed4JVersionProvider versionProvider,
+    DistributionMetadataApplicationService distribution
+  ) {
     this.seed4JCommands = seed4JCommands;
     this.versionProvider = versionProvider;
+    this.distribution = distribution;
   }
 
   public CommandSpec buildCommandSpec() {
@@ -28,10 +35,21 @@ class Seed4JCommandsFactory {
         .build()
     );
 
-    spec.usageMessage().description("Seed4J CLI").headerHeading("%n").commandListHeading("%nCommands:%n");
+    spec.usageMessage().description(description()).headerHeading("%n").commandListHeading("%nCommands:%n");
 
     seed4JCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));
 
     return spec;
+  }
+
+  private String description() {
+    if (!distribution.metadata().identity().channel().experimental()) {
+      return "Seed4J CLI";
+    }
+
+    return """
+    Seed4J CLI
+    WARNING: EXPERIMENTAL distribution; tracks Seed4J main through an unofficial snapshot that can expire.
+    Restore stable use with: npm install -g seed4j-cli@latest""";
   }
 }

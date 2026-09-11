@@ -142,6 +142,20 @@ class RuntimeExtensionOverlayCacheTest {
   class ResourceFiltering {
 
     @Test
+    void shouldPreservePackagedDistributionMetadataFromBaseRuntime(@TempDir Path temporaryDirectory) throws IOException {
+      OverlayCacheFixture fixture = new OverlayCacheFixture(temporaryDirectory, temporaryDirectory.resolve("user-home"));
+      Path extensionJarPath = fixture.createExtensionJar(
+        TestJarEntry.resource("META-INF/seed4j-cli-distribution.properties", "release-channel=extension-override"),
+        TestJarEntry.resource("generator/runtime-extension/messages/template.yaml", "template-content")
+      );
+
+      Path overlayClassesPath = fixture.overlayCache.materialize(extensionJarPath);
+
+      assertThat(overlayClassesPath.resolve("META-INF/seed4j-cli-distribution.properties")).doesNotExist();
+      assertThat(overlayClassesPath.resolve("generator/runtime-extension/messages/template.yaml")).exists().hasContent("template-content");
+    }
+
+    @Test
     void shouldFilterGlobalRuntimeResourcesAndKeepFunctionalResourcesInOverlay(@TempDir Path temporaryDirectory) throws IOException {
       OverlayCacheFixture fixture = new OverlayCacheFixture(temporaryDirectory, temporaryDirectory.resolve("user-home"));
       Path extensionJarPath = fixture.createExtensionJar(

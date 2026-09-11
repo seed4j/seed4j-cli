@@ -6,6 +6,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.seed4j.cli.UnitTest;
+import com.seed4j.cli.command.domain.distribution.DistributionIdentity;
+import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
+import com.seed4j.cli.command.domain.distribution.DistributionModuleSlug;
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
+import com.seed4j.cli.command.domain.distribution.Seed4JDependencyCoordinate;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
+import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -20,6 +27,8 @@ import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModuleSlugFactory;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -34,7 +43,7 @@ class Seed4JModuleSetCatalogTest {
       .defaultValue(literal)
       .build();
     Seed4JModulesApplicationService modules = modulesWith(property);
-    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules);
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules, DistributionMetadata::stable);
 
     List<ModuleSetModule> catalogModules = catalog.modules();
 
@@ -58,7 +67,7 @@ class Seed4JModuleSetCatalogTest {
       .defaultValue("yes")
       .build();
     Seed4JModulesApplicationService modules = modulesWith(property);
-    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules);
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules, DistributionMetadata::stable);
 
     assertThatThrownBy(catalog::modules)
       .isInstanceOf(IllegalArgumentException.class)
@@ -73,11 +82,35 @@ class Seed4JModuleSetCatalogTest {
       module(TestModuleSlug.STRING_PROPERTY, stringProperty),
       module(TestModuleSlug.INTEGER_PROPERTY, integerProperty)
     );
-    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules);
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules, DistributionMetadata::stable);
 
     assertThatThrownBy(catalog::modules)
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Conflicting module set property types for shared: INTEGER, STRING");
+  }
+
+  @Test
+  void shouldOmitUnavailableModuleFromExperimentalCatalog() {
+    Seed4JModulePropertyDefinition property = Seed4JModulePropertyDefinition.optionalStringProperty("shared").build();
+    Seed4JModulesApplicationService modules = modulesWith(
+      module(TestModuleSlug.STRING_PROPERTY, property),
+      module(TestModuleSlug.SEED4J_EXTENSION, property)
+    );
+    DistributionMetadata metadata = new DistributionMetadata(
+      new DistributionIdentity(
+        ReleaseChannel.EXPERIMENTAL,
+        Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", "snapshot-version"),
+        Optional.of(new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567"))
+      ),
+      new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug("seed4j-extension")))
+    );
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules, () -> metadata);
+
+    List<ModuleSetModule> catalogModules = catalog.modules();
+
+    assertThat(catalogModules)
+      .extracting(module -> module.slug().value())
+      .containsExactly("string-property");
   }
 
   private static Seed4JModulesApplicationService modulesWith(Seed4JModulePropertyDefinition property) {
@@ -104,7 +137,8 @@ class Seed4JModuleSetCatalogTest {
   private enum TestModuleSlug implements Seed4JModuleSlugFactory {
     BOOLEAN_DEFAULT(Seed4JModuleRank.RANK_D, "boolean-default"),
     STRING_PROPERTY(Seed4JModuleRank.RANK_C, "string-property"),
-    INTEGER_PROPERTY(Seed4JModuleRank.RANK_B, "integer-property");
+    INTEGER_PROPERTY(Seed4JModuleRank.RANK_B, "integer-property"),
+    SEED4J_EXTENSION(Seed4JModuleRank.RANK_A, "seed4j-extension");
 
     private final Seed4JModuleRank rank;
     private final String slug;

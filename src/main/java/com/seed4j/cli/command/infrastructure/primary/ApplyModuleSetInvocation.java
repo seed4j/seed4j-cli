@@ -9,6 +9,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetExecutionResult;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningProblem;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
@@ -16,6 +17,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
 import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
+import com.seed4j.cli.command.domain.moduleset.UnavailableRequestedModuleSetModules;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -106,6 +108,14 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
   }
 
   private int run(ModuleSetPlan plan) {
+    for (ModuleSetPlanningProblem problem : plan.problems()) {
+      if (problem instanceof UnavailableRequestedModuleSetModules unavailableModules) {
+        printError(
+          new UnavailableModuleDiagnosticRenderer().render(unavailableModules.modules().getFirst().value(), unavailableModules.channel())
+        );
+        return ExitCode.USAGE;
+      }
+    }
     if (!plan.valid()) {
       printError(new ApplyModuleSetPlanRenderer().render(plan));
       return ExitCode.USAGE;

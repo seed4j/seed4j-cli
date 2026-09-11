@@ -23,12 +23,20 @@ import com.seed4j.cli.command.application.ModuleSetPlanningFixture.InvalidProjec
 import com.seed4j.cli.command.application.ModuleSetPlanningFixture.InvalidProjectPathWithSelectionProblemsScenario;
 import com.seed4j.cli.command.application.ModuleSetPlanningFixture.RecursiveModuleDependenciesScenario;
 import com.seed4j.cli.command.application.ModuleSetPlanningFixture.ReversedPropertyTypeConflictScenario;
+import com.seed4j.cli.command.domain.distribution.DistributionIdentity;
+import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
+import com.seed4j.cli.command.domain.distribution.DistributionModuleSlug;
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
+import com.seed4j.cli.command.domain.distribution.Seed4JDependencyCoordinate;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
+import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import com.seed4j.cli.command.domain.moduleset.DirtyModuleSetGitWorktree;
 import com.seed4j.cli.command.domain.moduleset.DuplicateRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.ExplicitModuleSetParameters;
 import com.seed4j.cli.command.domain.moduleset.IncompatibleExplicitModuleSetParameterTypeException;
 import com.seed4j.cli.command.domain.moduleset.InvalidModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetApplicationKind;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCommitMode;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependencyStatus;
@@ -42,6 +50,8 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetIntegerParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPlan;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPlanningRequest;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetProjectPath;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyConflicts;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
@@ -54,12 +64,17 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyTypeConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
+import com.seed4j.cli.command.domain.moduleset.RequestedModuleSet;
 import com.seed4j.cli.command.domain.moduleset.ResolvedModuleSetParameter;
+import com.seed4j.cli.command.domain.moduleset.UnavailableRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnsupportedModuleSetHistoryParameter;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -68,6 +83,58 @@ class ModuleSetPlanningApplicationServiceTest {
 
   @Nested
   class PreflightEnvironment {
+
+    @Test
+    void shouldRejectUnavailableModuleBeforeCatalogProjectHistoryFilesystemGitDependencyOrPropertyInspection() {
+      ModuleSetSlug unavailable = slug("seed4j-extension");
+      ModuleSetCatalog unavailableCatalog = new ModuleSetCatalog() {
+        @Override
+        public List<ModuleSetModule> modules() {
+          throw new AssertionError("Catalog modules, dependencies, and properties must not be inspected");
+        }
+
+        @Override
+        public List<ModuleSetSlug> sort(List<ModuleSetSlug> requestedModules) {
+          throw new AssertionError("Catalog ordering must not be inspected");
+        }
+      };
+      DistributionMetadata metadata = new DistributionMetadata(
+        new DistributionIdentity(
+          ReleaseChannel.EXPERIMENTAL,
+          Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", "snapshot-version"),
+          Optional.of(new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567"))
+        ),
+        new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug(unavailable.value())))
+      );
+      ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
+        unavailableCatalog,
+        projectPath -> {
+          throw new AssertionError("Project history must not be inspected");
+        },
+        projectPath -> {
+          throw new AssertionError("Project path and filesystem must not be inspected");
+        },
+        projectPath -> {
+          throw new AssertionError("Git must not be inspected");
+        },
+        new DistributionMetadataApplicationService(() -> metadata)
+      );
+      ModuleSetPlanningRequest request = new ModuleSetPlanningRequest(
+        new RequestedModuleSet(List.of(unavailable)),
+        new ModuleSetProjectPath(Path.of("uninspected-project")),
+        ExplicitModuleSetParameters.empty(),
+        ModuleSetCommitMode.ENABLED
+      );
+
+      ModuleSetPlan plan = planning.plan(request);
+
+      assertThat(plan.problems()).containsExactly(
+        new UnavailableRequestedModuleSetModules(List.of(unavailable), ReleaseChannel.EXPERIMENTAL)
+      );
+      assertThat(plan.executionOrder()).isEmpty();
+      assertThat(plan.detailedPlanningStatus()).isEqualTo(ModuleSetDetailedPlanningStatus.NOT_EVALUATED);
+      assertThat(plan.valid()).isFalse();
+    }
 
     @Test
     void shouldWarnAndKeepPlanValidForDirtyGitWorktree() {
