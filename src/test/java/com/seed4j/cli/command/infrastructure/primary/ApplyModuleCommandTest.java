@@ -119,7 +119,7 @@ class ApplyModuleCommandTest {
       int exitCode = commandLine.execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(errorOutput.toString()).isEqualTo(
+      assertThat(errorOutput).hasToString(
         "ERROR: Module 'seed4j-extension' is unavailable in the experimental channel because Central Portal snapshots expire and generated extensions would not remain rebuildable. Install seed4j-cli@latest to generate a stable Seed4J extension. No changes were applied.\n"
       );
       assertThat(projectPath).doesNotExist();

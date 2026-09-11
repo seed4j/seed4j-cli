@@ -6,6 +6,7 @@ import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.RuntimeDistributionId;
 import com.seed4j.cli.command.domain.RuntimeDistributionVersion;
 import com.seed4j.cli.command.domain.RuntimeModeDisplay;
+import com.seed4j.cli.command.domain.distribution.DependencyVersion;
 import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
 import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import java.util.Optional;
@@ -47,7 +48,7 @@ class Seed4JVersionProvider implements IVersionProvider {
       .identity()
       .dependencyCoordinate()
       .version()
-      .map(dependencyVersion -> dependencyVersion.value())
+      .map(DependencyVersion::value)
       .orElseGet(() -> resolvedVersion(projectSeed4JVersion, resolvedCliVersion));
     RuntimeDisplay runtimeDisplay = runtimeDisplayApplicationService.activeRuntime();
 
