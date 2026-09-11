@@ -449,15 +449,22 @@ final class ModuleSetPlanningFixture {
       return plan(RequestDetails.at(projectPath, requestedModules));
     }
 
+    List<ModuleSetPropertyDefinition> availableProperties() {
+      return service().availableProperties();
+    }
+
     private ModuleSetPlan plan(RequestDetails requestDetails) {
-      ModuleSetPlanningApplicationService service = new ModuleSetPlanningApplicationService(
+      return service().plan(requestDetails.request());
+    }
+
+    private ModuleSetPlanningApplicationService service() {
+      return new ModuleSetPlanningApplicationService(
         catalog,
         historyReader,
         projectPathValidator,
         gitStateReader,
         new DistributionMetadataApplicationService(com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable)
       );
-      return service.plan(requestDetails.request());
     }
   }
 

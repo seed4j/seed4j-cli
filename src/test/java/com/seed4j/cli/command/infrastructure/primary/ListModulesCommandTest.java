@@ -80,6 +80,20 @@ class ListModulesCommandTest {
   }
 
   @Test
+  void shouldRenderDescriptionsAndOrdinaryTokenForVisibleModuleDependency(CapturedOutput output) {
+    Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
+    when(modules.resources()).thenReturn(resourcesWithVisibleModuleDependency());
+    ListModulesCommand command = new ListModulesCommand(modules, stableDistribution());
+
+    int exitCode = command.call();
+
+    assertThat(exitCode).isZero();
+    assertThat(output.getOut())
+      .containsPattern("(?m)^  consumer +module:provider +Consumer description$")
+      .containsPattern("(?m)^  provider +- +Provider description$");
+  }
+
+  @Test
   void shouldOmitUnavailableModuleFromExperimentalList(CapturedOutput output) {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
     Seed4JHiddenModules hiddenModules = new Seed4JHiddenModules(List.of(), List.of());
@@ -154,6 +168,18 @@ class ListModulesCommandTest {
     return new Seed4JModulesResources(List.of(visibleModule), hiddenModules);
   }
 
+  private static Seed4JModulesResources resourcesWithVisibleModuleDependency() {
+    Seed4JModuleResource consumer = module(
+      TestModuleSlug.CONSUMER,
+      "Consumer description",
+      Seed4JModuleOrganization.builder().addDependency(TestModuleSlug.PROVIDER).build()
+    );
+    Seed4JModuleResource provider = module(TestModuleSlug.PROVIDER, "Provider description", Seed4JModuleOrganization.builder().build());
+    Seed4JHiddenModules hiddenModules = new Seed4JHiddenModules(List.of(), List.of());
+
+    return new Seed4JModulesResources(List.of(consumer, provider), hiddenModules);
+  }
+
   private static Seed4JModuleResource module(Seed4JModuleSlugFactory slug, String operation, Seed4JModuleOrganization organization) {
     Seed4JModuleFactory noOpFactory = properties -> null;
     return Seed4JModuleResource.builder()
@@ -168,6 +194,8 @@ class ListModulesCommandTest {
   private enum TestModuleSlug implements Seed4JModuleSlugFactory {
     VISIBLE_MODULE("visible-module"),
     MISSING_MODULE("missing-module"),
+    CONSUMER("consumer"),
+    PROVIDER("provider"),
     SEED4J_EXTENSION("seed4j-extension");
 
     private final String slug;

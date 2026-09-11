@@ -59,6 +59,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefinition;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyKey;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertySource;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyTypeConflict;
@@ -80,6 +81,45 @@ import org.junit.jupiter.api.Test;
 
 @UnitTest
 class ModuleSetPlanningApplicationServiceTest {
+
+  @Nested
+  class AvailableProperties {
+
+    @Test
+    void shouldAggregateRequiredPropertyWithAllDistinctCompletionCandidates() {
+      ModuleSetPropertyKey runtimeMode = new ModuleSetPropertyKey("runtimeMode");
+      ModuleSetPropertyDefinition optionalDefinition = new ModuleSetPropertyDefinition(
+        runtimeMode,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.OPTIONAL,
+        Optional.empty(),
+        Optional.empty(),
+        List.of("standard", "shared")
+      );
+      ModuleSetPropertyDefinition requiredDefinition = new ModuleSetPropertyDefinition(
+        runtimeMode,
+        ModuleSetPropertyType.STRING,
+        ModuleSetPropertyRequirement.REQUIRED,
+        Optional.empty(),
+        Optional.empty(),
+        List.of("shared", "extension")
+      );
+      List<ModuleSetModule> modules = List.of(
+        module(slug("first")).withProperties(optionalDefinition).definition(),
+        module(slug("second")).withProperties(requiredDefinition).definition()
+      );
+
+      List<ModuleSetPropertyDefinition> availableProperties = planning(modules, List.of()).availableProperties();
+
+      assertThat(availableProperties)
+        .singleElement()
+        .satisfies(definition -> {
+          assertThat(definition.key()).isEqualTo(runtimeMode);
+          assertThat(definition.requirement()).isEqualTo(ModuleSetPropertyRequirement.REQUIRED);
+          assertThat(definition.completionCandidates()).containsExactly("standard", "shared", "extension");
+        });
+    }
+  }
 
   @Nested
   class PreflightEnvironment {

@@ -93,6 +93,28 @@ class BashCompletionScriptGeneratorTest {
     assertThat(completions).isEmpty();
   }
 
+  @Test
+  void shouldOmitHiddenSubcommandAndCompleteVisibleOptionValues() throws IOException, InterruptedException {
+    CommandSpec root = CommandSpec.create().name("seed4j");
+    CommandSpec visible = CommandSpec.create().name("visible");
+    visible.addOption(
+      OptionSpec.builder("--environment").type(String.class).completionCandidates(List.of("development", "production")).build()
+    );
+    CommandSpec hidden = CommandSpec.create().name("hidden");
+    hidden.usageMessage().hidden(true);
+    root.addSubcommand("visible", visible);
+    root.addSubcommand("hidden", hidden);
+
+    String script = new BashCompletionScriptGenerator().generate(root, BashCompletionValueCompletion.ENABLED);
+
+    List<String> valueCompletions = completions(script, "seed4j", "visible", "--environment", "");
+    List<String> rootCompletions = completions(script, "seed4j", "");
+
+    assertThat(valueCompletions).containsExactly("development", "production");
+    assertThat(rootCompletions).containsExactly("visible");
+    assertThat(script).doesNotContain("hidden");
+  }
+
   private CommandSpec commandWithProjectNameCandidates(List<String> candidates) {
     CommandSpec root = CommandSpec.create().name("seed4j");
     CommandSpec apply = CommandSpec.create().name("apply");

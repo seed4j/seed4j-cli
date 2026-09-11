@@ -16,6 +16,7 @@ import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetModule;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
+import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescription;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleFactory;
@@ -35,6 +36,29 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 @UnitTest
 class Seed4JModuleSetCatalogTest {
+
+  @Test
+  void shouldPreservePropertyDescriptionAndDefaultCompletionCandidate() {
+    Seed4JModulePropertyDefinition property = Seed4JModulePropertyDefinition.optionalStringProperty("runtimeMode")
+      .description("Runtime execution mode")
+      .defaultValue("standard")
+      .build();
+    Seed4JModulesApplicationService modules = modulesWith(property);
+    Seed4JModuleSetCatalog catalog = new Seed4JModuleSetCatalog(modules, DistributionMetadata::stable);
+
+    List<ModuleSetModule> catalogModules = catalog.modules();
+
+    assertThat(catalogModules)
+      .singleElement()
+      .satisfies(module ->
+        assertThat(module.properties())
+          .singleElement()
+          .satisfies(definition -> {
+            assertThat(definition.description()).contains(new ModuleSetPropertyDescription("Runtime execution mode"));
+            assertThat(definition.completionCandidates()).containsExactly("standard");
+          })
+      );
+  }
 
   @ParameterizedTest
   @CsvSource({ "true, true", "false, false" })
