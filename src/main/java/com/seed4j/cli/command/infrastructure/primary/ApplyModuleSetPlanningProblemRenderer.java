@@ -27,7 +27,13 @@ final class ApplyModuleSetPlanningProblemRenderer {
     }
     StringBuilder output = new StringBuilder();
     output.append("Validation problems:\n");
-    problems.forEach(problem -> output.append("  ○ ").append(problemText(problem)).append('\n'));
+    for (ModuleSetPlanningProblem problem : problems) {
+      String renderedProblem = problemText(problem);
+      if (problem instanceof UnavailableRequestedModuleSetModules) {
+        return renderedProblem;
+      }
+      output.append("  ○ ").append(renderedProblem).append('\n');
+    }
     return output.append('\n').toString();
   }
 
@@ -53,10 +59,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
   }
 
   private static String unavailableModules(UnavailableRequestedModuleSetModules unavailableModules) {
-    return "Modules %s are unavailable in the %s channel because Central Portal snapshots expire and generated extensions would not remain rebuildable; install seed4j-cli@latest to generate a stable Seed4J extension".formatted(
-      unavailableModules.modules().stream().map(ModuleSetSlug::value).collect(Collectors.joining(", ")),
-      unavailableModules.channel().name().toLowerCase()
-    );
+    return new UnavailableModuleDiagnosticRenderer().render(unavailableModules.modules().getFirst().value(), unavailableModules.channel());
   }
 
   private static String invalidProjectPath(InvalidModuleSetProjectPath invalidPath) {

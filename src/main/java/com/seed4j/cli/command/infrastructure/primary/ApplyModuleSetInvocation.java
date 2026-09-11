@@ -109,10 +109,8 @@ final class ApplyModuleSetInvocation implements Callable<Integer> {
 
   private int run(ModuleSetPlan plan) {
     for (ModuleSetPlanningProblem problem : plan.problems()) {
-      if (problem instanceof UnavailableRequestedModuleSetModules unavailableModules) {
-        printError(
-          new UnavailableModuleDiagnosticRenderer().render(unavailableModules.modules().getFirst().value(), unavailableModules.channel())
-        );
+      if (problem instanceof UnavailableRequestedModuleSetModules) {
+        printError(new ApplyModuleSetPlanningProblemRenderer().problems(List.of(problem)));
         return ExitCode.USAGE;
       }
     }
