@@ -8,9 +8,9 @@ Safety boundary: This task is limited to authorized, defensive maintenance of th
 
 ## Context and limits
 
-- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, qualification-correction checkpoint `174198042cd1129739e43bc5830291fcdce8d4a8`.
+- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, authority/recovery-correction checkpoint `ce3da135ae4dfa5420357e37f00c558118eec2fb`.
 - Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, accepted immutable checkpoint `ec4208dda65c69fd3e0fd4fc4d59e0d7777a3ed5`.
-- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-runtime-final.md`.
+- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-qualification-final.md`.
 - Preserve stable behavior, POM/main/tests-only publisher artifacts, sources/Javadocs prohibition, exact-SHA checks, protected-branch checks, `latest` isolation, credential boundaries, and current unrelated work.
 - Do not create branches, stage, commit, push, publish, dispatch workflows, mutate issues or pull requests, install tooling, run `./mvnw clean verify` or Sonar, snooze Habit findings, or change external state.
 
@@ -80,6 +80,19 @@ the real workflow/process paths fully protect their contracts. Update release/sy
 tests, README and workflow/channel documentation, then run the complete primary validation set and write the final
 qualification correction report.
 
+### 12. Remove implicit build authority and recover partially published proposals
+
+Add public workflow-policy tests before changing the standard build so every unspecified `GITHUB_TOKEN` capability is
+denied, the only required capability is `contents: read`, and checkout never persists its credential into later
+PR-controlled steps. Recheck the automation-identity predicates that authorize release and synchronization finalization
+after removing that authority path. Add a child-process recovery scenario that first models `gh pr create --label`
+creating the canonical PR but returning nonzero when its label update fails. Keep the ordinary historical drain strictly
+label-indexed, and add one scheduled-only, bounded exact lookup for an OPEN PR with the fixed source and target branches.
+Treat that unlabeled PR as untrusted until full candidate evidence, live and fetched proposal heads, both current
+protected heads, and exact two-parent topology agree. Only then add the pending label and reuse or dispatch exactly one
+proposal build; never enable merge from this repair path. Cover absent, malformed, duplicate, and retry/reuse states,
+then reconcile synchronization documentation and the final correction evidence.
+
 ## Progress
 
 - [x] Read the approved specification and structural review; verify both repositories are clean at the assigned checkpoints.
@@ -103,6 +116,9 @@ qualification correction report.
 - [x] Correct R1-R4 through trusted release qualification, channel-local Git resolution, bounded per-candidate recovery,
       and repairable exact proposal-head builds.
 - [x] Complete post-green design consolidation, validation, qualification report, publisher audit, and lease release.
+- [x] Remove implicit standard-build write authority and persisted checkout credentials through a public red/green policy cycle.
+- [x] Recover a valid unlabeled partial proposal through one bounded exact scheduled lookup and a public red/green process cycle.
+- [x] Reconcile documentation/evidence, run the required primary gates, audit both repositories, and release the Implementer lease.
 
 ## Decisions
 
@@ -133,6 +149,12 @@ qualification correction report.
 - Treat proposal-head build assurance as a recoverable synchronization state. PR publication establishes durable
   pending state first; scheduled OPEN recovery repairs only a missing exact-head run and preserves any existing
   queued, running, successful, or failed result for ordinary review policy.
+- Give the standard build exactly `contents: read` and do not pass `GITHUB_TOKEN` to Sonar. Checkout requires contents
+  read access, while the documented Maven analysis authenticates to SonarQube Cloud with `SONAR_TOKEN`; declaring one
+  read permission makes every unspecified GitHub permission none.
+- Preserve the label-filtered historical recovery index as the normal trust boundary. A scheduled run may additionally
+  request at most one OPEN PR by the exact `main-to-experimental-sync` head and `experimental` base, but that candidate
+  earns its pending label only after the same canonical identity, current-head, and topology proof as an indexed PR.
 
 ## Risks
 
@@ -153,6 +175,12 @@ qualification correction report.
   channel/SHA qualification must finish in default-branch code before write/OIDC authority or target checkout exists.
 - A global pending-index query containing comments lets one hostile PR block every candidate. Keep the index lightweight
   and terminate each exact evidence capture at its byte limit inside that candidate's failure boundary.
+- Repository-default workflow permissions and checkout-persisted credentials let PR-controlled build steps act with
+  more authority than their source deserves. The standard build must explicitly deny every write scope and make the
+  checkout credential unavailable to all later steps.
+- `gh pr create --label` can create the PR before its follow-up label mutation fails. Without a separate exact bounded
+  discovery, that durable but unlabeled proposal is invisible to the label-indexed recovery drain; without full proof,
+  admitting it would instead bypass the index's trust boundary.
 - Filtering distribution metadata can accidentally expose Maven or environment overrides at runtime. Only build-time Maven properties may generate the packaged resource; runtime property sources must remain irrelevant.
 
 ## Documentation

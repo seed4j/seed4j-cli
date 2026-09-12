@@ -216,7 +216,8 @@ jobs:
       github.repository == 'seed4j/seed4j-cli' &&
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'workflow_dispatch' &&
-      github.event.workflow_run.head_branch == 'automation/sync-main-to-experimental'
+      github.event.workflow_run.head_branch == 'automation/sync-main-to-experimental' &&
+      github.event.workflow_run.actor.login == 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

@@ -73,7 +73,9 @@ metadata.
 ## Build, release, and branch isolation
 
 The standard `build` workflow validates pushes and pull requests for both `main` and `experimental`. Local Sonar runs on
-both branches; SonarCloud publication remains restricted to the official stable `main` branch.
+both branches; SonarCloud publication remains restricted to the official stable `main` branch. The build declares only
+`contents: read`, checkout does not persist its GitHub credential for later repository-controlled steps, and SonarCloud
+uses its dedicated analysis token. Unspecified GitHub permissions therefore remain denied.
 
 Both protected branches require a current `tests` check before merge. Updates flow from `main` to `experimental` through
 a checked synchronization pull request. There is no automatic wholesale `experimental` to `main` merge. A generally
@@ -101,7 +103,14 @@ Auto-merge is asynchronous, so the bounded confirmation window always dispatches
 15-minute recovery queries a lightweight number/state index of up to 100 PRs carrying `synchronization-pending`, so older
 unfinished work is not displaced by completed history. It then reads each exact PR independently and terminates that
 capture at 2 MiB; malformed or oversized comments fail only that candidate. Explicit recovery reads the requested PR
-directly without relying on the list window. Executable policy deterministically handles older
+directly without relying on the list window. Scheduled recovery separately performs one result-bounded lookup for an
+OPEN PR with the exact `automation/sync-main-to-experimental` head and `experimental` base, independent of labels. This
+closes the partial-publication gap where `gh pr create --label` creates the PR but its metadata update returns nonzero.
+No result is inert; malformed or multiple results fail before candidate effects; and a result already in the normal
+label index is deduplicated. Before an unlabeled result receives `synchronization-pending`, recovery validates its
+canonical state, live and fetched PR head, fetched fixed-branch head, current protected heads, and exact two-parent
+target/source topology. It then reuses or dispatches exactly one proposal build and never enables merge.
+Executable policy deterministically handles older
 merged work before open work and skips only an exact completion record authored by `github-actions[bot]` and bound to the
 PR number, proposal head, merge commit, and dispatched `experimental` SHA. Plain, forged, decorated, stale, or mismatched
 comments cannot suppress recovery. Candidate failures are isolated, and all stale candidates request at most one refresh

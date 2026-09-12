@@ -31,7 +31,9 @@ async function recover(environment = process.env) {
       try {
         const pullRequest = await loadPullRequest(candidate.number, repository);
         const outcome = await recoverCandidate({
+          allowPendingLabelRepair: candidate.allowPendingLabelRepair,
           directory,
+          expectedNumber: candidate.number,
           pendingLabel,
           pullRequest,
           repository,
@@ -62,7 +64,7 @@ async function loadCandidateIndexes({ environment, pendingLabel, repository }) {
   const requestedNumber = requestedPullRequestNumber(environment.REQUESTED_PR_NUMBER);
   let candidates;
   if (requestedNumber === undefined) {
-    candidates = await runJson(
+    const pendingCandidates = await runJson(
       'gh',
       [
         'pr',
@@ -86,18 +88,61 @@ async function loadCandidateIndexes({ environment, pendingLabel, repository }) {
       ],
       'pending synchronization pull request index',
     );
+    validateCandidateIndex(pendingCandidates, 100, ['MERGED', 'OPEN'], 'Pending synchronization pull requests');
+    const repairCandidates = await runJson(
+      'gh',
+      [
+        'pr',
+        'list',
+        '--repo',
+        repository,
+        '--state',
+        'open',
+        '--base',
+        TARGET_BRANCH,
+        '--head',
+        SYNC_BRANCH,
+        '--limit',
+        '2',
+        '--json',
+        'number,state',
+      ],
+      'exact open synchronization pull request index',
+    );
+    validateCandidateIndex(repairCandidates, 1, ['OPEN'], 'Exact open synchronization pull requests');
+    const pendingNumbers = new Set(pendingCandidates.map(candidate => candidate.number));
+    candidates = pendingCandidates.map(candidate => ({ ...candidate, allowPendingLabelRepair: false }));
+    if (repairCandidates.length === 1 && !pendingNumbers.has(repairCandidates[0].number)) {
+      candidates.push({ ...repairCandidates[0], allowPendingLabelRepair: true });
+    }
   } else {
-    candidates = [{ number: requestedNumber }];
+    candidates = [{ allowPendingLabelRepair: false, number: requestedNumber }];
   }
-  if (!Array.isArray(candidates) || candidates.length > 100) {
-    throw new Error('Pending synchronization pull requests must contain at most 100 entries.');
+  validateCandidateNumbers(candidates, requestedNumber === undefined);
+  return candidates.sort(
+    (left, right) =>
+      finalizationPriority(left) - finalizationPriority(right) || pullRequestNumberForOrdering(left) - pullRequestNumberForOrdering(right),
+  );
+}
+
+function validateCandidateIndex(candidates, maximum, states, label) {
+  if (!Array.isArray(candidates) || candidates.length > maximum) {
+    throw new Error(`${label} must contain at most ${maximum} ${maximum === 1 ? 'entry' : 'entries'}.`);
   }
+  for (const candidate of candidates) {
+    if (!Number.isSafeInteger(candidate?.number) || candidate.number <= 0 || !states.includes(candidate.state)) {
+      throw new Error(`${label} index has an invalid number or state.`);
+    }
+  }
+}
+
+function validateCandidateNumbers(candidates, stateRequired) {
   const numbers = new Set();
   for (const candidate of candidates) {
     if (
       !Number.isSafeInteger(candidate?.number)
       || candidate.number <= 0
-      || (requestedNumber === undefined && !['MERGED', 'OPEN'].includes(candidate.state))
+      || (stateRequired && !['MERGED', 'OPEN'].includes(candidate.state))
     ) {
       throw new Error('Pending synchronization pull request index has an invalid number or state.');
     }
@@ -106,10 +151,6 @@ async function loadCandidateIndexes({ environment, pendingLabel, repository }) {
     }
     numbers.add(candidate.number);
   }
-  return candidates.sort(
-    (left, right) =>
-      finalizationPriority(left) - finalizationPriority(right) || pullRequestNumberForOrdering(left) - pullRequestNumberForOrdering(right),
-  );
 }
 
 function loadPullRequest(number, repository) {
@@ -139,7 +180,7 @@ function requestedPullRequestNumber(value) {
   return number;
 }
 
-function validatePullRequest(pullRequest) {
+function validatePullRequest(pullRequest, expectedNumber) {
   if (
     !pullRequest
     || Array.isArray(pullRequest)
@@ -147,6 +188,7 @@ function validatePullRequest(pullRequest) {
     || pullRequest.headRefName !== SYNC_BRANCH
     || !Number.isSafeInteger(pullRequest.number)
     || pullRequest.number <= 0
+    || pullRequest.number !== expectedNumber
     || !['MERGED', 'OPEN'].includes(pullRequest.state)
   ) {
     throw new Error('Pending synchronization pull request has invalid branches, state, or number.');
@@ -162,8 +204,17 @@ function pullRequestNumberForOrdering(pullRequest) {
   return Number.isSafeInteger(pullRequest?.number) ? pullRequest.number : Number.MAX_SAFE_INTEGER;
 }
 
-async function recoverCandidate({ directory, pendingLabel, pullRequest, repository, requestedBuildShas, requestedProposalBuildShas }) {
-  validatePullRequest(pullRequest);
+async function recoverCandidate({
+  allowPendingLabelRepair,
+  directory,
+  expectedNumber,
+  pendingLabel,
+  pullRequest,
+  repository,
+  requestedBuildShas,
+  requestedProposalBuildShas,
+}) {
+  validatePullRequest(pullRequest, expectedNumber);
   const pending = (pullRequest.labels ?? []).some(label => label?.name === pendingLabel);
   if (trustedCompletionForPullRequest(pullRequest)) {
     if (pending) {
@@ -171,7 +222,7 @@ async function recoverCandidate({ directory, pendingLabel, pullRequest, reposito
     }
     return 'complete';
   }
-  if (!pending) {
+  if (!pending && (!allowPendingLabelRepair || pullRequest.state !== 'OPEN')) {
     throw new Error(`required label '${pendingLabel}' is absent and no trusted completion exists`);
   }
 
@@ -205,6 +256,7 @@ async function recoverCandidate({ directory, pendingLabel, pullRequest, reposito
   }
   if (decision.action === 'schedule-recheck') {
     await ensureProposalBuild({
+      labelRepair: pending ? undefined : { number: pullRequest.number, pendingLabel },
       proposalHeadSha: expected.headSha,
       repository,
       requestedProposalBuildShas,
@@ -235,10 +287,13 @@ async function recoverCandidate({ directory, pendingLabel, pullRequest, reposito
   return 'complete';
 }
 
-async function ensureProposalBuild({ proposalHeadSha, repository, requestedProposalBuildShas }) {
+async function ensureProposalBuild({ labelRepair, proposalHeadSha, repository, requestedProposalBuildShas }) {
   run('git', ['fetch', 'origin', SYNC_BRANCH]);
   if (gitOutput(['rev-parse', `origin/${SYNC_BRANCH}`]) !== proposalHeadSha) {
     throw new Error('published synchronization branch no longer matches the recorded proposal head');
+  }
+  if (labelRepair) {
+    addPendingLabel(labelRepair.number, labelRepair.pendingLabel, repository);
   }
   if (requestedProposalBuildShas.has(proposalHeadSha) || (await reusableProposalBuild(proposalHeadSha, repository))) {
     return;
@@ -342,6 +397,10 @@ function validatedRunList(value) {
 
 function removePendingLabel(number, pendingLabel, repository) {
   run('gh', ['pr', 'edit', String(number), '--repo', repository, '--remove-label', pendingLabel]);
+}
+
+function addPendingLabel(number, pendingLabel, repository) {
+  run('gh', ['pr', 'edit', String(number), '--repo', repository, '--add-label', pendingLabel]);
 }
 
 function runJson(command, arguments_, label) {

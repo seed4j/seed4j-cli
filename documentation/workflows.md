@@ -5,6 +5,10 @@ These recipes organize commands around concrete outcomes. Use the [commands refe
 Stable installation is the default. Before evaluating the opt-in npm experimental channel, read its
 [provenance, retention, unsupported-module, update, and rollback contract](experimental-channel.md).
 
+The standard build deliberately has only `contents: read`. Checkout does not persist its GitHub credential into later
+steps that run repository-controlled code, and SonarCloud authenticates with its dedicated `SONAR_TOKEN`; every
+unspecified GitHub permission is denied.
+
 ## Synchronize stable changes into experimental
 
 A successful standard push build for current `main` starts the one-way synchronization workflow. It rebuilds the
@@ -26,7 +30,14 @@ Auto-merge can finish after the bounded runner wait. The workflow therefore disp
 while the 15-minute recovery asks GitHub for only number/state metadata for up to 100 PRs carrying
 `synchronization-pending`; completed PRs do not consume that bounded window. It loads each exact PR independently through
 a streaming 2 MiB limit, so hostile or malformed comment history fails locally without blocking later candidates. An
-explicit recovery loads its requested PR number directly. For a still-current open PR, recovery preserves any exact
+explicit recovery loads its requested PR number directly. A scheduled run also performs one independent lookup, bounded
+to detect more than one result, for an OPEN PR with exactly the fixed synchronization head and `experimental` base. This
+repairs the non-transactional case where `gh pr create --label` created the PR before its label update failed. Absence is
+inert, a malformed or ambiguous result fails before candidate effects, and a PR already present in the label index is
+processed only once. An unlabeled result remains untrusted until its canonical body/branches, live and fetched PR head,
+fetched fixed-branch head, current `main` and `experimental` heads, and exact target/source parent order all agree. Only
+then does recovery add `synchronization-pending` and assure one proposal build; this repair path never enables merge.
+For a still-current open PR, recovery preserves any exact
 proposal-head run regardless of whether it is queued, running, green, or red, and dispatches exactly once only when none
 exists; it never enables merge. Executable policy skips
 only an exact completion record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge

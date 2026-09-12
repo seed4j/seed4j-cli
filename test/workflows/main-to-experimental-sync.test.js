@@ -688,6 +688,16 @@ test('server-side pending selection finds old work beyond one hundred completed 
       commands.some(command => command[0] === 'pr' && command[1] === 'comment' && command[2] === '1'),
       true,
     );
+    assert.equal(
+      commands.filter(
+        command =>
+          command[0] === 'pr'
+          && command[1] === 'list'
+          && command[command.indexOf('--state') + 1] === 'open'
+          && !command.includes('--label'),
+      ).length,
+      1,
+    );
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -821,6 +831,221 @@ test('scheduled recovery repairs a published proposal build once and reuses a re
     );
     assert.equal(
       commands.some(command => command[0] === 'pr' && command[1] === 'merge'),
+      false,
+    );
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('scheduled recovery repairs one canonical PR left unlabeled by a partial gh create failure', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-unlabeled-proposal-repair-'));
+  try {
+    const proposal = { ...recoveryPullRequest(42, headSha, null, targetSha), labels: [] };
+    const scenarioPath = join(directory, 'scenario.json');
+    const statePath = join(directory, 'state.json');
+    const logPath = join(directory, 'commands.jsonl');
+    writeFileSync(
+      scenarioPath,
+      JSON.stringify({
+        currentExperimentalSha: targetSha,
+        currentMainSha: sourceSha,
+        failComments: [],
+        failCreateLabelUpdateAfterCreate: true,
+        proposalParents: { [headSha]: [targetSha, sourceSha] },
+        proposalToCreate: proposal,
+        reachableMerges: [],
+        remoteSyncSha: headSha,
+      }),
+    );
+    writeFileSync(statePath, JSON.stringify({ pullRequests: [], runs: [] }));
+    installRecoveryBoundaryCommands(directory);
+    const environment = {
+      ...process.env,
+      GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+      PATH: `${directory}:${process.env.PATH}`,
+      SEED4J_TEST_COMMAND_LOG: logPath,
+      SEED4J_TEST_SCENARIO: scenarioPath,
+      SEED4J_TEST_STATE: statePath,
+      SYNC_PENDING_LABEL: 'synchronization-pending',
+    };
+
+    const publication = spawnSync(
+      'gh',
+      [
+        'pr',
+        'create',
+        '--repo',
+        'seed4j/seed4j-cli',
+        '--base',
+        'experimental',
+        '--head',
+        'automation/sync-main-to-experimental',
+        '--label',
+        'synchronization-pending',
+      ],
+      { encoding: 'utf8', env: environment },
+    );
+    const firstRecovery = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: environment,
+    });
+    const secondRecovery = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: environment,
+    });
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    const commands = readFileSync(logPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line));
+    const indexLookups = commands.filter(command => command[0] === 'pr' && command[1] === 'list');
+
+    assert.equal(publication.status, 1);
+    assert.equal(firstRecovery.status, 0, firstRecovery.stderr);
+    assert.equal(secondRecovery.status, 0, secondRecovery.stderr);
+    assert.deepEqual(state.pullRequests[0].labels, [{ name: 'synchronization-pending' }]);
+    assert.equal(indexLookups.filter(command => command.includes('--label') && command.includes('synchronization-pending')).length, 2);
+    assert.equal(
+      indexLookups.filter(
+        command =>
+          command.includes('--state')
+          && command[command.indexOf('--state') + 1] === 'open'
+          && command[command.indexOf('--base') + 1] === 'experimental'
+          && command[command.indexOf('--head') + 1] === 'automation/sync-main-to-experimental'
+          && command[command.indexOf('--limit') + 1] === '2'
+          && !command.includes('--label'),
+      ).length,
+      2,
+    );
+    assert.equal(commands.filter(command => command[0] === 'pr' && command[1] === 'edit' && command.includes('--add-label')).length, 1);
+    assert.equal(commands.filter(command => command[0] === 'pr' && command[1] === 'view' && command[2] === '42').length, 2);
+    assert.equal(
+      commands.filter(
+        command =>
+          command.join(' ') === 'workflow run github-actions.yml --repo seed4j/seed4j-cli --ref automation/sync-main-to-experimental',
+      ).length,
+      1,
+    );
+    assert.equal(
+      commands.some(command => command[0] === 'pr' && command[1] === 'merge'),
+      false,
+    );
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('scheduled recovery rejects malformed or ambiguous exact unlabeled proposal indexes before candidate effects', () => {
+  const invalidIndexes = [
+    JSON.stringify({ number: 42, state: 'OPEN' }),
+    JSON.stringify([
+      { number: 42, state: 'OPEN' },
+      { number: 43, state: 'OPEN' },
+    ]),
+  ];
+  for (const [index, rawExactOpenPullRequestList] of invalidIndexes.entries()) {
+    const directory = mkdtempSync(join(tmpdir(), `seed4j-invalid-unlabeled-index-${index}-`));
+    try {
+      const scenarioPath = join(directory, 'scenario.json');
+      const statePath = join(directory, 'state.json');
+      const logPath = join(directory, 'commands.jsonl');
+      writeFileSync(
+        scenarioPath,
+        JSON.stringify({
+          currentExperimentalSha: targetSha,
+          currentMainSha: sourceSha,
+          failComments: [],
+          proposalParents: {},
+          rawExactOpenPullRequestList,
+          reachableMerges: [],
+          remoteSyncSha: headSha,
+        }),
+      );
+      writeFileSync(statePath, JSON.stringify({ pullRequests: [], runs: [] }));
+      installRecoveryBoundaryCommands(directory);
+
+      const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+          PATH: `${directory}:${process.env.PATH}`,
+          SEED4J_TEST_COMMAND_LOG: logPath,
+          SEED4J_TEST_SCENARIO: scenarioPath,
+          SEED4J_TEST_STATE: statePath,
+          SYNC_PENDING_LABEL: 'synchronization-pending',
+        },
+      });
+      const commands = readFileSync(logPath, 'utf8')
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line));
+
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /Exact open synchronization pull requests must contain at most 1 entry/);
+      assert.equal(
+        commands.some(command => command[0] === 'pr' && ['view', 'edit', 'comment', 'merge'].includes(command[1])),
+        false,
+      );
+      assert.equal(
+        commands.some(command => command[0] === 'workflow' && command[1] === 'run'),
+        false,
+      );
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  }
+});
+
+test('unlabeled proposal recovery verifies the published fixed branch before applying trusted pending state', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-unlabeled-proposal-head-proof-'));
+  try {
+    const pullRequests = [{ ...recoveryPullRequest(42, headSha, null, targetSha), labels: [] }];
+    const scenarioPath = join(directory, 'scenario.json');
+    const statePath = join(directory, 'state.json');
+    const logPath = join(directory, 'commands.jsonl');
+    writeFileSync(
+      scenarioPath,
+      JSON.stringify({
+        currentExperimentalSha: targetSha,
+        currentMainSha: sourceSha,
+        failComments: [],
+        proposalParents: { [headSha]: [targetSha, sourceSha] },
+        reachableMerges: [],
+        remoteSyncSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      }),
+    );
+    writeFileSync(statePath, JSON.stringify({ pullRequests, runs: [] }));
+    installRecoveryBoundaryCommands(directory);
+
+    const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+        PATH: `${directory}:${process.env.PATH}`,
+        SEED4J_TEST_COMMAND_LOG: logPath,
+        SEED4J_TEST_SCENARIO: scenarioPath,
+        SEED4J_TEST_STATE: statePath,
+        SYNC_PENDING_LABEL: 'synchronization-pending',
+      },
+    });
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    const commands = readFileSync(logPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line));
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /published synchronization branch no longer matches the recorded proposal head/);
+    assert.deepEqual(state.pullRequests[0].labels, []);
+    assert.equal(
+      commands.some(command => command[0] === 'pr' && command[1] === 'edit' && command.includes('--add-label')),
+      false,
+    );
+    assert.equal(
+      commands.some(command => command[0] === 'workflow' && command[1] === 'run'),
       false,
     );
   } finally {
@@ -1038,11 +1263,28 @@ const state = JSON.parse(readFileSync(process.env.SEED4J_TEST_STATE, 'utf8'));
 appendFileSync(process.env.SEED4J_TEST_COMMAND_LOG, JSON.stringify(args) + '\n');
 function save() { writeFileSync(process.env.SEED4J_TEST_STATE, JSON.stringify(state)); }
 if (process.argv[1].endsWith('/gh')) {
-  if (args[0] === 'pr' && args[1] === 'list') {
-    if (scenario.rawPullRequestList !== undefined) process.stdout.write(scenario.rawPullRequestList);
+  if (args[0] === 'pr' && args[1] === 'create') {
+    state.pullRequests.push(scenario.proposalToCreate);
+    save();
+    process.stdout.write('https://github.com/seed4j/seed4j-cli/pull/' + scenario.proposalToCreate.number + '\n');
+    if (scenario.failCreateLabelUpdateAfterCreate) process.exit(1);
+  } else if (args[0] === 'pr' && args[1] === 'list') {
+    const label = args.includes('--label') ? args[args.indexOf('--label') + 1] : undefined;
+    const requestedState = args.includes('--state') ? args[args.indexOf('--state') + 1].toUpperCase() : 'OPEN';
+    if (scenario.rawExactOpenPullRequestList !== undefined && requestedState === 'OPEN' && !label) {
+      process.stdout.write(scenario.rawExactOpenPullRequestList);
+    }
+    else if (scenario.rawPullRequestList !== undefined) process.stdout.write(scenario.rawPullRequestList);
     else {
-      const label = args.includes('--label') ? args[args.indexOf('--label') + 1] : undefined;
-      const pullRequests = label ? state.pullRequests.filter(pr => pr.labels.some(item => item.name === label)) : state.pullRequests;
+      const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : undefined;
+      const head = args.includes('--head') ? args[args.indexOf('--head') + 1] : undefined;
+      const pullRequests = state.pullRequests.filter(
+        pr =>
+          (requestedState === 'ALL' || pr.state === requestedState)
+          && (!base || pr.baseRefName === base)
+          && (!head || pr.headRefName === head)
+          && (!label || pr.labels.some(item => item.name === label)),
+      );
       process.stdout.write(JSON.stringify(pullRequests.map(pr => ({ number: pr.number, state: pr.state }))));
     }
   }
@@ -1067,14 +1309,19 @@ if (process.argv[1].endsWith('/gh')) {
     const pullRequest = state.pullRequests.find(pr => String(pr?.number) === args[2]);
     pullRequest.comments.push({ author: { login: 'github-actions[bot]' }, body: readFileSync(args[args.indexOf('--body-file') + 1], 'utf8') });
     save();
-  } else if (args[0] === 'pr' && args[1] === 'edit' && args.includes('--remove-label')) {
-    if (scenario.failLabelRemovalOnce && !state.labelFailureConsumed) {
-      state.labelFailureConsumed = true;
-      save();
-      process.exit(1);
-    }
+  } else if (args[0] === 'pr' && args[1] === 'edit') {
     const pullRequest = state.pullRequests.find(pr => String(pr?.number) === args[2]);
-    pullRequest.labels = pullRequest.labels.filter(label => label.name !== args[args.indexOf('--remove-label') + 1]);
+    if (args.includes('--remove-label')) {
+      if (scenario.failLabelRemovalOnce && !state.labelFailureConsumed) {
+        state.labelFailureConsumed = true;
+        save();
+        process.exit(1);
+      }
+      pullRequest.labels = pullRequest.labels.filter(label => label.name !== args[args.indexOf('--remove-label') + 1]);
+    } else if (args.includes('--add-label')) {
+      const label = args[args.indexOf('--add-label') + 1];
+      if (!pullRequest.labels.some(item => item.name === label)) pullRequest.labels.push({ name: label });
+    } else process.exit(2);
     save();
   } else process.exit(2);
 } else {

@@ -14,6 +14,37 @@ test('build validates stable and experimental branches while SonarCloud remains 
   assert.doesNotMatch(workflow, /Analysis: SonarCloud[\s\S]*refs\/heads\/experimental/);
 });
 
+test('PR-controlled builds cannot inherit repository write authority or persisted credentials', () => {
+  const build = read('.github/workflows/github-actions.yml');
+  const release = read('.github/workflows/release.yml');
+  const synchronization = read('.github/workflows/synchronize-experimental.yml');
+
+  assert.match(build, /^permissions:\s+contents:\s*read$/m);
+  for (const permission of [
+    'contents',
+    'actions',
+    'issues',
+    'checks',
+    'pull-requests',
+    'deployments',
+    'packages',
+    'security-events',
+    'id-token',
+  ]) {
+    assert.doesNotMatch(build, new RegExp(`${permission}:\\s*write`));
+  }
+  assert.match(build, /actions\/checkout@[0-9a-f]{40}[\s\S]*?with:\s+fetch-depth:\s*0\s+persist-credentials:\s*false/);
+  assert.doesNotMatch(build, /GITHUB_TOKEN/);
+  assert.match(
+    release,
+    /workflow_run\.event == 'workflow_dispatch'[\s\S]*workflow_run\.head_branch == 'experimental'[\s\S]*workflow_run\.actor\.login == 'github-actions\[bot\]'/,
+  );
+  assert.match(
+    synchronization,
+    /finalize:[\s\S]*workflow_run\.event == 'workflow_dispatch'[\s\S]*workflow_run\.head_branch == 'automation\/sync-main-to-experimental'[\s\S]*workflow_run\.actor\.login == 'github-actions\[bot\]'/,
+  );
+});
+
 test('workflows pin every third-party action to an immutable commit', () => {
   const workflows = [
     '.github/workflows/github-actions.yml',
