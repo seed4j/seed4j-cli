@@ -73,7 +73,9 @@ requests using the labels and categories in `.github/release-drafter.yml`, prese
 links, and contributors until that draft is published.
 
 Every successful `main` build also starts the automatic publication workflow. Semantic-release examines commits after
-the latest `v*` tag and applies ordinary Semantic Versioning:
+the latest `v*` tag and applies ordinary Semantic Versioning. Before publication receives write or OIDC permission, a
+read-only job running trusted default-branch code verifies the build provenance and current `main` SHA. Stable
+qualification and recovery fetch only `main` plus tags and therefore remain available before `experimental` exists.
 
 | Change                                                                  | Release |
 | ----------------------------------------------------------------------- | ------- |

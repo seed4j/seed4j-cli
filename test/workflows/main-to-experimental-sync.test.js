@@ -6,12 +6,14 @@ const { join, resolve } = require('node:path');
 const test = require('node:test');
 
 const {
+  completionBody,
   conflictIssueAction,
   pullRequestBody,
   postMergeSynchronization,
   prepareSynchronization,
   reviewSynchronization,
   synchronizationStateFromPullRequest,
+  trustedCompletionForPullRequest,
 } = require('../../scripts/main-to-experimental-sync.cjs');
 
 const repositoryRoot = resolve(__dirname, '../..');
@@ -41,7 +43,7 @@ test('a successful exact current main build proposes one-way synchronization fro
       headSha,
       sourceBranch: 'main',
       sourceSha,
-      steps: ['push-proposal', 'open-or-refresh-pr', 'close-conflict-issue', 'dispatch-tests'],
+      steps: ['push-proposal', 'open-or-refresh-pr', 'dispatch-tests', 'close-conflict-issue'],
       targetBranch: 'experimental',
       targetSha,
     },
@@ -366,7 +368,7 @@ test('post-merge build dispatch and disposable-branch cleanup occur only after t
 });
 
 test('only exact automation-authored completion evidence suppresses durable recovery', () => {
-  const completionBody = completionRecordBody({
+  const record = completionRecordBody({
     experimentalSha: currentExperimentalSha,
     mergeCommitSha: mergeSha,
     proposalHeadSha: headSha,
@@ -382,216 +384,110 @@ test('only exact automation-authored completion evidence suppresses durable reco
     number: 42,
     state: 'MERGED',
   };
-  const forged = runWorkflowAdapter('select-finalizations', {
-    SYNC_PULL_REQUESTS: JSON.stringify([
-      {
-        ...pullRequest,
-        comments: [{ author: { login: 'octocat' }, body: completionBody }],
-      },
-    ]),
-  });
-
-  assert.equal(forged.status, 0, forged.stderr);
-  assert.equal(forged.outputs.count, '1');
-  assert.equal(forged.outputs['pull-requests'], '42');
-
-  const trusted = runWorkflowAdapter('select-finalizations', {
-    SYNC_PULL_REQUESTS: JSON.stringify([
-      {
-        ...pullRequest,
-        comments: [{ author: { login: 'github-actions[bot]' }, body: completionBody }],
-      },
-    ]),
-  });
-
-  assert.equal(trusted.status, 0, trusted.stderr);
-  assert.equal(trusted.outputs.count, '0');
-  assert.equal(trusted.outputs['pull-requests'], '');
-
-  const mismatched = runWorkflowAdapter('select-finalizations', {
-    SYNC_PULL_REQUESTS: JSON.stringify([
-      {
-        ...pullRequest,
-        comments: [
-          {
-            author: { login: 'github-actions[bot]' },
-            body: completionBody.replace(mergeSha, sourceSha),
-          },
-        ],
-      },
-    ]),
-  });
-
-  assert.equal(mismatched.status, 0, mismatched.stderr);
-  assert.equal(mismatched.outputs.count, '1');
-  assert.equal(mismatched.outputs['pull-requests'], '42');
-
-  const notExact = runWorkflowAdapter('select-finalizations', {
-    SYNC_PULL_REQUESTS: JSON.stringify([
-      {
-        ...pullRequest,
-        comments: [
-          { author: { login: 'github-actions[bot]' }, body: '<!-- seed4j-main-to-experimental-finalized -->' },
-          { author: { login: 'github-actions[bot]' }, body: `${completionBody}\nadditional text` },
-        ],
-      },
-    ]),
-  });
-
-  assert.equal(notExact.status, 0, notExact.stderr);
-  assert.equal(notExact.outputs.count, '1');
-  assert.equal(notExact.outputs['pull-requests'], '42');
-});
-
-test('bounded file transport carries realistic completion history across the workflow adapter process', () => {
-  const history = Array.from({ length: 100 }, (_, index) => {
-    const number = index + 1;
-    const proposalHeadSha = number.toString(16).padStart(40, '0');
-    const mergeCommitSha = (number + 100).toString(16).padStart(40, '0');
-    const experimentalSha = (number + 200).toString(16).padStart(40, '0');
-    return {
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha: proposalHeadSha, sourceSha, targetSha }),
-      comments: [
-        { author: { login: 'octocat' }, body: `ordinary discussion ${'x'.repeat(850)}` },
-        {
-          author: { login: 'github-actions[bot]' },
-          body: completionRecordBody({ experimentalSha, mergeCommitSha, proposalHeadSha, pullRequestNumber: number }),
-        },
-      ],
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: proposalHeadSha,
-      mergeCommit: { oid: mergeCommitSha },
-      number,
-      state: 'MERGED',
-    };
-  });
-  const accepted = runWorkflowAdapterWithPayload('select-finalizations', JSON.stringify(history));
-  const oversized = runWorkflowAdapterWithPayload('select-finalizations', 'x'.repeat(2 * 1024 * 1024 + 1));
-  const malformed = runWorkflowAdapterWithPayload('select-finalizations', '[{"number":');
-
-  assert.equal(accepted.status, 0, accepted.stderr);
-  assert.equal(accepted.outputs.count, '0');
-  assert.equal(accepted.outputs['pull-requests'], '');
-  assert.equal(oversized.status, 1);
-  assert.match(oversized.stderr, /exceeds.*2097152 bytes/);
-  assert.equal(malformed.status, 1);
-  assert.match(malformed.stderr, /history is not valid JSON/);
-});
-
-test('recovery process bounds realistic, malformed, and oversized GitHub history responses', () => {
-  const history = Array.from({ length: 100 }, (_, index) => {
-    const number = index + 1;
-    const proposalHeadSha = number.toString(16).padStart(40, '0');
-    const mergeCommitSha = (number + 100).toString(16).padStart(40, '0');
-    const experimentalSha = (number + 200).toString(16).padStart(40, '0');
-    return {
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha: proposalHeadSha, sourceSha, targetSha }),
-      comments: [
-        { author: { login: 'octocat' }, body: `ordinary discussion ${'x'.repeat(850)}` },
-        {
-          author: { login: 'github-actions[bot]' },
-          body: completionRecordBody({ experimentalSha, mergeCommitSha, proposalHeadSha, pullRequestNumber: number }),
-        },
-      ],
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: proposalHeadSha,
-      labels: [],
-      mergeCommit: { oid: mergeCommitSha },
-      number,
-      state: 'MERGED',
-    };
-  });
-  const accepted = runRawRecoveryPayload(JSON.stringify(history));
-  const malformed = runRawRecoveryPayload('[{"number":');
-  const oversized = runRawRecoveryPayload('x'.repeat(2 * 1024 * 1024 + 1));
-
-  assert.equal(accepted.status, 0, accepted.stderr);
-  assert.equal(malformed.status, 1);
-  assert.match(malformed.stderr, /pending synchronization pull requests is not valid JSON/);
-  assert.equal(oversized.status, 1);
-  assert.match(oversized.stderr, /pending synchronization pull requests exceeds the maximum of 2097152 bytes/);
-});
-
-test('bounded recovery deterministically drains every older outstanding finalization', () => {
-  const olderHeadSha = '6666666666666666666666666666666666666666';
-  const completedHeadSha = '7777777777777777777777777777777777777777';
-  const completedMergeSha = '8888888888888888888888888888888888888888';
-  const completedExperimentalSha = '9999999999999999999999999999999999999999';
-  const history = [
-    {
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha: completedHeadSha, sourceSha, targetSha }),
-      comments: [
-        {
-          author: { login: 'github-actions[bot]' },
-          body: completionRecordBody({
-            experimentalSha: completedExperimentalSha,
-            mergeCommitSha: completedMergeSha,
-            proposalHeadSha: completedHeadSha,
-            pullRequestNumber: 43,
-          }),
-        },
-      ],
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: completedHeadSha,
-      mergeCommit: { oid: completedMergeSha },
-      number: 43,
-      state: 'MERGED',
-    },
-    {
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha, sourceSha, targetSha }),
-      comments: [],
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: headSha,
-      mergeCommit: null,
-      number: 42,
-      state: 'OPEN',
-    },
-    {
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha: olderHeadSha, sourceSha, targetSha }),
-      comments: [],
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: olderHeadSha,
-      mergeCommit: { oid: mergeSha },
-      number: 40,
-      state: 'MERGED',
-    },
-  ];
-  const scheduled = runWorkflowAdapter('select-finalizations', {
-    SYNC_PULL_REQUESTS: JSON.stringify(history),
-  });
-
-  assert.equal(scheduled.status, 0, scheduled.stderr);
-  assert.equal(scheduled.outputs.count, '2');
-  assert.equal(scheduled.outputs['pull-requests'], '40,42');
-
-  const requested = runWorkflowAdapter('select-finalizations', {
-    REQUESTED_PR_NUMBER: '42',
-    SYNC_PULL_REQUESTS: JSON.stringify(history),
-  });
-
-  assert.equal(requested.status, 0, requested.stderr);
-  assert.equal(requested.outputs.count, '1');
-  assert.equal(requested.outputs['pull-requests'], '42');
-
-  const completion = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), 'completion-body'], {
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      EXPERIMENTAL_SHA: currentExperimentalSha,
-      MERGE_COMMIT_SHA: mergeSha,
-      PROPOSAL_HEAD_SHA: olderHeadSha,
-      PULL_REQUEST_NUMBER: '40',
-    },
-  });
-
-  assert.equal(completion.status, 0, completion.stderr);
+  assert.equal(trustedCompletionForPullRequest({ ...pullRequest, comments: [{ author: { login: 'octocat' }, body: record }] }), false);
   assert.equal(
-    completion.stdout,
+    trustedCompletionForPullRequest({ ...pullRequest, comments: [{ author: { login: 'github-actions[bot]' }, body: record }] }),
+    true,
+  );
+  assert.equal(
+    trustedCompletionForPullRequest({
+      ...pullRequest,
+      comments: [{ author: { login: 'github-actions[bot]' }, body: record.replace(mergeSha, sourceSha) }],
+    }),
+    false,
+  );
+  assert.equal(
+    trustedCompletionForPullRequest({
+      ...pullRequest,
+      comments: [
+        { author: { login: 'github-actions[bot]' }, body: '<!-- seed4j-main-to-experimental-finalized -->' },
+        { author: { login: 'github-actions[bot]' }, body: `${record}\nadditional text` },
+      ],
+    }),
+    false,
+  );
+});
+
+test('recovery bounds each exact history while later candidates complete and refresh once', () => {
+  const validHeadSha = '6666666666666666666666666666666666666666';
+  const staleHeadSha = '7777777777777777777777777777777777777777';
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-recovery-history-boundary-'));
+  try {
+    const pullRequests = [
+      recoveryPullRequest(39, headSha, mergeSha, targetSha),
+      recoveryPullRequest(40, validHeadSha, mergeSha, targetSha),
+      recoveryPullRequest(41, staleHeadSha, null, targetSha),
+    ];
+    const scenarioPath = join(directory, 'scenario.json');
+    const statePath = join(directory, 'state.json');
+    const logPath = join(directory, 'commands.jsonl');
+    writeFileSync(
+      scenarioPath,
+      JSON.stringify({
+        currentExperimentalSha,
+        currentMainSha: sourceSha,
+        failComments: [],
+        proposalParents: {
+          [validHeadSha]: [targetSha, sourceSha],
+          [staleHeadSha]: [targetSha, sourceSha],
+        },
+        rawPullRequestViews: { 39: 'x'.repeat(2 * 1024 * 1024 + 1) },
+        reachableMerges: [mergeSha],
+        remoteSyncSha: staleHeadSha,
+      }),
+    );
+    writeFileSync(statePath, JSON.stringify({ pullRequests, runs: [] }));
+    installRecoveryBoundaryCommands(directory);
+
+    const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+        PATH: `${directory}:${process.env.PATH}`,
+        SEED4J_TEST_COMMAND_LOG: logPath,
+        SEED4J_TEST_SCENARIO: scenarioPath,
+        SEED4J_TEST_STATE: statePath,
+        SYNC_PENDING_LABEL: 'synchronization-pending',
+      },
+    });
+    const commands = readFileSync(logPath, 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
+    const index = commands.find(command => command[0] === 'pr' && command[1] === 'list');
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(index[index.indexOf('--json') + 1], 'number,state');
+    assert.deepEqual(
+      commands.filter(command => command[0] === 'pr' && command[1] === 'view').map(command => command[2]),
+      ['39', '40', '41'],
+    );
+    assert.match(result.stderr, /Pull request #39 finalization failed:.*exceeds the maximum of 2097152 bytes/);
+    assert.equal(
+      commands.some(command => command[0] === 'pr' && command[1] === 'comment' && command[2] === '40'),
+      true,
+    );
+    assert.equal(
+      commands.filter(command => command.join(' ') === 'workflow run synchronize-experimental.yml --repo seed4j/seed4j-cli --ref main')
+        .length,
+      1,
+    );
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('completion rendering stays canonical for the recovery process', () => {
+  const olderHeadSha = '6666666666666666666666666666666666666666';
+  assert.equal(
+    completionBody({
+      experimentalSha: currentExperimentalSha,
+      mergeCommitSha: mergeSha,
+      proposalHeadSha: olderHeadSha,
+      pullRequestNumber: 40,
+    }),
     completionRecordBody({
       experimentalSha: currentExperimentalSha,
       mergeCommitSha: mergeSha,
@@ -609,7 +505,6 @@ test('recovery isolates candidate failures, reuses one exact build, and coalesce
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-recovery-boundary-'));
   try {
     const pullRequests = [
-      null,
       { ...recoveryPullRequest(39, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', mergeSha, targetSha), body: 'invalid' },
       recoveryPullRequest(40, firstHeadSha, mergeSha, targetSha),
       recoveryPullRequest(41, secondHeadSha, secondMergeSha, targetSha),
@@ -630,7 +525,6 @@ test('recovery isolates candidate failures, reuses one exact build, and coalesce
           [thirdHeadSha]: [targetSha, sourceSha],
         },
         pullRequests,
-        rawPullRequestList: JSON.stringify(pullRequests),
         reachableMerges: [mergeSha, secondMergeSha],
         remoteSyncSha: thirdHeadSha,
       }),
@@ -852,6 +746,88 @@ test('explicit recovery loads the requested pull request directly instead of rel
   }
 });
 
+test('scheduled recovery repairs a published proposal build once and reuses a red exact-head run', () => {
+  const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
+  const publication = workflow.slice(
+    workflow.indexOf("name: 'Synchronize: publish proposal and dispatch exact-head tests'"),
+    workflow.indexOf("name: 'Synchronize: close resolved issue for an already-current target'"),
+  );
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-proposal-build-repair-'));
+  try {
+    const pullRequests = [recoveryPullRequest(42, headSha, null, targetSha)];
+    const scenarioPath = join(directory, 'scenario.json');
+    const statePath = join(directory, 'state.json');
+    const logPath = join(directory, 'commands.jsonl');
+    writeFileSync(
+      scenarioPath,
+      JSON.stringify({
+        currentExperimentalSha: targetSha,
+        currentMainSha: sourceSha,
+        failComments: [],
+        failProposalDispatchOnce: true,
+        proposalParents: { [headSha]: [targetSha, sourceSha] },
+        reachableMerges: [],
+        remoteSyncSha: headSha,
+      }),
+    );
+    writeFileSync(statePath, JSON.stringify({ pullRequests, runs: [] }));
+    installRecoveryBoundaryCommands(directory);
+    const environment = {
+      ...process.env,
+      GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+      PATH: `${directory}:${process.env.PATH}`,
+      SEED4J_TEST_COMMAND_LOG: logPath,
+      SEED4J_TEST_SCENARIO: scenarioPath,
+      SEED4J_TEST_STATE: statePath,
+      SYNC_PENDING_LABEL: 'synchronization-pending',
+    };
+
+    const ambiguousRepair = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: environment,
+    });
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    state.runs = state.runs.map(run => ({ ...run, conclusion: 'failure', status: 'completed' }));
+    writeFileSync(statePath, JSON.stringify(state));
+    const redReuse = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
+      encoding: 'utf8',
+      env: environment,
+    });
+    const commands = readFileSync(logPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line));
+
+    assert.ok(publication.indexOf('gh workflow run github-actions.yml') < publication.indexOf('synchronization-resolved-issues.json'));
+    assert.equal(ambiguousRepair.status, 1);
+    assert.match(ambiguousRepair.stderr, /proposal-head build dispatch failed/);
+    assert.equal(redReuse.status, 0, redReuse.stderr);
+    assert.equal(
+      commands.filter(
+        command =>
+          command.join(' ') === 'workflow run github-actions.yml --repo seed4j/seed4j-cli --ref automation/sync-main-to-experimental',
+      ).length,
+      1,
+    );
+    assert.equal(
+      commands.some(
+        command =>
+          command[0] === 'run'
+          && command[1] === 'list'
+          && command.includes(headSha)
+          && command.includes('automation/sync-main-to-experimental'),
+      ),
+      true,
+    );
+    assert.equal(
+      commands.some(command => command[0] === 'pr' && command[1] === 'merge'),
+      false,
+    );
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
 test('disposable branch deletion is atomic and keeps a concurrently advanced remote head', () => {
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-cleanup-lease-'));
   try {
@@ -880,9 +856,9 @@ test('disposable branch deletion is atomic and keeps a concurrently advanced rem
     git(second, ['push', 'origin', 'automation/sync-main-to-experimental']);
     const newHead = git(second, ['rev-parse', 'HEAD']).stdout.trim();
 
-    const rejected = runCleanupWorkflow(first, oldHead);
+    const rejected = runAtomicCleanup(first, oldHead);
     const remoteAfterRejection = git(first, ['ls-remote', '--heads', 'origin', 'refs/heads/automation/sync-main-to-experimental']).stdout;
-    const deleted = runCleanupWorkflow(second, newHead);
+    const deleted = runAtomicCleanup(second, newHead);
     const remoteAfterDeletion = git(second, ['ls-remote', '--heads', 'origin', 'refs/heads/automation/sync-main-to-experimental']).stdout;
 
     assert.equal(rejected.status, 0, rejected.stderr);
@@ -896,98 +872,15 @@ test('disposable branch deletion is atomic and keeps a concurrently advanced rem
   }
 });
 
-test('an open auto-merge timeout durably re-enters finalization and an eventual merge completes post-merge work', () => {
+test('an open auto-merge timeout durably re-enters the single recovery process', () => {
   const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
   const recovery = readFileSync(resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs'), 'utf8');
-  const commonEnvironment = {
-    CURRENT_MAIN_SHA: sourceSha,
-    OBSERVED_PROPOSAL_HEAD_SHA: headSha,
-    PROPOSAL_PARENT_SHAS: `${targetSha} ${sourceSha}`,
-  };
-  const open = runWorkflowAdapter('finalize-workflow', {
-    ...commonEnvironment,
-    CURRENT_EXPERIMENTAL_SHA: targetSha,
-    MERGE_REACHABLE: 'false',
-    SYNC_PULL_REQUEST: JSON.stringify({
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha, sourceSha, targetSha }),
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: headSha,
-      mergeCommit: null,
-      number: 42,
-      state: 'OPEN',
-    }),
-  });
 
-  assert.equal(open.status, 0, open.stderr);
-  assert.equal(open.outputs.action, 'schedule-recheck');
-  assert.equal(open.outputs.reason, 'pull-request-not-merged');
-
-  const movedSource = runWorkflowAdapter('finalize-workflow', {
-    ...commonEnvironment,
-    CURRENT_EXPERIMENTAL_SHA: targetSha,
-    CURRENT_MAIN_SHA: mergeSha,
-    MERGE_REACHABLE: 'false',
-    SYNC_PULL_REQUEST: JSON.stringify({
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha, sourceSha, targetSha }),
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: headSha,
-      mergeCommit: null,
-      number: 42,
-      state: 'OPEN',
-    }),
-  });
-
-  assert.equal(movedSource.status, 0, movedSource.stderr);
-  assert.equal(movedSource.outputs.action, 'refresh');
-  assert.equal(movedSource.outputs.reason, 'source-branch-moved');
-
-  const movedTarget = runWorkflowAdapter('finalize-workflow', {
-    ...commonEnvironment,
-    CURRENT_EXPERIMENTAL_SHA: currentExperimentalSha,
-    MERGE_REACHABLE: 'false',
-    SYNC_PULL_REQUEST: JSON.stringify({
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha, sourceSha, targetSha }),
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: headSha,
-      mergeCommit: null,
-      number: 42,
-      state: 'OPEN',
-    }),
-  });
-
-  assert.equal(movedTarget.status, 0, movedTarget.stderr);
-  assert.equal(movedTarget.outputs.action, 'refresh');
-  assert.equal(movedTarget.outputs.reason, 'target-branch-moved');
-
-  const merged = runWorkflowAdapter('finalize-workflow', {
-    ...commonEnvironment,
-    CURRENT_EXPERIMENTAL_SHA: currentExperimentalSha,
-    CURRENT_MAIN_SHA: mergeSha,
-    MERGE_REACHABLE: 'true',
-    SYNC_PULL_REQUEST: JSON.stringify({
-      baseRefName: 'experimental',
-      body: pullRequestBody({ headSha, sourceSha, targetSha }),
-      headRefName: 'automation/sync-main-to-experimental',
-      headRefOid: headSha,
-      mergeCommit: { oid: mergeSha },
-      number: 42,
-      state: 'MERGED',
-    }),
-  });
-
-  assert.equal(merged.status, 0, merged.stderr);
-  assert.equal(merged.outputs.action, 'complete');
-  assert.equal(merged.outputs.experimental, currentExperimentalSha);
-  assert.equal(merged.outputs.merge, mergeSha);
-  assert.equal(merged.outputs['pr-number'], '42');
   assert.match(workflow, /schedule:\s+- cron: ['"]\*\/15 \* \* \* \*['"]/);
   assert.match(workflow, /gh workflow run synchronize-experimental\.yml[^\n]*-f finalize-pr="\$PR_NUMBER"/);
   assert.match(workflow, /node scripts\/main-to-experimental-recovery\.cjs/);
   assert.match(recovery, /'pr',\s*'list',[\s\S]*'--label',[\s\S]*pendingLabel[\s\S]*'--limit',\s*'100'/);
-  assert.match(recovery, /'pr',\s*'view',[\s\S]*String\(requestedNumber\)/);
+  assert.match(recovery, /'pr',\s*'view',[\s\S]*String\(number\)/);
   assert.match(recovery, /ensureExactBuild[\s\S]*atomicDisposableBranchCleanup[\s\S]*'pr', 'comment'[\s\S]*removePendingLabel/);
   assert.doesNotMatch(workflow, /SYNC_FINALIZED_MARKER|--limit 1 --json number/);
 });
@@ -1065,34 +958,9 @@ function runWorkflowAdapter(command, environment) {
       delete childEnvironment.SYNC_PULL_REQUESTS;
       childEnvironment.SYNC_PULL_REQUESTS_PATH = input;
     }
-    if (childEnvironment.SYNC_PULL_REQUEST !== undefined) {
-      const input = join(directory, 'pull-request.json');
-      writeFileSync(input, childEnvironment.SYNC_PULL_REQUEST);
-      delete childEnvironment.SYNC_PULL_REQUEST;
-      childEnvironment.SYNC_PULL_REQUEST_PATH = input;
-    }
     const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), command], {
       encoding: 'utf8',
       env: childEnvironment,
-    });
-    return {
-      ...result,
-      outputs: result.status === 0 ? workflowOutputs(readFileSync(output, 'utf8')) : {},
-    };
-  } finally {
-    rmSync(directory, { force: true, recursive: true });
-  }
-}
-
-function runWorkflowAdapterWithPayload(command, payload) {
-  const directory = mkdtempSync(join(tmpdir(), 'seed4j-sync-payload-'));
-  const input = join(directory, 'input.json');
-  const output = join(directory, 'github-output');
-  try {
-    writeFileSync(input, payload);
-    const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), command], {
-      encoding: 'utf8',
-      env: { ...process.env, GITHUB_OUTPUT: output, SYNC_PULL_REQUESTS_PATH: input },
     });
     return {
       ...result,
@@ -1127,42 +995,17 @@ function runIssueWorkflowAdapter(conflict, issues) {
   }
 }
 
-function runRawRecoveryPayload(payload) {
-  const directory = mkdtempSync(join(tmpdir(), 'seed4j-raw-recovery-'));
-  try {
-    const scenarioPath = join(directory, 'scenario.json');
-    const statePath = join(directory, 'state.json');
-    const logPath = join(directory, 'commands.jsonl');
-    writeFileSync(scenarioPath, JSON.stringify({ rawPullRequestList: payload }));
-    writeFileSync(statePath, JSON.stringify({ pullRequests: [], runs: [] }));
-    installRecoveryBoundaryCommands(directory);
-    return spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-recovery.cjs')], {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
-        PATH: `${directory}:${process.env.PATH}`,
-        SEED4J_TEST_COMMAND_LOG: logPath,
-        SEED4J_TEST_SCENARIO: scenarioPath,
-        SEED4J_TEST_STATE: statePath,
-        SYNC_PENDING_LABEL: 'synchronization-pending',
-      },
-    });
-  } finally {
-    rmSync(directory, { force: true, recursive: true });
-  }
-}
-
-function runCleanupWorkflow(directory, proposalHeadSha) {
-  const output = join(directory, `github-output-${proposalHeadSha}`);
-  const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), 'cleanup-workflow'], {
+function runAtomicCleanup(directory, proposalHeadSha) {
+  const modulePath = JSON.stringify(resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'));
+  const script = `const { atomicDisposableBranchCleanup } = require(${modulePath}); process.stdout.write(JSON.stringify(atomicDisposableBranchCleanup({ proposalHeadSha: process.argv[1] })));`;
+  const result = spawnSync(process.execPath, ['-e', script, proposalHeadSha], {
     cwd: directory,
     encoding: 'utf8',
-    env: { ...process.env, GITHUB_OUTPUT: output, PROPOSAL_HEAD_SHA: proposalHeadSha },
+    shell: false,
   });
   return {
     ...result,
-    outputs: result.status === 0 ? workflowOutputs(readFileSync(output, 'utf8')) : {},
+    outputs: result.status === 0 ? JSON.parse(result.stdout) : {},
   };
 }
 
@@ -1199,13 +1042,24 @@ if (process.argv[1].endsWith('/gh')) {
     if (scenario.rawPullRequestList !== undefined) process.stdout.write(scenario.rawPullRequestList);
     else {
       const label = args.includes('--label') ? args[args.indexOf('--label') + 1] : undefined;
-      process.stdout.write(JSON.stringify(label ? state.pullRequests.filter(pr => pr.labels.some(item => item.name === label)) : state.pullRequests));
+      const pullRequests = label ? state.pullRequests.filter(pr => pr.labels.some(item => item.name === label)) : state.pullRequests;
+      process.stdout.write(JSON.stringify(pullRequests.map(pr => ({ number: pr.number, state: pr.state }))));
     }
   }
-  else if (args[0] === 'pr' && args[1] === 'view') process.stdout.write(JSON.stringify(state.pullRequests.find(pr => String(pr?.number) === args[2])));
+  else if (args[0] === 'pr' && args[1] === 'view') {
+    if (scenario.rawPullRequestViews?.[args[2]] !== undefined) process.stdout.write(scenario.rawPullRequestViews[args[2]]);
+    else process.stdout.write(JSON.stringify(state.pullRequests.find(pr => String(pr?.number) === args[2])));
+  }
   else if (args[0] === 'run' && args[1] === 'list') process.stdout.write(JSON.stringify(state.runs));
   else if (args[0] === 'workflow' && args[1] === 'run' && args[2] === 'github-actions.yml') {
-    state.runs.push({ conclusion: '', event: 'workflow_dispatch', headBranch: 'experimental', headSha: scenario.currentExperimentalSha, status: 'queued' });
+    const branch = args[args.indexOf('--ref') + 1];
+    const sha = branch === 'experimental' ? scenario.currentExperimentalSha : scenario.remoteSyncSha;
+    state.runs.push({ conclusion: '', event: 'workflow_dispatch', headBranch: branch, headSha: sha, status: 'queued' });
+    if (scenario.failProposalDispatchOnce && branch === 'automation/sync-main-to-experimental' && !state.proposalDispatchFailureConsumed) {
+      state.proposalDispatchFailureConsumed = true;
+      save();
+      process.exit(1);
+    }
     save();
   } else if (args[0] === 'workflow' && args[1] === 'run') {
   } else if (args[0] === 'pr' && args[1] === 'comment') {
@@ -1227,6 +1081,7 @@ if (process.argv[1].endsWith('/gh')) {
   if (args[0] === 'fetch') {
   } else if (args[0] === 'rev-parse' && args[1] === 'origin/main') process.stdout.write(scenario.currentMainSha + '\n');
   else if (args[0] === 'rev-parse' && args[1] === 'origin/experimental') process.stdout.write(scenario.currentExperimentalSha + '\n');
+  else if (args[0] === 'rev-parse' && args[1] === 'origin/automation/sync-main-to-experimental') process.stdout.write(scenario.remoteSyncSha + '\n');
   else if (args[0] === 'rev-parse' && args[1] === 'FETCH_HEAD') {
     const number = Number(state.lastFetchedPullRequest);
     process.stdout.write(state.pullRequests.find(pr => pr?.number === number).headRefOid + '\n');

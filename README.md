@@ -36,7 +36,9 @@ install `npm install -g seed4j-cli@experimental`; it follows an unofficial, rete
 and is not recommended for production generation. Read the
 [experimental channel contract and support policy](documentation/experimental-channel.md) before opting in.
 Maintainers must create the repository label `synchronization-pending` before enabling the documented one-way
-`main`-to-`experimental` synchronization workflow.
+`main`-to-`experimental` synchronization workflow. Release publication is admitted by read-only trusted `main` code
+before any write or OIDC permission is granted, and scheduled synchronization recovery repairs a missing exact proposal
+build without bypassing a pending or failed result.
 
 Then choose the outcome you need:
 

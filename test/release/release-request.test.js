@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
-const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 const test = require('node:test');
@@ -178,12 +178,116 @@ test('release workflow admits only trusted exact-head build provenance for each 
   }
 });
 
-function runReleaseAdapter(command, environment) {
+test('release workflow rejects deceptive source branches before privileged target checkout', () => {
+  const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/release.yml'), 'utf8');
+  const qualification = workflow.slice(workflow.indexOf('  qualify:'), workflow.indexOf('  publish:'));
+  const publish = workflow.slice(workflow.indexOf('  publish:'), workflow.indexOf('  recover:'));
+
+  assert.match(qualification, /permissions:\n      actions: read\n      contents: read/);
+  assert.doesNotMatch(qualification, /contents: write|id-token: write/);
+  assert.match(qualification, /head_repository\.full_name == github\.repository/);
+  assert.match(qualification, /workflow_run\.event == 'push'/);
+  assert.match(qualification, /workflow_run\.event == 'workflow_dispatch'/);
+  assert.match(qualification, /workflow_run\.actor\.login == 'github-actions\[bot\]'/);
+  assert.match(qualification, /ref: main/);
+  assert.match(qualification, /persist-credentials: false/);
+  assert.match(publish, /needs: qualify/);
+  assert.match(publish, /needs\.qualify\.outputs\.eligible == 'true'/);
+  assert.match(publish, /contents: write/);
+  assert.match(publish, /id-token: write/);
+  assert.match(publish, /ref: \$\{\{ needs\.qualify\.outputs\.sha \}\}/);
+  assert.ok(publish.indexOf("name: 'Release: verify selected protected head'") < publish.indexOf("name: 'Setup: Node.js'"));
+
+  for (const branch of ['main', 'experimental']) {
+    const rejected = runReleaseAdapter('qualify-workflow-run', {
+      BUILD_ACTOR: 'octocat',
+      BUILD_CONCLUSION: 'success',
+      BUILD_EVENT: 'pull_request',
+      BUILD_HEAD_BRANCH: branch,
+      BUILD_SOURCE_REPOSITORY: 'attacker/seed4j-cli',
+      BUILT_SHA: '1111111111111111111111111111111111111111',
+      GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+    });
+
+    assert.equal(rejected.status, 1, branch);
+    assert.match(rejected.stderr, /trusted release workflow/, branch);
+    assert.deepEqual(rejected.outputs, {}, branch);
+  }
+});
+
+test('stable qualification and recovery work without an experimental remote branch', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-stable-release-'));
+  const remote = join(directory, 'remote.git');
+  const source = join(directory, 'source');
+  const checkout = join(directory, 'checkout');
+  try {
+    runGit(directory, ['init', '--bare', remote]);
+    runGit(directory, ['init', source]);
+    runGit(source, ['config', 'user.email', 'seed4j@example.com']);
+    runGit(source, ['config', 'user.name', 'Seed4J']);
+    writeFileSync(join(source, 'release.txt'), 'released\n');
+    runGit(source, ['add', 'release.txt']);
+    runGit(source, ['commit', '-m', 'feat: released revision']);
+    runGit(source, ['tag', 'v0.1.0']);
+    writeFileSync(join(source, 'release.txt'), 'current main\n');
+    runGit(source, ['commit', '-am', 'feat: current main']);
+    runGit(source, ['branch', '-M', 'main']);
+    runGit(source, ['remote', 'add', 'origin', remote]);
+    runGit(source, ['push', 'origin', 'main', '--tags']);
+    runGit(directory, ['clone', '--branch', 'main', remote, checkout]);
+    const currentMainSha = runGit(checkout, ['rev-parse', 'HEAD']);
+    const releasedSha = runGit(checkout, ['rev-list', '-n', '1', 'v0.1.0']);
+
+    const workflowRun = runReleaseAdapter(
+      'qualify-workflow-run',
+      {
+        BUILD_ACTOR: 'octocat',
+        BUILD_CONCLUSION: 'success',
+        BUILD_EVENT: 'push',
+        BUILD_HEAD_BRANCH: 'main',
+        BUILD_SOURCE_REPOSITORY: 'seed4j/seed4j-cli',
+        BUILT_SHA: currentMainSha,
+        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+      },
+      checkout,
+    );
+    const manual = runReleaseAdapter(
+      'qualify-manual-release',
+      {
+        RELEASE_OPERATION: 'release',
+        RELEASE_VERSION: '',
+        SUCCESSFUL_BUILD_COUNT: '1',
+      },
+      checkout,
+    );
+    const recovery = runReleaseAdapter(
+      'qualify-recovery',
+      {
+        RELEASE_OPERATION: 'recover',
+        RELEASE_VERSION: '0.1.0',
+      },
+      checkout,
+    );
+
+    assert.equal(workflowRun.status, 0, workflowRun.stderr);
+    assert.deepEqual(workflowRun.outputs, { channel: 'stable', eligible: 'true', sha: currentMainSha });
+    assert.equal(manual.status, 0, manual.stderr);
+    assert.deepEqual(manual.outputs, { channel: 'stable', eligible: 'true', sha: currentMainSha });
+    assert.equal(recovery.status, 0, recovery.stderr);
+    assert.deepEqual(recovery.outputs, { sha: releasedSha });
+    assert.throws(() => runGit(checkout, ['rev-parse', '--verify', 'origin/experimental']), /git rev-parse/);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+function runReleaseAdapter(command, environment, cwd = repositoryRoot) {
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-release-adapter-'));
   const output = join(directory, 'github-output');
   try {
     const result = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/release-request.cjs'), command], {
       encoding: 'utf8',
+      cwd,
       env: { ...process.env, ...environment, GITHUB_OUTPUT: output },
     });
     return {
@@ -193,6 +297,12 @@ function runReleaseAdapter(command, environment) {
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
+}
+
+function runGit(cwd, arguments_) {
+  const result = spawnSync('git', arguments_, { cwd, encoding: 'utf8' });
+  assert.equal(result.status, 0, `git ${arguments_.join(' ')}: ${result.stderr}`);
+  return result.stdout.trim();
 }
 
 function workflowOutputs(output) {

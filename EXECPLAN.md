@@ -8,9 +8,9 @@ Safety boundary: This task is limited to authorized, defensive maintenance of th
 
 ## Context and limits
 
-- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, runtime-correction checkpoint `5371b532a1e76d8e1426f7a2c71f6973bff22b5b`.
+- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, qualification-correction checkpoint `174198042cd1129739e43bc5830291fcdce8d4a8`.
 - Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, accepted immutable checkpoint `ec4208dda65c69fd3e0fd4fc4d59e0d7777a3ed5`.
-- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-recovery-final.md`.
+- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-runtime-final.md`.
 - Preserve stable behavior, POM/main/tests-only publisher artifacts, sources/Javadocs prohibition, exact-SHA checks, protected-branch checks, `latest` isolation, credential boundaries, and current unrelated work.
 - Do not create branches, stage, commit, push, publish, dispatch workflows, mutate issues or pull requests, install tooling, run `./mvnw clean verify` or Sonar, snooze Habit findings, or change external state.
 
@@ -65,6 +65,21 @@ atomic expected-SHA force-with-lease refspec and treat an advanced branch as a s
 and synchronization workflows, scripts, tests, `README.md`, channel/workflow documentation, and the final runtime report.
 Run focused red/green scenarios, all requested local gates, and exact repository audits without external mutation.
 
+### 11. Qualify release provenance and repair proposal builds
+
+Add behavior-first process, workflow, and real local-Git scenarios for R1-R4. Split release handling into a trusted,
+permission-minimal qualification job sourced from default `main` and a privileged publish job that consumes only an
+accepted immutable channel/SHA, checks out that SHA, and rechecks only the selected protected branch before running
+target code. Keep stable release and recovery independent of an absent `experimental` branch. Make scheduled recovery's
+global query a lightweight number/state index, fetch each candidate's full evidence through a genuinely bounded
+candidate-local process, and continue later completion plus one coalesced refresh after hostile candidate output. Make
+exact proposal-head build assurance the first repairable post-publication effect, and let OPEN scheduled recovery reuse
+any queued, running, or completed exact-head run—including red—or dispatch exactly once when absent without merging.
+After green behavior, apply refactor-design to remove obsolete recovery commands and implementation-detail tests when
+the real workflow/process paths fully protect their contracts. Update release/synchronization workflows, adapters,
+tests, README and workflow/channel documentation, then run the complete primary validation set and write the final
+qualification correction report.
+
 ## Progress
 
 - [x] Read the approved specification and structural review; verify both repositories are clean at the assigned checkpoints.
@@ -85,6 +100,9 @@ Run focused red/green scenarios, all requested local gates, and exact repository
       provenance, bounded recovery transport, isolated/idempotent orchestration, pending-state indexing, current-only
       issue closure, and atomic leased cleanup all have red/green public-boundary scenarios).
 - [x] Complete runtime validation, documentation, evidence report, publisher-clean audit, and lease release handoff.
+- [x] Correct R1-R4 through trusted release qualification, channel-local Git resolution, bounded per-candidate recovery,
+      and repairable exact proposal-head builds.
+- [x] Complete post-green design consolidation, validation, qualification report, publisher audit, and lease release.
 
 ## Decisions
 
@@ -104,10 +122,17 @@ Run focused red/green scenarios, all requested local gates, and exact repository
 - Keep historical finalization away from the global conflict issue. Only a current authoritative preparation result may
   close it, and duplicate matching issues fail closed.
 - Keep GitHub recovery effects in one executable Node orchestrator. The workflow supplies only scalar configuration;
-  the orchestrator owns bounded file capture, candidate ordering and isolation, exact-build reuse, refresh coalescing,
+  the orchestrator owns bounded candidate-local streaming, candidate ordering and isolation, exact-build reuse, refresh coalescing,
   atomic cleanup, completion recording, and pending-label reconciliation.
-- Share one bounded-JSON reader across workflow adapters. The refactor-design pass removed the recovery reader's hidden
-  cross-invocation filename counter while preserving the 2 MiB contract and observable errors.
+- Keep bounded-file parsing for workflow-owned files and terminate direct GitHub response streams at 2 MiB inside each
+  recovery candidate. The post-green refactor removed obsolete selection, finalization, and cleanup commands so the live
+  recovery process is the only orchestration policy surface.
+- Qualify workflow-run releases using trusted default-branch code before any privileged job or triggering revision
+  checkout. The privileged job receives only the immutable accepted channel/SHA and independently rechecks that one
+  protected head, preserving stable operation before `experimental` exists.
+- Treat proposal-head build assurance as a recoverable synchronization state. PR publication establishes durable
+  pending state first; scheduled OPEN recovery repairs only a missing exact-head run and preserves any existing
+  queued, running, successful, or failed result for ordinary review policy.
 
 ## Risks
 
@@ -124,6 +149,10 @@ Run focused red/green scenarios, all requested local gates, and exact repository
   lease so a concurrent update is preserved atomically.
 - Bulk PR/comment JSON can exceed the operating system's per-environment-string limit before Node starts. Transport it
   through a bounded file or pipe and validate size and shape inside the executable adapter.
+- A privileged `workflow_run` job cannot trust a verifier loaded from the triggering revision. Admission and immutable
+  channel/SHA qualification must finish in default-branch code before write/OIDC authority or target checkout exists.
+- A global pending-index query containing comments lets one hostile PR block every candidate. Keep the index lightweight
+  and terminate each exact evidence capture at its byte limit inside that candidate's failure boundary.
 - Filtering distribution metadata can accidentally expose Maven or environment overrides at runtime. Only build-time Maven properties may generate the packaged resource; runtime property sources must remain irrelevant.
 
 ## Documentation

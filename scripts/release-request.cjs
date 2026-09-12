@@ -1,4 +1,5 @@
 const { appendFileSync } = require('node:fs');
+const { spawnSync } = require('node:child_process');
 
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/;
 const STABLE_TAG = /^v(\d+\.\d+\.\d+)$/;
@@ -110,6 +111,89 @@ function workflowRunReleaseRequest(environment) {
   return Object.freeze({ channel: 'experimental', release: true });
 }
 
+function admitWorkflowRun(environment) {
+  const trustedRepository =
+    environment.GITHUB_REPOSITORY === 'seed4j/seed4j-cli' && environment.BUILD_SOURCE_REPOSITORY === environment.GITHUB_REPOSITORY;
+  const trustedPush = environment.BUILD_EVENT === 'push';
+  const trustedSynchronization =
+    environment.BUILD_EVENT === 'workflow_dispatch'
+    && environment.BUILD_ACTOR === 'github-actions[bot]'
+    && environment.BUILD_HEAD_BRANCH === 'experimental';
+  const supportedBranch = environment.BUILD_HEAD_BRANCH === 'main' || environment.BUILD_HEAD_BRANCH === 'experimental';
+
+  if (!trustedRepository || environment.BUILD_CONCLUSION !== 'success' || !supportedBranch || (!trustedPush && !trustedSynchronization)) {
+    throw new Error('Release qualification requires a successful trusted release workflow run.');
+  }
+  if (environment.BUILD_HEAD_BRANCH === 'main' && !trustedPush) {
+    throw new Error('Release qualification requires a successful trusted release workflow run.');
+  }
+  if (!/^[0-9a-f]{40}$/.test(environment.BUILT_SHA ?? '')) {
+    throw new Error('Release qualification requires an immutable 40-character build SHA.');
+  }
+
+  return Object.freeze({
+    branch: environment.BUILD_HEAD_BRANCH,
+    channel: environment.BUILD_HEAD_BRANCH === 'main' ? 'stable' : 'experimental',
+    sha: environment.BUILT_SHA,
+  });
+}
+
+function qualifyWorkflowRun(environment) {
+  const admission = admitWorkflowRun(environment);
+  runGit(['fetch', 'origin', admission.branch, '--tags']);
+  const currentSha = runGit(['rev-parse', `origin/${admission.branch}`]);
+  const releaseTags = runGit(['tag', '--points-at', admission.sha, '--list', 'v*']);
+  const request = workflowRunReleaseRequest({
+    ...environment,
+    CHECKED_OUT_SHA: admission.sha,
+    CURRENT_EXPERIMENTAL_SHA: admission.branch === 'experimental' ? currentSha : '',
+    CURRENT_MAIN_SHA: admission.branch === 'main' ? currentSha : '',
+    RELEASE_TAGS: releaseTags,
+  });
+  if (!request.release || request.channel !== admission.channel) {
+    throw new Error(`Release workflow run is not eligible: ${request.reason ?? 'channel mismatch'}.`);
+  }
+
+  return Object.freeze({ channel: admission.channel, eligible: true, sha: admission.sha });
+}
+
+function qualifyManualRelease(environment) {
+  validateDispatchRequest({ operation: environment.RELEASE_OPERATION, version: environment.RELEASE_VERSION });
+  runGit(['fetch', 'origin', 'main', '--tags']);
+  const checkedOutSha = runGit(['rev-parse', 'HEAD']);
+  const currentMainSha = runGit(['rev-parse', 'origin/main']);
+  validateManualRelease({
+    checkedOutSha,
+    currentMainSha,
+    releaseTags: runGit(['tag', '--points-at', checkedOutSha, '--list', 'v*']).split(/\r?\n/).filter(Boolean),
+    successfulBuildCount: environment.SUCCESSFUL_BUILD_COUNT,
+  });
+
+  return Object.freeze({ channel: 'stable', eligible: true, sha: checkedOutSha });
+}
+
+function qualifyRecovery(environment) {
+  const request = validateDispatchRequest({
+    operation: environment.RELEASE_OPERATION,
+    version: environment.RELEASE_VERSION,
+  });
+  runGit(['fetch', 'origin', 'main', '--tags']);
+  const releaseTag = `v${request.version}`;
+  const tagSha = runGit(['rev-list', '-n', '1', `refs/tags/${releaseTag}`]);
+  runGit(['merge-base', '--is-ancestor', tagSha, 'origin/main']);
+
+  return Object.freeze({ sha: tagSha });
+}
+
+function runGit(arguments_) {
+  const result = spawnSync('git', arguments_, { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(`git ${arguments_.join(' ')} failed: ${(result.stderr ?? '').trim()}`);
+  }
+
+  return result.stdout.trim();
+}
+
 function writeWorkflowOutputs(values) {
   if (!process.env.GITHUB_OUTPUT) {
     throw new Error('GITHUB_OUTPUT is required for release workflow output.');
@@ -160,6 +244,19 @@ function run() {
     });
     return;
   }
+  if (command === 'qualify-workflow-run') {
+    const qualification = qualifyWorkflowRun(process.env);
+    writeWorkflowOutputs(qualification);
+    return;
+  }
+  if (command === 'qualify-manual-release') {
+    writeWorkflowOutputs(qualifyManualRelease(process.env));
+    return;
+  }
+  if (command === 'qualify-recovery') {
+    writeWorkflowOutputs(qualifyRecovery(process.env));
+    return;
+  }
 
   throw new Error(`Unsupported release request command '${command ?? ''}'.`);
 }
@@ -178,5 +275,9 @@ module.exports = {
   validateExperimentalRelease,
   validateManualRelease,
   validateRecoveryVersion,
+  admitWorkflowRun,
+  qualifyManualRelease,
+  qualifyRecovery,
+  qualifyWorkflowRun,
   workflowRunReleaseRequest,
 };

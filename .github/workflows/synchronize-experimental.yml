@@ -185,6 +185,7 @@ jobs:
           else
             gh pr create --repo "$GITHUB_REPOSITORY" --base experimental --head "$SYNC_BRANCH" --label "$SYNC_PENDING_LABEL" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
           fi
+          gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
           SYNC_ISSUES_PATH="$RUNNER_TEMP/synchronization-resolved-issues.json"
           ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-resolved-issue-output"
           gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
@@ -194,7 +195,6 @@ jobs:
             ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
             gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "The current source and target now merge cleanly in synchronization pull request head ${PROPOSAL_HEAD_SHA}."
           fi
-          gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
 
       - name: 'Synchronize: close resolved issue for an already-current target'
         if: steps.proposal.outputs.action == 'already-contained'

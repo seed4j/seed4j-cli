@@ -65,7 +65,7 @@ function prepareSynchronization({
     headSha: proposalHeadSha,
     sourceBranch: SOURCE_BRANCH,
     sourceSha: currentMainSha,
-    steps: ['push-proposal', 'open-or-refresh-pr', 'close-conflict-issue', 'dispatch-tests'],
+    steps: ['push-proposal', 'open-or-refresh-pr', 'dispatch-tests', 'close-conflict-issue'],
     targetBranch: TARGET_BRANCH,
     targetSha: currentExperimentalSha,
   });
@@ -381,60 +381,6 @@ function workflowPreparation(environment) {
   });
 }
 
-function workflowFinalizationSelection(environment) {
-  const pullRequests = readBoundedJson(environment.SYNC_PULL_REQUESTS_PATH, 'Synchronization pull request history');
-  if (!Array.isArray(pullRequests) || pullRequests.length > 100) {
-    throw new Error('Synchronization pull request history must contain at most 100 entries.');
-  }
-  const requestedPullRequestNumber = requestedPullRequest(environment.REQUESTED_PR_NUMBER);
-  const seenPullRequestNumbers = new Set();
-  for (const pullRequest of pullRequests) {
-    if (seenPullRequestNumbers.has(pullRequest?.number)) {
-      throw new Error(`Synchronization pull request history contains duplicate number '${pullRequest.number}'.`);
-    }
-    seenPullRequestNumbers.add(pullRequest?.number);
-  }
-  const candidates = pullRequests
-    .filter(pullRequest => ['MERGED', 'OPEN'].includes(pullRequest?.state))
-    .filter(pullRequest => requestedPullRequestNumber === undefined || pullRequest.number === requestedPullRequestNumber)
-    .filter(pullRequest => completionPending(pullRequest))
-    .sort((left, right) => finalizationPriority(left) - finalizationPriority(right) || left.number - right.number);
-  return Object.freeze({
-    count: candidates.length,
-    pullRequestNumbers: candidates.map(pullRequest => pullRequest.number),
-  });
-}
-
-function requestedPullRequest(value) {
-  if (value === undefined || value === '') {
-    return undefined;
-  }
-  const pullRequestNumber = Number(value);
-  if (!Number.isSafeInteger(pullRequestNumber) || pullRequestNumber <= 0 || String(pullRequestNumber) !== value) {
-    throw new Error(`Invalid requested pull request number '${value}'.`);
-  }
-  return pullRequestNumber;
-}
-
-function finalizationPriority(pullRequest) {
-  return pullRequest.state === 'MERGED' ? 0 : 1;
-}
-
-function completionPending(pullRequest) {
-  if (
-    !pullRequest
-    || Array.isArray(pullRequest)
-    || pullRequest.baseRefName !== TARGET_BRANCH
-    || pullRequest.headRefName !== SYNC_BRANCH
-    || !Number.isSafeInteger(pullRequest.number)
-    || pullRequest.number <= 0
-  ) {
-    throw new Error('Synchronization pull request history contains invalid branches or numbers.');
-  }
-  const expected = synchronizationStateFromPullRequest(pullRequest.body);
-  return !(pullRequest.comments ?? []).some(comment => trustedCompletion(comment, pullRequest, expected));
-}
-
 function trustedCompletionForPullRequest(pullRequest) {
   if (!pullRequest || Array.isArray(pullRequest)) {
     return false;
@@ -544,39 +490,6 @@ function atomicDisposableBranchCleanup({ proposalHeadSha, remote = 'origin' }) {
   return state;
 }
 
-function workflowFinalization(environment) {
-  const pullRequest = readBoundedJson(environment.SYNC_PULL_REQUEST_PATH, 'Synchronization pull request response');
-  if (
-    !pullRequest
-    || Array.isArray(pullRequest)
-    || pullRequest.baseRefName !== TARGET_BRANCH
-    || pullRequest.headRefName !== SYNC_BRANCH
-    || !Number.isSafeInteger(pullRequest.number)
-  ) {
-    throw new Error('Synchronization pull request branches or number are invalid.');
-  }
-  const expected = synchronizationStateFromPullRequest(pullRequest.body);
-  return Object.freeze({
-    decision: postMergeSynchronization({
-      branch: pullRequest.headRefName,
-      currentExperimentalSha: environment.CURRENT_EXPERIMENTAL_SHA,
-      currentMainSha: environment.CURRENT_MAIN_SHA,
-      expectedSourceSha: expected.sourceSha,
-      expectedTargetSha: expected.targetSha,
-      mergeCommitSha: pullRequest.mergeCommit?.oid,
-      mergeReachable: environment.MERGE_REACHABLE === 'true',
-      observedProposalHeadSha: environment.OBSERVED_PROPOSAL_HEAD_SHA,
-      proposalHeadSha: pullRequest.headRefOid,
-      proposalParentShas: proposalParents(environment.PROPOSAL_PARENT_SHAS),
-      proposalState: pullRequest.state,
-      recordedHeadSha: expected.headSha,
-    }),
-    mergeCommitSha: pullRequest.mergeCommit?.oid,
-    proposalHeadSha: expected.headSha,
-    pullRequestNumber: pullRequest.number,
-  });
-}
-
 function proposalParents(value) {
   return String(value ?? '')
     .trim()
@@ -658,31 +571,10 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
-  } else if (process.argv[2] === 'select-finalizations' && process.argv.length === 3) {
-    try {
-      const selection = workflowFinalizationSelection(process.env);
-      writeWorkflowOutputs({
-        count: selection.count,
-        'pull-requests': selection.pullRequestNumbers.join(','),
-      });
-    } catch (error) {
-      console.error(error.message);
-      process.exitCode = 1;
-    }
   } else if (process.argv[2] === 'issue-workflow' && process.argv.length === 3) {
     try {
       const issue = workflowConflictIssue(process.env);
       writeWorkflowOutputs({ action: issue.action, issue: issue.issueNumber ?? '' });
-    } catch (error) {
-      console.error(error.message);
-      process.exitCode = 1;
-    }
-  } else if (process.argv[2] === 'cleanup-workflow' && process.argv.length === 3) {
-    try {
-      const cleanup = atomicDisposableBranchCleanup({
-        proposalHeadSha: process.env.PROPOSAL_HEAD_SHA,
-      });
-      writeWorkflowOutputs({ action: cleanup.action });
     } catch (error) {
       console.error(error.message);
       process.exitCode = 1;
@@ -702,24 +594,9 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
-  } else if (process.argv[2] === 'finalize-workflow' && process.argv.length === 3) {
-    try {
-      const finalization = workflowFinalization(process.env);
-      writeWorkflowOutputs({
-        action: finalization.decision.action,
-        experimental: finalization.decision.experimentalSha ?? '',
-        head: finalization.proposalHeadSha,
-        merge: finalization.mergeCommitSha ?? '',
-        'pr-number': finalization.pullRequestNumber,
-        reason: finalization.decision.reason ?? '',
-      });
-    } catch (error) {
-      console.error(error.message);
-      process.exitCode = 1;
-    }
   } else {
     console.error(
-      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|select-finalizations|issue-workflow|cleanup-workflow|review-workflow|finalize-workflow',
+      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|issue-workflow|review-workflow',
     );
     process.exitCode = 1;
   }

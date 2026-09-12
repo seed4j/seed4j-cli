@@ -87,7 +87,10 @@ that issue. Before enabling synchronization, a maintainer must create the reposi
 the workflow verifies this prerequisite before proposal publication and attaches the label to every pending PR.
 
 PR creation with `GITHUB_TOKEN` does not reliably recurse into ordinary workflows, so synchronization explicitly
-dispatches `github-actions.yml` on the disposable branch. The PR body binds the source, target, and proposal head SHAs.
+dispatches `github-actions.yml` on the disposable branch immediately after publishing the exact PR, before conflict-issue
+housekeeping. If publication stops before that dispatch, scheduled recovery checks the exact recorded proposal head and
+dispatches only when no matching run exists. A queued, running, successful, or failed completed run is reused; only the
+ordinary green-build review can enable merging. The PR body binds the source, target, and proposal head SHAs.
 The finalizer re-fetches both protected branches and the disposable branch, requires the recorded head to equal both
 the live PR head and fetched Git head, and requires that merge commit's parents to be the recorded target followed by
 the recorded source. Only that exact head with a completed successful standard build and a conflict-free open PR can
@@ -95,8 +98,10 @@ enable auto-merge. Stale source, target, head, topology, or test evidence causes
 dispatch; pending or red tests leave the PR open without auto-merge.
 
 Auto-merge is asynchronous, so the bounded confirmation window always dispatches a durable finalizer. Scheduled
-15-minute recovery queries up to 100 PRs carrying `synchronization-pending`, so older unfinished work is not displaced by
-completed history; explicit recovery reads the requested PR directly. Executable policy deterministically handles older
+15-minute recovery queries a lightweight number/state index of up to 100 PRs carrying `synchronization-pending`, so older
+unfinished work is not displaced by completed history. It then reads each exact PR independently and terminates that
+capture at 2 MiB; malformed or oversized comments fail only that candidate. Explicit recovery reads the requested PR
+directly without relying on the list window. Executable policy deterministically handles older
 merged work before open work and skips only an exact completion record authored by `github-actions[bot]` and bound to the
 PR number, proposal head, merge commit, and dispatched `experimental` SHA. Plain, forged, decorated, stale, or mismatched
 comments cannot suppress recovery. Candidate failures are isolated, and all stale candidates request at most one refresh
@@ -126,7 +131,11 @@ After an exact current `experimental` push, or the exact bot-issued post-synchro
 `<next-stable>-experimental.<n>`, push its immutable `v<version>` tag, and publish npm with dist-tag `experimental`.
 Publication uses npm Trusted Publishing with GitHub OIDC and provenance; no persistent npm token is stored. A stale SHA,
 wrong branch, untrusted dispatch, pull-request build, unsuccessful build, or already tagged revision is rejected. Stable
-release eligibility remains push-only.
+release eligibility remains push-only. A permission-minimal qualification job checks provenance using code from trusted
+default `main` before the write/OIDC publication job can start or the qualified target revision is checked out. The
+publisher consumes only the accepted channel and SHA, then rechecks that channel's protected head before running target
+code. Qualification fetches only the selected channel, so stable release and recovery do not depend on `experimental`
+existing.
 
 Experimental publication never creates or changes a GitHub Release, Release Drafter draft, stable JAR asset, stable
 tag, or npm `latest` tag. Stable publication and recovery remain `main`-only.

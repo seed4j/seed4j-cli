@@ -1,13 +1,12 @@
-const { closeSync, mkdtempSync, openSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 const {
   atomicDisposableBranchCleanup,
   completionBody,
   postMergeSynchronization,
-  readBoundedJson,
   synchronizationStateFromPullRequest,
   trustedCompletionForPullRequest,
 } = require('./main-to-experimental-sync.cjs');
@@ -16,28 +15,33 @@ const SYNC_BRANCH = 'automation/sync-main-to-experimental';
 const SOURCE_BRANCH = 'main';
 const TARGET_BRANCH = 'experimental';
 
-function recover(environment = process.env) {
+const MAX_JSON_BYTES = 2 * 1024 * 1024;
+
+async function recover(environment = process.env) {
   const repository = required(environment.GITHUB_REPOSITORY, 'GITHUB_REPOSITORY');
   const pendingLabel = required(environment.SYNC_PENDING_LABEL, 'SYNC_PENDING_LABEL');
   const directory = mkdtempSync(join(environment.RUNNER_TEMP || tmpdir(), 'seed4j-sync-recovery-'));
   const requestedBuildShas = new Set();
+  const requestedProposalBuildShas = new Set();
   let refreshRequired = false;
   let failed = false;
   try {
-    const pullRequests = loadCandidates({ directory, environment, pendingLabel, repository });
-    for (const pullRequest of pullRequests) {
+    const candidates = await loadCandidateIndexes({ environment, pendingLabel, repository });
+    for (const candidate of candidates) {
       try {
-        const outcome = recoverCandidate({
+        const pullRequest = await loadPullRequest(candidate.number, repository);
+        const outcome = await recoverCandidate({
           directory,
           pendingLabel,
           pullRequest,
           repository,
           requestedBuildShas,
+          requestedProposalBuildShas,
         });
         refreshRequired ||= outcome === 'refresh';
       } catch (error) {
         failed = true;
-        console.error(`Pull request #${pullRequest?.number ?? '?'} finalization failed: ${error.message}`);
+        console.error(`Pull request #${candidate?.number ?? '?'} finalization failed: ${error.message}`);
       }
     }
     if (refreshRequired) {
@@ -54,11 +58,11 @@ function recover(environment = process.env) {
   return failed ? 1 : 0;
 }
 
-function loadCandidates({ directory, environment, pendingLabel, repository }) {
+async function loadCandidateIndexes({ environment, pendingLabel, repository }) {
   const requestedNumber = requestedPullRequestNumber(environment.REQUESTED_PR_NUMBER);
-  let pullRequests;
+  let candidates;
   if (requestedNumber === undefined) {
-    pullRequests = runJson(
+    candidates = await runJson(
       'gh',
       [
         'pr',
@@ -78,44 +82,49 @@ function loadCandidates({ directory, environment, pendingLabel, repository }) {
         '--limit',
         '100',
         '--json',
-        'number,body,baseRefName,headRefName,headRefOid,state,mergeCommit,comments,labels',
+        'number,state',
       ],
-      directory,
-      'pending synchronization pull requests',
+      'pending synchronization pull request index',
     );
   } else {
-    pullRequests = [
-      runJson(
-        'gh',
-        [
-          'pr',
-          'view',
-          String(requestedNumber),
-          '--repo',
-          repository,
-          '--json',
-          'number,body,baseRefName,headRefName,headRefOid,state,mergeCommit,comments,labels',
-        ],
-        directory,
-        `synchronization pull request #${requestedNumber}`,
-      ),
-    ];
+    candidates = [{ number: requestedNumber }];
   }
-  if (!Array.isArray(pullRequests) || pullRequests.length > 100) {
+  if (!Array.isArray(candidates) || candidates.length > 100) {
     throw new Error('Pending synchronization pull requests must contain at most 100 entries.');
   }
   const numbers = new Set();
-  for (const pullRequest of pullRequests) {
-    if (Number.isSafeInteger(pullRequest?.number) && numbers.has(pullRequest.number)) {
-      throw new Error(`Pending synchronization pull requests contain duplicate number '${pullRequest.number}'.`);
+  for (const candidate of candidates) {
+    if (
+      !Number.isSafeInteger(candidate?.number)
+      || candidate.number <= 0
+      || (requestedNumber === undefined && !['MERGED', 'OPEN'].includes(candidate.state))
+    ) {
+      throw new Error('Pending synchronization pull request index has an invalid number or state.');
     }
-    if (Number.isSafeInteger(pullRequest?.number)) {
-      numbers.add(pullRequest.number);
+    if (numbers.has(candidate.number)) {
+      throw new Error(`Pending synchronization pull requests contain duplicate number '${candidate.number}'.`);
     }
+    numbers.add(candidate.number);
   }
-  return pullRequests.sort(
+  return candidates.sort(
     (left, right) =>
       finalizationPriority(left) - finalizationPriority(right) || pullRequestNumberForOrdering(left) - pullRequestNumberForOrdering(right),
+  );
+}
+
+function loadPullRequest(number, repository) {
+  return runJson(
+    'gh',
+    [
+      'pr',
+      'view',
+      String(number),
+      '--repo',
+      repository,
+      '--json',
+      'number,body,baseRefName,headRefName,headRefOid,state,mergeCommit,comments,labels',
+    ],
+    `synchronization pull request #${number}`,
   );
 }
 
@@ -153,7 +162,7 @@ function pullRequestNumberForOrdering(pullRequest) {
   return Number.isSafeInteger(pullRequest?.number) ? pullRequest.number : Number.MAX_SAFE_INTEGER;
 }
 
-function recoverCandidate({ directory, pendingLabel, pullRequest, repository, requestedBuildShas }) {
+async function recoverCandidate({ directory, pendingLabel, pullRequest, repository, requestedBuildShas, requestedProposalBuildShas }) {
   validatePullRequest(pullRequest);
   const pending = (pullRequest.labels ?? []).some(label => label?.name === pendingLabel);
   if (trustedCompletionForPullRequest(pullRequest)) {
@@ -194,14 +203,22 @@ function recoverCandidate({ directory, pendingLabel, pullRequest, repository, re
   if (decision.action === 'refresh') {
     return 'refresh';
   }
-  if (decision.action === 'schedule-recheck' || decision.action === 'blocked') {
+  if (decision.action === 'schedule-recheck') {
+    await ensureProposalBuild({
+      proposalHeadSha: expected.headSha,
+      repository,
+      requestedProposalBuildShas,
+    });
+    return decision.action;
+  }
+  if (decision.action === 'blocked') {
     return decision.action;
   }
   if (decision.action !== 'complete') {
     throw new Error(`unexpected finalization action '${decision.action}'`);
   }
 
-  ensureExactBuild({ directory, experimentalSha: decision.experimentalSha, repository, requestedBuildShas });
+  await ensureExactBuild({ experimentalSha: decision.experimentalSha, repository, requestedBuildShas });
   atomicDisposableBranchCleanup({ proposalHeadSha: expected.headSha });
   const completionPath = join(directory, `completion-${pullRequest.number}.md`);
   writeFileSync(
@@ -218,8 +235,62 @@ function recoverCandidate({ directory, pendingLabel, pullRequest, repository, re
   return 'complete';
 }
 
-function ensureExactBuild({ directory, experimentalSha, repository, requestedBuildShas }) {
-  if (requestedBuildShas.has(experimentalSha) || reusableBuildRuns(directory, experimentalSha, repository)) {
+async function ensureProposalBuild({ proposalHeadSha, repository, requestedProposalBuildShas }) {
+  run('git', ['fetch', 'origin', SYNC_BRANCH]);
+  if (gitOutput(['rev-parse', `origin/${SYNC_BRANCH}`]) !== proposalHeadSha) {
+    throw new Error('published synchronization branch no longer matches the recorded proposal head');
+  }
+  if (requestedProposalBuildShas.has(proposalHeadSha) || (await reusableProposalBuild(proposalHeadSha, repository))) {
+    return;
+  }
+  try {
+    run('gh', ['workflow', 'run', 'github-actions.yml', '--repo', repository, '--ref', SYNC_BRANCH]);
+  } catch (error) {
+    throw new Error(`proposal-head build dispatch failed: ${error.message}`);
+  }
+  run('git', ['fetch', 'origin', SYNC_BRANCH]);
+  if (gitOutput(['rev-parse', `origin/${SYNC_BRANCH}`]) !== proposalHeadSha) {
+    throw new Error('synchronization branch moved while dispatching its proposal-head build');
+  }
+  requestedProposalBuildShas.add(proposalHeadSha);
+}
+
+async function reusableProposalBuild(proposalHeadSha, repository) {
+  const runs = await runJson(
+    'gh',
+    [
+      'run',
+      'list',
+      '--repo',
+      repository,
+      '--workflow',
+      'github-actions.yml',
+      '--branch',
+      SYNC_BRANCH,
+      '--commit',
+      proposalHeadSha,
+      '--event',
+      'workflow_dispatch',
+      '--user',
+      'github-actions[bot]',
+      '--limit',
+      '20',
+      '--json',
+      'databaseId,status,conclusion,event,headSha,headBranch',
+    ],
+    'trusted proposal-head workflow-dispatch builds',
+  );
+  return validatedRunList(runs).some(
+    runRecord =>
+      runRecord.headSha === proposalHeadSha
+      && runRecord.headBranch === SYNC_BRANCH
+      && runRecord.event === 'workflow_dispatch'
+      && ['queued', 'in_progress', 'completed'].includes(runRecord.status),
+  );
+}
+
+async function ensureExactBuild({ experimentalSha, repository, requestedBuildShas }) {
+  if (requestedBuildShas.has(experimentalSha) || (await reusableBuildRuns(experimentalSha, repository))) {
     return;
   }
   run('gh', ['workflow', 'run', 'github-actions.yml', '--repo', repository, '--ref', TARGET_BRANCH]);
@@ -230,7 +301,7 @@ function ensureExactBuild({ directory, experimentalSha, repository, requestedBui
   requestedBuildShas.add(experimentalSha);
 }
 
-function reusableBuildRuns(directory, experimentalSha, repository) {
+async function reusableBuildRuns(experimentalSha, repository) {
   const commonArguments = [
     'run',
     'list',
@@ -247,11 +318,10 @@ function reusableBuildRuns(directory, experimentalSha, repository) {
     '--json',
     'databaseId,status,conclusion,event,headSha,headBranch',
   ];
-  const pushRuns = runJson('gh', [...commonArguments, '--event', 'push'], directory, 'experimental push builds');
-  const dispatchRuns = runJson(
+  const pushRuns = await runJson('gh', [...commonArguments, '--event', 'push'], 'experimental push builds');
+  const dispatchRuns = await runJson(
     'gh',
     [...commonArguments, '--event', 'workflow_dispatch', '--user', 'github-actions[bot]'],
-    directory,
     'trusted experimental workflow-dispatch builds',
   );
   return [...validatedRunList(pushRuns), ...validatedRunList(dispatchRuns)].some(
@@ -274,22 +344,52 @@ function removePendingLabel(number, pendingLabel, repository) {
   run('gh', ['pr', 'edit', String(number), '--repo', repository, '--remove-label', pendingLabel]);
 }
 
-function runJson(command, arguments_, directory, label) {
-  const responseDirectory = mkdtempSync(join(directory, 'response-'));
-  const path = join(responseDirectory, 'body.json');
-  const descriptor = openSync(path, 'w');
-  let result;
-  try {
-    result = spawnSync(command, arguments_, {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024,
-      stdio: ['ignore', descriptor, 'pipe'],
+function runJson(command, arguments_, label) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, arguments_, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const chunks = [];
+    const errorChunks = [];
+    let bytes = 0;
+    let exceeded = false;
+    let startError;
+    child.stdout.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_JSON_BYTES) {
+        exceeded = true;
+        child.kill('SIGKILL');
+        return;
+      }
+      chunks.push(chunk);
     });
-  } finally {
-    closeSync(descriptor);
-  }
-  commandSucceeded(command, arguments_, result, [0]);
-  return readBoundedJson(path, label);
+    child.stderr.on('data', chunk => {
+      if (errorChunks.reduce((total, item) => total + item.length, 0) < 64 * 1024) {
+        errorChunks.push(chunk);
+      }
+    });
+    child.on('error', error => {
+      startError = error;
+    });
+    child.on('close', status => {
+      if (exceeded) {
+        reject(new Error(`${label} exceeds the maximum of ${MAX_JSON_BYTES} bytes.`));
+        return;
+      }
+      if (startError) {
+        reject(new Error(`${command} ${arguments_.join(' ')} could not start: ${startError.message}`));
+        return;
+      }
+      if (status !== 0) {
+        const detail = Buffer.concat(errorChunks).toString('utf8').trim() || `exit ${status}`;
+        reject(new Error(`${command} ${arguments_.join(' ')} failed: ${detail}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch (error) {
+        reject(new Error(`${label} is not valid JSON: ${error.message}`));
+      }
+    });
+  });
 }
 
 function gitOutput(arguments_) {
@@ -320,12 +420,14 @@ function required(value, name) {
 }
 
 if (require.main === module) {
-  try {
-    process.exitCode = recover();
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-  }
+  recover()
+    .then(status => {
+      process.exitCode = status;
+    })
+    .catch(error => {
+      console.error(error.message);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = { recover };

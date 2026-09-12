@@ -31,18 +31,67 @@ concurrency:
 permissions: {}
 
 jobs:
+  qualify:
+    name: qualify release
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        ((github.event.workflow_run.event == 'push' &&
+          (github.event.workflow_run.head_branch == 'main' ||
+           github.event.workflow_run.head_branch == 'experimental')) ||
+         (github.event.workflow_run.event == 'workflow_dispatch' &&
+          github.event.workflow_run.head_branch == 'experimental' &&
+          github.event.workflow_run.actor.login == 'github-actions[bot]'))) ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        inputs.operation == 'release'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      channel: ${{ steps.release-revision.outputs.channel }}
+      eligible: ${{ steps.release-revision.outputs.eligible }}
+      sha: ${{ steps.release-revision.outputs.sha }}
+    steps:
+      - name: 'Setup: checkout trusted release qualification'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: main
+
+      - name: 'Release: qualify current distribution revision'
+        id: release-revision
+        env:
+          BUILD_ACTOR: ${{ github.event.workflow_run.actor.login }}
+          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BUILD_EVENT: ${{ github.event.workflow_run.event }}
+          BUILD_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          BUILD_SOURCE_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$RELEASE_EVENT" = "workflow_run" ]; then
+            node scripts/release-request.cjs qualify-workflow-run
+          else
+            CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+            SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml \
+              --commit "$CHECKED_OUT_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
+            export SUCCESSFUL_BUILD_COUNT
+            node scripts/release-request.cjs qualify-manual-release
+          fi
+
   publish:
     name: publish release
-    if: >-
-      (github.event_name == 'workflow_run' &&
-       github.repository == 'seed4j/seed4j-cli' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       (github.event.workflow_run.head_branch == 'main' ||
-        github.event.workflow_run.head_branch == 'experimental')) ||
-      (github.event_name == 'workflow_dispatch' &&
-       github.repository == 'seed4j/seed4j-cli' &&
-       github.ref == 'refs/heads/main' &&
-       inputs.operation == 'release')
+    needs: qualify
+    if: needs.qualify.outputs.eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -51,51 +100,30 @@ jobs:
       id-token: write
       pull-requests: read
     steps:
-      - name: 'Setup: checkout release revision'
+      - name: 'Setup: checkout qualified release revision'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+          ref: ${{ needs.qualify.outputs.sha }}
 
-      - name: 'Release: verify current distribution revision'
-        id: release-revision
+      - name: 'Release: verify selected protected head'
         env:
-          BUILD_ACTOR: ${{ github.event.workflow_run.actor.login }}
-          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          BUILD_EVENT: ${{ github.event.workflow_run.event }}
-          BUILD_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_EVENT: ${{ github.event_name }}
-          RELEASE_OPERATION: ${{ inputs.operation }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          QUALIFIED_CHANNEL: ${{ needs.qualify.outputs.channel }}
+          QUALIFIED_SHA: ${{ needs.qualify.outputs.sha }}
         run: |
-          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
-
-          if [ "$RELEASE_EVENT" = "workflow_run" ]; then
-            git fetch origin main experimental --tags
-            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
-            CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
-            RELEASE_TAGS="$(git tag --points-at "$CHECKED_OUT_SHA" --list 'v*')"
-            export BUILD_ACTOR BUILD_CONCLUSION BUILD_EVENT BUILD_HEAD_BRANCH BUILT_SHA CHECKED_OUT_SHA
-            export CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA RELEASE_TAGS
-            node scripts/release-request.cjs workflow-run
-          else
-            git fetch origin main --tags
-            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
-            node scripts/release-request.cjs dispatch
-            SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml \
-              --commit "$CHECKED_OUT_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
-            RELEASE_TAGS="$(git tag --points-at "$CHECKED_OUT_SHA" --list 'v*')"
-            export CHECKED_OUT_SHA CURRENT_MAIN_SHA RELEASE_TAGS SUCCESSFUL_BUILD_COUNT
-            node scripts/release-request.cjs manual
-            echo "channel=stable" >> "$GITHUB_OUTPUT"
-            echo "reason=" >> "$GITHUB_OUTPUT"
-            echo "release=true" >> "$GITHUB_OUTPUT"
+          case "$QUALIFIED_CHANNEL" in
+            stable) TARGET_BRANCH=main ;;
+            experimental) TARGET_BRANCH=experimental ;;
+            *) echo "Unsupported qualified release channel '${QUALIFIED_CHANNEL}'." >&2; exit 1 ;;
+          esac
+          git fetch origin "$TARGET_BRANCH"
+          if [ "$(git rev-parse HEAD)" != "$QUALIFIED_SHA" ] || \
+             [ "$(git rev-parse "origin/${TARGET_BRANCH}")" != "$QUALIFIED_SHA" ]; then
+            echo "Qualified release revision is no longer current ${TARGET_BRANCH}." >&2
+            exit 1
           fi
 
       - name: 'Setup: Node.js'
-        if: steps.release-revision.outputs.release == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24.20.0
@@ -103,7 +131,6 @@ jobs:
           package-manager-cache: false
 
       - name: 'Setup: Java'
-        if: steps.release-revision.outputs.release == 'true'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: 'temurin'
@@ -111,31 +138,29 @@ jobs:
           cache: maven
 
       - name: 'Setup: npm dependencies'
-        if: steps.release-revision.outputs.release == 'true'
         run: npm ci
 
       - name: 'Release: evaluate and publish npm package'
-        if: steps.release-revision.outputs.release == 'true'
         id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-          SEED4J_RELEASE_CHANNEL: ${{ steps.release-revision.outputs.channel }}
+          SEED4J_RELEASE_CHANNEL: ${{ needs.qualify.outputs.channel }}
           SEED4J_MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'release' }}
         run: npx --no-install semantic-release
 
       - name: 'Release: publish drafted GitHub release'
-        if: steps.semantic-release.outputs.released == 'true' && steps.release-revision.outputs.channel == 'stable'
+        if: steps.semantic-release.outputs.released == 'true' && needs.qualify.outputs.channel == 'stable'
         uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
         with:
-          commitish: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          commitish: ${{ needs.qualify.outputs.sha }}
           name: v${{ steps.semantic-release.outputs.version }}
           publish: true
           tag: v${{ steps.semantic-release.outputs.version }}
           version: ${{ steps.semantic-release.outputs.version }}
 
       - name: 'Release: upload CLI JAR'
-        if: steps.semantic-release.outputs.released == 'true' && steps.release-revision.outputs.channel == 'stable'
+        if: steps.semantic-release.outputs.released == 'true' && needs.qualify.outputs.channel == 'stable'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ steps.semantic-release.outputs.version }}
@@ -170,21 +195,10 @@ jobs:
 
       - name: 'Recovery: validate request and immutable tag'
         id: release-tag
-        run: |
-          node scripts/release-request.cjs dispatch
-          git fetch origin main --tags
-          RELEASE_TAG="v${RELEASE_VERSION}"
-          git checkout --detach "refs/tags/${RELEASE_TAG}"
-          TAG_SHA="$(git rev-list -n 1 "$RELEASE_TAG")"
-          if [ "$TAG_SHA" != "$(git rev-parse HEAD)" ]; then
-            echo "Checked out revision does not match ${RELEASE_TAG}." >&2
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "$TAG_SHA" origin/main; then
-            echo "Release tag ${RELEASE_TAG} does not belong to main." >&2
-            exit 1
-          fi
-          echo "sha=$TAG_SHA" >> "$GITHUB_OUTPUT"
+        run: node scripts/release-request.cjs qualify-recovery
+
+      - name: 'Recovery: checkout qualified tag'
+        run: git checkout --detach "${{ steps.release-tag.outputs.sha }}"
 
       - name: 'Setup: Node.js'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
