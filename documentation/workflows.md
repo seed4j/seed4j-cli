@@ -5,6 +5,25 @@ These recipes organize commands around concrete outcomes. Use the [commands refe
 Stable installation is the default. Before evaluating the opt-in npm experimental channel, read its
 [provenance, retention, unsupported-module, update, and rollback contract](experimental-channel.md).
 
+## Synchronize stable changes into experimental
+
+A successful standard push build for current `main` starts the one-way synchronization workflow. It rebuilds the
+disposable `automation/sync-main-to-experimental` branch from current `experimental`, merges the exact green `main` SHA,
+and opens or refreshes a PR targeting `experimental`. The workflow explicitly dispatches the standard build on that
+proposal head, because changes made by `GITHUB_TOKEN` do not trigger an unrestricted recursive workflow chain.
+
+Automation enables merge only while source, target, PR head, mergeability, and the completed `tests` result all remain
+current. If any SHA moves, it refreshes the proposal and tests; red or pending tests leave it open. A Git conflict creates
+or updates the single assigned `synchronization-failure` issue without changing either protected branch. Resolve the
+conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to retry. Once the PR is
+merged, the workflow dispatches a build for the exact current `experimental` branch and deletes the disposable branch.
+It never synchronizes the experimental branch wholesale back to `main`.
+
+Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
+no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,
+unavailable-module metadata, and snapshot-only repository. Synchronization and release commands use the checked-out
+branch POM directly; there is no Maven profile or workflow flag that can select the other channel's identity.
+
 ## Create a project with modules
 
 A typical workflow to initialize a new project might look like:

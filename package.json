@@ -23,6 +23,7 @@
     "prepare": "husky",
     "prettier:check": "prettier --check .",
     "prettier:format": "prettier --write .",
+    "sync:dry-run": "node scripts/main-to-experimental-sync.cjs dry-run",
     "test:npm-package": "node --test test/npm/*.test.js",
     "test:npm-packed-skill": "node tests-ci/npm-packed-skill.js",
     "test:release": "node --test test/release/*.test.js",

@@ -41,8 +41,15 @@ to `@latest` is also explicit. Never use an unqualified install when validating 
 
 Each package carries immutable distribution metadata under `META-INF`. It records the release channel, exact dependency
 coordinate, exact 40-character official `seed4j/seed4j` upstream commit, and unavailable module slugs. The metadata is
-packaged at build time and cannot be replaced by user configuration, environment properties, command options, or a
-runtime extension.
+filtered at build time from the same Maven-owned group, artifact, version, channel, upstream-SHA, repository, and
+availability properties used by both Seed4J dependencies. It cannot be replaced by user configuration, environment
+properties, command options, or a runtime extension.
+
+That Maven authority belongs to the branch, not to an activation profile. The main-bound POM contains only the stable
+official coordinate and declares no personal snapshot repository. The later experimental branch replaces those same
+top-level authority values with the personal coordinate, full upstream SHA, and unavailable-module facts, and adds its
+snapshot-only repository. Ordinary Maven build and release commands therefore package the identity already owned by the
+checked-out branch; they never choose a channel with `-Pexperimental` or another runtime flag.
 
 On experimental, `seed4j --version` includes the channel, personal snapshot version, and upstream SHA. Record that
 output in every compatibility report. The SHA identifies the official Seed4J source used by the external publisher; it
@@ -72,13 +79,32 @@ Both protected branches require a current `tests` check before merge. Updates fl
 a checked synchronization pull request. There is no automatic wholesale `experimental` to `main` merge. A generally
 useful experimental adaptation needs its own stable-focused pull request to `main` and then flows forward again.
 
+After a successful push build for the exact current `main` SHA, `synchronize main to experimental` creates or refreshes
+the disposable `automation/sync-main-to-experimental` branch from the latest `experimental`, merges that exact `main`
+SHA, and opens one PR back to `experimental`. Git conflicts stop before any protected-branch write and create or update
+the assigned `synchronization-failure` issue; automation never guesses a resolution. A later clean preparation closes
+that issue.
+
+PR creation with `GITHUB_TOKEN` does not reliably recurse into ordinary workflows, so synchronization explicitly
+dispatches `github-actions.yml` on the disposable branch. The PR body binds the source, target, and proposal head SHAs.
+The finalizer re-fetches both protected branches and accepts only the exact current PR head with a completed successful
+standard build and a conflict-free open PR. Stale source, target, head, or test evidence causes a refresh and another
+explicit test dispatch; pending or red tests leave the PR open without auto-merge. After the current green PR merges,
+the workflow explicitly dispatches the standard build for current `experimental` and only then deletes the disposable
+branch. These operations use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents, issues,
+and pull-request permissions.
+
 Renovate keeps the dependency contexts separate:
 
 - `main` tracks stable `com.seed4j:seed4j` releases and ignores the personal coordinate;
 - `experimental` tracks unstable `io.github.renanfranca:seed4j-main-snapshot` versions only through the Central snapshot
   registry; and
 - snapshot pull requests auto-merge only with every required check green and after rebasing onto current
-  `experimental`. An incompatible update remains open and red for maintainer adaptation.
+  `experimental`. The main manager matches only the stable authority marker present on `main`; the snapshot manager
+  becomes applicable only where the experimental branch has replaced that marker and its top-level values. Renovate
+  updates the Maven-owned snapshot version; build policy also requires its 12-character SHA component to match the
+  separately recorded full upstream SHA, so a version-only update remains red until provenance is updated. An
+  incompatible update remains open and red for maintainer adaptation.
 
 After an exact current `experimental` push passes `build`, semantic-release may create
 `<next-stable>-experimental.<n>`, push its immutable `v<version>` tag, and publish npm with dist-tag `experimental`.

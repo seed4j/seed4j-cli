@@ -15,9 +15,12 @@ test('build validates stable and experimental branches while SonarCloud remains 
 });
 
 test('workflows pin every third-party action to an immutable commit', () => {
-  const workflows = ['.github/workflows/github-actions.yml', '.github/workflows/release-drafter.yml', '.github/workflows/release.yml'].map(
-    read,
-  );
+  const workflows = [
+    '.github/workflows/github-actions.yml',
+    '.github/workflows/release-drafter.yml',
+    '.github/workflows/release.yml',
+    '.github/workflows/synchronize-experimental.yml',
+  ].map(read);
   const uses = workflows.flatMap(workflow => [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)].map(match => match[1]));
 
   assert.ok(uses.length > 0);

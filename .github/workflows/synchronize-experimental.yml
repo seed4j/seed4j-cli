@@ -1,0 +1,293 @@
+name: synchronize main to experimental
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
+
+concurrency:
+  group: synchronize-main-to-experimental
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  prepare:
+    name: prepare current synchronization pull request
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main') ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SYNC_BRANCH: automation/sync-main-to-experimental
+      SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+    steps:
+      - name: 'Setup: checkout trusted synchronization code'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: 'Synchronize: verify exact successful current main'
+        id: source
+        env:
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git fetch origin main experimental
+          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
+          SOURCE_SHA="${BUILD_SHA:-$CURRENT_MAIN_SHA}"
+          if [ "$SOURCE_SHA" != "$CURRENT_MAIN_SHA" ]; then
+            echo "Ignoring stale successful main build ${SOURCE_SHA}; current main is ${CURRENT_MAIN_SHA}."
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml --branch main --commit "$SOURCE_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
+            if [ "$SUCCESSFUL_BUILD_COUNT" != "1" ]; then
+              echo "Current main ${SOURCE_SHA} has no successful push build; waiting for the standard build." >&2
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: 'Synchronize: prepare disposable branch from current experimental'
+        id: proposal
+        if: steps.source.outputs.eligible == 'true'
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          for attempt in 1 2 3; do
+            git fetch origin main experimental
+            if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
+              echo "outcome=stale-source" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            TARGET_SHA="$(git rev-parse origin/experimental)"
+            if git merge-base --is-ancestor "$SOURCE_SHA" "$TARGET_SHA"; then
+              echo "outcome=already-contained" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git switch -C "$SYNC_BRANCH" "origin/experimental"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            if ! git merge --no-ff --no-edit "$SOURCE_SHA"; then
+              git merge --abort
+              echo "outcome=conflict" >> "$GITHUB_OUTPUT"
+              echo "source=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+              echo "target=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            PROPOSAL_HEAD_SHA="$(git rev-parse HEAD)"
+            git fetch origin main experimental
+            if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
+              echo "outcome=stale-source" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$(git rev-parse origin/experimental)" = "$TARGET_SHA" ]; then
+              echo "outcome=ready" >> "$GITHUB_OUTPUT"
+              echo "head=$PROPOSAL_HEAD_SHA" >> "$GITHUB_OUTPUT"
+              echo "source=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+              echo "target=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Experimental moved during every bounded preparation attempt; a later run must refresh it." >&2
+          exit 1
+
+      - name: 'Synchronize: create or update the conflict issue'
+        if: steps.proposal.outputs.outcome == 'conflict'
+        env:
+          SOURCE_SHA: ${{ steps.proposal.outputs.source }}
+          TARGET_SHA: ${{ steps.proposal.outputs.target }}
+        run: |
+          ISSUE_BODY="$(printf '@renanfranca automatic one-way synchronization stopped because Git could not merge current main `%s` into current experimental `%s`. Both protected branches are unchanged. Resolve the conflict in a reviewed pull request, then refresh synchronization.\n\nWorkflow run: %s/%s/actions/runs/%s' "$SOURCE_SHA" "$TARGET_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
+          if [ "${#ISSUES[@]}" -gt 1 ]; then
+            echo "Expected at most one open synchronization conflict issue; found ${#ISSUES[@]}." >&2
+            exit 1
+          fi
+          if [ "${#ISSUES[@]}" -eq 1 ]; then
+            gh issue edit "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --add-assignee renanfranca --add-label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --assignee renanfranca --label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
+          fi
+
+      - name: 'Synchronize: publish proposal and dispatch exact-head tests'
+        if: steps.proposal.outputs.outcome == 'ready'
+        env:
+          PROPOSAL_HEAD_SHA: ${{ steps.proposal.outputs.head }}
+          SOURCE_SHA: ${{ steps.proposal.outputs.source }}
+          TARGET_SHA: ${{ steps.proposal.outputs.target }}
+        run: |
+          git fetch origin main experimental
+          if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ] || [ "$(git rev-parse origin/experimental)" != "$TARGET_SHA" ]; then
+            gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main
+            echo "Source or target moved before proposal publication; dispatched a fresh synchronization run."
+            exit 0
+          fi
+          REMOTE_SYNC_SHA="$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | cut -f1)"
+          if [ -n "$REMOTE_SYNC_SHA" ]; then
+            git push --force-with-lease="refs/heads/${SYNC_BRANCH}:${REMOTE_SYNC_SHA}" origin "HEAD:refs/heads/${SYNC_BRANCH}"
+          else
+            git push origin "HEAD:refs/heads/${SYNC_BRANCH}"
+          fi
+          if [ "$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | cut -f1)" != "$PROPOSAL_HEAD_SHA" ]; then
+            echo "Remote synchronization branch does not match the prepared proposal head." >&2
+            exit 1
+          fi
+          node scripts/main-to-experimental-sync.cjs pr-body > "$RUNNER_TEMP/synchronization-pr-body.md"
+          mapfile -t PULL_REQUESTS < <(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base experimental --head "$SYNC_BRANCH" --limit 2 --json number --jq '.[].number')
+          if [ "${#PULL_REQUESTS[@]}" -gt 1 ]; then
+            echo "Expected at most one open synchronization pull request; found ${#PULL_REQUESTS[@]}." >&2
+            exit 1
+          fi
+          if [ "${#PULL_REQUESTS[@]}" -eq 1 ]; then
+            gh pr edit "${PULL_REQUESTS[0]}" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base experimental --head "$SYNC_BRANCH" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
+          fi
+          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
+          if [ "${#ISSUES[@]}" -eq 1 ]; then
+            gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment "The current source and target now merge cleanly in synchronization pull request head ${PROPOSAL_HEAD_SHA}."
+          fi
+          gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
+
+      - name: 'Synchronize: close resolved issue for an already-current target'
+        if: steps.proposal.outputs.outcome == 'already-contained'
+        run: |
+          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
+          if [ "${#ISSUES[@]}" -eq 1 ]; then
+            gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment 'Current experimental already contains the exact successful main revision.'
+          fi
+          gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref experimental
+
+  finalize:
+    name: finalize tested synchronization pull request
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'automation/sync-main-to-experimental'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SYNC_BRANCH: automation/sync-main-to-experimental
+      SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+    steps:
+      - name: 'Setup: checkout trusted synchronization code'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: 'Synchronize: review exact tests and current branches'
+        id: review
+        env:
+          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BUILD_STATUS: ${{ github.event.workflow_run.status }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git fetch origin main experimental "$SYNC_BRANCH"
+          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
+          CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
+          SYNC_PULL_REQUESTS="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base experimental --head "$SYNC_BRANCH" --limit 2 --json number,body,baseRefName,headRefName,headRefOid,mergeable,state)"
+          export BUILD_CONCLUSION BUILD_STATUS BUILT_SHA CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA SYNC_PULL_REQUESTS
+          node scripts/main-to-experimental-sync.cjs review-workflow
+
+      - name: 'Synchronize: refresh stale evidence'
+        if: steps.review.outputs.action == 'refresh' || steps.review.outputs.action == 'report-conflict'
+        env:
+          REASON: ${{ steps.review.outputs.reason }}
+        run: |
+          echo "Synchronization evidence requires refresh: ${REASON}."
+          gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: 'Synchronize: record pending or failed tests without merging'
+        if: steps.review.outputs.action == 'wait' || steps.review.outputs.action == 'blocked'
+        env:
+          REASON: ${{ steps.review.outputs.reason }}
+        run: echo "Synchronization pull request remains open without auto-merge because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Synchronize: enable auto-merge only for current green head'
+        if: steps.review.outputs.action == 'enable-auto-merge'
+        env:
+          EXPECTED_SOURCE_SHA: ${{ steps.review.outputs.source }}
+          EXPECTED_TARGET_SHA: ${{ steps.review.outputs.target }}
+          HEAD_SHA: ${{ steps.review.outputs.head }}
+          PR_NUMBER: ${{ steps.review.outputs['pr-number'] }}
+        run: |
+          git fetch origin main experimental
+          if [ "$(git rev-parse origin/main)" != "$EXPECTED_SOURCE_SHA" ] || [ "$(git rev-parse origin/experimental)" != "$EXPECTED_TARGET_SHA" ]; then
+            gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main
+            echo 'Source or target moved before auto-merge; dispatched a fresh synchronization run.'
+            exit 0
+          fi
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$HEAD_SHA"
+
+      - name: 'Synchronize: dispatch current post-merge build and clean disposable branch'
+        if: steps.review.outputs.action == 'enable-auto-merge'
+        env:
+          PR_NUMBER: ${{ steps.review.outputs['pr-number'] }}
+        run: |
+          PR_STATE=OPEN
+          for attempt in $(seq 1 12); do
+            PR_STATE="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq '.state')"
+            if [ "$PR_STATE" = "MERGED" ]; then
+              break
+            fi
+            if [ "$attempt" != "12" ]; then
+              sleep 5
+            fi
+          done
+          if [ "$PR_STATE" != "MERGED" ]; then
+            echo "Auto-merge is enabled; bounded confirmation ended before the pull request merged, so no post-merge side effect ran." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          MERGE_COMMIT_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeCommit --jq '.mergeCommit.oid')"
+          for attempt in 1 2 3; do
+            git fetch origin experimental
+            CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
+            if [ -z "$MERGE_COMMIT_SHA" ] || ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
+              echo "Merged synchronization commit is not reachable from current experimental." >&2
+              exit 1
+            fi
+            gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref experimental
+            git fetch origin experimental
+            if [ "$(git rev-parse origin/experimental)" = "$CURRENT_EXPERIMENTAL_SHA" ]; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Experimental moved during every bounded post-merge dispatch attempt." >&2
+              exit 1
+            fi
+          done
+          if [ -n "$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}")" ]; then
+            git push origin --delete "$SYNC_BRANCH"
+          fi
+          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
+          if [ "${#ISSUES[@]}" -eq 1 ]; then
+            gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment "Current main was merged into experimental and its exact current head received an explicit post-merge build dispatch."
+          fi

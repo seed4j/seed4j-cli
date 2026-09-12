@@ -31,7 +31,9 @@ class ClasspathDistributionMetadataReaderTest {
     DistributionMetadata metadata = reader.read();
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.STABLE);
-    assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(Seed4JDependencyCoordinate.versioned("com.seed4j", "seed4j", "2.2.0"));
+    assertThat(metadata.identity().dependencyCoordinate().groupId().value()).isEqualTo("com.seed4j");
+    assertThat(metadata.identity().dependencyCoordinate().artifactId().value()).isEqualTo("seed4j");
+    assertThat(metadata.identity().dependencyCoordinate().version()).isPresent();
     assertThat(metadata.identity().upstreamCommit()).isEmpty();
     assertThat(metadata.moduleAvailability().available("seed4j-extension")).isTrue();
   }

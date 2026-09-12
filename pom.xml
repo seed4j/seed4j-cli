@@ -48,8 +48,8 @@
       <version>${jgit.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.seed4j</groupId>
-      <artifactId>seed4j</artifactId>
+      <groupId>${seed4j.group-id}</groupId>
+      <artifactId>${seed4j.artifact-id}</artifactId>
       <version>${seed4j.version}</version>
     </dependency>
     <dependency>
@@ -58,8 +58,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.seed4j</groupId>
-      <artifactId>seed4j</artifactId>
+      <groupId>${seed4j.group-id}</groupId>
+      <artifactId>${seed4j.artifact-id}</artifactId>
       <version>${seed4j.version}</version>
       <type>test-jar</type>
       <classifier>tests</classifier>
@@ -94,7 +94,14 @@
     <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.1.1</spring-boot.version>
+    <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->
+    <seed4j.group-id>com.seed4j</seed4j.group-id>
+    <seed4j.artifact-id>seed4j</seed4j.artifact-id>
     <seed4j.version>2.2.0</seed4j.version>
+    <seed4j.release-channel>stable</seed4j.release-channel>
+    <seed4j.upstream-commit />
+    <seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>
+    <seed4j.unavailable-modules />
     <archunit-junit5.version>1.5.0</archunit-junit5.version>
   </properties>
 
@@ -106,6 +113,7 @@
         <includes>
           <include>config/*.properties</include>
           <include>config/*.yml</include>
+          <include>META-INF/seed4j-cli-distribution.properties</include>
         </includes>
       </resource>
       <resource>
@@ -113,6 +121,7 @@
         <excludes>
           <exclude>config/*.properties</exclude>
           <exclude>config/*.yml</exclude>
+          <exclude>META-INF/seed4j-cli-distribution.properties</exclude>
         </excludes>
       </resource>
     </resources>
