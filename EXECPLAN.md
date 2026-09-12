@@ -8,9 +8,9 @@ Safety boundary: This task is limited to authorized, defensive maintenance of th
 
 ## Context and limits
 
-- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, implementation checkpoint `014ebb05bb0fba57b8a802cbffff2b7b17577e9f`.
-- Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, implementation checkpoint `618ffdd653518dea9b0d6f67851685c8ca89b07f`.
-- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review.md`.
+- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, correction checkpoint `0fdc38ef840162aa0c2da98f1d7e34a7fd73d93d`.
+- Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, correction checkpoint `c66db0c6ba97b3c919c6e29f8d0fd5022c5774fe`.
+- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-final.md`.
 - Preserve stable behavior, POM/main/tests-only publisher artifacts, sources/Javadocs prohibition, exact-SHA checks, protected-branch checks, `latest` isolation, credential boundaries, and current unrelated work.
 - Do not create branches, stage, commit, push, publish, dispatch workflows, mutate issues or pull requests, install tooling, run `./mvnw clean verify` or Sonar, snooze Habit findings, or change external state.
 
@@ -36,6 +36,18 @@ Make each branch's top-level `pom.xml` values the explicit authority for Seed4J 
 
 Run publisher focused tests, full `npm test`, deterministic dry run, Prettier, and diff checks. Run primary workflow/release tests, affected Java tests, `./mvnw test`, Prettier, Habit Hooks, and diff checks. Audit the final diffs against every normative positive and prohibition. Write `.agent/tmp/experimental-seed4j-main-channel.structural-corrections.md` with per-finding design, exact commands/results, action-pin verification, residual external gates, and both repository statuses. Leave both repositories uncommitted and release only the Implementer lease.
 
+### 6. Bind and durably finalize exact synchronization proposals
+
+Add adapter-level behavior scenarios in `test/workflows/main-to-experimental-sync.test.js` before changing the implementation. Make `scripts/main-to-experimental-sync.cjs` the executable authority for review and post-merge decisions: compare the recorded PR-body head with the live PR head and exact completed build, and validate independently observed proposal parent topology against recorded source and target. Update `.github/workflows/synchronize-experimental.yml` so an open auto-merge timeout schedules a durable workflow re-entry and a later invocation observes the eventual merge, explicitly dispatches the current experimental build, and only then deletes the disposable branch. Run the focused synchronization suite, all workflow tests, and `npm run sync:dry-run`; stale, changed-head, invalid-topology, pending, red, and delayed-open states must never claim lifecycle completion.
+
+### 7. Complete publisher infrastructure-failure reporting and inert diagnostics
+
+Add reporting/workflow behavior tests before implementation. Pass the qualifier job result into the report adapter and map missing candidate outputs plus a failed/cancelled/timed-out qualifier job to a bounded nonretryable qualification failure with no invented identity; preserve silent expected skips. Rename the public committed/runbook key to `centralTokenExpiresAt` consistently while retaining any internal policy translation, and enforce documentation/schema agreement through an executable adapter test. Neutralize untrusted GitHub mentions and Markdown-link syntax in diagnostic text while preserving the one explicit trusted `@renanfranca` issue mention. Run focused reporting, operations, config, and workflow tests followed by full publisher `npm test` and `npm run dry-run`.
+
+### 8. Final correction evidence and handoff
+
+Reconcile lifecycle/configuration documentation and this plan, run primary workflow/release/dry-run tests, `./mvnw test`, Prettier, `habit-hooks --no-snooze`, and diff checks; run publisher full/focused tests, dry-run, Prettier, and diff checks. Write `.agent/tmp/experimental-seed4j-main-channel.structural-corrections-final.md` with red/green evidence and exact repository states. Leave both repositories uncommitted and unstaged, release only the Implementer lease, and keep ledger phase `implementing`.
+
 ## Progress
 
 - [x] Read the approved specification and structural review; verify both repositories are clean at the assigned checkpoints.
@@ -46,6 +58,9 @@ Run publisher focused tests, full `npm test`, deterministic dry run, Prettier, a
 - [x] Complete one-way synchronization behavior, workflow, tests, and documentation (including bounded auto-merge confirmation found by the design audit).
 - [x] Correct the authoritative CLI distribution identity to the normative branch-owned model and reconcile its tests and documentation.
 - [x] Repeat final validation, correction report, repository audit, and handoff after the branch-isolation correction.
+- [x] Correct D6, D7, and R2 through executable synchronization adapter behavior (focused red/green scenarios cover preparation, live-head/topology review, and delayed finalization).
+- [x] Correct D8, D9, and R3 through publisher workflow/reporting behavior (focused red/green scenarios cover missing qualifier output, public schema documentation, and inert diagnostics).
+- [x] Complete final correction validation, report, and repository audit; release the Implementer lease at handoff without changing phase.
 
 ## Decisions
 
@@ -53,12 +68,16 @@ Run publisher focused tests, full `npm test`, deterministic dry run, Prettier, a
 - Treat the trusted qualification output as the authorization source for deployment. Artifact manifests remain integrity evidence but cannot self-authorize identity, legal metadata, or provenance after the untrusted build boundary.
 - Keep synchronization decisions in a deterministic local script invoked by a thin workflow adapter. This permits exhaustive stale/conflict/dry-run tests without GitHub writes and keeps the workflow declarative.
 - Keep distribution identity branch-owned rather than profile-owned. The current main-bound POM exposes only stable top-level values; the later experimental branch replaces those same values and adds its snapshot repository, so ordinary Maven commands always build the checked-out branch's own identity.
+- Use an explicit durable workflow re-entry after an auto-merge polling timeout. A bounded runner wait remains useful, but lifecycle completion is authorized only by a later independently observed merged PR and current experimental topology.
+- Treat issue diagnostics as untrusted display data. The reporting template owns the sole active `@renanfranca` mention; captured diagnostics neutralize every mention and Markdown link before issue writes.
 
 ## Risks
 
 - Publisher build artifacts are attacker-controlled relative to deployment credentials. Verification must finish before settings creation and must not load or execute candidate code.
 - Failure diagnostics cross workflow-job boundaries and enter issue bodies. They must be length-bounded, single-line, control-character-free, and sourced from trusted adapter summaries rather than arbitrary logs.
 - Synchronization evidence becomes stale whenever either protected branch or the PR head moves. Every merge-affecting transition must compare current source, target, and head SHAs and refresh instead of trusting earlier checks.
+- GitHub auto-merge is asynchronous. A successful job that leaves an open auto-merge PR without durable re-entry can permanently skip the mandatory post-merge build and cleanup.
+- Qualifier infrastructure can fail before repository code emits outputs. Reporting must use the independently available job result and must not interpret missing output as an expected skip.
 - Filtering distribution metadata can accidentally expose Maven or environment overrides at runtime. Only build-time Maven properties may generate the packaged resource; runtime property sources must remain irrelevant.
 
 ## Documentation

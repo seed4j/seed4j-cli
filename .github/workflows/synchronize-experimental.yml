@@ -2,11 +2,18 @@ name: synchronize main to experimental
 
 on:
   workflow_dispatch:
+    inputs:
+      finalize-pr:
+        description: Recover post-merge finalization for one synchronization pull request
+        required: false
+        type: string
   workflow_run:
     workflows:
       - build
     types:
       - completed
+  schedule:
+    - cron: '*/15 * * * *'
 
 concurrency:
   group: synchronize-main-to-experimental
@@ -24,7 +31,8 @@ jobs:
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_branch == 'main') ||
        (github.event_name == 'workflow_dispatch' &&
-        github.ref == 'refs/heads/main'))
+        github.ref == 'refs/heads/main' &&
+        inputs['finalize-pr'] == ''))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -73,46 +81,46 @@ jobs:
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
+          ADAPTER_OUTPUT="$RUNNER_TEMP/synchronization-preparation-output"
           for attempt in 1 2 3; do
             git fetch origin main experimental
-            if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
-              echo "outcome=stale-source" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
             TARGET_SHA="$(git rev-parse origin/experimental)"
+            PROPOSAL_HEAD_SHA=''
             if git merge-base --is-ancestor "$SOURCE_SHA" "$TARGET_SHA"; then
-              echo "outcome=already-contained" >> "$GITHUB_OUTPUT"
-              exit 0
+              MERGE_RESULT=already-contained
+            else
+              git switch -C "$SYNC_BRANCH" "origin/experimental"
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              if git merge --no-ff --no-edit "$SOURCE_SHA"; then
+                MERGE_RESULT=clean
+                PROPOSAL_HEAD_SHA="$(git rev-parse HEAD)"
+              else
+                git merge --abort
+                MERGE_RESULT=conflict
+              fi
             fi
-            git switch -C "$SYNC_BRANCH" "origin/experimental"
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            if ! git merge --no-ff --no-edit "$SOURCE_SHA"; then
-              git merge --abort
-              echo "outcome=conflict" >> "$GITHUB_OUTPUT"
-              echo "source=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
-              echo "target=$TARGET_SHA" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            PROPOSAL_HEAD_SHA="$(git rev-parse HEAD)"
             git fetch origin main experimental
-            if [ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]; then
-              echo "outcome=stale-source" >> "$GITHUB_OUTPUT"
-              exit 0
+            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
+            CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
+            export CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA MERGE_RESULT PROPOSAL_HEAD_SHA
+            export PROPOSAL_SOURCE_SHA="$SOURCE_SHA" PROPOSAL_TARGET_SHA="$TARGET_SHA"
+            export BUILD_CONCLUSION=success BUILD_EVENT=push BUILD_HEAD_BRANCH=main BUILT_SHA="$SOURCE_SHA"
+            : > "$ADAPTER_OUTPUT"
+            GITHUB_OUTPUT="$ADAPTER_OUTPUT" node scripts/main-to-experimental-sync.cjs prepare-workflow
+            ACTION="$(sed -n 's/^action=//p' "$ADAPTER_OUTPUT")"
+            if [ "$ACTION" = 'refresh' ]; then
+              continue
             fi
-            if [ "$(git rev-parse origin/experimental)" = "$TARGET_SHA" ]; then
-              echo "outcome=ready" >> "$GITHUB_OUTPUT"
-              echo "head=$PROPOSAL_HEAD_SHA" >> "$GITHUB_OUTPUT"
-              echo "source=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
-              echo "target=$TARGET_SHA" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            cat "$ADAPTER_OUTPUT" >> "$GITHUB_OUTPUT"
+            exit 0
           done
           echo "Experimental moved during every bounded preparation attempt; a later run must refresh it." >&2
           exit 1
 
       - name: 'Synchronize: create or update the conflict issue'
-        if: steps.proposal.outputs.outcome == 'conflict'
+        if: steps.proposal.outputs.action == 'report-conflict'
         env:
           SOURCE_SHA: ${{ steps.proposal.outputs.source }}
           TARGET_SHA: ${{ steps.proposal.outputs.target }}
@@ -130,7 +138,7 @@ jobs:
           fi
 
       - name: 'Synchronize: publish proposal and dispatch exact-head tests'
-        if: steps.proposal.outputs.outcome == 'ready'
+        if: steps.proposal.outputs.action == 'propose'
         env:
           PROPOSAL_HEAD_SHA: ${{ steps.proposal.outputs.head }}
           SOURCE_SHA: ${{ steps.proposal.outputs.source }}
@@ -170,7 +178,7 @@ jobs:
           gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
 
       - name: 'Synchronize: close resolved issue for an already-current target'
-        if: steps.proposal.outputs.outcome == 'already-contained'
+        if: steps.proposal.outputs.action == 'already-contained'
         run: |
           mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
           if [ "${#ISSUES[@]}" -eq 1 ]; then
@@ -213,8 +221,10 @@ jobs:
           git fetch origin main experimental "$SYNC_BRANCH"
           CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
           CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
+          OBSERVED_PROPOSAL_HEAD_SHA="$(git rev-parse "origin/$SYNC_BRANCH")"
+          PROPOSAL_PARENT_SHAS="$(git show -s --format=%P "$OBSERVED_PROPOSAL_HEAD_SHA")"
           SYNC_PULL_REQUESTS="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base experimental --head "$SYNC_BRANCH" --limit 2 --json number,body,baseRefName,headRefName,headRefOid,mergeable,state)"
-          export BUILD_CONCLUSION BUILD_STATUS BUILT_SHA CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA SYNC_PULL_REQUESTS
+          export BUILD_CONCLUSION BUILD_STATUS BUILT_SHA CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA OBSERVED_PROPOSAL_HEAD_SHA PROPOSAL_PARENT_SHAS SYNC_PULL_REQUESTS
           node scripts/main-to-experimental-sync.cjs review-workflow
 
       - name: 'Synchronize: refresh stale evidence'
@@ -247,7 +257,7 @@ jobs:
           fi
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$HEAD_SHA"
 
-      - name: 'Synchronize: dispatch current post-merge build and clean disposable branch'
+      - name: 'Synchronize: arrange durable post-merge finalization'
         if: steps.review.outputs.action == 'enable-auto-merge'
         env:
           PR_NUMBER: ${{ steps.review.outputs['pr-number'] }}
@@ -262,15 +272,98 @@ jobs:
               sleep 5
             fi
           done
-          if [ "$PR_STATE" != "MERGED" ]; then
-            echo "Auto-merge is enabled; bounded confirmation ended before the pull request merged, so no post-merge side effect ran." >> "$GITHUB_STEP_SUMMARY"
+          gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main -f finalize-pr="$PR_NUMBER"
+          echo "Auto-merge state after bounded confirmation: ${PR_STATE}. Durable finalization was dispatched and the scheduled recovery remains active until merge completion." >> "$GITHUB_STEP_SUMMARY"
+
+  recover-finalization:
+    name: recover eventual synchronization merge
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && inputs['finalize-pr'] != ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SYNC_BRANCH: automation/sync-main-to-experimental
+      SYNC_FINALIZED_MARKER: '<!-- seed4j-main-to-experimental-finalized -->'
+      SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+    steps:
+      - name: 'Setup: checkout trusted synchronization code'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: 'Synchronize: inspect durable finalization state'
+        id: finalization
+        env:
+          REQUESTED_PR_NUMBER: ${{ inputs['finalize-pr'] }}
+        run: |
+          PR_NUMBER="$REQUESTED_PR_NUMBER"
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --base experimental --head "$SYNC_BRANCH" --limit 1 --json number --jq '.[0].number // empty')"
+          fi
+          if [ -z "$PR_NUMBER" ]; then
+            echo 'action=none' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          MERGE_COMMIT_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeCommit --jq '.mergeCommit.oid')"
+          if ! [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Durable synchronization finalization requires one valid pull request number." >&2
+            exit 1
+          fi
+          if gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json comments --jq ".comments | any(.body == \"$SYNC_FINALIZED_MARKER\")" | grep -qx true; then
+            echo 'action=none' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SYNC_PULL_REQUEST="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,body,baseRefName,headRefName,headRefOid,state,mergeCommit)"
+          git fetch origin experimental
+          git fetch origin "pull/${PR_NUMBER}/head"
+          OBSERVED_PROPOSAL_HEAD_SHA="$(git rev-parse FETCH_HEAD)"
+          PROPOSAL_PARENT_SHAS="$(git show -s --format=%P "$OBSERVED_PROPOSAL_HEAD_SHA")"
+          CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
+          MERGE_COMMIT_SHA="$(printf '%s' "$SYNC_PULL_REQUEST" | jq -r '.mergeCommit.oid // empty')"
+          MERGE_REACHABLE=false
+          if [[ "$MERGE_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
+            MERGE_REACHABLE=true
+          fi
+          export CURRENT_EXPERIMENTAL_SHA MERGE_REACHABLE OBSERVED_PROPOSAL_HEAD_SHA PROPOSAL_PARENT_SHAS SYNC_PULL_REQUEST
+          node scripts/main-to-experimental-sync.cjs finalize-workflow
+
+      - name: 'Synchronize: leave open auto-merge for scheduled recovery'
+        if: steps.finalization.outputs.action == 'schedule-recheck'
+        env:
+          REASON: ${{ steps.finalization.outputs.reason }}
+        run: echo "Synchronization finalization remains pending because ${REASON}; the scheduled recovery will inspect it again." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Synchronize: refresh invalid eventual evidence'
+        if: steps.finalization.outputs.action == 'refresh'
+        env:
+          REASON: ${{ steps.finalization.outputs.reason }}
+        run: |
+          echo "Eventual synchronization evidence requires refresh: ${REASON}."
+          gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: 'Synchronize: record closed unmerged proposal'
+        if: steps.finalization.outputs.action == 'blocked'
+        env:
+          REASON: ${{ steps.finalization.outputs.reason }}
+        run: echo "Synchronization finalization stopped because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Synchronize: dispatch current post-merge build and clean disposable branch'
+        if: steps.finalization.outputs.action == 'complete'
+        env:
+          MERGE_COMMIT_SHA: ${{ steps.finalization.outputs.merge }}
+        run: |
           for attempt in 1 2 3; do
             git fetch origin experimental
             CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
-            if [ -z "$MERGE_COMMIT_SHA" ] || ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
+            if ! [[ "$MERGE_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] || ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
               echo "Merged synchronization commit is not reachable from current experimental." >&2
               exit 1
             fi
@@ -291,3 +384,4 @@ jobs:
           if [ "${#ISSUES[@]}" -eq 1 ]; then
             gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment "Current main was merged into experimental and its exact current head received an explicit post-merge build dispatch."
           fi
+          gh pr comment "${{ steps.finalization.outputs['pr-number'] }}" --repo "$GITHUB_REPOSITORY" --body "$SYNC_FINALIZED_MARKER"

@@ -35,6 +35,13 @@ function prepareSynchronization({
   if (proposalTargetSha !== currentExperimentalSha) {
     return Object.freeze({ action: 'refresh', reason: 'experimental-moved-during-preparation' });
   }
+  if (mergeResult === 'already-contained') {
+    return Object.freeze({
+      action: 'already-contained',
+      sourceSha: currentMainSha,
+      targetSha: currentExperimentalSha,
+    });
+  }
   if (mergeResult === 'conflict') {
     return Object.freeze({
       action: 'report-conflict',
@@ -64,9 +71,11 @@ function reviewSynchronization({
   expectedSourceSha,
   expectedTargetSha,
   mergeable,
-  proposalBaseSha,
+  observedProposalHeadSha,
   proposalHeadSha,
+  proposalParentShas,
   proposalState,
+  recordedHeadSha,
   testedHeadSha,
   testsConclusion,
   testsStatus,
@@ -76,17 +85,30 @@ function reviewSynchronization({
     [currentMainSha, 'current main SHA'],
     [expectedSourceSha, 'expected source SHA'],
     [expectedTargetSha, 'expected target SHA'],
-    [proposalBaseSha, 'proposal base SHA'],
+    [observedProposalHeadSha, 'observed proposal head SHA'],
     [proposalHeadSha, 'proposal head SHA'],
+    [recordedHeadSha, 'recorded proposal head SHA'],
     [testedHeadSha, 'tested head SHA'],
   ]) {
     requireSha(value, label);
   }
+  requireProposalParents(proposalParentShas);
   if (currentMainSha !== expectedSourceSha) {
     return Object.freeze({ action: 'refresh', reason: 'source-branch-moved' });
   }
-  if (currentExperimentalSha !== expectedTargetSha || proposalBaseSha !== currentExperimentalSha) {
+  if (currentExperimentalSha !== expectedTargetSha) {
     return Object.freeze({ action: 'refresh', reason: 'target-branch-moved' });
+  }
+  const invalidEvidence = proposalEvidence({
+    expectedSourceSha,
+    expectedTargetSha,
+    observedProposalHeadSha,
+    proposalHeadSha,
+    proposalParentShas,
+    recordedHeadSha,
+  });
+  if (invalidEvidence) {
+    return invalidEvidence;
   }
   if (proposalState !== 'OPEN') {
     return Object.freeze({ action: 'refresh', reason: 'pull-request-not-open' });
@@ -112,19 +134,80 @@ function reviewSynchronization({
   return Object.freeze({ action: 'enable-auto-merge', headSha: proposalHeadSha });
 }
 
-function postMergeSynchronization({ branch, currentExperimentalSha, mergeCommitSha, proposalState }) {
+function requireProposalParents(proposalParentShas) {
+  if (!Array.isArray(proposalParentShas) || proposalParentShas.length !== 2) {
+    throw new Error('Synchronization proposal must have exactly two parents.');
+  }
+  requireSha(proposalParentShas[0], 'proposal target parent SHA');
+  requireSha(proposalParentShas[1], 'proposal source parent SHA');
+}
+
+function proposalEvidence({
+  expectedSourceSha,
+  expectedTargetSha,
+  observedProposalHeadSha,
+  proposalHeadSha,
+  proposalParentShas,
+  recordedHeadSha,
+}) {
+  for (const [value, label] of [
+    [expectedSourceSha, 'expected source SHA'],
+    [expectedTargetSha, 'expected target SHA'],
+    [observedProposalHeadSha, 'observed proposal head SHA'],
+    [proposalHeadSha, 'proposal head SHA'],
+    [recordedHeadSha, 'recorded proposal head SHA'],
+  ]) {
+    requireSha(value, label);
+  }
+  requireProposalParents(proposalParentShas);
+  if (proposalHeadSha !== recordedHeadSha || observedProposalHeadSha !== recordedHeadSha) {
+    return Object.freeze({ action: 'refresh', reason: 'proposal-head-does-not-match-recorded-head' });
+  }
+  if (proposalParentShas[0] !== expectedTargetSha || proposalParentShas[1] !== expectedSourceSha) {
+    return Object.freeze({ action: 'refresh', reason: 'proposal-topology-does-not-match-recorded-source-and-target' });
+  }
+  return undefined;
+}
+
+function postMergeSynchronization({
+  branch,
+  currentExperimentalSha,
+  expectedSourceSha,
+  expectedTargetSha,
+  mergeCommitSha,
+  mergeReachable,
+  observedProposalHeadSha,
+  proposalHeadSha,
+  proposalParentShas,
+  proposalState,
+  recordedHeadSha,
+}) {
   if (branch !== SYNC_BRANCH) {
     throw new Error(`Unexpected synchronization branch '${branch ?? ''}'.`);
   }
+  const invalidEvidence = proposalEvidence({
+    expectedSourceSha,
+    expectedTargetSha,
+    observedProposalHeadSha,
+    proposalHeadSha,
+    proposalParentShas,
+    recordedHeadSha,
+  });
+  if (invalidEvidence) {
+    return invalidEvidence;
+  }
+  if (proposalState === 'OPEN') {
+    return Object.freeze({ action: 'schedule-recheck', reason: 'pull-request-not-merged' });
+  }
   if (proposalState !== 'MERGED') {
-    return Object.freeze({ action: 'wait', reason: 'pull-request-not-merged' });
+    return Object.freeze({ action: 'blocked', reason: 'pull-request-closed-without-merge' });
   }
   requireSha(currentExperimentalSha, 'current experimental SHA');
   requireSha(mergeCommitSha, 'merge commit SHA');
-  if (currentExperimentalSha !== mergeCommitSha) {
+  if (mergeReachable !== true) {
     return Object.freeze({
       action: 'refresh',
-      reason: 'merged-commit-is-not-current-experimental',
+      reason: 'merged-commit-is-not-reachable-from-current-experimental',
     });
   }
   return Object.freeze({
@@ -234,9 +317,11 @@ function workflowReview(environment) {
       expectedSourceSha: expected.sourceSha,
       expectedTargetSha: expected.targetSha,
       mergeable: pullRequest.mergeable,
-      proposalBaseSha: environment.CURRENT_EXPERIMENTAL_SHA,
+      observedProposalHeadSha: environment.OBSERVED_PROPOSAL_HEAD_SHA,
       proposalHeadSha: pullRequest.headRefOid,
+      proposalParentShas: proposalParents(environment.PROPOSAL_PARENT_SHAS),
       proposalState: pullRequest.state,
+      recordedHeadSha: expected.headSha,
       testedHeadSha: environment.BUILT_SHA,
       testsConclusion: environment.BUILD_CONCLUSION,
       testsStatus: environment.BUILD_STATUS,
@@ -245,6 +330,64 @@ function workflowReview(environment) {
     expectedTargetSha: expected.targetSha,
     pullRequestNumber: pullRequest.number,
   });
+}
+
+function workflowPreparation(environment) {
+  return prepareSynchronization({
+    buildConclusion: environment.BUILD_CONCLUSION,
+    buildEvent: environment.BUILD_EVENT,
+    buildHeadBranch: environment.BUILD_HEAD_BRANCH,
+    builtSha: environment.BUILT_SHA,
+    currentExperimentalSha: environment.CURRENT_EXPERIMENTAL_SHA,
+    currentMainSha: environment.CURRENT_MAIN_SHA,
+    mergeResult: environment.MERGE_RESULT,
+    proposalHeadSha: environment.PROPOSAL_HEAD_SHA,
+    proposalSourceSha: environment.PROPOSAL_SOURCE_SHA,
+    proposalTargetSha: environment.PROPOSAL_TARGET_SHA,
+  });
+}
+
+function workflowFinalization(environment) {
+  let pullRequest;
+  try {
+    pullRequest = JSON.parse(environment.SYNC_PULL_REQUEST);
+  } catch (_) {
+    throw new Error('Synchronization pull request response is not valid JSON.');
+  }
+  if (
+    !pullRequest
+    || Array.isArray(pullRequest)
+    || pullRequest.baseRefName !== TARGET_BRANCH
+    || pullRequest.headRefName !== SYNC_BRANCH
+    || !Number.isSafeInteger(pullRequest.number)
+  ) {
+    throw new Error('Synchronization pull request branches or number are invalid.');
+  }
+  const expected = synchronizationStateFromPullRequest(pullRequest.body);
+  return Object.freeze({
+    decision: postMergeSynchronization({
+      branch: pullRequest.headRefName,
+      currentExperimentalSha: environment.CURRENT_EXPERIMENTAL_SHA,
+      expectedSourceSha: expected.sourceSha,
+      expectedTargetSha: expected.targetSha,
+      mergeCommitSha: pullRequest.mergeCommit?.oid,
+      mergeReachable: environment.MERGE_REACHABLE === 'true',
+      observedProposalHeadSha: environment.OBSERVED_PROPOSAL_HEAD_SHA,
+      proposalHeadSha: pullRequest.headRefOid,
+      proposalParentShas: proposalParents(environment.PROPOSAL_PARENT_SHAS),
+      proposalState: pullRequest.state,
+      recordedHeadSha: expected.headSha,
+    }),
+    mergeCommitSha: pullRequest.mergeCommit?.oid,
+    pullRequestNumber: pullRequest.number,
+  });
+}
+
+function proposalParents(value) {
+  return String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
 function writeWorkflowOutputs(values) {
@@ -267,6 +410,21 @@ if (require.main === module) {
         targetSha: process.env.TARGET_SHA,
       }),
     );
+  } else if (process.argv[2] === 'prepare-workflow' && process.argv.length === 3) {
+    try {
+      const preparation = workflowPreparation(process.env);
+      writeWorkflowOutputs({
+        action: preparation.action,
+        branch: preparation.branch ?? '',
+        head: preparation.headSha ?? '',
+        reason: preparation.reason ?? '',
+        source: preparation.sourceSha ?? '',
+        target: preparation.targetSha ?? '',
+      });
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   } else if (process.argv[2] === 'review-workflow' && process.argv.length === 3) {
     try {
       const review = workflowReview(process.env);
@@ -282,8 +440,22 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
+  } else if (process.argv[2] === 'finalize-workflow' && process.argv.length === 3) {
+    try {
+      const finalization = workflowFinalization(process.env);
+      writeWorkflowOutputs({
+        action: finalization.decision.action,
+        experimental: finalization.decision.experimentalSha ?? '',
+        merge: finalization.mergeCommitSha ?? '',
+        'pr-number': finalization.pullRequestNumber,
+        reason: finalization.decision.reason ?? '',
+      });
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   } else {
-    console.error('Usage: node scripts/main-to-experimental-sync.cjs dry-run');
+    console.error('Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|prepare-workflow|review-workflow|finalize-workflow');
     process.exitCode = 1;
   }
 }

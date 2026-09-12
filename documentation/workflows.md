@@ -12,12 +12,18 @@ disposable `automation/sync-main-to-experimental` branch from current `experimen
 and opens or refreshes a PR targeting `experimental`. The workflow explicitly dispatches the standard build on that
 proposal head, because changes made by `GITHUB_TOKEN` do not trigger an unrestricted recursive workflow chain.
 
-Automation enables merge only while source, target, PR head, mergeability, and the completed `tests` result all remain
-current. If any SHA moves, it refreshes the proposal and tests; red or pending tests leave it open. A Git conflict creates
-or updates the single assigned `synchronization-failure` issue without changing either protected branch. Resolve the
-conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to retry. Once the PR is
-merged, the workflow dispatches a build for the exact current `experimental` branch and deletes the disposable branch.
-It never synchronizes the experimental branch wholesale back to `main`.
+Automation enables merge only while the independently fetched source, target, and proposal head match the PR's recorded
+SHAs, the proposal has exactly the recorded target and source as its parents, and that exact head owns a completed green
+`tests` result. If any SHA or topology changes, it refreshes the proposal and tests; red or pending tests leave it open.
+A Git conflict creates or updates the single assigned `synchronization-failure` issue without changing either protected
+branch. Resolve the conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to
+retry.
+
+Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately
+and also checks unfinished finalization every 15 minutes. An open PR remains pending; after the exact PR is observed
+merged and its merge commit is reachable from current `experimental`, the workflow dispatches a build for the exact
+current `experimental` head, deletes the disposable branch, and records completion so later checks are inert. It never
+synchronizes the experimental branch wholesale back to `main`.
 
 Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
 no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,

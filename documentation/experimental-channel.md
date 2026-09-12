@@ -87,12 +87,18 @@ that issue.
 
 PR creation with `GITHUB_TOKEN` does not reliably recurse into ordinary workflows, so synchronization explicitly
 dispatches `github-actions.yml` on the disposable branch. The PR body binds the source, target, and proposal head SHAs.
-The finalizer re-fetches both protected branches and accepts only the exact current PR head with a completed successful
-standard build and a conflict-free open PR. Stale source, target, head, or test evidence causes a refresh and another
-explicit test dispatch; pending or red tests leave the PR open without auto-merge. After the current green PR merges,
-the workflow explicitly dispatches the standard build for current `experimental` and only then deletes the disposable
-branch. These operations use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents, issues,
-and pull-request permissions.
+The finalizer re-fetches both protected branches and the disposable branch, requires the recorded head to equal both
+the live PR head and fetched Git head, and requires that merge commit's parents to be the recorded target followed by
+the recorded source. Only that exact head with a completed successful standard build and a conflict-free open PR can
+enable auto-merge. Stale source, target, head, topology, or test evidence causes a refresh and another explicit test
+dispatch; pending or red tests leave the PR open without auto-merge.
+
+Auto-merge is asynchronous, so the bounded confirmation window always dispatches a durable finalizer and a scheduled
+15-minute recovery independently checks any still-open synchronization PR. Once the exact PR is observed merged and its
+merge commit is reachable from current `experimental`, the workflow explicitly dispatches the standard build for the
+current `experimental` head and only then deletes the disposable branch. A completion marker makes later scheduled
+checks inert. These operations use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents,
+issues, and pull-request permissions.
 
 Renovate keeps the dependency contexts separate:
 
@@ -142,8 +148,11 @@ version. There is no free-form repository, ref, SHA, coordinate, or version inpu
 
 Monitor the weekly run, the one open publisher-failure issue, token-rotation issue, Central snapshot availability, npm
 provenance, and the experimental CLI build. An upstream CI skip is expected and does not open a publisher-failure issue.
-Failures after qualification update the one issue with stage, run, full SHA, version, and concise diagnostic; a
-successful retry or newer publication closes it.
+Failures after qualification update the one issue with stage, run, full SHA, version, and concise diagnostic. A
+qualifier checkout, setup, dependency, cancellation, or timeout failure before candidate outputs exist instead records
+a nonretryable qualification failure without invented identity or provenance. Every captured diagnostic is bounded to
+one inert line so untrusted mentions and Markdown links cannot trigger notifications or trusted-looking links; only the
+template's explicit `@renanfranca` mention remains active. A successful retry or newer publication closes the issue.
 
 ## Roll back a bad experimental npm version
 
