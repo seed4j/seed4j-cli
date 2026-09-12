@@ -11,6 +11,8 @@ A successful standard push build for current `main` starts the one-way synchroni
 disposable `automation/sync-main-to-experimental` branch from current `experimental`, merges the exact green `main` SHA,
 and opens or refreshes a PR targeting `experimental`. The workflow explicitly dispatches the standard build on that
 proposal head, because changes made by `GITHUB_TOKEN` do not trigger an unrestricted recursive workflow chain.
+Before enabling this workflow, a maintainer must create the repository label `synchronization-pending`. Preparation
+fails before publishing a proposal when the label is absent, and every automation-owned synchronization PR receives it.
 
 Automation enables merge only while the independently fetched source, target, and proposal head match the PR's recorded
 SHAs, the proposal has exactly the recorded target and source as its parents, and that exact head owns a completed green
@@ -19,15 +21,19 @@ A Git conflict creates or updates the single assigned `synchronization-failure` 
 branch. Resolve the conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to
 retry.
 
-Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately
-and also drains up to 100 matching historical PRs every 15 minutes. Executable policy skips only an exact completion
-record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge commit, and dispatched
-`experimental` SHA; plain, forged, decorated, stale, or mismatched comments remain pending. Older merged work is handled
-before open work. An open PR remains pending only while current `main` and `experimental` still equal its recorded source
-and target; otherwise synchronization refreshes it. After an exact merge is reachable from current `experimental`, the
-workflow dispatches a build for one stable current head, deletes the disposable branch only if that branch still points
-to this proposal, and writes the trusted completion record. It never synchronizes `experimental` wholesale back to
-`main`.
+Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately,
+while the 15-minute recovery asks GitHub directly for up to 100 PRs carrying `synchronization-pending`; completed PRs do
+not consume that bounded window. An explicit recovery loads its requested PR number directly. Executable policy skips
+only an exact completion record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge
+commit, and dispatched `experimental` SHA; plain, forged, decorated, stale, or mismatched comments remain pending.
+Older merged work is handled before open work, and one candidate failure does not stop later candidates or lose a
+coalesced refresh request. An open PR remains pending only while current `main` and `experimental` still equal its
+recorded source and target; otherwise synchronization refreshes it. After an exact merge is reachable from current
+`experimental`, recovery reuses an exact queued, running, or successful standard build when present, otherwise dispatches
+one for the stable current head. It then deletes the disposable branch with an expected-head lease, writes the trusted
+completion record, and finally removes `synchronization-pending`. If that last removal fails, the next run only reconciles
+the label. Historical finalization never closes the current conflict issue; only a current authoritative clean or
+already-contained preparation may do that. The workflow never synchronizes `experimental` wholesale back to `main`.
 
 Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
 no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,

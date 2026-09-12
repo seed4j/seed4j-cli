@@ -1,4 +1,5 @@
-const { appendFileSync } = require('node:fs');
+const { appendFileSync, readFileSync, statSync } = require('node:fs');
+const { spawnSync } = require('node:child_process');
 
 const SYNC_BRANCH = 'automation/sync-main-to-experimental';
 const SOURCE_BRANCH = 'main';
@@ -8,6 +9,8 @@ const STATE_END = '<!-- seed4j-main-to-experimental-state:end -->';
 const COMPLETION_START = '<!-- seed4j-main-to-experimental-completion:start -->';
 const COMPLETION_END = '<!-- seed4j-main-to-experimental-completion:end -->';
 const AUTOMATION_LOGIN = 'github-actions[bot]';
+const MAXIMUM_JSON_BYTES = 2 * 1024 * 1024;
+const SYNC_ISSUE_TITLE = '[synchronization] main to experimental conflict';
 
 function prepareSynchronization({
   buildConclusion,
@@ -224,7 +227,7 @@ function postMergeSynchronization({
   return Object.freeze({
     action: 'complete',
     experimentalSha: currentExperimentalSha,
-    steps: ['dispatch-experimental-build', 'delete-disposable-branch', 'close-conflict-issue'],
+    steps: ['dispatch-experimental-build', 'delete-disposable-branch'],
   });
 }
 
@@ -238,6 +241,27 @@ function conflictIssueAction({ conflict, openIssueNumber }) {
     ...(openIssueNumber ? { issueNumber: openIssueNumber } : {}),
     labels: ['synchronization-failure'],
     title: '[synchronization] main to experimental conflict',
+  });
+}
+
+function workflowConflictIssue(environment) {
+  if (!['true', 'false'].includes(environment.SYNC_CONFLICT)) {
+    throw new Error(`Invalid synchronization conflict state '${environment.SYNC_CONFLICT ?? ''}'.`);
+  }
+  const issues = readBoundedJson(environment.SYNC_ISSUES_PATH, 'Synchronization conflict issue response');
+  if (!Array.isArray(issues) || issues.length > 100) {
+    throw new Error('Synchronization conflict issue response must contain at most 100 entries.');
+  }
+  const matchingIssues = issues.filter(issue => issue?.title === SYNC_ISSUE_TITLE);
+  if (matchingIssues.some(issue => !Number.isSafeInteger(issue.number) || issue.number <= 0)) {
+    throw new Error('Synchronization conflict issue response contains an invalid issue number.');
+  }
+  if (matchingIssues.length > 1) {
+    throw new Error(`Expected at most one open synchronization conflict issue; found ${matchingIssues.length}.`);
+  }
+  return conflictIssueAction({
+    conflict: environment.SYNC_CONFLICT === 'true',
+    openIssueNumber: matchingIssues[0]?.number,
   });
 }
 
@@ -305,12 +329,7 @@ function dryRun() {
 }
 
 function workflowReview(environment) {
-  let pullRequests;
-  try {
-    pullRequests = JSON.parse(environment.SYNC_PULL_REQUESTS);
-  } catch (_) {
-    throw new Error('Synchronization pull request response is not valid JSON.');
-  }
+  const pullRequests = readBoundedJson(environment.SYNC_PULL_REQUESTS_PATH, 'Synchronization pull request response');
   if (!Array.isArray(pullRequests) || pullRequests.length !== 1) {
     throw new Error(
       `Synchronization requires exactly one open automation pull request; found ${Array.isArray(pullRequests) ? pullRequests.length : 0}.`,
@@ -319,6 +338,10 @@ function workflowReview(environment) {
   const pullRequest = pullRequests[0];
   if (pullRequest.baseRefName !== TARGET_BRANCH || pullRequest.headRefName !== SYNC_BRANCH || !Number.isSafeInteger(pullRequest.number)) {
     throw new Error('Synchronization pull request branches or number are invalid.');
+  }
+  const pendingLabel = environment.SYNC_PENDING_LABEL;
+  if (!pendingLabel || !(pullRequest.labels ?? []).some(label => label?.name === pendingLabel)) {
+    throw new Error('Synchronization pull request is missing its required pending label.');
   }
   const expected = synchronizationStateFromPullRequest(pullRequest.body);
   return Object.freeze({
@@ -359,12 +382,7 @@ function workflowPreparation(environment) {
 }
 
 function workflowFinalizationSelection(environment) {
-  let pullRequests;
-  try {
-    pullRequests = JSON.parse(environment.SYNC_PULL_REQUESTS);
-  } catch (_) {
-    throw new Error('Synchronization pull request history is not valid JSON.');
-  }
+  const pullRequests = readBoundedJson(environment.SYNC_PULL_REQUESTS_PATH, 'Synchronization pull request history');
   if (!Array.isArray(pullRequests) || pullRequests.length > 100) {
     throw new Error('Synchronization pull request history must contain at most 100 entries.');
   }
@@ -415,6 +433,14 @@ function completionPending(pullRequest) {
   }
   const expected = synchronizationStateFromPullRequest(pullRequest.body);
   return !(pullRequest.comments ?? []).some(comment => trustedCompletion(comment, pullRequest, expected));
+}
+
+function trustedCompletionForPullRequest(pullRequest) {
+  if (!pullRequest || Array.isArray(pullRequest)) {
+    return false;
+  }
+  const expected = synchronizationStateFromPullRequest(pullRequest.body);
+  return (pullRequest.comments ?? []).some(comment => trustedCompletion(comment, pullRequest, expected));
 }
 
 function trustedCompletion(comment, pullRequest, expected) {
@@ -492,13 +518,34 @@ function disposableBranchCleanup({ proposalHeadSha, remoteBranchSha }) {
   return Object.freeze({ action: remoteBranchSha === proposalHeadSha ? 'delete' : 'keep' });
 }
 
-function workflowFinalization(environment) {
-  let pullRequest;
-  try {
-    pullRequest = JSON.parse(environment.SYNC_PULL_REQUEST);
-  } catch (_) {
-    throw new Error('Synchronization pull request response is not valid JSON.');
+function atomicDisposableBranchCleanup({ proposalHeadSha, remote = 'origin' }) {
+  requireSha(proposalHeadSha, 'completed proposal head SHA');
+  const branchReference = `refs/heads/${SYNC_BRANCH}`;
+  const deletion = spawnSync('git', ['push', `--force-with-lease=${branchReference}:${proposalHeadSha}`, remote, `:${branchReference}`], {
+    encoding: 'utf8',
+  });
+  if (deletion.error) {
+    throw new Error(`Atomic synchronization branch deletion could not start: ${deletion.error.message}`);
   }
+  if (deletion.status === 0) {
+    return Object.freeze({ action: 'delete' });
+  }
+  const inspection = spawnSync('git', ['ls-remote', '--heads', remote, branchReference], { encoding: 'utf8' });
+  if (inspection.error || inspection.status !== 0) {
+    throw new Error(
+      `Unable to inspect synchronization branch after rejected deletion: ${inspection.stderr?.trim() || inspection.error?.message}`,
+    );
+  }
+  const remoteBranchSha = inspection.stdout.trim().split(/\s+/)[0] || '';
+  const state = disposableBranchCleanup({ proposalHeadSha, remoteBranchSha });
+  if (state.action === 'delete') {
+    throw new Error('Atomic synchronization branch deletion was rejected without a competing update.');
+  }
+  return state;
+}
+
+function workflowFinalization(environment) {
+  const pullRequest = readBoundedJson(environment.SYNC_PULL_REQUEST_PATH, 'Synchronization pull request response');
   if (
     !pullRequest
     || Array.isArray(pullRequest)
@@ -535,6 +582,31 @@ function proposalParents(value) {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+function readBoundedJson(path, label) {
+  if (!path) {
+    throw new Error(`${label} path is required.`);
+  }
+  let statistics;
+  try {
+    statistics = statSync(path);
+  } catch (_) {
+    throw new Error(`${label} file cannot be read.`);
+  }
+  if (!statistics.isFile()) {
+    throw new Error(`${label} path must identify a file.`);
+  }
+  if (statistics.size > MAXIMUM_JSON_BYTES) {
+    throw new Error(`${label} exceeds the maximum of ${MAXIMUM_JSON_BYTES} bytes.`);
+  }
+  let value;
+  try {
+    value = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (_) {
+    throw new Error(`${label} is not valid JSON.`);
+  }
+  return value;
 }
 
 function writeWorkflowOutputs(values) {
@@ -597,11 +669,18 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
+  } else if (process.argv[2] === 'issue-workflow' && process.argv.length === 3) {
+    try {
+      const issue = workflowConflictIssue(process.env);
+      writeWorkflowOutputs({ action: issue.action, issue: issue.issueNumber ?? '' });
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   } else if (process.argv[2] === 'cleanup-workflow' && process.argv.length === 3) {
     try {
-      const cleanup = disposableBranchCleanup({
+      const cleanup = atomicDisposableBranchCleanup({
         proposalHeadSha: process.env.PROPOSAL_HEAD_SHA,
-        remoteBranchSha: process.env.REMOTE_SYNC_SHA,
       });
       writeWorkflowOutputs({ action: cleanup.action });
     } catch (error) {
@@ -640,19 +719,22 @@ if (require.main === module) {
     }
   } else {
     console.error(
-      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|select-finalizations|cleanup-workflow|review-workflow|finalize-workflow',
+      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|select-finalizations|issue-workflow|cleanup-workflow|review-workflow|finalize-workflow',
     );
     process.exitCode = 1;
   }
 }
 
 module.exports = {
+  atomicDisposableBranchCleanup,
   completionBody,
   conflictIssueAction,
   disposableBranchCleanup,
   pullRequestBody,
   postMergeSynchronization,
   prepareSynchronization,
+  readBoundedJson,
   reviewSynchronization,
   synchronizationStateFromPullRequest,
+  trustedCompletionForPullRequest,
 };

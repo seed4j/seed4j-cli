@@ -42,7 +42,7 @@ test('experimental releases require their exact green HEAD and cannot mutate sta
 
   assert.match(release, /workflow_run:[\s\S]*branches:\s+- main\s+- experimental/);
   assert.match(release, /head_branch == 'experimental'/);
-  assert.match(release, /node scripts\/release-request\.cjs experimental/);
+  assert.match(release, /node scripts\/release-request\.cjs workflow-run/);
   assert.match(release, /SEED4J_RELEASE_CHANNEL:.*steps\.release-revision\.outputs\.channel/);
   assert.match(release, /id-token:\s*write/);
   assert.match(release, /NPM_CONFIG_PROVENANCE:\s*true/);

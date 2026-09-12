@@ -8,9 +8,9 @@ Safety boundary: This task is limited to authorized, defensive maintenance of th
 
 ## Context and limits
 
-- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, recovery-correction checkpoint `a02a09dca8b32ae73ce47bd9df4b64c4d1304071`.
+- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, runtime-correction checkpoint `5371b532a1e76d8e1426f7a2c71f6973bff22b5b`.
 - Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, accepted immutable checkpoint `ec4208dda65c69fd3e0fd4fc4d59e0d7777a3ed5`.
-- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-post-final-corrections.md`.
+- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-recovery-final.md`.
 - Preserve stable behavior, POM/main/tests-only publisher artifacts, sources/Javadocs prohibition, exact-SHA checks, protected-branch checks, `latest` isolation, credential boundaries, and current unrelated work.
 - Do not create branches, stage, commit, push, publish, dispatch workflows, mutate issues or pull requests, install tooling, run `./mvnw clean verify` or Sonar, snooze Habit findings, or change external state.
 
@@ -52,6 +52,19 @@ Reconcile lifecycle/configuration documentation and this plan, run primary workf
 
 Add executable workflow-adapter scenarios in `test/workflows/main-to-experimental-sync.test.js` before production edits. Move completion-record parsing and authorization plus bounded historical PR selection into `scripts/main-to-experimental-sync.cjs`. Completion evidence must be authored by the repository automation identity and strictly bind PR number, proposal head, merge commit, and resulting experimental SHA. OPEN recovery must compare independently fetched current `main` and `experimental` with the recorded source and target, while MERGED recovery must remain valid after either protected head advances when the exact merge stays reachable. Replace latest-only scheduled shell selection with one deterministic bounded drain of every outstanding trusted PR, prioritizing older merged work without deleting a reused branch that now backs a newer proposal. Update `.github/workflows/synchronize-experimental.yml`, synchronization documentation, and the final recovery report. Run focused red/green scenarios, full workflow/release tests, sync dry run, YAML parsing, Maven tests, Prettier, Habit Hooks, and diff checks; the publisher repository must remain clean at its accepted checkpoint.
 
+### 10. Make recovery transport and side effects durable at runtime
+
+Add behavior-first child-process scenarios for X1-X6 before changing production paths. Make trusted bot-issued exact-head
+`workflow_dispatch` builds eligible only for experimental release while stable remains push-only. Replace bulk JSON
+environment transport with bounded file/pipe input, and use the required `synchronization-pending` label as a server-side
+pending index so completed history cannot crowd out older work and explicit recovery resolves its exact PR directly.
+Move candidate orchestration into an executable Node adapter that isolates candidate failures, reuses an existing
+queued/in-progress/successful exact-head standard build, coalesces refresh once, leaves historical conflict-issue closure
+to current preparation, and records completion only after all required effects. Delete the disposable branch through an
+atomic expected-SHA force-with-lease refspec and treat an advanced branch as a safe candidate-local keep. Update release
+and synchronization workflows, scripts, tests, `README.md`, channel/workflow documentation, and the final runtime report.
+Run focused red/green scenarios, all requested local gates, and exact repository audits without external mutation.
+
 ## Progress
 
 - [x] Read the approved specification and structural review; verify both repositories are clean at the assigned checkpoints.
@@ -68,6 +81,10 @@ Add executable workflow-adapter scenarios in `test/workflows/main-to-experimenta
 - [x] Correct N1-N3 and the remaining R2 recovery slice through executable adapter behavior (strict trusted completion,
       current-head OPEN recovery, and deterministic bounded multi-PR draining are green in the workflow suite).
 - [x] Complete primary-only recovery validation, evidence report, publisher-clean audit, and lease release.
+- [x] Correct X1-X6 and the reopened D5/D7/R2 runtime slice through executable adapter behavior (trusted release
+      provenance, bounded recovery transport, isolated/idempotent orchestration, pending-state indexing, current-only
+      issue closure, and atomic leased cleanup all have red/green public-boundary scenarios).
+- [x] Complete runtime validation, documentation, evidence report, publisher-clean audit, and lease release handoff.
 
 ## Decisions
 
@@ -79,6 +96,18 @@ Add executable workflow-adapter scenarios in `test/workflows/main-to-experimenta
 - Treat issue diagnostics as untrusted display data. The reporting template owns the sole active `@renanfranca` mention; captured diagnostics neutralize every mention and Markdown link before issue writes.
 - Represent synchronization completion as a strict automation-authored state record bound to the PR, proposal head, merge commit, and dispatched experimental head. Plain marker text or mismatched state remains non-authoritative.
 - Make one scheduled recovery enumerate a bounded history and process every outstanding trusted PR deterministically. This avoids relying on GitHub's replaceable single pending workflow slot for eventual progress.
+- Trust `workflow_dispatch` release provenance only for an exact current `experimental` build attributed by GitHub to
+  `github-actions[bot]`; `main` remains push-only and all later exact-head/tag checks remain mandatory.
+- Use the repository label `synchronization-pending` as the durable server-side finalization index. Establish it before
+  auto-merge and remove it only after canonical trusted completion; operators must create the documented label before
+  enabling synchronization.
+- Keep historical finalization away from the global conflict issue. Only a current authoritative preparation result may
+  close it, and duplicate matching issues fail closed.
+- Keep GitHub recovery effects in one executable Node orchestrator. The workflow supplies only scalar configuration;
+  the orchestrator owns bounded file capture, candidate ordering and isolation, exact-build reuse, refresh coalescing,
+  atomic cleanup, completion recording, and pending-label reconciliation.
+- Share one bounded-JSON reader across workflow adapters. The refactor-design pass removed the recovery reader's hidden
+  cross-invocation filename counter while preserving the 2 MiB contract and observable errors.
 
 ## Risks
 
@@ -89,6 +118,12 @@ Add executable workflow-adapter scenarios in `test/workflows/main-to-experimenta
 - Qualifier infrastructure can fail before repository code emits outputs. Reporting must use the independently available job result and must not interpret missing output as an expected skip.
 - Public PR comments are attacker-controlled unless both authorship and exact state are validated; completion cannot short-circuit before that policy check.
 - The fixed disposable branch can be reused by a newer PR while an older merge still needs finalization. Cleanup must delete it only when the remote head still equals the proposal being finalized.
+- Recovery effects cross independent GitHub/Git boundaries. A partial failure must not block later candidates or lose a
+  coalesced refresh, and retries must reuse an exact-head build request instead of repeatedly dispatching it.
+- A check followed by unconditional remote deletion is racy. The expected proposal SHA must be carried in the Git push
+  lease so a concurrent update is preserved atomically.
+- Bulk PR/comment JSON can exceed the operating system's per-environment-string limit before Node starts. Transport it
+  through a bounded file or pipe and validate size and shape inside the executable adapter.
 - Filtering distribution metadata can accidentally expose Maven or environment overrides at runtime. Only build-time Maven properties may generate the packaged resource; runtime property sources must remain irrelevant.
 
 ## Documentation

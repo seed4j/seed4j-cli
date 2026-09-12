@@ -83,7 +83,8 @@ After a successful push build for the exact current `main` SHA, `synchronize mai
 the disposable `automation/sync-main-to-experimental` branch from the latest `experimental`, merges that exact `main`
 SHA, and opens one PR back to `experimental`. Git conflicts stop before any protected-branch write and create or update
 the assigned `synchronization-failure` issue; automation never guesses a resolution. A later clean preparation closes
-that issue.
+that issue. Before enabling synchronization, a maintainer must create the repository label `synchronization-pending`;
+the workflow verifies this prerequisite before proposal publication and attaches the label to every pending PR.
 
 PR creation with `GITHUB_TOKEN` does not reliably recurse into ordinary workflows, so synchronization explicitly
 dispatches `github-actions.yml` on the disposable branch. The PR body binds the source, target, and proposal head SHAs.
@@ -93,17 +94,20 @@ the recorded source. Only that exact head with a completed successful standard b
 enable auto-merge. Stale source, target, head, topology, or test evidence causes a refresh and another explicit test
 dispatch; pending or red tests leave the PR open without auto-merge.
 
-Auto-merge is asynchronous, so the bounded confirmation window always dispatches a durable finalizer and a scheduled
-15-minute recovery enumerates a bounded history of up to 100 matching PRs. Executable policy deterministically handles
-older merged work before open work and skips only an exact completion record authored by `github-actions[bot]` and bound
-to the PR number, proposal head, merge commit, and dispatched `experimental` SHA. Plain, forged, decorated, stale, or
-mismatched comments cannot suppress recovery. An open PR is left pending only while current `main` and `experimental`
-still equal its recorded source and target; either movement requests a refreshed proposal. Once an exact PR is observed
-merged and its merge commit is reachable from current `experimental`, protected heads may advance: the workflow
-dispatches the standard build for one stable current `experimental` head, deletes the disposable branch only when its
-remote head still equals that PR's proposal head, and then writes the authenticated completion record. These operations
-use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents, issues, and pull-request
-permissions.
+Auto-merge is asynchronous, so the bounded confirmation window always dispatches a durable finalizer. Scheduled
+15-minute recovery queries up to 100 PRs carrying `synchronization-pending`, so older unfinished work is not displaced by
+completed history; explicit recovery reads the requested PR directly. Executable policy deterministically handles older
+merged work before open work and skips only an exact completion record authored by `github-actions[bot]` and bound to the
+PR number, proposal head, merge commit, and dispatched `experimental` SHA. Plain, forged, decorated, stale, or mismatched
+comments cannot suppress recovery. Candidate failures are isolated, and all stale candidates request at most one refresh
+per run. An open PR is left pending only while current `main` and `experimental` still equal its recorded source and
+target; either movement requests a refreshed proposal. Once an exact PR is observed merged and its merge commit is
+reachable from current `experimental`, recovery reuses an exact queued, running, or successful standard build or
+dispatches one for one stable current `experimental` head. It deletes the disposable branch atomically only under an
+expected-head lease, writes the authenticated completion record, and removes the pending label last. A label-removal
+failure is retried without repeating completed effects. Historical finalization never closes a conflict issue belonging
+to newer current preparation. These operations use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped
+Actions, contents, and pull-request permissions; current preparation separately owns issue updates.
 
 Renovate keeps the dependency contexts separate:
 
@@ -117,10 +121,12 @@ Renovate keeps the dependency contexts separate:
   separately recorded full upstream SHA, so a version-only update remains red until provenance is updated. An
   incompatible update remains open and red for maintainer adaptation.
 
-After an exact current `experimental` push passes `build`, semantic-release may create
+After an exact current `experimental` push, or the exact bot-issued post-synchronization `workflow_dispatch`, passes
+`build`, semantic-release may create
 `<next-stable>-experimental.<n>`, push its immutable `v<version>` tag, and publish npm with dist-tag `experimental`.
 Publication uses npm Trusted Publishing with GitHub OIDC and provenance; no persistent npm token is stored. A stale SHA,
-wrong branch, pull-request build, unsuccessful build, or already tagged revision is rejected.
+wrong branch, untrusted dispatch, pull-request build, unsuccessful build, or already tagged revision is rejected. Stable
+release eligibility remains push-only.
 
 Experimental publication never creates or changes a GitHub Release, Release Drafter draft, stable JAR asset, stable
 tag, or npm `latest` tag. Stable publication and recovery remain `main`-only.

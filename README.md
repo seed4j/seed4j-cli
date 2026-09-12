@@ -35,6 +35,8 @@ Stable is the default. Once the separately operated experimental channel is acti
 install `npm install -g seed4j-cli@experimental`; it follows an unofficial, retention-limited snapshot of Seed4J `main`
 and is not recommended for production generation. Read the
 [experimental channel contract and support policy](documentation/experimental-channel.md) before opting in.
+Maintainers must create the repository label `synchronization-pending` before enabling the documented one-way
+`main`-to-`experimental` synchronization workflow.
 
 Then choose the outcome you need:
 

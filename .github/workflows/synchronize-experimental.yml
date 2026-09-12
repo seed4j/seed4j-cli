@@ -44,6 +44,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SYNC_BRANCH: automation/sync-main-to-experimental
       SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+      SYNC_PENDING_LABEL: synchronization-pending
     steps:
       - name: 'Setup: checkout trusted synchronization code'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -74,6 +75,17 @@ jobs:
           fi
           echo "eligible=true" >> "$GITHUB_OUTPUT"
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: 'Synchronize: verify durable pending label'
+        if: steps.source.outputs.eligible == 'true'
+        run: |
+          LABELS_PATH="$RUNNER_TEMP/synchronization-labels.json"
+          gh label list --repo "$GITHUB_REPOSITORY" --search "$SYNC_PENDING_LABEL" --limit 100 --json name > "$LABELS_PATH"
+          MATCHING_LABELS="$(jq --arg label "$SYNC_PENDING_LABEL" '[.[] | select(.name == $label)] | length' "$LABELS_PATH")"
+          if [ "$MATCHING_LABELS" != '1' ]; then
+            echo "Required repository label '${SYNC_PENDING_LABEL}' is absent. A maintainer must create it before synchronization can run." >&2
+            exit 1
+          fi
 
       - name: 'Synchronize: prepare disposable branch from current experimental'
         id: proposal
@@ -126,13 +138,15 @@ jobs:
           TARGET_SHA: ${{ steps.proposal.outputs.target }}
         run: |
           ISSUE_BODY="$(printf '@renanfranca automatic one-way synchronization stopped because Git could not merge current main `%s` into current experimental `%s`. Both protected branches are unchanged. Resolve the conflict in a reviewed pull request, then refresh synchronization.\n\nWorkflow run: %s/%s/actions/runs/%s' "$SOURCE_SHA" "$TARGET_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
-          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
-          if [ "${#ISSUES[@]}" -gt 1 ]; then
-            echo "Expected at most one open synchronization conflict issue; found ${#ISSUES[@]}." >&2
-            exit 1
-          fi
-          if [ "${#ISSUES[@]}" -eq 1 ]; then
-            gh issue edit "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --add-assignee renanfranca --add-label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
+          SYNC_ISSUES_PATH="$RUNNER_TEMP/synchronization-conflict-issues.json"
+          ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-conflict-issue-output"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
+          export SYNC_CONFLICT=true SYNC_ISSUES_PATH
+          GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
+          ISSUE_ACTION="$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")"
+          ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
+          if [ "$ISSUE_ACTION" = 'update' ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-assignee renanfranca --add-label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --assignee renanfranca --label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
           fi
@@ -167,22 +181,32 @@ jobs:
             exit 1
           fi
           if [ "${#PULL_REQUESTS[@]}" -eq 1 ]; then
-            gh pr edit "${PULL_REQUESTS[0]}" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
+            gh pr edit "${PULL_REQUESTS[0]}" --repo "$GITHUB_REPOSITORY" --add-label "$SYNC_PENDING_LABEL" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
           else
-            gh pr create --repo "$GITHUB_REPOSITORY" --base experimental --head "$SYNC_BRANCH" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
+            gh pr create --repo "$GITHUB_REPOSITORY" --base experimental --head "$SYNC_BRANCH" --label "$SYNC_PENDING_LABEL" --body-file "$RUNNER_TEMP/synchronization-pr-body.md" --title 'chore(sync): merge current main into experimental'
           fi
-          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
-          if [ "${#ISSUES[@]}" -eq 1 ]; then
-            gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment "The current source and target now merge cleanly in synchronization pull request head ${PROPOSAL_HEAD_SHA}."
+          SYNC_ISSUES_PATH="$RUNNER_TEMP/synchronization-resolved-issues.json"
+          ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-resolved-issue-output"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
+          export SYNC_CONFLICT=false SYNC_ISSUES_PATH
+          GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
+          if [ "$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")" = 'close' ]; then
+            ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "The current source and target now merge cleanly in synchronization pull request head ${PROPOSAL_HEAD_SHA}."
           fi
           gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
 
       - name: 'Synchronize: close resolved issue for an already-current target'
         if: steps.proposal.outputs.action == 'already-contained'
         run: |
-          mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
-          if [ "${#ISSUES[@]}" -eq 1 ]; then
-            gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment 'Current experimental already contains the exact successful main revision.'
+          SYNC_ISSUES_PATH="$RUNNER_TEMP/synchronization-contained-issues.json"
+          ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-contained-issue-output"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
+          export SYNC_CONFLICT=false SYNC_ISSUES_PATH
+          GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
+          if [ "$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")" = 'close' ]; then
+            ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --comment 'Current experimental already contains the exact successful main revision.'
           fi
           gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref experimental
 
@@ -198,12 +222,11 @@ jobs:
     permissions:
       actions: write
       contents: write
-      issues: write
       pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
       SYNC_BRANCH: automation/sync-main-to-experimental
-      SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+      SYNC_PENDING_LABEL: synchronization-pending
     steps:
       - name: 'Setup: checkout trusted synchronization code'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -223,8 +246,9 @@ jobs:
           CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
           OBSERVED_PROPOSAL_HEAD_SHA="$(git rev-parse "origin/$SYNC_BRANCH")"
           PROPOSAL_PARENT_SHAS="$(git show -s --format=%P "$OBSERVED_PROPOSAL_HEAD_SHA")"
-          SYNC_PULL_REQUESTS="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base experimental --head "$SYNC_BRANCH" --limit 2 --json number,body,baseRefName,headRefName,headRefOid,mergeable,state)"
-          export BUILD_CONCLUSION BUILD_STATUS BUILT_SHA CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA OBSERVED_PROPOSAL_HEAD_SHA PROPOSAL_PARENT_SHAS SYNC_PULL_REQUESTS
+          SYNC_PULL_REQUESTS_PATH="$RUNNER_TEMP/synchronization-review-pull-requests.json"
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --base experimental --head "$SYNC_BRANCH" --limit 2 --json number,body,baseRefName,headRefName,headRefOid,mergeable,state,labels > "$SYNC_PULL_REQUESTS_PATH"
+          export BUILD_CONCLUSION BUILD_STATUS BUILT_SHA CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA OBSERVED_PROPOSAL_HEAD_SHA PROPOSAL_PARENT_SHAS SYNC_PENDING_LABEL SYNC_PULL_REQUESTS_PATH
           node scripts/main-to-experimental-sync.cjs review-workflow
 
       - name: 'Synchronize: refresh stale evidence'
@@ -286,12 +310,11 @@ jobs:
     permissions:
       actions: write
       contents: write
-      issues: write
-      pull-requests: read
+      pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
       SYNC_BRANCH: automation/sync-main-to-experimental
-      SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
+      SYNC_PENDING_LABEL: synchronization-pending
     steps:
       - name: 'Setup: checkout trusted synchronization code'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -302,108 +325,4 @@ jobs:
       - name: 'Synchronize: drain durable finalization state'
         env:
           REQUESTED_PR_NUMBER: ${{ inputs['finalize-pr'] }}
-        run: |
-          SYNC_PULL_REQUESTS="$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --base experimental --head "$SYNC_BRANCH" --limit 100 --json number,body,baseRefName,headRefName,headRefOid,state,mergeCommit,comments)"
-          SELECTION_OUTPUT="$RUNNER_TEMP/synchronization-finalization-selection-output"
-          export REQUESTED_PR_NUMBER SYNC_PULL_REQUESTS
-          : > "$SELECTION_OUTPUT"
-          GITHUB_OUTPUT="$SELECTION_OUTPUT" node scripts/main-to-experimental-sync.cjs select-finalizations
-          PULL_REQUEST_LIST="$(sed -n 's/^pull-requests=//p' "$SELECTION_OUTPUT")"
-          if [ -z "$PULL_REQUEST_LIST" ]; then
-            echo 'No synchronization finalization is pending.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          IFS=',' read -r -a PULL_REQUEST_NUMBERS <<< "$PULL_REQUEST_LIST"
-          REFRESH_REQUIRED=false
-          for PR_NUMBER in "${PULL_REQUEST_NUMBERS[@]}"; do
-            SYNC_PULL_REQUEST="$(printf '%s' "$SYNC_PULL_REQUESTS" | jq --argjson number "$PR_NUMBER" -c '.[] | select(.number == $number)')"
-            git fetch origin main experimental
-            if ! git fetch origin "pull/${PR_NUMBER}/head"; then
-              echo "Pull request #${PR_NUMBER} head could not be fetched; scheduled recovery will retry it." >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            OBSERVED_PROPOSAL_HEAD_SHA="$(git rev-parse FETCH_HEAD)"
-            PROPOSAL_PARENT_SHAS="$(git show -s --format=%P "$OBSERVED_PROPOSAL_HEAD_SHA")"
-            CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
-            CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
-            MERGE_COMMIT_SHA="$(printf '%s' "$SYNC_PULL_REQUEST" | jq -r '.mergeCommit.oid // empty')"
-            MERGE_REACHABLE=false
-            if [[ "$MERGE_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
-              MERGE_REACHABLE=true
-            fi
-            export CURRENT_EXPERIMENTAL_SHA CURRENT_MAIN_SHA MERGE_REACHABLE OBSERVED_PROPOSAL_HEAD_SHA
-            export PROPOSAL_PARENT_SHAS SYNC_PULL_REQUEST
-            FINALIZATION_OUTPUT="$RUNNER_TEMP/synchronization-finalization-${PR_NUMBER}-output"
-            : > "$FINALIZATION_OUTPUT"
-            if ! GITHUB_OUTPUT="$FINALIZATION_OUTPUT" node scripts/main-to-experimental-sync.cjs finalize-workflow; then
-              echo "Pull request #${PR_NUMBER} has invalid finalization evidence; scheduled recovery will retry after correction." >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            ACTION="$(sed -n 's/^action=//p' "$FINALIZATION_OUTPUT")"
-            REASON="$(sed -n 's/^reason=//p' "$FINALIZATION_OUTPUT")"
-            if [ "$ACTION" = 'schedule-recheck' ]; then
-              echo "Pull request #${PR_NUMBER} remains pending because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            if [ "$ACTION" = 'refresh' ]; then
-              echo "Pull request #${PR_NUMBER} requires refreshed synchronization because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
-              REFRESH_REQUIRED=true
-              continue
-            fi
-            if [ "$ACTION" = 'blocked' ]; then
-              echo "Pull request #${PR_NUMBER} finalization stopped because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            if [ "$ACTION" != 'complete' ]; then
-              echo "Unexpected finalization action '${ACTION}' for pull request #${PR_NUMBER}." >&2
-              exit 1
-            fi
-
-            MERGE_COMMIT_SHA="$(sed -n 's/^merge=//p' "$FINALIZATION_OUTPUT")"
-            PROPOSAL_HEAD_SHA="$(sed -n 's/^head=//p' "$FINALIZATION_OUTPUT")"
-            DISPATCHED_EXPERIMENTAL_SHA=''
-            for attempt in 1 2 3; do
-              git fetch origin experimental
-              CURRENT_EXPERIMENTAL_SHA="$(git rev-parse origin/experimental)"
-              if ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" "$CURRENT_EXPERIMENTAL_SHA"; then
-                echo "Merged synchronization commit for pull request #${PR_NUMBER} is not reachable from current experimental." >&2
-                exit 1
-              fi
-              gh workflow run github-actions.yml --repo "$GITHUB_REPOSITORY" --ref experimental
-              git fetch origin experimental
-              if [ "$(git rev-parse origin/experimental)" = "$CURRENT_EXPERIMENTAL_SHA" ]; then
-                DISPATCHED_EXPERIMENTAL_SHA="$CURRENT_EXPERIMENTAL_SHA"
-                break
-              fi
-              if [ "$attempt" = "3" ]; then
-                echo "Experimental moved during every bounded post-merge dispatch attempt." >&2
-                exit 1
-              fi
-            done
-
-            REMOTE_SYNC_SHA="$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | cut -f1)"
-            CLEANUP_OUTPUT="$RUNNER_TEMP/synchronization-cleanup-${PR_NUMBER}-output"
-            export PROPOSAL_HEAD_SHA REMOTE_SYNC_SHA
-            : > "$CLEANUP_OUTPUT"
-            GITHUB_OUTPUT="$CLEANUP_OUTPUT" node scripts/main-to-experimental-sync.cjs cleanup-workflow
-            CLEANUP_ACTION="$(sed -n 's/^action=//p' "$CLEANUP_OUTPUT")"
-            if [ "$CLEANUP_ACTION" = 'delete' ]; then
-              git push origin --delete "$SYNC_BRANCH"
-            elif [ "$CLEANUP_ACTION" = 'keep' ]; then
-              echo "Kept synchronization branch at newer head ${REMOTE_SYNC_SHA} while finalizing #${PR_NUMBER}." >> "$GITHUB_STEP_SUMMARY"
-            fi
-            mapfile -t ISSUES < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title --jq ".[] | select(.title == \"$SYNC_ISSUE_TITLE\") | .number")
-            if [ "${#ISSUES[@]}" -eq 1 ]; then
-              gh issue close "${ISSUES[0]}" --repo "$GITHUB_REPOSITORY" --comment "Current main was merged into experimental and its exact current head received an explicit post-merge build dispatch."
-            fi
-            COMPLETION_BODY="$RUNNER_TEMP/synchronization-finalization-${PR_NUMBER}.md"
-            export EXPERIMENTAL_SHA="$DISPATCHED_EXPERIMENTAL_SHA" MERGE_COMMIT_SHA PROPOSAL_HEAD_SHA
-            export PULL_REQUEST_NUMBER="$PR_NUMBER"
-            node scripts/main-to-experimental-sync.cjs completion-body > "$COMPLETION_BODY"
-            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$COMPLETION_BODY"
-          done
-
-          if [ "$REFRESH_REQUIRED" = true ]; then
-            gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main
-          fi
+        run: node scripts/main-to-experimental-recovery.cjs
