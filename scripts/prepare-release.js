@@ -1,12 +1,16 @@
 const { spawnSync } = require('node:child_process');
 const { copyFileSync, existsSync, mkdirSync, readFileSync } = require('node:fs');
 const { join, resolve } = require('node:path');
+const { validateReleaseVersion } = require('./release-version.cjs');
 
 const releaseVersion = process.argv[2];
+const releaseChannel = process.env.SEED4J_RELEASE_CHANNEL ?? 'stable';
 const repositoryRoot = resolve(__dirname, '..');
 
-if (!/^\d+\.\d+\.\d+$/.test(releaseVersion ?? '')) {
-  fail(`Expected a stable semantic version, got '${releaseVersion ?? ''}'.`);
+try {
+  validateReleaseVersion(releaseVersion, releaseChannel);
+} catch (error) {
+  fail(error.message);
 }
 
 run('./mvnw', ['--batch-mode', '-ntp', 'versions:set', `-DnewVersion=${releaseVersion}`, '-DgenerateBackupPoms=false']);
@@ -19,7 +23,9 @@ validateCliVersion();
 run('npm', ['run', 'package:prepare']);
 run('npm', ['pack', '--dry-run']);
 run('npm', ['run', 'test:npm-packed-skill']);
-prepareGitHubReleaseAsset();
+if (releaseChannel === 'stable') {
+  prepareGitHubReleaseAsset();
+}
 
 function run(command, arguments_) {
   const result = spawnSync(command, arguments_, {

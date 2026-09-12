@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLine;
+import static com.seed4j.cli.command.infrastructure.primary.CliFixture.experimentalCommandLine;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProjectTestFolder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,10 +12,13 @@ import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -92,6 +96,33 @@ class ApplyModuleCommandTest {
       assertThat(output.toString().indexOf("angular-core"))
         .withFailMessage("Command 'angular-core' should appear before 'gradle-java' in alphabetical order")
         .isLessThan(output.toString().indexOf("gradle-java"));
+    }
+
+    @Test
+    void shouldHideUnavailableModuleFromExperimentalApplyHelp(CapturedOutput output) {
+      String[] args = { "apply", "--help" };
+
+      int exitCode = experimentalCommandLine(modules, projects).execute(args);
+
+      assertThat(exitCode).isZero();
+      assertThat(output).contains("Commands:").contains("spring-boot").doesNotContain("seed4j-extension");
+    }
+
+    @Test
+    void shouldRejectDirectUnavailableModuleBeforeCreatingOrInspectingProject(@TempDir Path temporaryDirectory) {
+      Path projectPath = temporaryDirectory.resolve("project-that-must-not-be-created");
+      StringWriter errorOutput = new StringWriter();
+      picocli.CommandLine commandLine = experimentalCommandLine(modules, projects);
+      commandLine.setErr(new PrintWriter(errorOutput, true));
+      String[] args = { "apply", "seed4j-extension", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine.execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(errorOutput).hasToString(
+        "ERROR: Module 'seed4j-extension' is unavailable in the experimental channel because Central Portal snapshots expire and generated extensions would not remain rebuildable. Install seed4j-cli@latest to generate a stable Seed4J extension. No changes were applied.\n"
+      );
+      assertThat(projectPath).doesNotExist();
     }
 
     @Test

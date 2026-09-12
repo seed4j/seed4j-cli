@@ -47,6 +47,7 @@ class BashCompletionCandidateCollector {
       .subcommands()
       .entrySet()
       .stream()
+      .filter(entry -> !entry.getValue().getCommandSpec().usageMessage().hidden())
       .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getCommandSpec(), (left, right) -> right, TreeMap::new));
   }
 

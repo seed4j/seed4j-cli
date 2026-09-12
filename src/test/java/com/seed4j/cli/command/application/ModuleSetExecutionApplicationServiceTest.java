@@ -113,7 +113,8 @@ class ModuleSetExecutionApplicationServiceTest {
       catalog,
       projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
       projectPath -> ModuleSetProjectPathStatus.NOT_DIRECTORY,
-      projectPath -> ModuleSetGitState.NO_WORKTREE
+      projectPath -> ModuleSetGitState.NO_WORKTREE,
+      new DistributionMetadataApplicationService(com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable)
     );
     ModuleSetPlan invalidPlan = planning.plan(
       new ModuleSetPlanningRequest(
@@ -155,7 +156,8 @@ class ModuleSetExecutionApplicationServiceTest {
       catalog,
       projectPath -> new ModuleSetPlanningHistory(Set.of(), new ModuleSetHistoryParameters(Map.of(), List.of())),
       projectPath -> ModuleSetProjectPathStatus.VALID,
-      projectPath -> ModuleSetGitState.NO_WORKTREE
+      projectPath -> ModuleSetGitState.NO_WORKTREE,
+      new DistributionMetadataApplicationService(com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable)
     );
     return planning.plan(
       new ModuleSetPlanningRequest(

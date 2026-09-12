@@ -11,7 +11,7 @@ class ApplyModuleCommandSpecFactory {
   static final String COMMIT_OPTION = "--commit";
   static final String PLAN_OPTION = "--plan";
 
-  CommandSpec create(ApplyModuleSubCommand command, Seed4JModuleResource module) {
+  CommandSpec create(Object command, Seed4JModuleResource module) {
     CommandSpec spec = CommandSpec.wrapWithoutInspection(command).name(module.slug().get()).mixinStandardHelpOptions(true);
     spec.usageMessage().description(module.apiDoc().operation().get().replace("%", "%%"));
     addOptions(spec, module.propertiesDefinition());

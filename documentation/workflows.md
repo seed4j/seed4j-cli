@@ -2,6 +2,60 @@
 
 These recipes organize commands around concrete outcomes. Use the [commands reference](Commands.md) when you need exact options, exit behavior, configuration keys, or failure contracts.
 
+Stable installation is the default. Before evaluating the opt-in npm experimental channel, read its
+[provenance, retention, unsupported-module, update, and rollback contract](experimental-channel.md).
+
+The standard build deliberately has only `contents: read`. Checkout does not persist its GitHub credential into later
+steps that run repository-controlled code, and SonarCloud authenticates with its dedicated `SONAR_TOKEN`; every
+unspecified GitHub permission is denied.
+
+## Synchronize stable changes into experimental
+
+A successful standard push build for current `main` starts the one-way synchronization workflow. It rebuilds the
+disposable `automation/sync-main-to-experimental` branch from current `experimental`, merges the exact green `main` SHA,
+and opens or refreshes a PR targeting `experimental`. The workflow explicitly dispatches the standard build on that
+proposal head as the first repairable effect after PR publication, before issue housekeeping, because changes made by
+`GITHUB_TOKEN` do not trigger an unrestricted recursive workflow chain.
+Before enabling this workflow, a maintainer must create the repository label `synchronization-pending`. Preparation
+fails before publishing a proposal when the label is absent, and every automation-owned synchronization PR receives it.
+
+Automation enables merge only while the independently fetched source, target, and proposal head match the PR's recorded
+SHAs, the proposal has exactly the recorded target and source as its parents, and that exact head owns a completed green
+`tests` result. If any SHA or topology changes, it refreshes the proposal and tests; red or pending tests leave it open.
+A Git conflict creates or updates the single assigned `synchronization-failure` issue without changing either protected
+branch. Resolve the conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to
+retry.
+
+Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately,
+while the 15-minute recovery asks GitHub for only number/state metadata for up to 100 PRs carrying
+`synchronization-pending`; completed PRs do not consume that bounded window. It loads each exact PR independently through
+a streaming 2 MiB limit, so hostile or malformed comment history fails locally without blocking later candidates. An
+explicit recovery loads its requested PR number directly. A scheduled run also performs one independent lookup, bounded
+to detect more than one result, for an OPEN PR with exactly the fixed synchronization head and `experimental` base. This
+repairs the non-transactional case where `gh pr create --label` created the PR before its label update failed. Absence is
+inert, a malformed or ambiguous result fails before candidate effects, and a PR already present in the label index is
+processed only once. An unlabeled result remains untrusted until its canonical body/branches, live and fetched PR head,
+fetched fixed-branch head, current `main` and `experimental` heads, and exact target/source parent order all agree. Only
+then does recovery add `synchronization-pending` and assure one proposal build; this repair path never enables merge.
+For a still-current open PR, recovery preserves any exact
+proposal-head run regardless of whether it is queued, running, green, or red, and dispatches exactly once only when none
+exists; it never enables merge. Executable policy skips
+only an exact completion record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge
+commit, and dispatched `experimental` SHA; plain, forged, decorated, stale, or mismatched comments remain pending.
+Older merged work is handled before open work, and one candidate failure does not stop later candidates or lose a
+coalesced refresh request. An open PR remains pending only while current `main` and `experimental` still equal its
+recorded source and target; otherwise synchronization refreshes it. After an exact merge is reachable from current
+`experimental`, recovery reuses an exact queued, running, or successful standard build when present, otherwise dispatches
+one for the stable current head. It then deletes the disposable branch with an expected-head lease, writes the trusted
+completion record, and finally removes `synchronization-pending`. If that last removal fails, the next run only reconciles
+the label. Historical finalization never closes the current conflict issue; only a current authoritative clean or
+already-contained preparation may do that. The workflow never synchronizes `experimental` wholesale back to `main`.
+
+Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
+no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,
+unavailable-module metadata, and snapshot-only repository. Synchronization and release commands use the checked-out
+branch POM directly; there is no Maven profile or workflow flag that can select the other channel's identity.
+
 ## Create a project with modules
 
 A typical workflow to initialize a new project might look like:

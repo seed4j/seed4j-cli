@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLine;
+import static com.seed4j.cli.command.infrastructure.primary.CliFixture.experimentalCommandLine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
@@ -50,6 +51,16 @@ class CompletionCommandTest {
       .contains("--project-name")
       .containsPattern("(?m)^    'apply-set'\\) printf '%s' '[^']*--commit[^']*--no-commit[^']*--plan[^']*' ;;$")
       .doesNotContain("--complete-values");
+  }
+
+  @Test
+  void shouldOmitUnavailableModuleFromExperimentalCompletion(CapturedOutput output) {
+    String[] args = { "completion", "bash", "--no-complete-values" };
+
+    int exitCode = experimentalCommandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).contains("apply").contains("spring-boot").doesNotContain("seed4j-extension");
   }
 
   @Test

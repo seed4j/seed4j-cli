@@ -1,5 +1,7 @@
 package com.seed4j.cli.command.infrastructure.secondary;
 
+import com.seed4j.cli.command.domain.distribution.DistributionMetadataReader;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetBooleanParameterValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetDependency;
@@ -35,17 +37,22 @@ import org.springframework.stereotype.Component;
 public class Seed4JModuleSetCatalog implements ModuleSetCatalog {
 
   private final Seed4JModulesApplicationService modules;
+  private final DistributionMetadataReader distributionMetadataReader;
 
-  public Seed4JModuleSetCatalog(Seed4JModulesApplicationService modules) {
+  public Seed4JModuleSetCatalog(Seed4JModulesApplicationService modules, DistributionMetadataReader distributionMetadataReader) {
     Assert.notNull("modules", modules);
+    Assert.notNull("distributionMetadataReader", distributionMetadataReader);
     this.modules = modules;
+    this.distributionMetadataReader = distributionMetadataReader;
   }
 
   @Override
   public List<ModuleSetModule> modules() {
+    Seed4JModuleAvailability availability = distributionMetadataReader.read().moduleAvailability();
     List<ModuleSetModule> catalogModules = modules
       .resources()
       .stream()
+      .filter(resource -> availability.available(resource.slug().get()))
       .map(resource ->
         new ModuleSetModule(
           new ModuleSetSlug(resource.slug().get()),

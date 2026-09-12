@@ -1,5 +1,8 @@
 package com.seed4j.cli.command.domain.moduleset;
 
+import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
 import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.*;
 import java.util.stream.Stream;
@@ -12,23 +15,29 @@ public class ModuleSetPlanner {
   private final ModuleSetPreflightEnvironmentInspector environmentInspector;
   private final ModuleSetParameterPlanner parameterPlanner;
   private final ModuleSetRequestSelector requestSelector;
+  private final Seed4JModuleAvailability moduleAvailability;
+  private final ReleaseChannel releaseChannel;
 
   public ModuleSetPlanner(
     ModuleSetCatalog catalog,
     ModuleSetPlanningHistoryReader historyReader,
     ModuleSetProjectPathValidator projectPathValidator,
-    ModuleSetGitStateReader gitStateReader
+    ModuleSetGitStateReader gitStateReader,
+    DistributionMetadata distributionMetadata
   ) {
     Assert.notNull("catalog", catalog);
     Assert.notNull("historyReader", historyReader);
     Assert.notNull("projectPathValidator", projectPathValidator);
     Assert.notNull("gitStateReader", gitStateReader);
+    Assert.notNull("distributionMetadata", distributionMetadata);
     this.catalog = catalog;
     this.historyReader = historyReader;
     dependencyPlanner = new ModuleSetDependencyPlanner();
     environmentInspector = new ModuleSetPreflightEnvironmentInspector(projectPathValidator, gitStateReader);
     parameterPlanner = new ModuleSetParameterPlanner();
     requestSelector = new ModuleSetRequestSelector(catalog);
+    moduleAvailability = distributionMetadata.moduleAvailability();
+    releaseChannel = distributionMetadata.identity().channel();
   }
 
   public List<ModuleSetPropertyDefinition> availableProperties() {
@@ -66,6 +75,11 @@ public class ModuleSetPlanner {
   }
 
   public ModuleSetPlan plan(ModuleSetPlanningRequest request) {
+    List<ModuleSetSlug> unavailableModules = unavailableModules(request.requestedModules());
+    if (!unavailableModules.isEmpty()) {
+      return rejectedPlan(request, List.of(), List.of(new UnavailableRequestedModuleSetModules(unavailableModules, releaseChannel)));
+    }
+
     List<ModuleSetPlanningProblem> pathProblems = environmentInspector.pathProblems(request.projectPath());
     ModuleSetRequestSelector.Selection selection = requestSelector.select(request.requestedModules());
     List<ModuleSetPlanningProblem> preselectionProblems = Stream.concat(pathProblems.stream(), selection.problems().stream()).toList();
@@ -74,6 +88,16 @@ public class ModuleSetPlanner {
         ? planSelectedModules(request, selection).moduleSetPlan(request, selection.executionOrder(), preselectionProblems)
         : rejectedPlan(request, selection.executionOrder(), preselectionProblems);
     return plan.withWarnings(environmentInspector.warnings(plan));
+  }
+
+  private List<ModuleSetSlug> unavailableModules(RequestedModuleSet requestedModules) {
+    return requestedModules
+      .modules()
+      .stream()
+      .filter(module -> !moduleAvailability.available(module.value()))
+      .distinct()
+      .sorted(Comparator.comparing(ModuleSetSlug::value))
+      .toList();
   }
 
   private SelectedModulesPlanning planSelectedModules(ModuleSetPlanningRequest request, ModuleSetRequestSelector.Selection selection) {

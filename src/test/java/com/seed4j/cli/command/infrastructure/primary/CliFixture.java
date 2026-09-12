@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.BashCompletionInstallApplicationService;
+import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
 import com.seed4j.cli.command.application.ModuleSetExecutionApplicationService;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
 import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
@@ -13,6 +14,13 @@ import com.seed4j.cli.command.domain.RuntimeExtensionMetadataPath;
 import com.seed4j.cli.command.domain.RuntimeExtensionModeSwitchResult;
 import com.seed4j.cli.command.domain.RuntimeExtensionReplacementStatus;
 import com.seed4j.cli.command.domain.RuntimeModeConfigurationPath;
+import com.seed4j.cli.command.domain.distribution.DistributionIdentity;
+import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
+import com.seed4j.cli.command.domain.distribution.DistributionModuleSlug;
+import com.seed4j.cli.command.domain.distribution.ReleaseChannel;
+import com.seed4j.cli.command.domain.distribution.Seed4JDependencyCoordinate;
+import com.seed4j.cli.command.domain.distribution.Seed4JModuleAvailability;
+import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
 import com.seed4j.cli.command.infrastructure.secondary.JGitModuleSetGitStateReader;
 import com.seed4j.cli.command.infrastructure.secondary.NioModuleSetProjectPathValidator;
 import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
@@ -26,6 +34,8 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import picocli.CommandLine;
 
 class CliFixture {
@@ -95,7 +105,41 @@ class CliFixture {
             Path.of(System.getProperty("user.home")).resolve(".local/share/bash-completion/completions/seed4j")
           )
         )
-      )
+      ),
+      DistributionMetadata.stable()
+    );
+  }
+
+  static CommandLine experimentalCommandLine(Seed4JModulesApplicationService modules, ProjectsApplicationService projects) {
+    return commandLine(
+      modules,
+      projects,
+      RuntimeDisplay.standard(),
+      "3.0.0-experimental.1",
+      "2.2.1-main.20260907.055800-SNAPSHOT",
+      new BashCompletionInstallApplicationService(script ->
+        new com.seed4j.cli.command.domain.BashCompletionInstallationResult(
+          new com.seed4j.cli.command.domain.BashCompletionInstallationPath(
+            Path.of(System.getProperty("user.home")).resolve(".local/share/bash-completion/completions/seed4j")
+          )
+        )
+      ),
+      experimentalMetadata()
+    );
+  }
+
+  private static DistributionMetadata experimentalMetadata() {
+    return new DistributionMetadata(
+      new DistributionIdentity(
+        ReleaseChannel.EXPERIMENTAL,
+        Seed4JDependencyCoordinate.versioned(
+          "io.github.renanfranca",
+          "seed4j-main-snapshot",
+          "2.2.1-main.20260907.055800.0123456789ab-SNAPSHOT"
+        ),
+        Optional.of(new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567"))
+      ),
+      new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug("seed4j-extension")))
     );
   }
 
@@ -104,7 +148,15 @@ class CliFixture {
     ProjectsApplicationService projects,
     BashCompletionInstallApplicationService bashCompletionInstallApplicationService
   ) {
-    return commandLine(modules, projects, RuntimeDisplay.standard(), "1", "2", bashCompletionInstallApplicationService);
+    return commandLine(
+      modules,
+      projects,
+      RuntimeDisplay.standard(),
+      "1",
+      "2",
+      bashCompletionInstallApplicationService,
+      DistributionMetadata.stable()
+    );
   }
 
   private static CommandLine commandLine(
@@ -113,16 +165,19 @@ class CliFixture {
     RuntimeDisplay runtimeDisplay,
     String projectCliVersion,
     String projectSeed4JVersion,
-    BashCompletionInstallApplicationService bashCompletionInstallApplicationService
+    BashCompletionInstallApplicationService bashCompletionInstallApplicationService,
+    DistributionMetadata distributionMetadata
   ) {
-    ListModulesCommand listModulesCommand = new ListModulesCommand(modules);
+    DistributionMetadataApplicationService distribution = new DistributionMetadataApplicationService(() -> distributionMetadata);
+    ListModulesCommand listModulesCommand = new ListModulesCommand(modules, distribution);
     ApplyModuleSubCommandsFactory subCommandsFactory = new ApplyModuleSubCommandsFactory(modules, projects);
-    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory);
+    ApplyModuleCommand applyModuleCommand = new ApplyModuleCommand(modules, subCommandsFactory, distribution);
     ModuleSetPlanningApplicationService moduleSetPlanningApplicationService = new ModuleSetPlanningApplicationService(
-      new Seed4JModuleSetCatalog(modules),
+      new Seed4JModuleSetCatalog(modules, () -> distributionMetadata),
       new ProjectsModuleSetPlanningHistoryReader(projects),
       new NioModuleSetProjectPathValidator(),
-      new JGitModuleSetGitStateReader()
+      new JGitModuleSetGitStateReader(),
+      distribution
     );
     ApplyModuleSetCommand applyModuleSetCommand = new ApplyModuleSetCommand(
       moduleSetPlanningApplicationService,
@@ -151,12 +206,14 @@ class CliFixture {
     Seed4JVersionProvider versionProvider = new Seed4JVersionProvider(
       projectCliVersion,
       projectSeed4JVersion,
-      runtimeDisplayApplicationService
+      runtimeDisplayApplicationService,
+      distribution
     );
 
     Seed4JCommandsFactory seed4JCommandsFactory = new Seed4JCommandsFactory(
       List.of(listModulesCommand, applyModuleCommand, applyModuleSetCommand, extensionCommand, completionCommand),
-      versionProvider
+      versionProvider,
+      distribution
     );
 
     CommandLine commandLine = new CommandLine(seed4JCommandsFactory.buildCommandSpec());

@@ -20,9 +20,10 @@ public class ModuleSetPlanningApplicationService {
     ModuleSetCatalog catalog,
     ModuleSetPlanningHistoryReader historyReader,
     ModuleSetProjectPathValidator projectPathValidator,
-    ModuleSetGitStateReader gitStateReader
+    ModuleSetGitStateReader gitStateReader,
+    DistributionMetadataApplicationService distribution
   ) {
-    planner = new ModuleSetPlanner(catalog, historyReader, projectPathValidator, gitStateReader);
+    planner = new ModuleSetPlanner(catalog, historyReader, projectPathValidator, gitStateReader, distribution.metadata());
   }
 
   public List<ModuleSetPropertyDefinition> availableProperties() {

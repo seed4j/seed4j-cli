@@ -107,9 +107,18 @@ class AgentSkillInstallationCommandsTest {
     Seed4JVersionProvider versionProvider = new Seed4JVersionProvider(
       "1",
       "2",
-      new RuntimeDisplayApplicationService(com.seed4j.cli.command.domain.RuntimeDisplay::standard)
+      new RuntimeDisplayApplicationService(com.seed4j.cli.command.domain.RuntimeDisplay::standard),
+      new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+        com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+      )
     );
-    Seed4JCommandsFactory factory = new Seed4JCommandsFactory(List.of(skillCommand), versionProvider);
+    Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
+      List.of(skillCommand),
+      versionProvider,
+      new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+        com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+      )
+    );
     return new CommandLine(factory.buildCommandSpec());
   }
 

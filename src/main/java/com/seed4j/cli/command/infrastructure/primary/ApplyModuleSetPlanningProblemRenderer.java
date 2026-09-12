@@ -13,6 +13,7 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDefaultValue;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyDescriptionConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyTypeConflict;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
+import com.seed4j.cli.command.domain.moduleset.UnavailableRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnknownRequestedModuleSetModules;
 import com.seed4j.cli.command.domain.moduleset.UnusedExplicitModuleSetParameters;
 import java.util.List;
@@ -26,7 +27,13 @@ final class ApplyModuleSetPlanningProblemRenderer {
     }
     StringBuilder output = new StringBuilder();
     output.append("Validation problems:\n");
-    problems.forEach(problem -> output.append("  ○ ").append(problemText(problem)).append('\n'));
+    for (ModuleSetPlanningProblem problem : problems) {
+      String renderedProblem = problemText(problem);
+      if (problem instanceof UnavailableRequestedModuleSetModules) {
+        return renderedProblem;
+      }
+      output.append("  ○ ").append(renderedProblem).append('\n');
+    }
     return output.append('\n').toString();
   }
 
@@ -36,6 +43,7 @@ final class ApplyModuleSetPlanningProblemRenderer {
       case InvalidModuleSetProjectPath invalidPath -> invalidProjectPath(invalidPath);
       case ModuleSetExecutionOrderMismatch mismatch -> executionOrderMismatch(mismatch);
       case UnknownRequestedModuleSetModules unknownModules -> unknownModules(unknownModules);
+      case UnavailableRequestedModuleSetModules unavailableModules -> unavailableModules(unavailableModules);
       case ModuleSetPropertyConflicts propertyConflicts -> propertyConflicts(propertyConflicts);
       case ModuleSetHistoryParameterTypeMismatch mismatch -> historyMismatch(mismatch);
       case UnusedExplicitModuleSetParameters unusedParameters -> unusedParameters(unusedParameters);
@@ -48,6 +56,10 @@ final class ApplyModuleSetPlanningProblemRenderer {
 
   private static String unknownModules(UnknownRequestedModuleSetModules unknownModules) {
     return moduleValues("Unknown requested modules", unknownModules.modules());
+  }
+
+  private static String unavailableModules(UnavailableRequestedModuleSetModules unavailableModules) {
+    return new UnavailableModuleDiagnosticRenderer().render(unavailableModules.modules().getFirst().value(), unavailableModules.channel());
   }
 
   private static String invalidProjectPath(InvalidModuleSetProjectPath invalidPath) {

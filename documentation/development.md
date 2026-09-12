@@ -73,7 +73,9 @@ requests using the labels and categories in `.github/release-drafter.yml`, prese
 links, and contributors until that draft is published.
 
 Every successful `main` build also starts the automatic publication workflow. Semantic-release examines commits after
-the latest `v*` tag and applies ordinary Semantic Versioning:
+the latest `v*` tag and applies ordinary Semantic Versioning. Before publication receives write or OIDC permission, a
+read-only job running trusted default-branch code verifies the build provenance and current `main` SHA. Stable
+qualification and recovery fetch only `main` plus tags and therefore remain available before `experimental` exists.
 
 | Change                                                                  | Release |
 | ----------------------------------------------------------------------- | ------- |
@@ -104,8 +106,10 @@ npm remains the primary stable installation channel:
 npm install -g seed4j-cli
 ```
 
-There is no npm `next` channel. To inspect or run an unreleased `main` revision, check out that source revision and use
-the build instructions in this guide.
+The separate `experimental` branch uses semantic-release prereleases shaped as `<next-stable>-experimental.<n>` and npm
+dist-tag `experimental`. It publishes only after the exact current experimental push passes the standard build. It does
+not publish a GitHub Release, Release Drafter draft, or stable JAR asset. The complete opt-in, provenance, publisher,
+monitoring, rollback, and official-exit procedure is the [experimental channel runbook](experimental-channel.md).
 
 The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
 
@@ -115,6 +119,13 @@ The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
 
 Keep the existing Release Drafter draft. It will continue accumulating merged pull requests and will be published by the
 next automatic or manual release.
+
+Run release and workflow policy tests locally with:
+
+```bash
+npm run test:release
+npm run test:workflows
+```
 
 ### Publishing current main manually
 

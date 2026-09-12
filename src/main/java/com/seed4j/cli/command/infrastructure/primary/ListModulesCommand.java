@@ -1,5 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
@@ -21,9 +22,11 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   private static final String COLUMN_SEPARATOR = "  ";
 
   private final Seed4JModulesApplicationService modules;
+  private final DistributionMetadataApplicationService distribution;
 
-  public ListModulesCommand(Seed4JModulesApplicationService modules) {
+  public ListModulesCommand(Seed4JModulesApplicationService modules, DistributionMetadataApplicationService distribution) {
     this.modules = modules;
+    this.distribution = distribution;
   }
 
   @Override
@@ -42,7 +45,11 @@ class ListModulesCommand implements Seed4JCommand, Callable<Integer> {
   @Override
   public Integer call() {
     Seed4JModulesResources modulesResources = modules.resources();
-    List<Seed4JModuleResource> sortedModules = modulesResources.stream().sorted(byModuleSlug()).toList();
+    List<Seed4JModuleResource> sortedModules = modulesResources
+      .stream()
+      .filter(module -> distribution.metadata().moduleAvailability().available(module.slug().get()))
+      .sorted(byModuleSlug())
+      .toList();
     Set<String> visibleModuleSlugs = sortedModules
       .stream()
       .map(moduleResource -> moduleResource.slug().get())

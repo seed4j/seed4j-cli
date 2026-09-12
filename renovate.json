@@ -12,7 +12,69 @@
     ":automergeRequireAllStatusChecks",
     ":label(area: dependencies)"
   ],
+  "baseBranches": ["main", "experimental"],
   "prHourlyLimit": 20,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update the stable Maven-owned Seed4J version",
+      "managerFilePatterns": ["/^pom\\.xml$/"],
+      "matchStrings": [
+        "<!-- renovate: datasource=maven depName=com\\.seed4j:seed4j -->[\\s\\S]*?<seed4j\\.version>(?<currentValue>[^<]+)</seed4j\\.version>"
+      ],
+      "datasourceTemplate": "maven",
+      "depNameTemplate": "com.seed4j:seed4j",
+      "versioningTemplate": "maven"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the experimental Maven-owned Seed4J snapshot version",
+      "managerFilePatterns": ["/^pom\\.xml$/"],
+      "matchStrings": [
+        "<!-- renovate: datasource=maven depName=io\\.github\\.renanfranca:seed4j-main-snapshot registryUrl=https://central\\.sonatype\\.com/repository/maven-snapshots/ -->[\\s\\S]*?<seed4j\\.version>(?<currentValue>[^<]+)</seed4j\\.version>"
+      ],
+      "datasourceTemplate": "maven",
+      "depNameTemplate": "io.github.renanfranca:seed4j-main-snapshot",
+      "registryUrlTemplate": "https://central.sonatype.com/repository/maven-snapshots/",
+      "versioningTemplate": "maven"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Track official Seed4J releases on main",
+      "matchBaseBranches": ["main"],
+      "matchDatasources": ["maven"],
+      "matchPackageNames": ["com.seed4j:seed4j"],
+      "ignoreUnstable": true,
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Ignore personal snapshots on main",
+      "matchBaseBranches": ["main"],
+      "matchPackageNames": ["io.github.renanfranca:seed4j-main-snapshot"],
+      "enabled": false
+    },
+    {
+      "description": "Ignore official Seed4J releases on experimental",
+      "matchBaseBranches": ["experimental"],
+      "matchPackageNames": ["com.seed4j:seed4j"],
+      "enabled": false
+    },
+    {
+      "description": "Track personal Seed4J snapshots on experimental",
+      "matchBaseBranches": ["experimental"],
+      "matchDatasources": ["maven"],
+      "matchPackageNames": ["io.github.renanfranca:seed4j-main-snapshot"],
+      "registryUrls": ["https://central.sonatype.com/repository/maven-snapshots/"],
+      "ignoreUnstable": false,
+      "automerge": true,
+      "automergeType": "pr",
+      "rebaseWhen": "behind-base-branch",
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    }
+  ],
   "docker-compose": {
     "fileMatch": ["^src/main/docker/[^/]*\\.ya?ml$"]
   }

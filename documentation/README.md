@@ -11,6 +11,9 @@ For a concrete end-to-end outcome, follow the [project creation workflow](workfl
 Coding agents can optionally install the bundled [Seed4J CLI agent skill](Commands.md#install-the-agent-skill). Local
 installation is the recommended default because it scopes discovery to the project that selected Seed4J.
 
+Early adopters and maintainers can review the [experimental channel contract](experimental-channel.md) for deliberate
+opt-in installation, provenance, retention, command restrictions, release isolation, publisher operations, and rollback.
+
 ## Contribute or maintain
 
 Use the [contributor and maintainer guide](development.md) to prepare the toolchain, start the CLI locally, build and test the npm package, run opt-in mutation testing, and perform a release.

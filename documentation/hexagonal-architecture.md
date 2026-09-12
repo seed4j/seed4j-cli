@@ -199,6 +199,31 @@ Picocli ApplyModuleSetCommand
 This split makes the mutation boundary explicit: planning reads external state and returns facts; only execution invokes
 the mutating capability, and it does so using the same approved plan instance.
 
+### Distribution identity and availability
+
+Release channel, Seed4J dependency coordinate, exact upstream commit, and module availability are immutable distribution
+concepts. A secondary classpath reader loads them from the packaged `META-INF/seed4j-cli-distribution.properties`
+resource. It supplies a cached application service for primary consumers and directly implements the domain reader port
+used independently by the secondary Seed4J catalog. Missing or malformed metadata fails safely to stable defaults.
+
+Primary adapters use the application service to render root help, version identity, module discovery, unavailable-module
+diagnostics, and completion. Domain planning receives typed availability and rejects an unavailable apply-set request
+before invoking project, history, filesystem, Git, dependency, or property capabilities. Secondary catalogs enforce the
+same availability boundary before exposing external Seed4J resources. Runtime overlay extraction excludes the packaged
+metadata resource, so extension-controlled classpath content cannot change distribution identity.
+
+```text
+Packaged META-INF metadata
+  -> classpath metadata reader (secondary)
+    -> cached metadata service (application)
+      -> help/version/list/apply/completion (primary)
+      -> module availability and apply-set preflight (domain)
+    -> filtered Seed4J catalog (secondary, through the domain reader port)
+```
+
+Interface-specific warning text, npm recovery commands, and Picocli presentation remain outside the domain. See the
+[experimental channel contract](experimental-channel.md) for the operational consequences of this boundary.
+
 ### Agent-skill installation flow
 
 Agent-skill installation follows the primary → application → domain port → secondary dependency flow. The primary adapter

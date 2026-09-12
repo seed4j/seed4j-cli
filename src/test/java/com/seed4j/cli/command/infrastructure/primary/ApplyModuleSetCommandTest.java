@@ -1,6 +1,7 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLine;
+import static com.seed4j.cli.command.infrastructure.primary.CliFixture.experimentalCommandLine;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupEmptyProjectTestFolder;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProjectTestFolder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,13 +110,23 @@ class ApplyModuleSetCommandTest {
     @Test
     void shouldKeepEarlierModuleSetCommandExecutableAfterBuildingAnotherCommandTree(CapturedOutput output) {
       ModuleSetPlanningApplicationService planning = planningService(
-        new Seed4JModuleSetCatalog(modules),
+        new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
         new ProjectsModuleSetPlanningHistoryReader(projects)
       );
       ApplyModuleSetCommand applyModuleSetCommand = applyModuleSetCommand(planning);
       Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
         List.of(applyModuleSetCommand),
-        new Seed4JVersionProvider("1", "2", new RuntimeDisplayApplicationService(RuntimeDisplay::standard))
+        new Seed4JVersionProvider(
+          "1",
+          "2",
+          new RuntimeDisplayApplicationService(RuntimeDisplay::standard),
+          new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+            com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+          )
+        ),
+        new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+          com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+        )
       );
       CommandLine earlierCommandLine = new CommandLine(factory.buildCommandSpec());
       factory.buildCommandSpec();
@@ -160,6 +171,26 @@ class ApplyModuleSetCommandTest {
 
   @Nested
   class PlanValidation {
+
+    @Test
+    void shouldRejectUnavailableModuleBeforeInspectingProjectOrApplyingRemainingSet(@TempDir Path temporaryDirectory) {
+      Path projectPath = temporaryDirectory.resolve("project-that-must-not-be-created");
+      StringWriter errorOutput = new StringWriter();
+      CommandLine commandLine = experimentalCommandLine(modules, projects);
+      commandLine.setErr(new PrintWriter(errorOutput, true));
+      String[] args = { "apply-set", "init", "seed4j-extension", "--project-path", projectPath.toString() };
+
+      int exitCode = commandLine.execute(args);
+
+      assertThat(exitCode).isEqualTo(2);
+      assertThat(errorOutput.toString())
+        .isEqualTo(
+          "ERROR: Module 'seed4j-extension' is unavailable in the experimental channel because Central Portal snapshots expire and generated extensions would not remain rebuildable. Install seed4j-cli@latest to generate a stable Seed4J extension. No changes were applied.\n"
+        )
+        .doesNotContain("Unknown requested modules")
+        .doesNotContain("Project path");
+      assertThat(projectPath).doesNotExist();
+    }
 
     @Test
     void shouldReportDuplicateAndUnknownModuleSetSlugsTogether(CapturedOutput output) {
@@ -209,7 +240,10 @@ class ApplyModuleSetCommandTest {
           throw new AssertionError("History must not be read after an invalid project path");
         },
         projectPathValidator,
-        projectPath -> ModuleSetGitState.NO_WORKTREE
+        projectPath -> ModuleSetGitState.NO_WORKTREE,
+        new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+          com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+        )
       );
       List<ModuleSetSlug> invokedModules = new ArrayList<>();
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(
@@ -273,10 +307,13 @@ class ApplyModuleSetCommandTest {
       int historyActionsBefore = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
       NioModuleSetProjectPathValidator projectPathValidator = new NioModuleSetProjectPathValidator();
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        new Seed4JModuleSetCatalog(modules),
+        new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
         new ProjectsModuleSetPlanningHistoryReader(projects),
         projectPathValidator,
-        new JGitModuleSetGitStateReader()
+        new JGitModuleSetGitStateReader(),
+        new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+          com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+        )
       );
       List<ModuleSetSlug> invokedModules = new ArrayList<>();
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(
@@ -537,10 +574,13 @@ class ApplyModuleSetCommandTest {
         pathsBefore = paths.map(projectPath::relativize).sorted().toList();
       }
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        new Seed4JModuleSetCatalog(modules),
+        new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
         new ProjectsModuleSetPlanningHistoryReader(projects),
         new NioModuleSetProjectPathValidator(),
-        new JGitModuleSetGitStateReader()
+        new JGitModuleSetGitStateReader(),
+        new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+          com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+        )
       );
       List<ModuleSetSlug> invokedModules = new ArrayList<>();
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(
@@ -1345,10 +1385,13 @@ class ApplyModuleSetCommandTest {
       List<ProjectAction> historyBefore = List.copyOf(projects.getHistory(new ProjectPath(projectPath.toString())).actions());
       String commitsBefore = GitTestUtil.getCommits(projectPath);
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
-        new Seed4JModuleSetCatalog(modules),
+        new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
         new ProjectsModuleSetPlanningHistoryReader(projects),
         new NioModuleSetProjectPathValidator(),
-        new JGitModuleSetGitStateReader()
+        new JGitModuleSetGitStateReader(),
+        new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+          com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+        )
       );
       List<ModuleSetSlug> invokedModules = new ArrayList<>();
       ApplyModuleSetCommand command = new ApplyModuleSetCommand(
@@ -1489,7 +1532,10 @@ class ApplyModuleSetCommandTest {
       catalog,
       historyReader,
       projectPath -> ModuleSetProjectPathStatus.VALID,
-      projectPath -> ModuleSetGitState.NO_WORKTREE
+      projectPath -> ModuleSetGitState.NO_WORKTREE,
+      new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
+        com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
+      )
     );
   }
 
