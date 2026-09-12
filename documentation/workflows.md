@@ -20,10 +20,14 @@ branch. Resolve the conflict through a reviewed change and dispatch `synchronize
 retry.
 
 Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately
-and also checks unfinished finalization every 15 minutes. An open PR remains pending; after the exact PR is observed
-merged and its merge commit is reachable from current `experimental`, the workflow dispatches a build for the exact
-current `experimental` head, deletes the disposable branch, and records completion so later checks are inert. It never
-synchronizes the experimental branch wholesale back to `main`.
+and also drains up to 100 matching historical PRs every 15 minutes. Executable policy skips only an exact completion
+record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge commit, and dispatched
+`experimental` SHA; plain, forged, decorated, stale, or mismatched comments remain pending. Older merged work is handled
+before open work. An open PR remains pending only while current `main` and `experimental` still equal its recorded source
+and target; otherwise synchronization refreshes it. After an exact merge is reachable from current `experimental`, the
+workflow dispatches a build for one stable current head, deletes the disposable branch only if that branch still points
+to this proposal, and writes the trusted completion record. It never synchronizes `experimental` wholesale back to
+`main`.
 
 Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
 no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,

@@ -8,9 +8,9 @@ Safety boundary: This task is limited to authorized, defensive maintenance of th
 
 ## Context and limits
 
-- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, correction checkpoint `0fdc38ef840162aa0c2da98f1d7e34a7fd73d93d`.
-- Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, correction checkpoint `c66db0c6ba97b3c919c6e29f8d0fd5022c5774fe`.
-- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-final.md`.
+- Primary repository: `/home/renanfranca/projects/seed4j-cli`, immutable base `c3c05500acdb61853d39f77404f2254fbd3ab975`, recovery-correction checkpoint `a02a09dca8b32ae73ce47bd9df4b64c4d1304071`.
+- Publisher repository: `/home/renanfranca/projects/seed4j-main-snapshots`, immutable base `c9524cd9003f46284f0a9550b8cb2739d56ebf03`, accepted immutable checkpoint `ec4208dda65c69fd3e0fd4fc4d59e0d7777a3ed5`.
+- Normative source: `.agent/specifications/experimental-seed4j-main-channel.md`; current defect evidence: `.agent/tmp/experimental-seed4j-main-channel.structural-review-post-final-corrections.md`.
 - Preserve stable behavior, POM/main/tests-only publisher artifacts, sources/Javadocs prohibition, exact-SHA checks, protected-branch checks, `latest` isolation, credential boundaries, and current unrelated work.
 - Do not create branches, stage, commit, push, publish, dispatch workflows, mutate issues or pull requests, install tooling, run `./mvnw clean verify` or Sonar, snooze Habit findings, or change external state.
 
@@ -48,6 +48,10 @@ Add reporting/workflow behavior tests before implementation. Pass the qualifier 
 
 Reconcile lifecycle/configuration documentation and this plan, run primary workflow/release/dry-run tests, `./mvnw test`, Prettier, `habit-hooks --no-snooze`, and diff checks; run publisher full/focused tests, dry-run, Prettier, and diff checks. Write `.agent/tmp/experimental-seed4j-main-channel.structural-corrections-final.md` with red/green evidence and exact repository states. Leave both repositories uncommitted and unstaged, release only the Implementer lease, and keep ledger phase `implementing`.
 
+### 9. Authenticate and exhaust durable synchronization recovery
+
+Add executable workflow-adapter scenarios in `test/workflows/main-to-experimental-sync.test.js` before production edits. Move completion-record parsing and authorization plus bounded historical PR selection into `scripts/main-to-experimental-sync.cjs`. Completion evidence must be authored by the repository automation identity and strictly bind PR number, proposal head, merge commit, and resulting experimental SHA. OPEN recovery must compare independently fetched current `main` and `experimental` with the recorded source and target, while MERGED recovery must remain valid after either protected head advances when the exact merge stays reachable. Replace latest-only scheduled shell selection with one deterministic bounded drain of every outstanding trusted PR, prioritizing older merged work without deleting a reused branch that now backs a newer proposal. Update `.github/workflows/synchronize-experimental.yml`, synchronization documentation, and the final recovery report. Run focused red/green scenarios, full workflow/release tests, sync dry run, YAML parsing, Maven tests, Prettier, Habit Hooks, and diff checks; the publisher repository must remain clean at its accepted checkpoint.
+
 ## Progress
 
 - [x] Read the approved specification and structural review; verify both repositories are clean at the assigned checkpoints.
@@ -61,6 +65,9 @@ Reconcile lifecycle/configuration documentation and this plan, run primary workf
 - [x] Correct D6, D7, and R2 through executable synchronization adapter behavior (focused red/green scenarios cover preparation, live-head/topology review, and delayed finalization).
 - [x] Correct D8, D9, and R3 through publisher workflow/reporting behavior (focused red/green scenarios cover missing qualifier output, public schema documentation, and inert diagnostics).
 - [x] Complete final correction validation, report, and repository audit; release the Implementer lease at handoff without changing phase.
+- [x] Correct N1-N3 and the remaining R2 recovery slice through executable adapter behavior (strict trusted completion,
+      current-head OPEN recovery, and deterministic bounded multi-PR draining are green in the workflow suite).
+- [x] Complete primary-only recovery validation, evidence report, publisher-clean audit, and lease release.
 
 ## Decisions
 
@@ -70,6 +77,8 @@ Reconcile lifecycle/configuration documentation and this plan, run primary workf
 - Keep distribution identity branch-owned rather than profile-owned. The current main-bound POM exposes only stable top-level values; the later experimental branch replaces those same values and adds its snapshot repository, so ordinary Maven commands always build the checked-out branch's own identity.
 - Use an explicit durable workflow re-entry after an auto-merge polling timeout. A bounded runner wait remains useful, but lifecycle completion is authorized only by a later independently observed merged PR and current experimental topology.
 - Treat issue diagnostics as untrusted display data. The reporting template owns the sole active `@renanfranca` mention; captured diagnostics neutralize every mention and Markdown link before issue writes.
+- Represent synchronization completion as a strict automation-authored state record bound to the PR, proposal head, merge commit, and dispatched experimental head. Plain marker text or mismatched state remains non-authoritative.
+- Make one scheduled recovery enumerate a bounded history and process every outstanding trusted PR deterministically. This avoids relying on GitHub's replaceable single pending workflow slot for eventual progress.
 
 ## Risks
 
@@ -78,6 +87,8 @@ Reconcile lifecycle/configuration documentation and this plan, run primary workf
 - Synchronization evidence becomes stale whenever either protected branch or the PR head moves. Every merge-affecting transition must compare current source, target, and head SHAs and refresh instead of trusting earlier checks.
 - GitHub auto-merge is asynchronous. A successful job that leaves an open auto-merge PR without durable re-entry can permanently skip the mandatory post-merge build and cleanup.
 - Qualifier infrastructure can fail before repository code emits outputs. Reporting must use the independently available job result and must not interpret missing output as an expected skip.
+- Public PR comments are attacker-controlled unless both authorship and exact state are validated; completion cannot short-circuit before that policy check.
+- The fixed disposable branch can be reused by a newer PR while an older merge still needs finalization. Cleanup must delete it only when the remote head still equals the proposal being finalized.
 - Filtering distribution metadata can accidentally expose Maven or environment overrides at runtime. Only build-time Maven properties may generate the packaged resource; runtime property sources must remain irrelevant.
 
 ## Documentation

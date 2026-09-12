@@ -276,6 +276,7 @@ test('post-merge build dispatch and disposable-branch cleanup occur only after t
   const merged = {
     branch: 'automation/sync-main-to-experimental',
     currentExperimentalSha,
+    currentMainSha: mergeSha,
     expectedSourceSha: sourceSha,
     expectedTargetSha: targetSha,
     mergeCommitSha: mergeSha,
@@ -296,15 +297,211 @@ test('post-merge build dispatch and disposable-branch cleanup occur only after t
     action: 'refresh',
     reason: 'merged-commit-is-not-reachable-from-current-experimental',
   });
-  assert.deepEqual(postMergeSynchronization({ ...merged, proposalState: 'OPEN' }), {
-    action: 'schedule-recheck',
-    reason: 'pull-request-not-merged',
+  assert.deepEqual(
+    postMergeSynchronization({
+      ...merged,
+      currentExperimentalSha: targetSha,
+      currentMainSha: sourceSha,
+      proposalState: 'OPEN',
+    }),
+    {
+      action: 'schedule-recheck',
+      reason: 'pull-request-not-merged',
+    },
+  );
+  assert.deepEqual(postMergeSynchronization({ ...merged, currentMainSha: mergeSha, proposalState: 'OPEN' }), {
+    action: 'refresh',
+    reason: 'source-branch-moved',
   });
+  assert.deepEqual(postMergeSynchronization({ ...merged, currentMainSha: sourceSha, proposalState: 'OPEN' }), {
+    action: 'refresh',
+    reason: 'target-branch-moved',
+  });
+});
+
+test('only exact automation-authored completion evidence suppresses durable recovery', () => {
+  const completionBody = completionRecordBody({
+    experimentalSha: currentExperimentalSha,
+    mergeCommitSha: mergeSha,
+    proposalHeadSha: headSha,
+    pullRequestNumber: 42,
+  });
+  const pullRequest = {
+    baseRefName: 'experimental',
+    body: pullRequestBody({ headSha, sourceSha, targetSha }),
+    comments: [],
+    headRefName: 'automation/sync-main-to-experimental',
+    headRefOid: headSha,
+    mergeCommit: { oid: mergeSha },
+    number: 42,
+    state: 'MERGED',
+  };
+  const forged = runWorkflowAdapter('select-finalizations', {
+    SYNC_PULL_REQUESTS: JSON.stringify([
+      {
+        ...pullRequest,
+        comments: [{ author: { login: 'octocat' }, body: completionBody }],
+      },
+    ]),
+  });
+
+  assert.equal(forged.status, 0, forged.stderr);
+  assert.equal(forged.outputs.count, '1');
+  assert.equal(forged.outputs['pull-requests'], '42');
+
+  const trusted = runWorkflowAdapter('select-finalizations', {
+    SYNC_PULL_REQUESTS: JSON.stringify([
+      {
+        ...pullRequest,
+        comments: [{ author: { login: 'github-actions[bot]' }, body: completionBody }],
+      },
+    ]),
+  });
+
+  assert.equal(trusted.status, 0, trusted.stderr);
+  assert.equal(trusted.outputs.count, '0');
+  assert.equal(trusted.outputs['pull-requests'], '');
+
+  const mismatched = runWorkflowAdapter('select-finalizations', {
+    SYNC_PULL_REQUESTS: JSON.stringify([
+      {
+        ...pullRequest,
+        comments: [
+          {
+            author: { login: 'github-actions[bot]' },
+            body: completionBody.replace(mergeSha, sourceSha),
+          },
+        ],
+      },
+    ]),
+  });
+
+  assert.equal(mismatched.status, 0, mismatched.stderr);
+  assert.equal(mismatched.outputs.count, '1');
+  assert.equal(mismatched.outputs['pull-requests'], '42');
+
+  const notExact = runWorkflowAdapter('select-finalizations', {
+    SYNC_PULL_REQUESTS: JSON.stringify([
+      {
+        ...pullRequest,
+        comments: [
+          { author: { login: 'github-actions[bot]' }, body: '<!-- seed4j-main-to-experimental-finalized -->' },
+          { author: { login: 'github-actions[bot]' }, body: `${completionBody}\nadditional text` },
+        ],
+      },
+    ]),
+  });
+
+  assert.equal(notExact.status, 0, notExact.stderr);
+  assert.equal(notExact.outputs.count, '1');
+  assert.equal(notExact.outputs['pull-requests'], '42');
+});
+
+test('bounded recovery deterministically drains every older outstanding finalization', () => {
+  const olderHeadSha = '6666666666666666666666666666666666666666';
+  const completedHeadSha = '7777777777777777777777777777777777777777';
+  const completedMergeSha = '8888888888888888888888888888888888888888';
+  const completedExperimentalSha = '9999999999999999999999999999999999999999';
+  const history = [
+    {
+      baseRefName: 'experimental',
+      body: pullRequestBody({ headSha: completedHeadSha, sourceSha, targetSha }),
+      comments: [
+        {
+          author: { login: 'github-actions[bot]' },
+          body: completionRecordBody({
+            experimentalSha: completedExperimentalSha,
+            mergeCommitSha: completedMergeSha,
+            proposalHeadSha: completedHeadSha,
+            pullRequestNumber: 43,
+          }),
+        },
+      ],
+      headRefName: 'automation/sync-main-to-experimental',
+      headRefOid: completedHeadSha,
+      mergeCommit: { oid: completedMergeSha },
+      number: 43,
+      state: 'MERGED',
+    },
+    {
+      baseRefName: 'experimental',
+      body: pullRequestBody({ headSha, sourceSha, targetSha }),
+      comments: [],
+      headRefName: 'automation/sync-main-to-experimental',
+      headRefOid: headSha,
+      mergeCommit: null,
+      number: 42,
+      state: 'OPEN',
+    },
+    {
+      baseRefName: 'experimental',
+      body: pullRequestBody({ headSha: olderHeadSha, sourceSha, targetSha }),
+      comments: [],
+      headRefName: 'automation/sync-main-to-experimental',
+      headRefOid: olderHeadSha,
+      mergeCommit: { oid: mergeSha },
+      number: 40,
+      state: 'MERGED',
+    },
+  ];
+  const scheduled = runWorkflowAdapter('select-finalizations', {
+    SYNC_PULL_REQUESTS: JSON.stringify(history),
+  });
+
+  assert.equal(scheduled.status, 0, scheduled.stderr);
+  assert.equal(scheduled.outputs.count, '2');
+  assert.equal(scheduled.outputs['pull-requests'], '40,42');
+
+  const requested = runWorkflowAdapter('select-finalizations', {
+    REQUESTED_PR_NUMBER: '42',
+    SYNC_PULL_REQUESTS: JSON.stringify(history),
+  });
+
+  assert.equal(requested.status, 0, requested.stderr);
+  assert.equal(requested.outputs.count, '1');
+  assert.equal(requested.outputs['pull-requests'], '42');
+
+  const completion = spawnSync(process.execPath, [resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), 'completion-body'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      EXPERIMENTAL_SHA: currentExperimentalSha,
+      MERGE_COMMIT_SHA: mergeSha,
+      PROPOSAL_HEAD_SHA: olderHeadSha,
+      PULL_REQUEST_NUMBER: '40',
+    },
+  });
+
+  assert.equal(completion.status, 0, completion.stderr);
+  assert.equal(
+    completion.stdout,
+    completionRecordBody({
+      experimentalSha: currentExperimentalSha,
+      mergeCommitSha: mergeSha,
+      proposalHeadSha: olderHeadSha,
+      pullRequestNumber: 40,
+    }),
+  );
+
+  const keptNewerBranch = runWorkflowAdapter('cleanup-workflow', {
+    PROPOSAL_HEAD_SHA: olderHeadSha,
+    REMOTE_SYNC_SHA: headSha,
+  });
+  const deletedExactBranch = runWorkflowAdapter('cleanup-workflow', {
+    PROPOSAL_HEAD_SHA: olderHeadSha,
+    REMOTE_SYNC_SHA: olderHeadSha,
+  });
+
+  assert.equal(keptNewerBranch.status, 0, keptNewerBranch.stderr);
+  assert.equal(keptNewerBranch.outputs.action, 'keep');
+  assert.equal(deletedExactBranch.status, 0, deletedExactBranch.stderr);
+  assert.equal(deletedExactBranch.outputs.action, 'delete');
 });
 
 test('an open auto-merge timeout durably re-enters finalization and an eventual merge completes post-merge work', () => {
   const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
   const commonEnvironment = {
+    CURRENT_MAIN_SHA: sourceSha,
     OBSERVED_PROPOSAL_HEAD_SHA: headSha,
     PROPOSAL_PARENT_SHAS: `${targetSha} ${sourceSha}`,
   };
@@ -327,9 +524,49 @@ test('an open auto-merge timeout durably re-enters finalization and an eventual 
   assert.equal(open.outputs.action, 'schedule-recheck');
   assert.equal(open.outputs.reason, 'pull-request-not-merged');
 
+  const movedSource = runWorkflowAdapter('finalize-workflow', {
+    ...commonEnvironment,
+    CURRENT_EXPERIMENTAL_SHA: targetSha,
+    CURRENT_MAIN_SHA: mergeSha,
+    MERGE_REACHABLE: 'false',
+    SYNC_PULL_REQUEST: JSON.stringify({
+      baseRefName: 'experimental',
+      body: pullRequestBody({ headSha, sourceSha, targetSha }),
+      headRefName: 'automation/sync-main-to-experimental',
+      headRefOid: headSha,
+      mergeCommit: null,
+      number: 42,
+      state: 'OPEN',
+    }),
+  });
+
+  assert.equal(movedSource.status, 0, movedSource.stderr);
+  assert.equal(movedSource.outputs.action, 'refresh');
+  assert.equal(movedSource.outputs.reason, 'source-branch-moved');
+
+  const movedTarget = runWorkflowAdapter('finalize-workflow', {
+    ...commonEnvironment,
+    CURRENT_EXPERIMENTAL_SHA: currentExperimentalSha,
+    MERGE_REACHABLE: 'false',
+    SYNC_PULL_REQUEST: JSON.stringify({
+      baseRefName: 'experimental',
+      body: pullRequestBody({ headSha, sourceSha, targetSha }),
+      headRefName: 'automation/sync-main-to-experimental',
+      headRefOid: headSha,
+      mergeCommit: null,
+      number: 42,
+      state: 'OPEN',
+    }),
+  });
+
+  assert.equal(movedTarget.status, 0, movedTarget.stderr);
+  assert.equal(movedTarget.outputs.action, 'refresh');
+  assert.equal(movedTarget.outputs.reason, 'target-branch-moved');
+
   const merged = runWorkflowAdapter('finalize-workflow', {
     ...commonEnvironment,
     CURRENT_EXPERIMENTAL_SHA: currentExperimentalSha,
+    CURRENT_MAIN_SHA: mergeSha,
     MERGE_REACHABLE: 'true',
     SYNC_PULL_REQUEST: JSON.stringify({
       baseRefName: 'experimental',
@@ -349,8 +586,17 @@ test('an open auto-merge timeout durably re-enters finalization and an eventual 
   assert.equal(merged.outputs['pr-number'], '42');
   assert.match(workflow, /schedule:\s+- cron: ['"]\*\/15 \* \* \* \*['"]/);
   assert.match(workflow, /gh workflow run synchronize-experimental\.yml[^\n]*-f finalize-pr="\$PR_NUMBER"/);
+  assert.match(workflow, /gh pr list[^\n]*--state all[^\n]*--limit 100[^\n]*comments/);
+  assert.match(workflow, /node scripts\/main-to-experimental-sync\.cjs select-finalizations/);
+  assert.match(workflow, /for PR_NUMBER in "\$\{PULL_REQUEST_NUMBERS\[@\]\}"/);
+  assert.match(workflow, /git fetch origin main experimental/);
+  assert.match(workflow, /CURRENT_MAIN_SHA="\$\(git rev-parse origin\/main\)"/);
   assert.match(workflow, /node scripts\/main-to-experimental-sync\.cjs finalize-workflow/);
-  assert.match(workflow, /steps\.finalization\.outputs\.action == 'complete'[\s\S]*gh workflow run github-actions\.yml/);
+  assert.match(workflow, /node scripts\/main-to-experimental-sync\.cjs completion-body/);
+  assert.match(workflow, /node scripts\/main-to-experimental-sync\.cjs cleanup-workflow/);
+  assert.match(workflow, /if \[ "\$CLEANUP_ACTION" = 'delete' \]/);
+  assert.match(workflow, /gh workflow run github-actions\.yml[^\n]*--ref experimental[\s\S]*cleanup-workflow[\s\S]*completion-body/);
+  assert.doesNotMatch(workflow, /SYNC_FINALIZED_MARKER|--limit 1 --json number/);
 });
 
 test('the workflow uses only ephemeral scoped permissions, explicit recursion-safe dispatches, and no reverse synchronization', () => {
@@ -406,6 +652,17 @@ function runWorkflowAdapter(command, environment) {
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
+}
+
+function completionRecordBody({ experimentalSha, mergeCommitSha, proposalHeadSha, pullRequestNumber }) {
+  return `Synchronization finalization completed by the trusted repository workflow.
+
+<!-- seed4j-main-to-experimental-completion:start -->
+\`\`\`json
+${JSON.stringify({ experimentalSha, mergeCommitSha, proposalHeadSha, pullRequestNumber }, null, 2)}
+\`\`\`
+<!-- seed4j-main-to-experimental-completion:end -->
+`;
 }
 
 function workflowOutputs(output) {

@@ -94,11 +94,16 @@ enable auto-merge. Stale source, target, head, topology, or test evidence causes
 dispatch; pending or red tests leave the PR open without auto-merge.
 
 Auto-merge is asynchronous, so the bounded confirmation window always dispatches a durable finalizer and a scheduled
-15-minute recovery independently checks any still-open synchronization PR. Once the exact PR is observed merged and its
-merge commit is reachable from current `experimental`, the workflow explicitly dispatches the standard build for the
-current `experimental` head and only then deletes the disposable branch. A completion marker makes later scheduled
-checks inert. These operations use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents,
-issues, and pull-request permissions.
+15-minute recovery enumerates a bounded history of up to 100 matching PRs. Executable policy deterministically handles
+older merged work before open work and skips only an exact completion record authored by `github-actions[bot]` and bound
+to the PR number, proposal head, merge commit, and dispatched `experimental` SHA. Plain, forged, decorated, stale, or
+mismatched comments cannot suppress recovery. An open PR is left pending only while current `main` and `experimental`
+still equal its recorded source and target; either movement requests a refreshed proposal. Once an exact PR is observed
+merged and its merge commit is reachable from current `experimental`, protected heads may advance: the workflow
+dispatches the standard build for one stable current `experimental` head, deletes the disposable branch only when its
+remote head still equals that PR's proposal head, and then writes the authenticated completion record. These operations
+use only the repository's ephemeral `GITHUB_TOKEN` with job-scoped Actions, contents, issues, and pull-request
+permissions.
 
 Renovate keeps the dependency contexts separate:
 
