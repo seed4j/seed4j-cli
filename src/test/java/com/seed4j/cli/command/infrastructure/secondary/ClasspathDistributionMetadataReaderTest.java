@@ -25,10 +25,25 @@ import org.springframework.core.io.Resource;
 class ClasspathDistributionMetadataReaderTest {
 
   @Test
-  void shouldReadPackagedStableDistributionMetadata() {
+  void shouldReadPackagedDistributionMetadata() {
     ClasspathDistributionMetadataReader reader = new ClasspathDistributionMetadataReader(new DefaultResourceLoader());
 
     DistributionMetadata metadata = reader.read();
+
+    if (metadata.identity().channel() == ReleaseChannel.EXPERIMENTAL) {
+      assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(
+        Seed4JDependencyCoordinate.versioned(
+          "io.github.renanfranca",
+          "seed4j-main-snapshot",
+          "2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT"
+        )
+      );
+      assertThat(metadata.identity().upstreamCommit()).hasValueSatisfying(commit ->
+        assertThat(commit.value()).isEqualTo("4eebd07bce14c9a6ac70bace157fcc616133e950")
+      );
+      assertThat(metadata.moduleAvailability().unavailableModules()).isEqualTo(Set.of(new DistributionModuleSlug("seed4j-extension")));
+      return;
+    }
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.STABLE);
     assertThat(metadata.identity().dependencyCoordinate().groupId().value()).isEqualTo("com.seed4j");

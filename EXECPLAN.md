@@ -15,7 +15,7 @@ Ativar publicamente o canal experimental sem alterar o canal estável. O rollout
 ## Context and limits
 
 - Publisher concluído em `main@5c60bfa`; snapshot público atual: `2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT`.
-- `seed4j-cli main@c08db08` está verde; `experimental` e o dist-tag npm ainda não existem.
+- `seed4j-cli main@f139885` contém o ExecPlan mergeado; `experimental` e o dist-tag npm ainda não existem.
 - Label `synchronization-pending`, auto-merge e npm OIDC/provenance já funcionam.
 - Corrigir a proteção de `main` e criar proteção equivalente para `experimental`: PR obrigatório, `tests` estrito, zero aprovações obrigatórias, sem force-push/deleção e com bypass administrativo preservado.
 - Preservar integralmente o checkout local sujo; executar em clones temporários limpos.
@@ -72,7 +72,7 @@ Ativar publicamente o canal experimental sem alterar o canal estável. O rollout
 - [x] Autorização explícita do mantenedor recebida.
 - [x] Publisher, snapshot público, npm Trusted Publishing, label e automações inspecionados.
 - [x] Política de uma única correção pré-publicação escolhida.
-- [ ] ExecPlan do rollout mergeado.
+- [x] ExecPlan do rollout mergeado pelo PR #360 com `tests` verde; proteção estrita de `main` confirmada.
 - [ ] Bootstrap experimental validado.
 - [ ] Branch e proteções configuradas.
 - [ ] Primeira prerelease npm publicada.
@@ -86,6 +86,7 @@ Ativar publicamente o canal experimental sem alterar o canal estável. O rollout
 - Registro: `npm view seed4j-cli dist-tags`, versão experimental, `_npmUser` GitHub Actions e attestation apontando para `seed4j/seed4j-cli`, `release.yml`, branch e SHA corretos.
 - Smoke test: instalação global com `--prefix` temporário, `seed4j --version`, help, indisponibilidade de `seed4j-extension` e instalação estável separada.
 - Estado final: proteções exatas, nenhum workflow ativo, nenhuma issue operacional nova, nenhuma branch temporária e checkout original preservado.
+- Marco 1 observado: PR #360 mergeado normalmente em `main@f139885`; `tests` concluiu com sucesso e a API confirmou PR obrigatório, zero aprovações, status estrito e bloqueio de force-push/deleção.
 
 ## Rollout and recovery
 

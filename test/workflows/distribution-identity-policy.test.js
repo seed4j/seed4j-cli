@@ -7,8 +7,29 @@ const { distributionIdentity, validateDistributionBuild } = require('../../scrip
 
 const repositoryRoot = resolve(__dirname, '../..');
 
-test('the current main-bound POM has one stable Maven authority and no personal snapshot declaration', () => {
+test('the checked-out branch has one valid Maven distribution authority', () => {
   const pom = read('pom.xml');
+  const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
+
+  const identity = validateDistributionBuild({ metadata, pom });
+
+  assert.ok(['stable', 'experimental'].includes(identity.channel));
+  assert.deepEqual(distributionIdentity(pom), identity);
+  assert.equal((pom.match(/<groupId>\$\{seed4j\.group-id\}<\/groupId>/g) ?? []).length, 2);
+  assert.equal((pom.match(/<artifactId>\$\{seed4j\.artifact-id\}<\/artifactId>/g) ?? []).length, 2);
+  assert.equal((pom.match(/<version>\$\{seed4j\.version\}<\/version>/g) ?? []).length, 2);
+  assert.equal(
+    metadata,
+    `release-channel=@seed4j.release-channel@
+seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
+seed4j-upstream-commit=@seed4j.upstream-commit@
+unavailable-modules=@seed4j.unavailable-modules@
+`,
+  );
+});
+
+test('the stable branch model has one official Maven authority and no personal snapshot declaration', () => {
+  const pom = stableBranchPom(read('pom.xml'));
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
 
   const identity = validateDistributionBuild({ metadata, pom });
@@ -26,20 +47,9 @@ test('the current main-bound POM has one stable Maven authority and no personal 
     },
   );
   assert.match(identity.version, /^\d+\.\d+\.\d+$/);
-  assert.equal((pom.match(/<groupId>\$\{seed4j\.group-id\}<\/groupId>/g) ?? []).length, 2);
-  assert.equal((pom.match(/<artifactId>\$\{seed4j\.artifact-id\}<\/artifactId>/g) ?? []).length, 2);
-  assert.equal((pom.match(/<version>\$\{seed4j\.version\}<\/version>/g) ?? []).length, 2);
   assert.doesNotMatch(pom, /io\.github\.renanfranca|seed4j-main-snapshot/);
   assert.doesNotMatch(pom, /central\.sonatype\.com\/repository\/maven-snapshots/);
   assert.doesNotMatch(pom, /<id>experimental<\/id>/);
-  assert.equal(
-    metadata,
-    `release-channel=@seed4j.release-channel@
-seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
-seed4j-upstream-commit=@seed4j.upstream-commit@
-unavailable-modules=@seed4j.unavailable-modules@
-`,
-  );
 });
 
 test('the same policy accepts a future branch-owned experimental identity and snapshot-only repository', () => {
@@ -93,7 +103,7 @@ test('an experimental snapshot version cannot pass with stale or incomplete full
 });
 
 test('Renovate updates the authoritative stable and experimental Maven properties and leaves stale provenance red', () => {
-  const stablePom = read('pom.xml');
+  const stablePom = stableBranchPom(read('pom.xml'));
   const experimentalPom = experimentalBranchPom(stablePom);
   const renovate = JSON.parse(read('renovate.json'));
   const managers = Object.fromEntries(renovate.customManagers.map(manager => [manager.depNameTemplate, manager]));
@@ -119,7 +129,7 @@ test('builds and releases use the checked-out branch POM without profile-owned i
   assert.match(release, /run\('\.\/mvnw', \['--batch-mode', '-ntp', 'clean', 'package'\]\)/);
 });
 
-function experimentalBranchPom(stablePom) {
+function experimentalBranchPom(pom) {
   const upstreamSha = '4eebd07bce14c9a6ac70bace157fcc616133e950';
   const repository = `  <repositories>
     <repository>
@@ -135,7 +145,7 @@ function experimentalBranchPom(stablePom) {
   </repositories>
 
 `;
-  return stablePom
+  return stableBranchPom(pom)
     .replace(
       '<!-- renovate: datasource=maven depName=com.seed4j:seed4j -->',
       '<!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->',
@@ -154,6 +164,25 @@ function experimentalBranchPom(stablePom) {
     )
     .replace('<seed4j.unavailable-modules />', '<seed4j.unavailable-modules>seed4j-extension</seed4j.unavailable-modules>')
     .replace('  <build>', `${repository}  <build>`);
+}
+
+function stableBranchPom(pom) {
+  return pom
+    .replace(
+      '<!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->',
+      '<!-- renovate: datasource=maven depName=com.seed4j:seed4j -->',
+    )
+    .replace('<seed4j.group-id>io.github.renanfranca</seed4j.group-id>', '<seed4j.group-id>com.seed4j</seed4j.group-id>')
+    .replace('<seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>', '<seed4j.artifact-id>seed4j</seed4j.artifact-id>')
+    .replace(/<seed4j\.version>[^<]+<\/seed4j\.version>/, '<seed4j.version>2.2.0</seed4j.version>')
+    .replace('<seed4j.release-channel>experimental</seed4j.release-channel>', '<seed4j.release-channel>stable</seed4j.release-channel>')
+    .replace(/<seed4j\.upstream-commit>[a-f0-9]{40}<\/seed4j\.upstream-commit>/, '<seed4j.upstream-commit />')
+    .replace(
+      '<seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>',
+      '<seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>',
+    )
+    .replace('<seed4j.unavailable-modules>seed4j-extension</seed4j.unavailable-modules>', '<seed4j.unavailable-modules />')
+    .replace(/  <repositories>\n    <repository>\n      <id>seed4j-main-snapshots<\/id>[\s\S]*?  <\/repositories>\n\n/, '');
 }
 
 function read(relativePath) {
