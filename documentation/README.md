@@ -11,12 +11,18 @@ For a concrete end-to-end outcome, follow the [project creation workflow](workfl
 Coding agents can optionally install the bundled [Seed4J CLI agent skill](Commands.md#install-the-agent-skill). Local
 installation is the recommended default because it scopes discovery to the project that selected Seed4J.
 
-Early adopters and maintainers can review the [experimental channel contract](experimental-channel.md) for deliberate
-opt-in installation, provenance, retention, command restrictions, release isolation, publisher operations, and rollback.
+Early adopters should read the [experimental channel contract](experimental-channel.md#channel-contract) before opting
+in. It owns installation, risk, retention, provenance, and channel-specific command behavior.
 
 ## Contribute or maintain
 
-Use the [contributor and maintainer guide](development.md) to prepare the toolchain, start the CLI locally, build and test the npm package, run opt-in mutation testing, and perform a release.
+Use the [contributor and maintainer guide](development.md) to prepare the toolchain, start the CLI locally, build and test
+the npm package, run opt-in mutation testing, and understand release entry points.
+
+Channel operators should use the [experimental operations runbook](experimental-channel.md#build-release-and-branch-isolation)
+as the canonical source for synchronization, publisher cadence, credential boundaries, intervention, rollback, and
+official exit. The [synchronization workflow](workflows.md#synchronize-stable-changes-into-experimental) is the short
+operator recipe.
 
 For repository design and shared coding concepts, read:
 
