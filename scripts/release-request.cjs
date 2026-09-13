@@ -1,9 +1,10 @@
-const { appendFileSync } = require('node:fs');
+const { appendFileSync, readFileSync, statSync } = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/;
 const STABLE_TAG = /^v(\d+\.\d+\.\d+)$/;
 const RELEASE_TAG = /^v\d+\.\d+\.\d+(?:-experimental\.\d+)?$/;
+const MAXIMUM_JSON_BYTES = 2 * 1024 * 1024;
 
 function validateDispatchRequest({ operation, version }) {
   if (operation === 'release') {
@@ -172,6 +173,70 @@ function qualifyManualRelease(environment) {
   return Object.freeze({ channel: 'stable', eligible: true, sha: checkedOutSha });
 }
 
+function qualifyExperimentalDispatch(environment) {
+  if (environment.RELEASE_OPERATION !== 'experimental') {
+    throw new Error(`Experimental release requires operation=experimental, got '${environment.RELEASE_OPERATION ?? ''}'.`);
+  }
+  if (!/^[0-9a-f]{40}$/.test(environment.RELEASE_EXPERIMENTAL_SHA ?? '')) {
+    throw new Error('Experimental release dispatch requires an immutable 40-character SHA.');
+  }
+  const buildId = Number(environment.RELEASE_BUILD_ID);
+  if (
+    !/^\d+$/.test(environment.RELEASE_BUILD_ID ?? '')
+    || !Number.isSafeInteger(buildId)
+    || buildId <= 0
+    || String(buildId) !== environment.RELEASE_BUILD_ID
+  ) {
+    throw new Error(`Experimental release dispatch requires a valid build ID, got '${environment.RELEASE_BUILD_ID ?? ''}'.`);
+  }
+
+  const evidence = readBoundedJson(environment.BUILD_EVIDENCE_PATH, 'Experimental build evidence');
+  const trustedBuild =
+    !Array.isArray(evidence)
+    && evidence.id === buildId
+    && evidence.name === 'build'
+    && evidence.event === 'workflow_dispatch'
+    && evidence.status === 'completed'
+    && evidence.conclusion === 'success'
+    && evidence.head_branch === 'experimental'
+    && evidence.head_sha === environment.RELEASE_EXPERIMENTAL_SHA
+    && evidence.actor?.login === 'github-actions[bot]'
+    && evidence.head_repository?.full_name === environment.GITHUB_REPOSITORY
+    && environment.GITHUB_REPOSITORY === 'seed4j/seed4j-cli';
+  if (!trustedBuild) {
+    throw new Error('Experimental release dispatch requires the exact completed trusted experimental build.');
+  }
+
+  runGit(['fetch', 'origin', 'experimental', '--tags']);
+  const currentExperimentalSha = runGit(['rev-parse', 'origin/experimental']);
+  validateExperimentalRelease({
+    buildActor: evidence.actor.login,
+    buildConclusion: evidence.conclusion,
+    buildEvent: evidence.event,
+    buildHeadBranch: evidence.head_branch,
+    builtSha: evidence.head_sha,
+    checkedOutSha: environment.RELEASE_EXPERIMENTAL_SHA,
+    currentExperimentalSha,
+    releaseTags: runGit(['tag', '--points-at', environment.RELEASE_EXPERIMENTAL_SHA, '--list', 'v*']).split(/\r?\n/).filter(Boolean),
+  });
+
+  return Object.freeze({ channel: 'experimental', eligible: true, sha: environment.RELEASE_EXPERIMENTAL_SHA });
+}
+
+function readBoundedJson(path, label) {
+  if (!path) {
+    throw new Error(`${label} path is required.`);
+  }
+  if (statSync(path).size > MAXIMUM_JSON_BYTES) {
+    throw new Error(`${label} exceeds the maximum of ${MAXIMUM_JSON_BYTES} bytes.`);
+  }
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
 function qualifyRecovery(environment) {
   const request = validateDispatchRequest({
     operation: environment.RELEASE_OPERATION,
@@ -253,6 +318,10 @@ function run() {
     writeWorkflowOutputs(qualifyManualRelease(process.env));
     return;
   }
+  if (command === 'qualify-experimental-dispatch') {
+    writeWorkflowOutputs(qualifyExperimentalDispatch(process.env));
+    return;
+  }
   if (command === 'qualify-recovery') {
     writeWorkflowOutputs(qualifyRecovery(process.env));
     return;
@@ -276,6 +345,7 @@ module.exports = {
   validateManualRelease,
   validateRecoveryVersion,
   admitWorkflowRun,
+  qualifyExperimentalDispatch,
   qualifyManualRelease,
   qualifyRecovery,
   qualifyWorkflowRun,

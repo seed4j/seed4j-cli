@@ -7,17 +7,20 @@ const repositoryRoot = resolve(__dirname, '../..');
 
 test('build validates stable and experimental branches while SonarCloud remains stable-only', () => {
   const workflow = read('.github/workflows/github-actions.yml');
+  const testsJob = workflow.slice(workflow.indexOf('\n  tests:'), workflow.indexOf('\n  request-experimental-release:'));
 
   assert.match(workflow, /push:\s+branches:\s+- main\s+- experimental/);
   assert.match(workflow, /pull_request:\s+branches:\s+- main\s+- experimental/);
-  assert.match(workflow, /Analysis: SonarCloud[\s\S]*github\.ref == 'refs\/heads\/main'/);
-  assert.doesNotMatch(workflow, /Analysis: SonarCloud[\s\S]*refs\/heads\/experimental/);
+  assert.match(testsJob, /Analysis: SonarCloud[\s\S]*github\.ref == 'refs\/heads\/main'/);
+  assert.doesNotMatch(testsJob, /Analysis: SonarCloud[\s\S]*refs\/heads\/experimental/);
 });
 
-test('PR-controlled builds cannot inherit repository write authority or persisted credentials', () => {
+test('only a trusted completed experimental build may request release with its immutable identity', () => {
   const build = read('.github/workflows/github-actions.yml');
   const release = read('.github/workflows/release.yml');
   const synchronization = read('.github/workflows/synchronize-experimental.yml');
+  const testsJob = build.slice(build.indexOf('\n  tests:'), build.indexOf('\n  request-experimental-release:'));
+  const releaseRequestJob = build.slice(build.indexOf('\n  request-experimental-release:'));
 
   assert.match(build, /^permissions:\s+contents:\s*read$/m);
   for (const permission of [
@@ -31,10 +34,27 @@ test('PR-controlled builds cannot inherit repository write authority or persiste
     'security-events',
     'id-token',
   ]) {
-    assert.doesNotMatch(build, new RegExp(`${permission}:\\s*write`));
+    assert.doesNotMatch(testsJob, new RegExp(`${permission}:\\s*write`));
   }
-  assert.match(build, /actions\/checkout@[0-9a-f]{40}[\s\S]*?with:\s+fetch-depth:\s*0\s+persist-credentials:\s*false/);
-  assert.doesNotMatch(build, /GITHUB_TOKEN/);
+  assert.match(testsJob, /actions\/checkout@[0-9a-f]{40}[\s\S]*?with:\s+fetch-depth:\s*0\s+persist-credentials:\s*false/);
+  assert.doesNotMatch(testsJob, /GITHUB_TOKEN/);
+  assert.match(releaseRequestJob, /needs:\s+tests/);
+  assert.match(
+    releaseRequestJob,
+    /github\.repository == 'seed4j\/seed4j-cli'[\s\S]*github\.event_name == 'workflow_dispatch'[\s\S]*github\.ref == 'refs\/heads\/experimental'[\s\S]*github\.actor == 'github-actions\[bot\]'/,
+  );
+  assert.match(releaseRequestJob, /permissions:\s+actions:\s*write\s+contents:\s*read/);
+  assert.doesNotMatch(releaseRequestJob, /contents:\s*write|id-token:\s*write|actions\/checkout@/);
+  assert.match(
+    releaseRequestJob,
+    /gh workflow run release\.yml[\s\S]*--ref main[\s\S]*-f operation=experimental[\s\S]*-f experimental-sha="\$GITHUB_SHA"[\s\S]*-f build-id="\$GITHUB_RUN_ID"/,
+  );
+  assert.match(release, /operation:[\s\S]*options:[\s\S]*- experimental/);
+  assert.match(release, /experimental-sha:[\s\S]*build-id:/);
+  assert.match(
+    release,
+    /inputs\.operation == 'experimental'[\s\S]*github\.actor == 'github-actions\[bot\]'[\s\S]*qualify-experimental-dispatch/,
+  );
   assert.match(
     release,
     /workflow_run\.event == 'workflow_dispatch'[\s\S]*workflow_run\.head_branch == 'experimental'[\s\S]*workflow_run\.actor\.login == 'github-actions\[bot\]'/,
@@ -59,6 +79,7 @@ test('workflows pin every third-party action to an immutable commit', () => {
     [...new Set(uses)].sort(),
     [
       'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+      'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
       'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6',
       'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
       'release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9',

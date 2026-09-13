@@ -320,6 +320,69 @@ test('the workflow review adapter rejects a green live head that differs from th
   assert.match(missingPendingState.stderr, /required pending label/);
 });
 
+test('a trusted proposal build requests finalization with exact API-qualified evidence', () => {
+  const build = readFileSync(resolve(repositoryRoot, '.github/workflows/github-actions.yml'), 'utf8');
+  const synchronization = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
+  const requestJob = build.slice(build.indexOf('\n  request-synchronization-finalization:'));
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-sync-build-evidence-'));
+  const evidence = join(directory, 'build.json');
+  try {
+    writeFileSync(
+      evidence,
+      JSON.stringify({
+        actor: { login: 'github-actions[bot]' },
+        conclusion: 'success',
+        event: 'workflow_dispatch',
+        head_branch: 'automation/sync-main-to-experimental',
+        head_repository: { full_name: 'seed4j/seed4j-cli' },
+        head_sha: headSha,
+        id: 34755926768,
+        name: 'build',
+        status: 'completed',
+      }),
+    );
+
+    const qualification = runWorkflowAdapter('qualify-finalization-build', {
+      BUILD_EVIDENCE_PATH: evidence,
+      FINALIZATION_BUILD_ID: '34755926768',
+      GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+    });
+
+    assert.equal(qualification.status, 0, qualification.stderr);
+    assert.deepEqual(qualification.outputs, { conclusion: 'success', sha: headSha, status: 'completed' });
+    assert.match(requestJob, /needs:\s+tests/);
+    assert.match(
+      requestJob,
+      /github\.repository == 'seed4j\/seed4j-cli'[\s\S]*github\.event_name == 'workflow_dispatch'[\s\S]*github\.ref == 'refs\/heads\/automation\/sync-main-to-experimental'[\s\S]*github\.actor == 'github-actions\[bot\]'/,
+    );
+    assert.match(requestJob, /gh workflow run synchronize-experimental\.yml[\s\S]*--ref main[\s\S]*-f finalize-build-id="\$GITHUB_RUN_ID"/);
+    assert.match(synchronization, /finalize-build-id:/);
+    assert.match(synchronization, /node scripts\/main-to-experimental-sync\.cjs qualify-finalization-build/);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('proposal publication uses a dedicated app identity while exact build dispatch stays recursion-safe', () => {
+  const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
+  const prepareJob = workflow.slice(workflow.indexOf('\n  prepare:'), workflow.indexOf('\n  finalize:'));
+  const publishStepStart = prepareJob.indexOf("- name: 'Synchronize: publish proposal and dispatch exact-head tests'");
+  const publishStepEnd = prepareJob.indexOf("- name: 'Synchronize: close resolved issue for an already-current target'");
+  const finalizeJob = workflow.slice(workflow.indexOf('\n  finalize:'), workflow.indexOf('\n  recover-finalization:'));
+
+  assert.match(prepareJob, /actions\/create-github-app-token@[0-9a-f]{40}/);
+  assert.match(prepareJob, /client-id:.*vars\.SYNC_APP_CLIENT_ID/);
+  assert.match(prepareJob, /private-key:.*secrets\.SYNC_APP_PRIVATE_KEY/);
+  assert.match(prepareJob, /permission-contents:\s*write/);
+  assert.match(prepareJob, /permission-pull-requests:\s*write/);
+  assert.match(prepareJob, /actions\/checkout@[0-9a-f]{40}[\s\S]*token:.*steps\.sync-app-token\.outputs\.token/);
+  const publishStep = prepareJob.slice(publishStepStart, publishStepEnd);
+  assert.match(publishStep, /GH_TOKEN:.*steps\.sync-app-token\.outputs\.token/);
+  assert.match(publishStep, /ACTIONS_GH_TOKEN:.*github\.token/);
+  assert.match(publishStep, /GH_TOKEN="\$ACTIONS_GH_TOKEN" gh workflow run github-actions\.yml/);
+  assert.doesNotMatch(finalizeJob, /checks:\s*write|check-runs/);
+});
+
 test('post-merge build dispatch and disposable-branch cleanup occur only after the exact merge reaches experimental', () => {
   const merged = {
     branch: 'automation/sync-main-to-experimental',

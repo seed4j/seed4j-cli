@@ -366,6 +366,35 @@ function workflowReview(environment) {
   });
 }
 
+function qualifyFinalizationBuild(environment) {
+  const buildId = Number(environment.FINALIZATION_BUILD_ID);
+  if (
+    !/^\d+$/.test(environment.FINALIZATION_BUILD_ID ?? '')
+    || !Number.isSafeInteger(buildId)
+    || buildId <= 0
+    || String(buildId) !== environment.FINALIZATION_BUILD_ID
+  ) {
+    throw new Error(`Synchronization finalization requires a valid build ID, got '${environment.FINALIZATION_BUILD_ID ?? ''}'.`);
+  }
+  const evidence = readBoundedJson(environment.BUILD_EVIDENCE_PATH, 'Synchronization build evidence');
+  const trustedBuild =
+    !Array.isArray(evidence)
+    && evidence.id === buildId
+    && evidence.name === 'build'
+    && evidence.event === 'workflow_dispatch'
+    && evidence.status === 'completed'
+    && evidence.conclusion === 'success'
+    && evidence.head_branch === SYNC_BRANCH
+    && evidence.actor?.login === AUTOMATION_LOGIN
+    && evidence.head_repository?.full_name === environment.GITHUB_REPOSITORY
+    && environment.GITHUB_REPOSITORY === 'seed4j/seed4j-cli';
+  if (!trustedBuild) {
+    throw new Error('Synchronization finalization requires the exact completed trusted proposal build.');
+  }
+  requireSha(evidence.head_sha, 'tested proposal SHA');
+  return Object.freeze({ conclusion: evidence.conclusion, sha: evidence.head_sha, status: evidence.status });
+}
+
 function workflowPreparation(environment) {
   return prepareSynchronization({
     buildConclusion: environment.BUILD_CONCLUSION,
@@ -594,9 +623,16 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
+  } else if (process.argv[2] === 'qualify-finalization-build' && process.argv.length === 3) {
+    try {
+      writeWorkflowOutputs(qualifyFinalizationBuild(process.env));
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   } else {
     console.error(
-      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|issue-workflow|review-workflow',
+      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|issue-workflow|review-workflow|qualify-finalization-build',
     );
     process.exitCode = 1;
   }
