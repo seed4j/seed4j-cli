@@ -35,12 +35,6 @@ Stable is the default. The separately operated experimental channel is available
 `npm install -g seed4j-cli@experimental`; it follows an unofficial, retention-limited snapshot of Seed4J `main` and is
 not recommended for production generation. Read the
 [experimental channel contract and support policy](documentation/experimental-channel.md) before opting in.
-Maintainers must create the repository label `synchronization-pending` before enabling the documented one-way
-`main`-to-`experimental` synchronization workflow. Release publication is admitted by read-only trusted `main` code
-before any write or OIDC permission is granted, and scheduled synchronization recovery repairs a missing exact proposal
-build without bypassing a pending or failed result. If GitHub creates the proposal PR but its follow-up label update
-fails, scheduled recovery can adopt only the single exact open synchronization head after revalidating its complete
-identity and topology; it then restores the pending label and build, but never enables merge.
 
 Then choose the outcome you need:
 

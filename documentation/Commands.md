@@ -37,7 +37,7 @@ seed4j --version
 
 ### Distribution Channels
 
-`npm install -g seed4j-cli@latest` installs stable and remains the default. Once activated,
+`npm install -g seed4j-cli@latest` installs stable and remains the default.
 `npm install -g seed4j-cli@experimental` deliberately opts into an unofficial snapshot of Seed4J `main` that may expire
 or break compatibility. Experimental root help warns about that contract, and `seed4j --version` adds the release
 channel, personal snapshot version, and exact official upstream SHA.

@@ -11,50 +11,25 @@ unspecified GitHub permission is denied.
 
 ## Synchronize stable changes into experimental
 
-A successful standard push build for current `main` starts the one-way synchronization workflow. It rebuilds the
-disposable `automation/sync-main-to-experimental` branch from current `experimental`, merges the exact green `main` SHA,
-and opens or refreshes a PR targeting `experimental`. The workflow explicitly dispatches the standard build on that
-proposal head as the first repairable effect after PR publication, before issue housekeeping, because changes made by
-`GITHUB_TOKEN` do not trigger an unrestricted recursive workflow chain.
-Before enabling this workflow, a maintainer must create the repository label `synchronization-pending`. Preparation
-fails before publishing a proposal when the label is absent, and every automation-owned synchronization PR receives it.
+A successful standard push build for current `main` starts this one-way flow. Automation prepares
+`automation/sync-main-to-experimental` from current `experimental`, merges the exact green `main` SHA, and opens or
+refreshes a PR targeting `experimental`. The GitHub App authenticates the branch and PR mutations; `GITHUB_TOKEN`
+authenticates the explicit build dispatch, issue operations, and finalization.
 
-Automation enables merge only while the independently fetched source, target, and proposal head match the PR's recorded
-SHAs, the proposal has exactly the recorded target and source as its parents, and that exact head owns a completed green
-`tests` result. If any SHA or topology changes, it refreshes the proposal and tests; red or pending tests leave it open.
-A Git conflict creates or updates the single assigned `synchronization-failure` issue without changing either protected
-branch. Resolve the conflict through a reviewed change and dispatch `synchronize main to experimental` from `main` to
-retry.
+Use this operator recipe:
 
-Auto-merge can finish after the bounded runner wait. The workflow therefore dispatches a durable finalizer immediately,
-while the 15-minute recovery asks GitHub for only number/state metadata for up to 100 PRs carrying
-`synchronization-pending`; completed PRs do not consume that bounded window. It loads each exact PR independently through
-a streaming 2 MiB limit, so hostile or malformed comment history fails locally without blocking later candidates. An
-explicit recovery loads its requested PR number directly. A scheduled run also performs one independent lookup, bounded
-to detect more than one result, for an OPEN PR with exactly the fixed synchronization head and `experimental` base. This
-repairs the non-transactional case where `gh pr create --label` created the PR before its label update failed. Absence is
-inert, a malformed or ambiguous result fails before candidate effects, and a PR already present in the label index is
-processed only once. An unlabeled result remains untrusted until its canonical body/branches, live and fetched PR head,
-fetched fixed-branch head, current `main` and `experimental` heads, and exact target/source parent order all agree. Only
-then does recovery add `synchronization-pending` and assure one proposal build; this repair path never enables merge.
-For a still-current open PR, recovery preserves any exact
-proposal-head run regardless of whether it is queued, running, green, or red, and dispatches exactly once only when none
-exists; it never enables merge. Executable policy skips
-only an exact completion record authored by `github-actions[bot]` and bound to the PR number, proposal head, merge
-commit, and dispatched `experimental` SHA; plain, forged, decorated, stale, or mismatched comments remain pending.
-Older merged work is handled before open work, and one candidate failure does not stop later candidates or lose a
-coalesced refresh request. An open PR remains pending only while current `main` and `experimental` still equal its
-recorded source and target; otherwise synchronization refreshes it. After an exact merge is reachable from current
-`experimental`, recovery reuses an exact queued, running, or successful standard build when present, otherwise dispatches
-one for the stable current head. It then deletes the disposable branch with an expected-head lease, writes the trusted
-completion record, and finally removes `synchronization-pending`. If that last removal fails, the next run only reconciles
-the label. Historical finalization never closes the current conflict issue; only a current authoritative clean or
-already-contained preparation may do that. The workflow never synchronizes `experimental` wholesale back to `main`.
+1. Inspect the synchronization PR only when automation reports a problem. A current proposal receives both the normal
+   pull-request build and an explicitly dispatched exact-head build.
+2. Take no action while the exact proposal is green and current. The finalizer revalidates run identity, branches,
+   topology, PR head, and `tests`, then enables auto-merge; scheduled recovery completes retry-safe housekeeping.
+3. If `synchronization-failure` reports a Git conflict, resolve it through a reviewed PR and dispatch
+   `synchronize main to experimental` from `main` to retry. Never bypass a pending or failed check.
+4. If the App variable, secret, installation, or required labels are missing, restore that repository setup before
+   retrying. Do not substitute a PAT or relax branch protection.
 
-Build identity remains branch-owned throughout this flow. `main` carries only the official stable Seed4J authority and
-no personal repository. The experimental branch carries the reviewed top-level personal coordinate, full upstream SHA,
-unavailable-module metadata, and snapshot-only repository. Synchronization and release commands use the checked-out
-branch POM directly; there is no Maven profile or workflow flag that can select the other channel's identity.
+The workflow never synchronizes `experimental` wholesale back to `main`. The complete credential, evidence, recovery,
+branch-protection, and intervention contract is the
+[experimental channel runbook](experimental-channel.md#build-release-and-branch-isolation).
 
 ## Create a project with modules
 
