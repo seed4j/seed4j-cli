@@ -82,3 +82,49 @@ jobs:
             -Dsonar.projectKey=seed4j_seed4j-cli \
             -Dsonar.organization=seed4j \
             -Dsonar.token=$SONAR_TOKEN
+
+  request-experimental-release:
+    name: request experimental release
+    needs: tests
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/experimental' &&
+      github.actor == 'github-actions[bot]' &&
+      needs.tests.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: 'Release: request exact successful experimental build publication'
+        run: |
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            -f operation=experimental \
+            -f experimental-sha="$GITHUB_SHA" \
+            -f build-id="$GITHUB_RUN_ID"
+
+  request-synchronization-finalization:
+    name: request synchronization finalization
+    needs: tests
+    if: >-
+      github.repository == 'seed4j/seed4j-cli' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/automation/sync-main-to-experimental' &&
+      github.actor == 'github-actions[bot]' &&
+      needs.tests.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: 'Synchronize: request exact successful proposal finalization'
+        run: |
+          gh workflow run synchronize-experimental.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            -f finalize-build-id="$GITHUB_RUN_ID"
