@@ -206,8 +206,8 @@ name, runs the same Cypress tests and coverage checks, and controls the result; 
 script changes from development watchers to readiness-checked previews of artifacts already built by the lifecycle.
 
 The unprivileged qualification job MAY temporarily adapt the exact known upstream `test:component:headless` watcher
-command when the recognized Sass/inotify and Vite watcher topology is present. The replacement MUST serve a non-empty
-`/style/tikui.css` response and run the unchanged Cypress suite.
+command when the recognized Sass/inotify and Vite watcher topology is present. The `/style/tikui.css` response from the
+replacement MUST contain data, and the replacement MUST run the unchanged Cypress suite.
 
 The adapter MUST recognize the expected Seed4J package identity and the exact known watcher command before changing
 anything. It MUST preserve `package.json` and `package-lock.json` byte for byte, replace only
@@ -331,9 +331,9 @@ After a successful build of current `main`, synchronization MUST:
 3. stop and create or update a synchronization-failure issue if Git reports a conflict;
 4. use an ephemeral GitHub App installation token to push the disposable branch and create or update a PR targeting
    `experimental`;
-5. require the App-created PR's normal build and explicitly dispatch the standard build against the disposable branch
-   so the exact PR-head SHA receives repairable `tests` evidence;
-6. enable auto-merge only after finalization revalidates the numeric run ID, built SHA, source repository, proposal
+5. require the normal build for the PR created by the App and explicitly dispatch the standard build against the
+   disposable branch so the exact head SHA of the PR receives repairable `tests` evidence;
+6. enable automatic merge only after finalization revalidates the numeric run ID, built SHA, source repository, proposal
    branch, bot actor, completion, current source and target branches, PR head, exact parent topology, and green `tests`;
 7. dispatch a post-merge build for the resulting current `experimental` SHA when token recursion suppression would
    otherwise prevent it; and
@@ -343,7 +343,8 @@ The workflow MUST verify the current source and target SHAs at every state trans
 refresh and retest the PR rather than merging stale evidence. A merge conflict MUST be left for a maintainer; automation
 MUST NOT guess a conflict resolution.
 
-The GitHub App token MUST authenticate only the trusted checkout, disposable-branch push, and PR creation or update.
+The GitHub App token MUST authenticate only the trusted checkout, the push of the disposable branch, and PR creation or
+update.
 The App client ID MUST come from repository variable `SYNC_APP_CLIENT_ID`; its private key MUST come from repository
 secret `SYNC_APP_PRIVATE_KEY`; neither value may be documented. The App installation MUST be restricted to
 `seed4j/seed4j-cli` with only `Contents: write` and `Pull requests: write`.
@@ -383,15 +384,15 @@ An experimental release MUST create the immutable Git tag required by semantic-r
 MUST NOT publish or modify a GitHub Release, Release Drafter draft, stable JAR asset, `latest` dist-tag, or stable release
 tag. Existing `main` release and recovery behavior remains unchanged.
 
-An experimental release is eligible only after a bot-authenticated successful standard build for the exact current
-`experimental` HEAD. That build MUST dispatch `release.yml` on `main` with `operation=experimental`,
-`experimental-sha`, and `build-id`. Trusted qualification MUST retrieve the identified run again and reject an invalid
-run ID, mismatched SHA, repository, branch, event, actor, status, conclusion, or protected head. The publishing job MUST
-recheck the selected protected HEAD before executing it. A stale build, unprotected pull-request revision, already
-released exact commit, or compatibility failure therefore blocks publication instead of leaving the npm package
-partially aligned with its Maven dependency.
+An experimental release is eligible only after the standard build succeeds for the exact current `experimental` HEAD.
+The build MUST be authenticated as `github-actions[bot]` and MUST dispatch `release.yml` on `main` with
+`operation=experimental`, `experimental-sha`, and `build-id`. Trusted qualification MUST retrieve the identified run
+again and reject an invalid run ID, mismatched SHA, repository, branch, event, actor, status, conclusion, or protected
+head. The publishing job MUST recheck the selected protected HEAD before executing it. A stale build, a revision from an
+unprotected pull request, an already released exact commit, or a compatibility failure therefore blocks publication
+instead of leaving the npm package partially aligned with its Maven dependency.
 
-A successful release evaluation with no release-worthy commit MUST NOT create a new npm version.
+A successful release evaluation where no commit qualifies for release MUST NOT create a new npm version.
 
 ### Experimental npm rollback
 
@@ -410,8 +411,9 @@ experimental release flow.
 
 ## Documentation, support, and official exit
 
-The README's experimental-channel entry MUST keep only the availability, opt-in installation, risk, and link needed to
-reach the canonical contract. The documentation index MUST provide separate routes for early adopters and maintainers.
+The README entry about the experimental channel MUST keep only the availability, installation choice, risk, and link
+needed to reach the canonical contract. The documentation index MUST provide separate routes for early adopters and
+maintainers.
 
 `documentation/experimental-channel.md` MUST be the canonical owner of the current channel and operational contract,
 including the unofficial coordinate, provenance, retention, unavailable module, publisher authority, schedule,
@@ -472,8 +474,9 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
 
 1. A successful current `main` build creates a tested synchronization PR to `experimental`; a conflict creates the
    persistent issue and changes neither protected branch.
-2. A PR created or updated with the GitHub App receives its normal build and exact-head dispatched build. Finalization
-   uses `GITHUB_TOKEN` and cannot enable auto-merge while evidence is red, stale, malformed, or conflicting.
+2. A PR created or updated with the GitHub App receives its normal build and a dispatched build for its exact head.
+   Finalization uses `GITHUB_TOKEN` and cannot enable automatic merge while evidence is red, stale, malformed, or
+   conflicting.
 3. A compatible personal snapshot Renovate PR merges and releases through the experimental pipeline; an incompatible PR
    remains open without npm publication.
 4. A genuine publisher failure updates one assigned issue with actionable provenance, and a later successful current
