@@ -175,7 +175,8 @@ After the upstream check succeeds, an unprivileged job MUST:
 1. create a disposable checkout of the exact upstream SHA;
 2. apply only the coordinate, version, repository, nonofficial metadata, license/notice, and provenance overlay required
    for personal publication;
-3. run `npm ci`, the applicable upstream lint checks, and `./mvnw clean verify`;
+3. run `npm ci`, the applicable upstream lint checks, and one
+   `./mvnw --batch-mode -ntp clean verify` invocation;
 4. collect only the generated POM, main JAR, and tests-classifier JAR; and
 5. produce a candidate manifest containing the full upstream SHA, derived version, exact expected filenames, sizes, and
    SHA-256 digests.
@@ -186,6 +187,61 @@ publisher overlay are the source-provenance record.
 The build MUST use the personal GAV consistently enough that the published POM and both JARs can be resolved together
 from a clean Maven environment. The overlay MUST NOT modify Seed4J behavior merely to make CLI compatibility tests pass.
 An upstream incompatibility belongs in the experimental CLI update flow.
+
+### Ephemeral headless-verification adaptation
+
+The central failure occurs inside the required upstream Maven lifecycle, not in an optional publisher-side test step.
+The immutable upstream `pom.xml` enters the upstream JavaScript contract again during `verify`: its
+`frontend-maven-plugin` execution named `front component test` invokes `npm run test:component:headless`; that
+`package.json` script starts `npm run dev`; and the development topology starts the TikUI Sass and Vite watchers that
+can collide on Vite's transient dependency directory.
+
+```text
+publisher build
+  -> real upstream ./mvnw --batch-mode -ntp clean verify
+    -> upstream frontend-maven-plugin during verify
+      -> upstream npm run test:component:headless
+        -> upstream npm run dev
+          -> TikUI Sass watcher + Vite watcher
+            -> inotify race on node_modules/.vite/deps_temp_* and missing CSS
+```
+
+Changing only the outer workflow command would not reach this nested upstream-owned invocation. Replacing the Maven
+gate with a separate publisher test would skip lifecycle work and weaken qualification. The workaround therefore
+intercepts the narrowest stable boundary: before Maven starts, the trusted adapter validates and temporarily replaces
+only the exact upstream `test:component:headless` script. Maven still enters the same phase, invokes the same npm script
+name, runs the same Cypress tests and coverage checks, and controls the result; only the server topology behind that
+script changes from development watchers to readiness-checked previews of artifacts already built by the lifecycle.
+
+The unprivileged qualification job MAY temporarily adapt the exact known upstream `test:component:headless` watcher
+command. This publisher-owned exception exists because diagnostic
+[run 34727053924](https://github.com/renanfranca/seed4j-main-snapshots/actions/runs/34727053924) reproduced a Sass/inotify
+collision with Vite's transient `node_modules/.vite/deps_temp_*` directory while the no-watcher preview arrangement
+served a non-empty 30,867-byte `/style/tikui.css` response and passed the unchanged Cypress suite 7/7.
+
+The adapter MUST recognize the expected Seed4J package identity and the exact known watcher command before changing
+anything. It MUST preserve `package.json` and `package-lock.json` byte for byte, replace only
+`test:component:headless` during the Maven invocation, restore both files in `finally` before candidate collection, and
+fail closed for an unknown upstream contract, a changed lockfile, inexact restoration, or nonzero Maven result. The
+adapter MUST NOT change the qualified upstream SHA, persist a manifest change, or integrate temporary verification
+output into the collected candidate.
+
+The temporary runner MUST reuse the TikUI artifacts built earlier in the same Maven lifecycle. It MUST start
+`tikui-core preview` on the port from `tikuiconfig.json`, start `vite preview --port 9000 --strictPort`, and wait no
+longer than 30 seconds for a non-empty `GET /style/tikui.css` before starting Cypress. It MUST retain
+`concurrently -k -s first`, the existing `cypress run --headless` command, the existing Cypress configuration, and the
+existing coverage gate. The publisher MUST still execute exactly one real
+`./mvnw --batch-mode -ntp clean verify`, without skips, retries, or `continue-on-error`.
+
+Automated adapter tests MAY use observable Maven-wrapper test doubles in disposable checkout fixtures. In this
+specification, a "fake Maven wrapper" means only a temporary test-owned executable that records its arguments and
+manifest state or deliberately simulates a nonzero Maven exit or lockfile mutation. It MUST NOT be used by a publisher
+workflow, immutable-candidate rehearsal, or real qualification, and it MUST NOT replace or modify Seed4J's Maven
+Wrapper. Every rehearsal and real qualification MUST execute the `mvnw` checked out from the exact bound official
+upstream SHA.
+
+This exception MUST be removed after a watcher-free upstream contract is available and qualified. It MUST NOT motivate
+a Seed4J source change, a Cypress test change, a weaker verification gate, or a publisher dispatch by itself.
 
 ### Credential boundary
 
@@ -392,11 +448,17 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
    publication.
 3. A qualified candidate passes the upstream lint and complete Maven validation before any deployment credential becomes
    available.
-4. A clean Maven environment resolves the published POM, main JAR, and tests-classifier JAR from the Central snapshot
+4. The real upstream Maven lifecycle reaches the upstream `test:component:headless` script during `verify`; the adapter
+   replaces only that nested watcher contract for the duration of the gate, without moving Cypress or coverage outside
+   Maven. Both manifests are restored byte for byte before collection, while an unknown contract, lockfile mutation,
+   restoration mismatch, or Maven failure stops the candidate.
+5. Adapter tests may use disposable observable Maven-wrapper test doubles to simulate those outcomes, but a rehearsal
+   and real qualification use only the exact Maven Wrapper from the bound official upstream SHA.
+6. A clean Maven environment resolves the published POM, main JAR, and tests-classifier JAR from the Central snapshot
    repository; no sources or Javadoc artifact is present.
-5. A current SHA published less than 60 days ago is skipped, while an unchanged SHA at 60 days is republished under the
+7. A current SHA published less than 60 days ago is skipped, while an unchanged SHA at 60 days is republished under the
    same base version.
-6. Manifest tampering, an extra artifact, a digest mismatch, or an unexpected coordinate is rejected without executing
+8. Manifest tampering, an extra artifact, a digest mismatch, or an unexpected coordinate is rejected without executing
    upstream code in the privileged job.
 
 ### Automation and recovery
