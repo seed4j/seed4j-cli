@@ -215,6 +215,89 @@ test('release workflow rejects deceptive source branches before privileged targe
   }
 });
 
+test('experimental dispatch qualifies only the exact completed trusted build of current experimental', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'seed4j-experimental-release-'));
+  const remote = join(directory, 'remote.git');
+  const source = join(directory, 'source');
+  const checkout = join(directory, 'checkout');
+  const buildEvidence = join(directory, 'build.json');
+  try {
+    runGit(directory, ['init', '--bare', remote]);
+    runGit(directory, ['init', source]);
+    runGit(source, ['config', 'user.email', 'seed4j@example.com']);
+    runGit(source, ['config', 'user.name', 'Seed4J']);
+    writeFileSync(join(source, 'release.txt'), 'experimental\n');
+    runGit(source, ['add', 'release.txt']);
+    runGit(source, ['commit', '-m', 'feat: experimental revision']);
+    runGit(source, ['branch', '-M', 'main']);
+    runGit(source, ['branch', 'experimental']);
+    runGit(source, ['remote', 'add', 'origin', remote]);
+    runGit(source, ['push', 'origin', 'main', 'experimental']);
+    runGit(directory, ['clone', '--branch', 'main', remote, checkout]);
+    const experimentalSha = runGit(checkout, ['rev-parse', 'origin/experimental']);
+    writeFileSync(
+      buildEvidence,
+      JSON.stringify({
+        actor: { login: 'github-actions[bot]' },
+        conclusion: 'success',
+        event: 'workflow_dispatch',
+        head_branch: 'experimental',
+        head_repository: { full_name: 'seed4j/seed4j-cli' },
+        head_sha: experimentalSha,
+        id: 34754224120,
+        name: 'build',
+        status: 'completed',
+      }),
+    );
+
+    const qualified = runReleaseAdapter(
+      'qualify-experimental-dispatch',
+      {
+        BUILD_EVIDENCE_PATH: buildEvidence,
+        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+        RELEASE_BUILD_ID: '34754224120',
+        RELEASE_EXPERIMENTAL_SHA: experimentalSha,
+        RELEASE_OPERATION: 'experimental',
+      },
+      checkout,
+    );
+
+    assert.equal(qualified.status, 0, qualified.stderr);
+    assert.deepEqual(qualified.outputs, { channel: 'experimental', eligible: 'true', sha: experimentalSha });
+
+    writeFileSync(
+      buildEvidence,
+      JSON.stringify({
+        actor: { login: 'github-actions[bot]' },
+        conclusion: 'success',
+        event: 'workflow_dispatch',
+        head_branch: 'experimental',
+        head_repository: { full_name: 'seed4j/seed4j-cli' },
+        head_sha: experimentalSha,
+        id: 0,
+        name: 'build',
+        status: 'completed',
+      }),
+    );
+    const invalidBuildId = runReleaseAdapter(
+      'qualify-experimental-dispatch',
+      {
+        BUILD_EVIDENCE_PATH: buildEvidence,
+        GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
+        RELEASE_BUILD_ID: '0',
+        RELEASE_EXPERIMENTAL_SHA: experimentalSha,
+        RELEASE_OPERATION: 'experimental',
+      },
+      checkout,
+    );
+
+    assert.equal(invalidBuildId.status, 1);
+    assert.match(invalidBuildId.stderr, /valid build ID/);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
 test('stable qualification and recovery work without an experimental remote branch', () => {
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-stable-release-'));
   const remote = join(directory, 'remote.git');
