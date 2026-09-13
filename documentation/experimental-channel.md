@@ -4,9 +4,8 @@ The experimental channel is a deliberate opt-in for testing Seed4J CLI against a
 revision. It is an unofficial, best-effort integration channel maintained by `renanfranca`; it is not supported or
 endorsed by the Seed4J maintainers and is not recommended for production generation workflows.
 
-The channel becomes installable only after the external publisher, protected `experimental` branch, npm Trusted
-Publisher, and first observed release have all been activated. Until those gates are complete, the commands below
-describe the operating contract rather than announcing availability.
+The channel is publicly installable. Its activation required the external publisher, protected `experimental` branch,
+npm Trusted Publisher, and an observed release with provenance; those gates remain part of its operating contract.
 
 ## Channel contract
 
