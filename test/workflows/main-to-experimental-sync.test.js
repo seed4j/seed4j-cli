@@ -363,25 +363,24 @@ test('a trusted proposal build requests finalization with exact API-qualified ev
   }
 });
 
-test('trusted finalization reports the required tests check on the exact reviewed PR head before auto-merge', () => {
+test('proposal publication uses a dedicated app identity while exact build dispatch stays recursion-safe', () => {
   const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
+  const prepareJob = workflow.slice(workflow.indexOf('\n  prepare:'), workflow.indexOf('\n  finalize:'));
+  const publishStepStart = prepareJob.indexOf("- name: 'Synchronize: publish proposal and dispatch exact-head tests'");
+  const publishStepEnd = prepareJob.indexOf("- name: 'Synchronize: close resolved issue for an already-current target'");
   const finalizeJob = workflow.slice(workflow.indexOf('\n  finalize:'), workflow.indexOf('\n  recover-finalization:'));
-  const reportingStepStart = finalizeJob.indexOf("- name: 'Synchronize: report exact tests check and enable auto-merge'");
-  const reportingStepEnd = finalizeJob.indexOf("- name: 'Synchronize: arrange durable post-merge finalization'");
 
-  assert.match(finalizeJob, /permissions:[\s\S]*checks:\s*write/);
-  assert.notEqual(reportingStepStart, -1);
-  const reportingStep = finalizeJob.slice(reportingStepStart, reportingStepEnd);
-  assert.match(reportingStep, /if: steps\.review\.outputs\.action == 'enable-auto-merge'/);
-  assert.match(reportingStep, /BUILD_ID:.*github\.event\.workflow_run\.id.*inputs\['finalize-build-id'\]/);
-  assert.match(reportingStep, /HEAD_SHA:.*steps\.review\.outputs\.head/);
-  assert.match(reportingStep, /gh api --method POST "repos\/\$\{GITHUB_REPOSITORY\}\/check-runs"/);
-  assert.match(reportingStep, /-f name=tests/);
-  assert.match(reportingStep, /-f head_sha="\$HEAD_SHA"/);
-  assert.match(reportingStep, /-f status=completed/);
-  assert.match(reportingStep, /-f conclusion=success/);
-  assert.match(reportingStep, /actions\/runs\/\$\{BUILD_ID\}/);
-  assert.ok(reportingStep.indexOf('check-runs') < reportingStep.indexOf('gh pr merge'));
+  assert.match(prepareJob, /actions\/create-github-app-token@[0-9a-f]{40}/);
+  assert.match(prepareJob, /client-id:.*vars\.SYNC_APP_CLIENT_ID/);
+  assert.match(prepareJob, /private-key:.*secrets\.SYNC_APP_PRIVATE_KEY/);
+  assert.match(prepareJob, /permission-contents:\s*write/);
+  assert.match(prepareJob, /permission-pull-requests:\s*write/);
+  assert.match(prepareJob, /actions\/checkout@[0-9a-f]{40}[\s\S]*token:.*steps\.sync-app-token\.outputs\.token/);
+  const publishStep = prepareJob.slice(publishStepStart, publishStepEnd);
+  assert.match(publishStep, /GH_TOKEN:.*steps\.sync-app-token\.outputs\.token/);
+  assert.match(publishStep, /ACTIONS_GH_TOKEN:.*github\.token/);
+  assert.match(publishStep, /GH_TOKEN="\$ACTIONS_GH_TOKEN" gh workflow run github-actions\.yml/);
+  assert.doesNotMatch(finalizeJob, /checks:\s*write|check-runs/);
 });
 
 test('post-merge build dispatch and disposable-branch cleanup occur only after the exact merge reaches experimental', () => {

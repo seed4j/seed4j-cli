@@ -79,6 +79,7 @@ test('workflows pin every third-party action to an immutable commit', () => {
     [...new Set(uses)].sort(),
     [
       'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+      'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
       'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6',
       'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
       'release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9',
