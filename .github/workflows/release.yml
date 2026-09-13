@@ -4,13 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Publish current main or recover an existing release
+        description: Publish current main, publish a trusted experimental build, or recover an existing release
         required: true
         default: release
         type: choice
         options:
           - release
+          - experimental
           - recover
+      experimental-sha:
+        description: Exact experimental SHA supplied by the trusted build workflow
+        required: false
+        type: string
+      build-id:
+        description: Exact successful build run supplied by the trusted build workflow
+        required: false
+        type: string
       version:
         description: Stable version without v; required only for recovery
         required: false
@@ -46,7 +55,9 @@ jobs:
           github.event.workflow_run.actor.login == 'github-actions[bot]'))) ||
        (github.event_name == 'workflow_dispatch' &&
         github.ref == 'refs/heads/main' &&
-        inputs.operation == 'release'))
+        (inputs.operation == 'release' ||
+         (inputs.operation == 'experimental' &&
+          github.actor == 'github-actions[bot]'))))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -73,13 +84,32 @@ jobs:
           BUILD_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           BUILD_SOURCE_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
           BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_BUILD_ID: ${{ inputs['build-id'] }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_EXPERIMENTAL_SHA: ${{ inputs['experimental-sha'] }}
           RELEASE_OPERATION: ${{ inputs.operation }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           if [ "$RELEASE_EVENT" = "workflow_run" ]; then
             node scripts/release-request.cjs qualify-workflow-run
+          elif [ "$RELEASE_OPERATION" = "experimental" ]; then
+            if ! [[ "$RELEASE_BUILD_ID" =~ ^[0-9]+$ && "$RELEASE_EXPERIMENTAL_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo 'Experimental release request has invalid immutable build identity.' >&2
+              exit 1
+            fi
+            BUILD_EVIDENCE_PATH="$RUNNER_TEMP/experimental-build.json"
+            export BUILD_EVIDENCE_PATH
+            for attempt in $(seq 1 24); do
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_BUILD_ID}" > "$BUILD_EVIDENCE_PATH"
+              if [ "$(jq -r '.status' "$BUILD_EVIDENCE_PATH")" = "completed" ]; then
+                break
+              fi
+              if [ "$attempt" != "24" ]; then
+                sleep 5
+              fi
+            done
+            node scripts/release-request.cjs qualify-experimental-dispatch
           else
             CHECKED_OUT_SHA="$(git rev-parse HEAD)"
             SUCCESSFUL_BUILD_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow github-actions.yml \
