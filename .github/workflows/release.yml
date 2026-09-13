@@ -137,6 +137,7 @@ jobs:
           ref: ${{ needs.qualify.outputs.sha }}
 
       - name: 'Release: verify selected protected head'
+        id: release-target
         env:
           QUALIFIED_CHANNEL: ${{ needs.qualify.outputs.channel }}
           QUALIFIED_SHA: ${{ needs.qualify.outputs.sha }}
@@ -152,6 +153,7 @@ jobs:
             echo "Qualified release revision is no longer current ${TARGET_BRANCH}." >&2
             exit 1
           fi
+          echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: 'Setup: Node.js'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -175,9 +177,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+          QUALIFIED_SHA: ${{ needs.qualify.outputs.sha }}
+          RELEASE_BRANCH: ${{ steps.release-target.outputs.branch }}
           SEED4J_RELEASE_CHANNEL: ${{ needs.qualify.outputs.channel }}
           SEED4J_MANUAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'release' }}
-        run: npx --no-install semantic-release
+        run: |
+          GITHUB_REF="refs/heads/${RELEASE_BRANCH}" \
+          GITHUB_SHA="$QUALIFIED_SHA" \
+          npx --no-install semantic-release
 
       - name: 'Release: publish drafted GitHub release'
         if: steps.semantic-release.outputs.released == 'true' && needs.qualify.outputs.channel == 'stable'
