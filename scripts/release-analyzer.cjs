@@ -8,7 +8,14 @@ async function analyzeCommits(_pluginConfiguration, context) {
     return release;
   }
 
-  return manualReleaseRequested(context) && context.commits.length > 0 ? 'patch' : null;
+  return releaseCorrectionRequested(context) || (manualReleaseRequested(context) && context.commits.length > 0) ? 'patch' : null;
+}
+
+function releaseCorrectionRequested(context) {
+  return (
+    context.env?.SEED4J_RELEASE_CHANNEL === 'experimental'
+    && context.commits.some(commit => commit.message.startsWith('ci(experimental-release):'))
+  );
 }
 
 function manualReleaseRequested(context) {

@@ -46,6 +46,16 @@ test('does not release neutral changes or build-only dependency updates', async 
   assert.equal(release, null);
 });
 
+test('publishes experimental release corrections only on the experimental channel', async () => {
+  const message = 'ci(experimental-release): isolate npm provenance identity';
+
+  const stableRelease = await analyzeCommits({}, contextWithEnvironment({ SEED4J_RELEASE_CHANNEL: 'stable' }, message));
+  const experimentalRelease = await analyzeCommits({}, contextWithEnvironment({ SEED4J_RELEASE_CHANNEL: 'experimental' }, message));
+
+  assert.equal(stableRelease, null);
+  assert.equal(experimentalRelease, 'patch');
+});
+
 test('selects the highest release required by accumulated commits', async () => {
   const release = await analyzeCommits(
     {},
@@ -83,29 +93,33 @@ test('publishes main as stable and experimental as an experimental prerelease', 
     },
   ]);
   assert.equal(releaseConfiguration.tagFormat, 'v${version}');
-  assert.ok(releaseConfiguration.plugins.includes('@semantic-release/npm'));
+  assert.ok(releaseConfiguration.plugins.includes('./scripts/release-npm.cjs'));
+  assert.equal(releaseConfiguration.plugins.includes('@semantic-release/npm'), false);
+  assert.equal(releaseConfiguration.plugins.includes('./scripts/release-provenance-context.cjs'), false);
   assert.equal(releaseConfiguration.plugins.includes('@semantic-release/github'), false);
 });
 
-test('restores the real workflow identity before npm creates provenance', () => {
+test('gives the delegated npm plugin the real workflow identity without changing semantic-release context', () => {
   const releaseContext = loadReleaseContext();
-  const environment = {
-    GITHUB_REF: 'refs/heads/experimental',
-    GITHUB_SHA: '1111111111111111111111111111111111111111',
-    PROVENANCE_GITHUB_REF: 'refs/heads/main',
-    PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
-    QUALIFIED_SHA: '1111111111111111111111111111111111111111',
-    RELEASE_BRANCH: 'experimental',
+  const context = {
+    env: {
+      GITHUB_REF: 'refs/heads/experimental',
+      GITHUB_SHA: '1111111111111111111111111111111111111111',
+      PROVENANCE_GITHUB_REF: 'refs/heads/main',
+      PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
+      QUALIFIED_SHA: '1111111111111111111111111111111111111111',
+      RELEASE_BRANCH: 'experimental',
+    },
   };
 
-  releaseContext.verifyConditions({}, { env: environment });
+  const npmContext = releaseContext.forNpm(context);
 
-  assert.equal(environment.GITHUB_REF, 'refs/heads/main');
-  assert.equal(environment.GITHUB_SHA, '2222222222222222222222222222222222222222');
-  assert.ok(
-    releaseConfiguration.plugins.indexOf('./scripts/release-provenance-context.cjs')
-      < releaseConfiguration.plugins.indexOf('@semantic-release/npm'),
-  );
+  assert.notEqual(npmContext, context);
+  assert.notEqual(npmContext.env, context.env);
+  assert.equal(npmContext.env.GITHUB_REF, 'refs/heads/main');
+  assert.equal(npmContext.env.GITHUB_SHA, '2222222222222222222222222222222222222222');
+  assert.equal(context.env.GITHUB_REF, 'refs/heads/experimental');
+  assert.equal(context.env.GITHUB_SHA, '1111111111111111111111111111111111111111');
 });
 
 test('rejects a release context that was not bound to the qualified target', () => {
@@ -113,21 +127,27 @@ test('rejects a release context that was not bound to the qualified target', () 
 
   assert.throws(
     () =>
-      releaseContext.verifyConditions(
-        {},
-        {
-          env: {
-            GITHUB_REF: 'refs/heads/main',
-            GITHUB_SHA: '2222222222222222222222222222222222222222',
-            PROVENANCE_GITHUB_REF: 'refs/heads/main',
-            PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
-            QUALIFIED_SHA: '1111111111111111111111111111111111111111',
-            RELEASE_BRANCH: 'experimental',
-          },
+      releaseContext.forNpm({
+        env: {
+          GITHUB_REF: 'refs/heads/main',
+          GITHUB_SHA: '2222222222222222222222222222222222222222',
+          PROVENANCE_GITHUB_REF: 'refs/heads/main',
+          PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
+          QUALIFIED_SHA: '1111111111111111111111111111111111111111',
+          RELEASE_BRANCH: 'experimental',
         },
-      ),
+      }),
     /qualified release target/,
   );
+});
+
+test('delegates every npm semantic-release lifecycle through the provenance-aware wrapper', () => {
+  const npmRelease = loadNpmRelease();
+
+  assert.equal(typeof npmRelease.verifyConditions, 'function');
+  assert.equal(typeof npmRelease.prepare, 'function');
+  assert.equal(typeof npmRelease.publish, 'function');
+  assert.equal(typeof npmRelease.addChannel, 'function');
 });
 
 test('prepares only stable versions for stable releases and experimental versions for experimental releases', () => {
@@ -148,6 +168,14 @@ function loadReleaseContext() {
     return require('../../scripts/release-provenance-context.cjs');
   } catch (error) {
     assert.fail(`Release provenance context is unavailable: ${error.message}`);
+  }
+}
+
+function loadNpmRelease() {
+  try {
+    return require('../../scripts/release-npm.cjs');
+  } catch (error) {
+    assert.fail(`npm release wrapper is unavailable: ${error.message}`);
   }
 }
 

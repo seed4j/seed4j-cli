@@ -2,7 +2,6 @@ module.exports = {
   branches: ['main', { name: 'experimental', channel: 'experimental', prerelease: 'experimental' }],
   tagFormat: 'v${version}',
   plugins: [
-    './scripts/release-provenance-context.cjs',
     './scripts/release-analyzer.cjs',
     [
       '@semantic-release/exec',
@@ -11,6 +10,6 @@ module.exports = {
         successCmd: 'printf "released=true\\nversion=%s\\n" "${nextRelease.version}" >> "$GITHUB_OUTPUT"',
       },
     ],
-    '@semantic-release/npm',
+    './scripts/release-npm.cjs',
   ],
 };
