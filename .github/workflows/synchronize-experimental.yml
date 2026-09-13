@@ -3,6 +3,10 @@ name: synchronize main to experimental
 on:
   workflow_dispatch:
     inputs:
+      finalize-build-id:
+        description: Finalize the proposal tested by this trusted build run
+        required: false
+        type: string
       finalize-pr:
         description: Recover post-merge finalization for one synchronization pull request
         required: false
@@ -32,6 +36,7 @@ jobs:
         github.event.workflow_run.head_branch == 'main') ||
        (github.event_name == 'workflow_dispatch' &&
         github.ref == 'refs/heads/main' &&
+        inputs['finalize-build-id'] == '' &&
         inputs['finalize-pr'] == ''))
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -214,10 +219,14 @@ jobs:
     name: finalize tested synchronization pull request
     if: >-
       github.repository == 'seed4j/seed4j-cli' &&
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.event == 'workflow_dispatch' &&
-      github.event.workflow_run.head_branch == 'automation/sync-main-to-experimental' &&
-      github.event.workflow_run.actor.login == 'github-actions[bot]'
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'workflow_dispatch' &&
+        github.event.workflow_run.head_branch == 'automation/sync-main-to-experimental' &&
+        github.event.workflow_run.actor.login == 'github-actions[bot]') ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        inputs['finalize-build-id'] != '' &&
+        github.actor == 'github-actions[bot]'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -235,12 +244,35 @@ jobs:
           fetch-depth: 0
           ref: main
 
+      - name: 'Synchronize: qualify exact dispatched proposal build'
+        id: finalization-build
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          FINALIZATION_BUILD_ID: ${{ inputs['finalize-build-id'] }}
+        run: |
+          if ! [[ "$FINALIZATION_BUILD_ID" =~ ^[0-9]+$ ]]; then
+            echo 'Synchronization finalization request has an invalid build ID.' >&2
+            exit 1
+          fi
+          BUILD_EVIDENCE_PATH="$RUNNER_TEMP/synchronization-build.json"
+          export BUILD_EVIDENCE_PATH
+          for attempt in $(seq 1 24); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${FINALIZATION_BUILD_ID}" > "$BUILD_EVIDENCE_PATH"
+            if [ "$(jq -r '.status' "$BUILD_EVIDENCE_PATH")" = "completed" ]; then
+              break
+            fi
+            if [ "$attempt" != "24" ]; then
+              sleep 5
+            fi
+          done
+          node scripts/main-to-experimental-sync.cjs qualify-finalization-build
+
       - name: 'Synchronize: review exact tests and current branches'
         id: review
         env:
-          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          BUILD_STATUS: ${{ github.event.workflow_run.status }}
-          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion || steps.finalization-build.outputs.conclusion }}
+          BUILD_STATUS: ${{ github.event.workflow_run.status || steps.finalization-build.outputs.status }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha || steps.finalization-build.outputs.sha }}
         run: |
           git fetch origin main experimental "$SYNC_BRANCH"
           CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
