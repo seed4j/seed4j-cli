@@ -228,6 +228,8 @@ test('publishing exposes the exact qualified branch and revision to semantic-rel
   assert.match(verification, /echo "branch=\$TARGET_BRANCH" >> "\$GITHUB_OUTPUT"/);
   assert.match(semanticRelease, /RELEASE_BRANCH:.*steps\.release-target\.outputs\.branch/);
   assert.match(semanticRelease, /QUALIFIED_SHA:.*needs\.qualify\.outputs\.sha/);
+  assert.match(semanticRelease, /PROVENANCE_GITHUB_REF:.*github\.ref/);
+  assert.match(semanticRelease, /PROVENANCE_GITHUB_SHA:.*github\.sha/);
   assert.match(semanticRelease, /GITHUB_REF="refs\/heads\/\$\{RELEASE_BRANCH\}"/);
   assert.match(semanticRelease, /GITHUB_SHA="\$QUALIFIED_SHA"/);
   assert.ok(semanticRelease.indexOf('GITHUB_REF=') < semanticRelease.indexOf('npx --no-install semantic-release'));
