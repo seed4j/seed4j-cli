@@ -190,6 +190,29 @@ An upstream incompatibility belongs in the experimental CLI update flow.
 
 ### Ephemeral headless-verification adaptation
 
+The central failure occurs inside the required upstream Maven lifecycle, not in an optional publisher-side test step.
+The immutable upstream `pom.xml` enters the upstream JavaScript contract again during `verify`: its
+`frontend-maven-plugin` execution named `front component test` invokes `npm run test:component:headless`; that
+`package.json` script starts `npm run dev`; and the development topology starts the TikUI Sass and Vite watchers that
+can collide on Vite's transient dependency directory.
+
+```text
+publisher build
+  -> real upstream ./mvnw --batch-mode -ntp clean verify
+    -> upstream frontend-maven-plugin during verify
+      -> upstream npm run test:component:headless
+        -> upstream npm run dev
+          -> TikUI Sass watcher + Vite watcher
+            -> inotify race on node_modules/.vite/deps_temp_* and missing CSS
+```
+
+Changing only the outer workflow command would not reach this nested upstream-owned invocation. Replacing the Maven
+gate with a separate publisher test would skip lifecycle work and weaken qualification. The workaround therefore
+intercepts the narrowest stable boundary: before Maven starts, the trusted adapter validates and temporarily replaces
+only the exact upstream `test:component:headless` script. Maven still enters the same phase, invokes the same npm script
+name, runs the same Cypress tests and coverage checks, and controls the result; only the server topology behind that
+script changes from development watchers to readiness-checked previews of artifacts already built by the lifecycle.
+
 The unprivileged qualification job MAY temporarily adapt the exact known upstream `test:component:headless` watcher
 command. This publisher-owned exception exists because diagnostic
 [run 34727053924](https://github.com/renanfranca/seed4j-main-snapshots/actions/runs/34727053924) reproduced a Sass/inotify
@@ -425,9 +448,10 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
    publication.
 3. A qualified candidate passes the upstream lint and complete Maven validation before any deployment credential becomes
    available.
-4. A recognized watcher contract is replaced only for the duration of the single real Maven gate; both manifests are
-   restored byte for byte before collection, while an unknown contract, lockfile mutation, restoration mismatch, or
-   Maven failure stops the candidate.
+4. The real upstream Maven lifecycle reaches the upstream `test:component:headless` script during `verify`; the adapter
+   replaces only that nested watcher contract for the duration of the gate, without moving Cypress or coverage outside
+   Maven. Both manifests are restored byte for byte before collection, while an unknown contract, lockfile mutation,
+   restoration mismatch, or Maven failure stops the candidate.
 5. Adapter tests may use disposable observable Maven-wrapper test doubles to simulate those outcomes, but a rehearsal
    and real qualification use only the exact Maven Wrapper from the bound official upstream SHA.
 6. A clean Maven environment resolves the published POM, main JAR, and tests-classifier JAR from the Central snapshot
