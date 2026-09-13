@@ -2,16 +2,17 @@
 
 These recipes organize commands around concrete outcomes. Use the [commands reference](Commands.md) when you need exact options, exit behavior, configuration keys, or failure contracts.
 
-Stable installation is the default. Before evaluating the opt-in npm experimental channel, read its
-[provenance, retention, unsupported-module, update, and rollback contract](experimental-channel.md).
+Stable installation is the default. Before choosing the optional npm experimental channel, read its
+[provenance, retention, module restrictions, update, and rollback contract](experimental-channel.md).
 
 The standard build deliberately has only `contents: read`. Checkout does not persist its GitHub credential into later
-steps that run repository-controlled code, and SonarCloud authenticates with its dedicated `SONAR_TOKEN`; every
-unspecified GitHub permission is denied.
+steps controlled by repository code, and SonarCloud authenticates with its dedicated `SONAR_TOKEN`; every unspecified
+GitHub permission is denied.
 
 ## Synchronize stable changes into experimental
 
-A successful standard push build for current `main` starts this one-way flow. Automation prepares
+A successful standard push build for current `main` starts a flow that only moves changes toward `experimental`.
+Automation prepares
 `automation/sync-main-to-experimental` from current `experimental`, merges the exact green `main` SHA, and opens or
 refreshes a PR targeting `experimental`. The GitHub App authenticates the branch and PR mutations; `GITHUB_TOKEN`
 authenticates the explicit build dispatch, issue operations, and finalization.
@@ -19,16 +20,17 @@ authenticates the explicit build dispatch, issue operations, and finalization.
 Use this operator recipe:
 
 1. Inspect the synchronization PR only when automation reports a problem. A current proposal receives both the normal
-   pull-request build and an explicitly dispatched exact-head build.
+   build for the pull request and a build explicitly dispatched for the exact head.
 2. Take no action while the exact proposal is green and current. The finalizer revalidates run identity, branches,
-   topology, PR head, and `tests`, then enables auto-merge; scheduled recovery completes retry-safe housekeeping.
+   topology, PR head, and `tests`, then enables automatic merge. Scheduled recovery completes the remaining housekeeping
+   in an order that is safe to retry.
 3. If `synchronization-failure` reports a Git conflict, resolve it through a reviewed PR and dispatch
    `synchronize main to experimental` from `main` to retry. Never bypass a pending or failed check.
 4. If the App variable, secret, installation, or required labels are missing, restore that repository setup before
    retrying. Do not substitute a PAT or relax branch protection.
 
-The workflow never synchronizes `experimental` wholesale back to `main`. The complete credential, evidence, recovery,
-branch-protection, and intervention contract is the
+The workflow never synchronizes `experimental` wholesale back to `main`. The complete contract for credentials,
+evidence, recovery, branch protection, and intervention is in the
 [experimental channel runbook](experimental-channel.md#build-release-and-branch-isolation).
 
 ## Create a project with modules
