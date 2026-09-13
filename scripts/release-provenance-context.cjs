@@ -1,6 +1,6 @@
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 
-function verifyConditions(_pluginConfiguration, context) {
+function forNpm(context) {
   const environment = context.env;
   const qualifiedReference = `refs/heads/${environment.RELEASE_BRANCH}`;
 
@@ -11,8 +11,14 @@ function verifyConditions(_pluginConfiguration, context) {
     throw new Error('GitHub Actions provenance identity is invalid.');
   }
 
-  environment.GITHUB_REF = environment.PROVENANCE_GITHUB_REF;
-  environment.GITHUB_SHA = environment.PROVENANCE_GITHUB_SHA;
+  return {
+    ...context,
+    env: {
+      ...environment,
+      GITHUB_REF: environment.PROVENANCE_GITHUB_REF,
+      GITHUB_SHA: environment.PROVENANCE_GITHUB_SHA,
+    },
+  };
 }
 
-module.exports = { verifyConditions };
+module.exports = { forNpm };
