@@ -363,6 +363,27 @@ test('a trusted proposal build requests finalization with exact API-qualified ev
   }
 });
 
+test('trusted finalization reports the required tests check on the exact reviewed PR head before auto-merge', () => {
+  const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/synchronize-experimental.yml'), 'utf8');
+  const finalizeJob = workflow.slice(workflow.indexOf('\n  finalize:'), workflow.indexOf('\n  recover-finalization:'));
+  const reportingStepStart = finalizeJob.indexOf("- name: 'Synchronize: report exact tests check and enable auto-merge'");
+  const reportingStepEnd = finalizeJob.indexOf("- name: 'Synchronize: arrange durable post-merge finalization'");
+
+  assert.match(finalizeJob, /permissions:[\s\S]*checks:\s*write/);
+  assert.notEqual(reportingStepStart, -1);
+  const reportingStep = finalizeJob.slice(reportingStepStart, reportingStepEnd);
+  assert.match(reportingStep, /if: steps\.review\.outputs\.action == 'enable-auto-merge'/);
+  assert.match(reportingStep, /BUILD_ID:.*github\.event\.workflow_run\.id.*inputs\['finalize-build-id'\]/);
+  assert.match(reportingStep, /HEAD_SHA:.*steps\.review\.outputs\.head/);
+  assert.match(reportingStep, /gh api --method POST "repos\/\$\{GITHUB_REPOSITORY\}\/check-runs"/);
+  assert.match(reportingStep, /-f name=tests/);
+  assert.match(reportingStep, /-f head_sha="\$HEAD_SHA"/);
+  assert.match(reportingStep, /-f status=completed/);
+  assert.match(reportingStep, /-f conclusion=success/);
+  assert.match(reportingStep, /actions\/runs\/\$\{BUILD_ID\}/);
+  assert.ok(reportingStep.indexOf('check-runs') < reportingStep.indexOf('gh pr merge'));
+});
+
 test('post-merge build dispatch and disposable-branch cleanup occur only after the exact merge reaches experimental', () => {
   const merged = {
     branch: 'automation/sync-main-to-experimental',

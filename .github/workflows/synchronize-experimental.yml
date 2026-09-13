@@ -231,6 +231,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       actions: write
+      checks: write
       contents: write
       pull-requests: write
     env:
@@ -298,9 +299,10 @@ jobs:
           REASON: ${{ steps.review.outputs.reason }}
         run: echo "Synchronization pull request remains open without auto-merge because ${REASON}." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: 'Synchronize: enable auto-merge only for current green head'
+      - name: 'Synchronize: report exact tests check and enable auto-merge'
         if: steps.review.outputs.action == 'enable-auto-merge'
         env:
+          BUILD_ID: ${{ github.event.workflow_run.id || inputs['finalize-build-id'] }}
           EXPECTED_SOURCE_SHA: ${{ steps.review.outputs.source }}
           EXPECTED_TARGET_SHA: ${{ steps.review.outputs.target }}
           HEAD_SHA: ${{ steps.review.outputs.head }}
@@ -312,6 +314,13 @@ jobs:
             echo 'Source or target moved before auto-merge; dispatched a fresh synchronization run.'
             exit 0
           fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
+            -f name=tests \
+            -f head_sha="$HEAD_SHA" \
+            -f status=completed \
+            -f conclusion=success \
+            -f details_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${BUILD_ID}" \
+            -f external_id="synchronization-build-${BUILD_ID}"
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$HEAD_SHA"
 
       - name: 'Synchronize: arrange durable post-merge finalization'
