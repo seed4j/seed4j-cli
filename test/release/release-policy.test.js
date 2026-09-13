@@ -87,6 +87,49 @@ test('publishes main as stable and experimental as an experimental prerelease', 
   assert.equal(releaseConfiguration.plugins.includes('@semantic-release/github'), false);
 });
 
+test('restores the real workflow identity before npm creates provenance', () => {
+  const releaseContext = loadReleaseContext();
+  const environment = {
+    GITHUB_REF: 'refs/heads/experimental',
+    GITHUB_SHA: '1111111111111111111111111111111111111111',
+    PROVENANCE_GITHUB_REF: 'refs/heads/main',
+    PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
+    QUALIFIED_SHA: '1111111111111111111111111111111111111111',
+    RELEASE_BRANCH: 'experimental',
+  };
+
+  releaseContext.verifyConditions({}, { env: environment });
+
+  assert.equal(environment.GITHUB_REF, 'refs/heads/main');
+  assert.equal(environment.GITHUB_SHA, '2222222222222222222222222222222222222222');
+  assert.ok(
+    releaseConfiguration.plugins.indexOf('./scripts/release-provenance-context.cjs')
+      < releaseConfiguration.plugins.indexOf('@semantic-release/npm'),
+  );
+});
+
+test('rejects a release context that was not bound to the qualified target', () => {
+  const releaseContext = loadReleaseContext();
+
+  assert.throws(
+    () =>
+      releaseContext.verifyConditions(
+        {},
+        {
+          env: {
+            GITHUB_REF: 'refs/heads/main',
+            GITHUB_SHA: '2222222222222222222222222222222222222222',
+            PROVENANCE_GITHUB_REF: 'refs/heads/main',
+            PROVENANCE_GITHUB_SHA: '2222222222222222222222222222222222222222',
+            QUALIFIED_SHA: '1111111111111111111111111111111111111111',
+            RELEASE_BRANCH: 'experimental',
+          },
+        },
+      ),
+    /qualified release target/,
+  );
+});
+
 test('prepares only stable versions for stable releases and experimental versions for experimental releases', () => {
   assert.equal(validateReleaseVersion('1.2.3', 'stable'), '1.2.3');
   assert.equal(validateReleaseVersion('1.3.0-experimental.4', 'experimental'), '1.3.0-experimental.4');
@@ -98,6 +141,14 @@ test('prepares only stable versions for stable releases and experimental version
 
 function context(...messages) {
   return contextWithEnvironment({}, ...messages);
+}
+
+function loadReleaseContext() {
+  try {
+    return require('../../scripts/release-provenance-context.cjs');
+  } catch (error) {
+    assert.fail(`Release provenance context is unavailable: ${error.message}`);
+  }
 }
 
 function contextWithEnvironment(environment, ...messages) {
