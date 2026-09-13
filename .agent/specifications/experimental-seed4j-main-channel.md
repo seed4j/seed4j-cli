@@ -1,7 +1,6 @@
 # Experimental Seed4J main channel
 
-Status: approved, decision-complete implementation specification derived from the Experimental Seed4J Main Channel
-requirements.
+Status: current normative specification for the operating experimental channel.
 
 This specification defines an explicitly experimental Seed4J CLI distribution that follows the official Seed4J
 `main` branch without credentials, publication rights, or operational cooperation from the Seed4J repository owner.
@@ -152,13 +151,6 @@ The snapshot base version MUST have this format:
 and time come from the upstream commit timestamp in UTC, not workflow start time. The SHA component is the first 12
 lowercase hexadecimal characters of the full upstream commit SHA.
 
-For upstream commit `4eebd07bce14c9a6ac70bace157fcc616133e950`, committed at `2026-09-07T05:58:00Z` with POM
-version `2.2.1-SNAPSHOT`, the resulting version is:
-
-```text
-2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT
-```
-
 The same SHA MUST always derive the same snapshot base version. A retry or retention refresh of that SHA MUST reuse the
 base version; Central may create a newer timestamped snapshot build beneath it. Missing, malformed, or ambiguous
 upstream version, commit timestamp, or SHA data MUST stop publication as a publisher failure.
@@ -214,10 +206,8 @@ name, runs the same Cypress tests and coverage checks, and controls the result; 
 script changes from development watchers to readiness-checked previews of artifacts already built by the lifecycle.
 
 The unprivileged qualification job MAY temporarily adapt the exact known upstream `test:component:headless` watcher
-command. This publisher-owned exception exists because diagnostic
-[run 34727053924](https://github.com/renanfranca/seed4j-main-snapshots/actions/runs/34727053924) reproduced a Sass/inotify
-collision with Vite's transient `node_modules/.vite/deps_temp_*` directory while the no-watcher preview arrangement
-served a non-empty 30,867-byte `/style/tikui.css` response and passed the unchanged Cypress suite 7/7.
+command when the recognized Sass/inotify and Vite watcher topology is present. The replacement MUST serve a non-empty
+`/style/tikui.css` response and run the unchanged Cypress suite.
 
 The adapter MUST recognize the expected Seed4J package identity and the exact known watcher command before changing
 anything. It MUST preserve `package.json` and `package-lock.json` byte for byte, replace only
@@ -287,10 +277,15 @@ HEAD remains current for 60 days, the next eligible scheduled run MUST republish
 the dependency available ahead of the approximate Central snapshot-retention boundary. If Central no longer exposes a
 previously published build, the publisher MUST also republish it at the next eligible run.
 
-The first publication is a manually observed pilot. After the pilot succeeds, the default schedule is every Monday at
-`06:17 UTC`. Daily publication at `06:17 UTC` MAY be enabled only after the maintainer inspects the Central Usage Center
-and demonstrates that projected monthly release count and stored bytes are each no more than 80% of the account limits.
-The workflow MUST NOT enable daily mode automatically.
+The dynamic publisher authorities are `config/publisher.json` and the publisher repository README in
+`renanfranca/seed4j-main-snapshots`. The CLI repository MUST reference them instead of copying token expiry or other live
+publisher state. The expected current configuration is `pilotCompleted=true`, `scheduleMode=weekly`, and
+`quotaReview=null`.
+
+With that configuration, Monday at `06:17 UTC` is eligible and all other `06:17 UTC` cron entries MUST remain inert with
+`daily-schedule-not-enabled`. Daily publication MAY be enabled only after the maintainer inspects the Central Usage
+Center and records that projected monthly release count and stored bytes are each no more than 80% of the account
+limits. The workflow MUST NOT enable daily mode automatically.
 
 If the daily projection exceeds either margin, publication remains weekly while the maintainer requests a community OSS
 allowance or exemption. The automation MUST NOT purchase, select, or authorize a paid plan. A changed Central allowance
@@ -334,9 +329,12 @@ After a successful build of current `main`, synchronization MUST:
 1. start a disposable branch from the latest `experimental`;
 2. merge the exact successful `main` SHA into it;
 3. stop and create or update a synchronization-failure issue if Git reports a conflict;
-4. push the disposable branch and open a PR targeting `experimental` with the repository `GITHUB_TOKEN`;
-5. explicitly dispatch the standard build against the disposable branch so the exact PR-head SHA receives `tests`;
-6. enable auto-merge only after the strict check succeeds and the PR remains current with `experimental`;
+4. use an ephemeral GitHub App installation token to push the disposable branch and create or update a PR targeting
+   `experimental`;
+5. require the App-created PR's normal build and explicitly dispatch the standard build against the disposable branch
+   so the exact PR-head SHA receives repairable `tests` evidence;
+6. enable auto-merge only after finalization revalidates the numeric run ID, built SHA, source repository, proposal
+   branch, bot actor, completion, current source and target branches, PR head, exact parent topology, and green `tests`;
 7. dispatch a post-merge build for the resulting current `experimental` SHA when token recursion suppression would
    otherwise prevent it; and
 8. delete the disposable branch after merge.
@@ -345,8 +343,13 @@ The workflow MUST verify the current source and target SHAs at every state trans
 refresh and retest the PR rather than merging stale evidence. A merge conflict MUST be left for a maintainer; automation
 MUST NOT guess a conflict resolution.
 
-Synchronization uses only the ephemeral repository `GITHUB_TOKEN` with narrowly scoped `contents`, `pull-requests`, and
-`actions` permissions where needed. It MUST NOT introduce a classic PAT, fine-grained PAT, deploy key, or persistent
+The GitHub App token MUST authenticate only the trusted checkout, disposable-branch push, and PR creation or update.
+The App client ID MUST come from repository variable `SYNC_APP_CLIENT_ID`; its private key MUST come from repository
+secret `SYNC_APP_PRIVATE_KEY`; neither value may be documented. The App installation MUST be restricted to
+`seed4j/seed4j-cli` with only `Contents: write` and `Pull requests: write`.
+
+The ephemeral repository `GITHUB_TOKEN` MUST authenticate workflow dispatches, issue operations, and finalization with
+narrow job permissions. Synchronization MUST NOT introduce a classic PAT, fine-grained PAT, deploy key, or persistent
 personal credential. Explicit `workflow_dispatch` is the approved way to cross GitHub's workflow-recursion boundary.
 
 Experimental behavior MUST NOT be copied back wholesale. When an experimental adaptation represents a generally useful
@@ -380,10 +383,15 @@ An experimental release MUST create the immutable Git tag required by semantic-r
 MUST NOT publish or modify a GitHub Release, Release Drafter draft, stable JAR asset, `latest` dist-tag, or stable release
 tag. Existing `main` release and recovery behavior remains unchanged.
 
-An experimental release is eligible only after a successful standard build for the exact current `experimental` HEAD.
-The release workflow MUST reject a stale build, a non-`experimental` ref, an unprotected pull-request revision, or an
-already released exact commit. A compatibility failure therefore blocks publication instead of leaving the npm package
+An experimental release is eligible only after a bot-authenticated successful standard build for the exact current
+`experimental` HEAD. That build MUST dispatch `release.yml` on `main` with `operation=experimental`,
+`experimental-sha`, and `build-id`. Trusted qualification MUST retrieve the identified run again and reject an invalid
+run ID, mismatched SHA, repository, branch, event, actor, status, conclusion, or protected head. The publishing job MUST
+recheck the selected protected HEAD before executing it. A stale build, unprotected pull-request revision, already
+released exact commit, or compatibility failure therefore blocks publication instead of leaving the npm package
 partially aligned with its Maven dependency.
+
+A successful release evaluation with no release-worthy commit MUST NOT create a new npm version.
 
 ### Experimental npm rollback
 
@@ -402,14 +410,13 @@ experimental release flow.
 
 ## Documentation, support, and official exit
 
-The README and maintainer/development documentation MUST describe:
+The README's experimental-channel entry MUST keep only the availability, opt-in installation, risk, and link needed to
+reach the canonical contract. The documentation index MUST provide separate routes for early adopters and maintainers.
 
-- stable installation as the default and experimental installation as deliberate opt-in;
-- the unofficial Maven coordinate, upstream-SHA provenance, snapshot-retention limitation, and support status;
-- why `seed4j-extension` is unavailable while runtime-extension management remains supported;
-- publisher account, namespace, environment, token rotation, pilot, quota review, retry, monitoring, and rollback
-  procedures; and
-- the one-way branch and dependency-update model.
+`documentation/experimental-channel.md` MUST be the canonical owner of the current channel and operational contract,
+including the unofficial coordinate, provenance, retention, unavailable module, publisher authority, schedule,
+credential separation, branch protections, automation, intervention, rollback, and official exit. Other documentation
+MUST link to that runbook instead of duplicating its internal recovery details.
 
 The documentation SHOULD cite established explicit main-derived channel precedents such as React Canary and Next.js
 canary while avoiding any claim that those projects endorse this implementation.
@@ -465,8 +472,8 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
 
 1. A successful current `main` build creates a tested synchronization PR to `experimental`; a conflict creates the
    persistent issue and changes neither protected branch.
-2. A PR created with `GITHUB_TOKEN` receives `tests` through explicit dispatch and cannot auto-merge while red, stale, or
-   conflicting.
+2. A PR created or updated with the GitHub App receives its normal build and exact-head dispatched build. Finalization
+   uses `GITHUB_TOKEN` and cannot enable auto-merge while evidence is red, stale, malformed, or conflicting.
 3. A compatible personal snapshot Renovate PR merges and releases through the experimental pipeline; an incompatible PR
    remains open without npm publication.
 4. A genuine publisher failure updates one assigned issue with actionable provenance, and a later successful current
@@ -476,10 +483,11 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
 
 ## External prerequisites and explicit limits
 
-End-to-end activation is blocked until the maintainer creates the public personal publisher repository, verifies the
-Central namespace, creates the dedicated token and protected environment, configures npm Trusted Publishing for the
-authorized workflow, creates `experimental`, and applies the approved branch protections. These are external setup
-tasks, not dependencies on the Seed4J repository owner.
+The operating channel requires the public personal publisher repository, verified Central namespace, dedicated token,
+protected environment, npm Trusted Publishing for the authorized workflow, the protected `experimental` branch, the
+restricted synchronization App installation, `SYNC_APP_CLIENT_ID`, `SYNC_APP_PRIVATE_KEY`, and both synchronization
+labels. Missing configuration is an intervention condition and MUST fail closed; it is not a dependency on the Seed4J
+repository owner.
 
 This specification deliberately excludes:
 
