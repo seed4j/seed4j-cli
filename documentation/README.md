@@ -12,17 +12,18 @@ Coding agents can optionally install the bundled [Seed4J CLI agent skill](Comman
 installation is the recommended default because it scopes discovery to the project that selected Seed4J.
 
 Early adopters should read the [experimental channel contract](experimental-channel.md#channel-contract) before opting
-in. It owns installation, risk, retention, provenance, and channel-specific command behavior.
+in. It owns installation, risk, retention, provenance, and command behavior that is specific to the channel.
 
 ## Contribute or maintain
 
 Use the [contributor and maintainer guide](development.md) to prepare the toolchain, start the CLI locally, build and test
-the npm package, run opt-in mutation testing, and understand release entry points.
+the npm package, run optional mutation testing, and understand release entry points.
 
-Channel operators should use the [experimental operations runbook](experimental-channel.md#build-release-and-branch-isolation)
-as the canonical source for synchronization, publisher cadence, credential boundaries, intervention, rollback, and
-official exit. The [synchronization workflow](workflows.md#synchronize-stable-changes-into-experimental) is the short
-operator recipe.
+Channel operators should use the
+[experimental operations runbook](experimental-channel.md#build-release-and-branch-isolation) as the canonical source
+for synchronization, publisher cadence, credential boundaries, intervention, rollback, and the procedure for moving to
+an official channel. The [synchronization workflow](workflows.md#synchronize-stable-changes-into-experimental) is the
+short operator recipe.
 
 For repository design and shared coding concepts, read:
 

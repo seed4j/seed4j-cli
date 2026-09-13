@@ -107,14 +107,15 @@ npm install -g seed4j-cli
 ```
 
 The separate `experimental` branch uses semantic-release prereleases shaped as `<next-stable>-experimental.<n>` and npm
-dist-tag `experimental`. Publication starts from the bot-authenticated standard build of the exact protected
-`experimental` HEAD, not from a maintainer publishing it manually. After `tests` passes, that build dispatches
-`release.yml` on trusted `main` with `operation=experimental`, `experimental-sha`, and `build-id`. Qualification rereads
-the build evidence and protected head before the publishing job checks out or executes the selected revision. A
-documentation-only change completes release evaluation without creating a new npm version.
+dist-tag `experimental`. The standard build must be authenticated as `github-actions[bot]` and must run for the exact
+protected `experimental` HEAD. Publication starts from that build, not from a maintainer publishing it manually. After
+`tests` passes, the build dispatches `release.yml` on trusted `main` with `operation=experimental`, `experimental-sha`,
+and `build-id`. Qualification rereads the build evidence and protected head before the publishing job checks out or
+executes the selected revision. A change that affects only documentation completes release evaluation without creating
+a new npm version.
 
 Experimental publication does not create a GitHub Release, Release Drafter draft, or stable JAR asset. The complete
-opt-in, provenance, publisher, monitoring, rollback, and official-exit procedure is the
+instructions for opting in, provenance, publisher, monitoring, rollback, and moving to an official channel are in the
 [experimental channel runbook](experimental-channel.md).
 
 The `seed4j-cli` npm Trusted Publisher must keep this GitHub identity:
