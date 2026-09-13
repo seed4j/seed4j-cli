@@ -123,7 +123,9 @@ sem ocultar esse desvio, sem apagar release/tag, sem unpublish e sem criar novas
       publicaram `seed4j-cli@0.2.0-experimental.3` por Trusted Publishing com provenance.
 - [x] Instalação pública verificada em prefixo limpo: versão/canal/snapshot/SHA corretos, aviso no help e
       `seed4j-extension` bloqueado com exit 2 e nenhuma alteração. `@latest` foi instalado separadamente como `0.1.1`.
-- [ ] Documentação, sincronização e limpeza concluídas.
+- [x] Documentação, sincronização e limpeza concluídas: anúncio/registro mergeados pelo PR #372; conflito final resolvido
+      pelo PR #374; issue operacional #373 fechada pelo refresh `already-contained`; branch bootstrap removida e
+      diretórios auxiliares enviados à lixeira.
 
 ## Validation
 
@@ -145,6 +147,11 @@ sem ocultar esse desvio, sem apagar release/tag, sem unpublish e sem criar novas
 - Smoke final observado: `seed4j --version` exibiu CLI `0.2.0-experimental.3`, canal `experimental`, snapshot
   `2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT` e upstream
   `4eebd07bce14c9a6ac70bace157fcc616133e950`; o teste de módulo indisponível não alterou o diretório alvo.
+- Reconciliação final observada: PR #372 avançou `main` para `57df395` e a release #34766456891 ficou neutra. O conflito
+  documental fail-closed expôs a label operacional ausente; `synchronization-failure` foi criada e o rerun
+  #34766456790 registrou a issue #373. O PR #374 mesclou os pais exatos `experimental@4592cd8` e `main@57df395`,
+  avançou `experimental` para `82437bd` sem alterar o POM experimental, e o refresh #34766904406 fechou a issue ao
+  confirmar `already-contained`. O build #34766936591 passou e a release #34767154194 não criou nova versão.
 
 ## Outcome deviation
 
