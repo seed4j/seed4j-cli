@@ -215,6 +215,24 @@ test('release workflow rejects deceptive source branches before privileged targe
   }
 });
 
+test('publishing exposes the exact qualified branch and revision to semantic-release', () => {
+  const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/release.yml'), 'utf8');
+  const publish = workflow.slice(workflow.indexOf('  publish:'), workflow.indexOf('  recover:'));
+  const verificationStart = publish.indexOf("- name: 'Release: verify selected protected head'");
+  const semanticReleaseStart = publish.indexOf("- name: 'Release: evaluate and publish npm package'");
+  const semanticReleaseEnd = publish.indexOf("- name: 'Release: publish drafted GitHub release'");
+  const verification = publish.slice(verificationStart, semanticReleaseStart);
+  const semanticRelease = publish.slice(semanticReleaseStart, semanticReleaseEnd);
+
+  assert.match(verification, /id: release-target/);
+  assert.match(verification, /echo "branch=\$TARGET_BRANCH" >> "\$GITHUB_OUTPUT"/);
+  assert.match(semanticRelease, /RELEASE_BRANCH:.*steps\.release-target\.outputs\.branch/);
+  assert.match(semanticRelease, /QUALIFIED_SHA:.*needs\.qualify\.outputs\.sha/);
+  assert.match(semanticRelease, /GITHUB_REF="refs\/heads\/\$\{RELEASE_BRANCH\}"/);
+  assert.match(semanticRelease, /GITHUB_SHA="\$QUALIFIED_SHA"/);
+  assert.ok(semanticRelease.indexOf('GITHUB_REF=') < semanticRelease.indexOf('npx --no-install semantic-release'));
+});
+
 test('experimental dispatch qualifies only the exact completed trusted build of current experimental', () => {
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-experimental-release-'));
   const remote = join(directory, 'remote.git');
