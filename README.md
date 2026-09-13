@@ -31,9 +31,9 @@ You can also run it without a global install:
 npx --package seed4j-cli seed4j --help
 ```
 
-Stable is the default. Once the separately operated experimental channel is activated, deliberate early adopters can
-install `npm install -g seed4j-cli@experimental`; it follows an unofficial, retention-limited snapshot of Seed4J `main`
-and is not recommended for production generation. Read the
+Stable is the default. The separately operated experimental channel is available to deliberate early adopters with
+`npm install -g seed4j-cli@experimental`; it follows an unofficial, retention-limited snapshot of Seed4J `main` and is
+not recommended for production generation. Read the
 [experimental channel contract and support policy](documentation/experimental-channel.md) before opting in.
 Maintainers must create the repository label `synchronization-pending` before enabling the documented one-way
 `main`-to-`experimental` synchronization workflow. Release publication is admitted by read-only trusted `main` code
