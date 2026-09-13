@@ -177,6 +177,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+          PROVENANCE_GITHUB_REF: ${{ github.ref }}
+          PROVENANCE_GITHUB_SHA: ${{ github.sha }}
           QUALIFIED_SHA: ${{ needs.qualify.outputs.sha }}
           RELEASE_BRANCH: ${{ steps.release-target.outputs.branch }}
           SEED4J_RELEASE_CHANNEL: ${{ needs.qualify.outputs.channel }}

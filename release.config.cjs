@@ -2,6 +2,7 @@ module.exports = {
   branches: ['main', { name: 'experimental', channel: 'experimental', prerelease: 'experimental' }],
   tagFormat: 'v${version}',
   plugins: [
+    './scripts/release-provenance-context.cjs',
     './scripts/release-analyzer.cjs',
     [
       '@semantic-release/exec',
