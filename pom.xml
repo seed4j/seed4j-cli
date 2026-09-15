@@ -97,7 +97,7 @@
     <!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->
     <seed4j.group-id>io.github.renanfranca</seed4j.group-id>
     <seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>
-    <seed4j.version>2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT</seed4j.version>
+    <seed4j.version>2.2.1-main.20260914.071407.54888c4cca10-SNAPSHOT</seed4j.version>
     <seed4j.release-channel>experimental</seed4j.release-channel>
     <seed4j.upstream-commit>4eebd07bce14c9a6ac70bace157fcc616133e950</seed4j.upstream-commit>
     <seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>
