@@ -94,12 +94,10 @@
     <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.1.1</spring-boot.version>
-    <!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->
     <seed4j.group-id>io.github.renanfranca</seed4j.group-id>
     <seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>
-    <seed4j.version>2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT</seed4j.version>
+    <seed4j.version>2.2.1-main.20260921.020944.e6209efb882ce56c4c9f980d7ba3127b23b11fa1-SNAPSHOT</seed4j.version>
     <seed4j.release-channel>experimental</seed4j.release-channel>
-    <seed4j.upstream-commit>4eebd07bce14c9a6ac70bace157fcc616133e950</seed4j.upstream-commit>
     <seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>
     <seed4j.unavailable-modules>seed4j-extension</seed4j.unavailable-modules>
     <archunit-junit5.version>1.5.0</archunit-junit5.version>
