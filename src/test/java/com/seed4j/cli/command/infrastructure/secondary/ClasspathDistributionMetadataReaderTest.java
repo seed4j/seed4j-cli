@@ -146,7 +146,7 @@ class ClasspathDistributionMetadataReaderTest {
           "extension available experimentally",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:snapshot-version
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:2.2.1-main.20260907.055800.0123456789ab-SNAPSHOT
           seed4j-upstream-commit=0123456789abcdef0123456789abcdef01234567
           unavailable-modules=
           """
@@ -191,6 +191,17 @@ class ClasspathDistributionMetadataReaderTest {
           release-channel=experimental
           seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:snapshot-version
           seed4j-upstream-commit=not-a-sha
+          unavailable-modules=seed4j-extension
+          """
+        )
+      ),
+      Arguments.of(
+        Named.of(
+          "short version disagrees with legacy commit",
+          """
+          release-channel=experimental
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:2.2.1-main.20260907.055800.0123456789ab-SNAPSHOT
+          seed4j-upstream-commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           unavailable-modules=seed4j-extension
           """
         )
