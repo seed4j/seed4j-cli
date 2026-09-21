@@ -43,11 +43,12 @@ Renovate will use only its native Maven manager and datasource. The pilot is com
 - [x] Maven size, format, and ordering constraints confirmed.
 - [x] Staged migration selected.
 - [x] Local Renovate pause and transitional CLI compatibility implemented and validated.
-- [ ] Pause integrated on CLI `main`, synchronized, and observed by one hosted Renovate cycle.
+- [x] Pause integrated on CLI `main`, synchronized, and observed by one hosted Renovate cycle (2026-09-21 14:51 UTC).
 - [x] Local full-SHA publisher contract implemented and validated; Pages/feed pilot changes removed.
-- [ ] First full-SHA snapshot published and validated from publisher `main`.
-- [ ] `experimental` migrated.
-- [ ] Final CLI contract installed and native Maven Renovate rule reactivated.
+- [x] First full-SHA snapshot published and validated from publisher `main` (publisher run 35616116724; upstream `e6209efb882ce56c4c9f980d7ba3127b23b11fa1`).
+- [x] `experimental` migrated through protected PR #400.
+- [x] Final CLI contract installed and native Maven Renovate rule reactivated on `main` through protected PR #401.
+- [ ] Final `main` revision synchronized to `experimental` through protected checks.
 - [ ] One real hosted Renovate PR observed and recorded.
 
 ## Documentation
@@ -97,8 +98,9 @@ Required behavior:
 - Prove that Renovate changes only `seed4j.version`.
 - Reject any reintroduction of Pages, a custom datasource, `digest`, or a second experimental manager.
 
-Observed at the current milestone boundary:
+Observed at the previous milestone boundary:
 
 - CLI: 39 workflow-policy tests and 648 Maven tests passed; repository-wide Prettier, Renovate 44.103.6 validation, and `habit-hooks` passed.
 - Publisher: 49 tests, changed-file Prettier, dry run, Maven wrapper check, and `habit-hooks` passed. The repository-wide Prettier command remains red only for 17 pre-existing `.agent/tmp` evidence files outside this migration.
-- Hosted read-only check: no open pull request currently targets `experimental`, but remote `main` still contains the old active experimental rule. A hosted Renovate cycle cannot observe the pause until these CLI changes are integrated.
+
+Observed after integration: the hosted Renovate job at 2026-09-21 14:51 UTC loaded the paused `experimental` rule; no snapshot PR was open. Publisher PR #11 passed and merged. Manual `operation=head` run 35616116724 passed; Central serves the full-SHA POM, JAR, and tests JAR with matching GAV and `<scm><tag>`, and does not serve sources or Javadoc. CLI PR #400 passed protected `tests` and merged into `experimental`; the packaged `--version` output showed the same full SHA.

@@ -373,10 +373,9 @@ single value. Renovate MUST propose only that property. There MUST be no non-nat
 competing Maven rule. The hosted Renovate application owns polling and retry cadence; this repository does not
 promise a six-hour or other fixed polling interval.
 
-During the staged full-SHA migration, the personal coordinate's Maven rule MUST remain disabled until a full-SHA
-snapshot has resolved and built successfully on `experimental`. The transitional reader MAY accept an old short-SHA
-version only when the separate legacy full SHA exists and matches its prefix. When a full-SHA version and the legacy
-field coexist, they MUST match exactly. Finalization removes the legacy property and all short-version compatibility.
+The final distribution metadata MUST NOT contain `seed4j-upstream-commit`, and the POM MUST NOT define
+`seed4j.upstream-commit`. The reader MUST derive the complete upstream SHA from a full-SHA experimental
+`seed4j.version` and reject short-SHA versions or legacy metadata. Stable distributions remain SHA-free.
 
 If a snapshot changes an imported Seed4J API incompatibly, the Renovate PR remains open and red. A maintainer adapts the
 experimental CLI in that PR or a superseding PR. Renovate MUST NOT fall back to an older official release, rewrite the

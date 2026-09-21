@@ -135,8 +135,8 @@ evidence, guesses conflict resolution, or enables merge without a current green 
 operator recipe.
 
 Renovate keeps dependency contexts separate. `main` tracks stable `com.seed4j:seed4j` releases and ignores the personal
-coordinate. During migration, the personal coordinate is paused until a full-SHA snapshot resolves and builds on
-`experimental`. Final configuration uses one native Maven rule against Central snapshots, with unstable versions
+coordinate. The full-SHA snapshot has resolved and built on `experimental`, so the final configuration uses one native
+Maven rule against Central snapshots, with unstable versions
 enabled, and changes only `seed4j.version`. A snapshot PR merges automatically only after required checks pass on current
 `experimental`; an incompatible update remains open and red for a maintainer adaptation. The hosted Renovate application
 determines polling cadence, so the repository does not guarantee a fixed six-hour interval.
