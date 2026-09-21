@@ -56,16 +56,17 @@ function validateDistributionBuild({ metadata, pom }) {
     throw new Error('Distribution metadata must be filtered exactly once by Maven.');
   }
   const currentIdentity = distributionIdentity(pom);
+  let validatedIdentity = currentIdentity;
   if (currentIdentity.channel === 'stable') {
     requireStableIdentity(currentIdentity);
     requireNoPersonalSnapshotDeclarations(pom);
   } else if (currentIdentity.channel === 'experimental') {
-    requireExperimentalIdentity(currentIdentity);
+    validatedIdentity = Object.freeze({ ...currentIdentity, upstreamCommit: requireExperimentalIdentity(currentIdentity) });
     requireExperimentalRepository(pom);
   } else {
     throw new Error(`Unsupported distribution release channel '${currentIdentity.channel}'.`);
   }
-  return currentIdentity;
+  return validatedIdentity;
 }
 
 function requireStableIdentity(identity) {
@@ -95,14 +96,21 @@ function requireExperimentalIdentity(identity) {
     || identity.artifactId !== 'seed4j-main-snapshot'
     || identity.repositoryUrl !== 'https://central.sonatype.com/repository/maven-snapshots/'
     || identity.unavailableModules !== 'seed4j-extension'
-    || !/^[0-9a-f]{40}$/.test(identity.upstreamCommit)
   ) {
     throw new Error('Experimental distribution requires complete full upstream SHA facts.');
   }
-  const version = /^\d+\.\d+\.\d+-main\.\d{8}\.\d{6}\.([0-9a-f]{12})-SNAPSHOT$/.exec(identity.version);
-  if (!version || !identity.upstreamCommit.startsWith(version[1])) {
+  const fullVersion = /^\d+\.\d+\.\d+-main\.\d{8}\.\d{6}\.([0-9a-f]{40})-SNAPSHOT$/.exec(identity.version);
+  if (fullVersion) {
+    if (identity.upstreamCommit !== '' && identity.upstreamCommit !== fullVersion[1]) {
+      throw new Error('Experimental snapshot version must match the recorded full upstream SHA.');
+    }
+    return fullVersion[1];
+  }
+  const shortVersion = /^\d+\.\d+\.\d+-main\.\d{8}\.\d{6}\.([0-9a-f]{12})-SNAPSHOT$/.exec(identity.version);
+  if (!shortVersion || !/^[0-9a-f]{40}$/.test(identity.upstreamCommit) || !identity.upstreamCommit.startsWith(shortVersion[1])) {
     throw new Error('Experimental snapshot version must match the recorded full upstream SHA.');
   }
+  return identity.upstreamCommit;
 }
 
 function requireExperimentalRepository(pom) {
