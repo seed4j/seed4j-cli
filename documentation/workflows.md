@@ -33,6 +33,25 @@ The workflow never synchronizes `experimental` wholesale back to `main`. The com
 evidence, recovery, branch protection, and intervention is in the
 [experimental channel runbook](experimental-channel.md#build-release-and-branch-isolation).
 
+## Update the experimental Seed4J snapshot
+
+The personal publisher deploys each qualified snapshot to Central with the complete upstream SHA embedded in the Maven
+version. After migration, Renovate's native Maven manager reads Central on its hosted cadence and opens one PR against
+`experimental` that changes only `seed4j.version`.
+
+Use this operator recipe:
+
+1. Keep the experimental Maven rule paused while the CLI still depends on a short-SHA snapshot.
+2. Publish and resolve a full-SHA snapshot, then update `experimental` manually and require its protected `tests` check.
+3. Remove the legacy upstream property, enable the single native Maven rule, and verify that no experimental regex
+   manager or competing rule remains.
+4. If a Renovate PR is red because Seed4J APIs changed, adapt the CLI in that PR or a superseding reviewed PR.
+5. Accept the integration only after one real snapshot creates exactly one PR changing only `seed4j.version`. If native
+   detection fails or duplicates appear, pause the rule and update the version manually pending a new decision.
+
+See the
+[experimental channel runbook](experimental-channel.md#publisher-operations) for failure and recovery details.
+
 ## Create a project with modules
 
 A typical workflow to initialize a new project might look like:

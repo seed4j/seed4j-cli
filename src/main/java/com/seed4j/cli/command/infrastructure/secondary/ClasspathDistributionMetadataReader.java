@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -28,6 +30,8 @@ class ClasspathDistributionMetadataReader implements DistributionMetadataReader 
   private static final String DEPENDENCY_COORDINATE = "seed4j-dependency-coordinate";
   private static final String UPSTREAM_COMMIT = "seed4j-upstream-commit";
   private static final String UNAVAILABLE_MODULES = "unavailable-modules";
+  private static final Pattern FULL_SHA_SNAPSHOT_VERSION = Pattern.compile("^.+-main\\.\\d{8}\\.\\d{6}\\.([0-9a-f]{40})-SNAPSHOT$");
+  private static final Pattern SHORT_SHA_SNAPSHOT_VERSION = Pattern.compile("^.+-main\\.\\d{8}\\.\\d{6}\\.([0-9a-f]{12})-SNAPSHOT$");
 
   private final ResourceLoader resourceLoader;
 
@@ -62,7 +66,7 @@ class ClasspathDistributionMetadataReader implements DistributionMetadataReader 
     requireAvailabilityMetadata(properties);
     ReleaseChannel channel = channel(properties.getProperty(RELEASE_CHANNEL));
     Seed4JDependencyCoordinate dependencyCoordinate = dependencyCoordinate(properties.getProperty(DEPENDENCY_COORDINATE));
-    Optional<Seed4JUpstreamCommit> upstreamCommit = upstreamCommit(properties.getProperty(UPSTREAM_COMMIT));
+    Optional<Seed4JUpstreamCommit> upstreamCommit = upstreamCommit(channel, dependencyCoordinate, properties.getProperty(UPSTREAM_COMMIT));
     return new DistributionMetadata(
       new DistributionIdentity(channel, dependencyCoordinate, upstreamCommit),
       new Seed4JModuleAvailability(unavailableModules(properties.getProperty(UNAVAILABLE_MODULES)))
@@ -94,11 +98,34 @@ class ClasspathDistributionMetadataReader implements DistributionMetadataReader 
     return Seed4JDependencyCoordinate.versioned(segments[0].trim(), segments[1].trim(), segments[2].trim());
   }
 
-  private static Optional<Seed4JUpstreamCommit> upstreamCommit(String value) {
-    return Optional.ofNullable(value)
+  private static Optional<Seed4JUpstreamCommit> upstreamCommit(
+    ReleaseChannel channel,
+    Seed4JDependencyCoordinate dependencyCoordinate,
+    String legacyValue
+  ) {
+    Optional<Seed4JUpstreamCommit> legacyCommit = Optional.ofNullable(legacyValue)
       .map(String::trim)
       .filter(candidate -> !candidate.isEmpty())
       .map(Seed4JUpstreamCommit::new);
+    if (!channel.experimental()) {
+      return legacyCommit;
+    }
+
+    String version = dependencyCoordinate.version().orElseThrow().value();
+    Matcher fullVersion = FULL_SHA_SNAPSHOT_VERSION.matcher(version);
+    if (fullVersion.matches()) {
+      Seed4JUpstreamCommit derivedCommit = new Seed4JUpstreamCommit(fullVersion.group(1));
+      if (legacyCommit.isPresent() && !legacyCommit.get().equals(derivedCommit)) {
+        throw new IllegalArgumentException("Experimental version and legacy upstream commit differ");
+      }
+      return Optional.of(derivedCommit);
+    }
+
+    Matcher shortVersion = SHORT_SHA_SNAPSHOT_VERSION.matcher(version);
+    if (shortVersion.matches() && legacyCommit.filter(commit -> commit.value().startsWith(shortVersion.group(1))).isPresent()) {
+      return legacyCommit;
+    }
+    throw new IllegalArgumentException("Experimental version does not carry valid upstream provenance");
   }
 
   private static Set<DistributionModuleSlug> unavailableModules(String value) {

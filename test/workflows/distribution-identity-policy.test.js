@@ -67,6 +67,24 @@ test('the same policy accepts a future branch-owned experimental identity and sn
   assert.match(pom, /<snapshots>[\s\S]*?<enabled>true<\/enabled>/);
 });
 
+test('the migration policy derives full provenance from a full-SHA snapshot version', () => {
+  const upstreamSha = '4eebd07bce14c9a6ac70bace157fcc616133e950';
+  const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
+  const pom = experimentalBranchPom(read('pom.xml'))
+    .replace('2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT', `2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT`)
+    .replace(`<seed4j.upstream-commit>${upstreamSha}</seed4j.upstream-commit>`, '<seed4j.upstream-commit />');
+
+  assert.deepEqual(validateDistributionBuild({ metadata, pom }), {
+    artifactId: 'seed4j-main-snapshot',
+    channel: 'experimental',
+    groupId: 'io.github.renanfranca',
+    repositoryUrl: 'https://central.sonatype.com/repository/maven-snapshots/',
+    unavailableModules: 'seed4j-extension',
+    upstreamCommit: upstreamSha,
+    version: `2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT`,
+  });
+});
+
 test('an experimental snapshot version cannot pass with stale or incomplete full upstream provenance', () => {
   const pom = experimentalBranchPom(read('pom.xml'));
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
@@ -92,20 +110,27 @@ test('an experimental snapshot version cannot pass with stale or incomplete full
   );
 });
 
-test('Renovate updates the authoritative stable and experimental Maven properties and leaves stale provenance red', () => {
+test('Renovate keeps the experimental snapshot dependency paused without a custom datasource', () => {
   const stablePom = read('pom.xml');
   const experimentalPom = experimentalBranchPom(stablePom);
   const renovate = JSON.parse(read('renovate.json'));
   const managers = Object.fromEntries(renovate.customManagers.map(manager => [manager.depNameTemplate, manager]));
+  const pauseRule = renovate.packageRules.find(
+    rule => rule.description === 'Pause personal snapshots on experimental during full-SHA migration',
+  );
 
   assert.match(stablePom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
-  assert.doesNotMatch(stablePom, new RegExp(managers['io.github.renanfranca:seed4j-main-snapshot'].matchStrings[0]));
   assert.doesNotMatch(experimentalPom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
-  assert.match(experimentalPom, new RegExp(managers['io.github.renanfranca:seed4j-main-snapshot'].matchStrings[0]));
-  assert.equal(
-    managers['io.github.renanfranca:seed4j-main-snapshot'].registryUrlTemplate,
-    'https://central.sonatype.com/repository/maven-snapshots/',
-  );
+  assert.equal(managers['io.github.renanfranca:seed4j-main-snapshot'], undefined);
+  assert.equal('customDatasources' in renovate, false);
+  assert.deepEqual(pauseRule, {
+    description: 'Pause personal snapshots on experimental during full-SHA migration',
+    enabled: false,
+    matchBaseBranches: ['experimental'],
+    matchDatasources: ['maven'],
+    matchManagers: ['maven'],
+    matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
+  });
   assert.ok(renovate.extends.includes(':automergeRequireAllStatusChecks'));
 });
 
