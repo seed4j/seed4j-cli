@@ -13,6 +13,15 @@ class DistributionMetadataTest {
   private static final Seed4JUpstreamCommit UPSTREAM_COMMIT = new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567");
 
   @Test
+  void shouldRejectMalformedUpstreamCommit() {
+    String invalidCommit = "not-a-full-sha";
+
+    assertThatThrownBy(() -> new Seed4JUpstreamCommit(invalidCommit))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Seed4J upstream commit must be a 40-character lowercase hexadecimal SHA");
+  }
+
+  @Test
   void shouldRejectExperimentalIdentityWithoutUpstreamCommit() {
     Seed4JDependencyCoordinate coordinate = Seed4JDependencyCoordinate.versioned(
       "io.github.renanfranca",

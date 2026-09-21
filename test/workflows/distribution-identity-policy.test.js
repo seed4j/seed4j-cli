@@ -112,29 +112,52 @@ test('an experimental snapshot version cannot pass with incomplete or invalid fu
       }),
     /full upstream SHA/i,
   );
+  assert.throws(
+    () =>
+      validateDistributionBuild({
+        metadata,
+        pom: pom.replace(
+          '<seed4j.release-channel>experimental</seed4j.release-channel>',
+          '<seed4j.release-channel>experimental</seed4j.release-channel>\n    <seed4j.upstream-commit />',
+        ),
+      }),
+    /legacy upstream commit/i,
+  );
 });
 
-test('Renovate keeps the experimental snapshot dependency paused without a custom datasource', () => {
+test('Renovate tracks the experimental snapshot with one active native Maven rule', () => {
   const stablePom = stableBranchPom(read('pom.xml'));
   const experimentalPom = experimentalBranchPom(stablePom);
   const renovate = JSON.parse(read('renovate.json'));
   const managers = Object.fromEntries(renovate.customManagers.map(manager => [manager.depNameTemplate, manager]));
-  const pauseRule = renovate.packageRules.find(
-    rule => rule.description === 'Pause personal snapshots on experimental during full-SHA migration',
-  );
+  const rule = renovate.packageRules.find(rule => rule.description === 'Track personal Seed4J snapshots on experimental');
 
   assert.match(stablePom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
   assert.doesNotMatch(experimentalPom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
   assert.equal(managers['io.github.renanfranca:seed4j-main-snapshot'], undefined);
   assert.equal('customDatasources' in renovate, false);
-  assert.deepEqual(pauseRule, {
-    description: 'Pause personal snapshots on experimental during full-SHA migration',
-    enabled: false,
+  assert.deepEqual(rule, {
+    description: 'Track personal Seed4J snapshots on experimental',
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],
     matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
+    registryUrls: ['https://central.sonatype.com/repository/maven-snapshots/'],
+    ignoreUnstable: false,
+    automerge: true,
+    automergeType: 'pr',
+    rebaseWhen: 'behind-base-branch',
+    semanticCommitType: 'fix',
+    semanticCommitScope: 'deps',
   });
+  assert.equal(
+    renovate.packageRules.filter(
+      candidate =>
+        candidate.matchPackageNames?.includes('io.github.renanfranca:seed4j-main-snapshot')
+        && candidate.matchBaseBranches?.includes('experimental'),
+    ).length,
+    1,
+  );
   assert.ok(renovate.extends.includes(':automergeRequireAllStatusChecks'));
 });
 
