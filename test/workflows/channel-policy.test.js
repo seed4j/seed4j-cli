@@ -106,7 +106,7 @@ test('experimental releases require their exact green HEAD and cannot mutate sta
   assert.doesNotMatch(releaseDrafter, /experimental/);
 });
 
-test('Renovate keeps experimental snapshot updates paused during the full-SHA migration', () => {
+test('Renovate tracks experimental snapshots through one native Maven rule with protected automerge', () => {
   const renovate = JSON.parse(read('renovate.json'));
   const rules = Object.fromEntries(renovate.packageRules.map(rule => [rule.description, rule]));
 
@@ -132,14 +132,27 @@ test('Renovate keeps experimental snapshot updates paused during the full-SHA mi
     matchBaseBranches: ['experimental'],
     matchPackageNames: ['com.seed4j:seed4j'],
   });
-  assert.deepEqual(rules['Pause personal snapshots on experimental during full-SHA migration'], {
-    description: 'Pause personal snapshots on experimental during full-SHA migration',
-    enabled: false,
+  assert.deepEqual(rules['Track personal Seed4J snapshots on experimental'], {
+    description: 'Track personal Seed4J snapshots on experimental',
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],
     matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
+    registryUrls: ['https://central.sonatype.com/repository/maven-snapshots/'],
+    ignoreUnstable: false,
+    automerge: true,
+    automergeType: 'pr',
+    rebaseWhen: 'behind-base-branch',
+    semanticCommitType: 'fix',
+    semanticCommitScope: 'deps',
   });
+  assert.equal(
+    renovate.packageRules.filter(
+      rule =>
+        rule.matchBaseBranches?.includes('experimental') && rule.matchPackageNames?.includes('io.github.renanfranca:seed4j-main-snapshot'),
+    ).length,
+    1,
+  );
   assert.equal('customDatasources' in renovate, false);
   assert.equal(
     renovate.customManagers.some(manager => manager.depNameTemplate === 'io.github.renanfranca:seed4j-main-snapshot'),

@@ -41,10 +41,10 @@ version. After migration, Renovate's native Maven manager reads Central on its h
 
 Use this operator recipe:
 
-1. Keep the experimental Maven rule paused while the CLI still depends on a short-SHA snapshot.
-2. Publish and resolve a full-SHA snapshot, then update `experimental` manually and require its protected `tests` check.
-3. Remove the legacy upstream property, enable the single native Maven rule, and verify that no experimental regex
-   manager or competing rule remains.
+1. Publish and resolve a full-SHA snapshot, then update `experimental` manually and require its protected `tests` check.
+2. Remove `seed4j.upstream-commit` from the POM and `seed4j-upstream-commit` from packaged metadata. The SHA now comes
+   only from `seed4j.version`.
+3. Enable the single native Maven rule and verify that no experimental regex manager or competing rule remains.
 4. If a Renovate PR is red because Seed4J APIs changed, adapt the CLI in that PR or a superseding reviewed PR.
 5. Accept the integration only after one real snapshot creates exactly one PR changing only `seed4j.version`. If native
    detection fails or duplicates appear, pause the rule and update the version manually pending a new decision.
