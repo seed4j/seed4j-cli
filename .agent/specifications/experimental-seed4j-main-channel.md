@@ -144,12 +144,13 @@ The published POM and retained legal metadata MUST:
 The snapshot base version MUST have this format:
 
 ```text
-<upstream-base>-main.<yyyyMMdd>.<HHmmss>.<12-character-sha>-SNAPSHOT
+<upstream-base>-main.<yyyyMMdd>.<HHmmss>.<40-character-sha>-SNAPSHOT
 ```
 
 `upstream-base` is the official upstream POM version with one final `-SNAPSHOT` suffix removed when present. The date
-and time come from the upstream commit timestamp in UTC, not workflow start time. The SHA component is the first 12
-lowercase hexadecimal characters of the full upstream commit SHA.
+and time come from the upstream commit timestamp in UTC, not workflow start time. The SHA component is the complete 40
+lowercase hexadecimal characters of the upstream commit SHA. A derived Maven version longer than 256 characters MUST be
+rejected before building or publishing.
 
 The same SHA MUST always derive the same snapshot base version. A retry or retention refresh of that SHA MUST reuse the
 base version; Central may create a newer timestamped snapshot build beneath it. Missing, malformed, or ambiguous
@@ -294,7 +295,8 @@ requires a new recorded calculation before daily mode is enabled.
 ### Failure reporting
 
 An overlay, local build, manifest, artifact, credential, deployment, rate-limit, or Central availability failure after a
-candidate has qualified MUST create or update one open issue in `renanfranca/seed4j-main-snapshots`. The issue MUST:
+candidate has qualified MUST create or update one open issue in
+`renanfranca/seed4j-main-snapshots`. The issue MUST:
 
 - carry a dedicated publisher-failure label;
 - be assigned to `renanfranca` and mention `@renanfranca` in its body;
@@ -356,15 +358,25 @@ personal credential. Explicit `workflow_dispatch` is the approved way to cross G
 Experimental behavior MUST NOT be copied back wholesale. When an experimental adaptation represents a generally useful
 stable change, it requires an independently reviewed PR to `main` based on that change's own stable contract.
 
-### Renovate dependency separation
+### Maven-owned Renovate dependency updates
 
 Renovate MUST inspect both `main` and `experimental`, but apply branch-specific dependency policy:
 
 - `main` tracks official stable `com.seed4j:seed4j` versions with the repository's existing runtime-dependency release
   semantics and MUST ignore the personal snapshot coordinate;
-- `experimental` tracks `io.github.renanfranca:seed4j-main-snapshot` through the Central snapshot registry with unstable
-  versions enabled; and
+- `experimental` tracks `io.github.renanfranca:seed4j-main-snapshot` through Renovate's native Maven manager and
+  datasource, using the Central snapshot repository with unstable versions enabled; and
 - a personal snapshot update may auto-merge only when every required check succeeds and the branch is current.
+
+`seed4j.version` is the indivisible dependency identity: the complete upstream SHA is embedded in and derived from that
+single value. Renovate MUST propose only that property. There MUST be no non-native experimental dependency manager or
+competing Maven rule. The hosted Renovate application owns polling and retry cadence; this repository does not
+promise a six-hour or other fixed polling interval.
+
+During the staged full-SHA migration, the personal coordinate's Maven rule MUST remain disabled until a full-SHA
+snapshot has resolved and built successfully on `experimental`. The transitional reader MAY accept an old short-SHA
+version only when the separate legacy full SHA exists and matches its prefix. When a full-SHA version and the legacy
+field coexist, they MUST match exactly. Finalization removes the legacy property and all short-version compatibility.
 
 If a snapshot changes an imported Seed4J API incompatibly, the Renovate PR remains open and red. A maintainer adapts the
 experimental CLI in that PR or a superseding PR. Renovate MUST NOT fall back to an older official release, rewrite the
@@ -469,6 +481,8 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
    same base version.
 8. Manifest tampering, an extra artifact, a digest mismatch, or an unexpected coordinate is rejected without executing
    upstream code in the privileged job.
+9. The snapshot version, manifest, embedded JAR provenance, and published POM SCM tag all identify the same complete
+   official upstream SHA.
 
 ### Automation and recovery
 
@@ -477,8 +491,9 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
 2. A PR created or updated with the GitHub App receives its normal build and a dispatched build for its exact head.
    Finalization uses `GITHUB_TOKEN` and cannot enable automatic merge while evidence is red, stale, malformed, or
    conflicting.
-3. A compatible personal snapshot Renovate PR merges and releases through the experimental pipeline; an incompatible PR
-   remains open without npm publication.
+3. One real compatible snapshot produces exactly one Renovate PR, changes only `seed4j.version`,
+   and merges and releases through the protected experimental pipeline; an incompatible PR remains open without npm
+   publication.
 4. A genuine publisher failure updates one assigned issue with actionable provenance, and a later successful current
    publication closes it. Expected upstream skips do not open it.
 5. A local rollback moves only `experimental` to the recorded good version and deprecates the bad version while
@@ -489,8 +504,8 @@ publisher be disabled. Existing personal snapshots are not deleted and expire un
 The operating channel requires the public personal publisher repository, verified Central namespace, dedicated token,
 protected environment, npm Trusted Publishing for the authorized workflow, the protected `experimental` branch, the
 restricted synchronization App installation, `SYNC_APP_CLIENT_ID`, `SYNC_APP_PRIVATE_KEY`, and both synchronization
-labels. Missing configuration is an intervention condition and MUST fail closed; it is not a dependency on the Seed4J
-repository owner.
+labels. Missing configuration is an
+intervention condition and MUST fail closed; it is not a dependency on the Seed4J repository owner.
 
 This specification deliberately excludes:
 
@@ -499,8 +514,12 @@ This specification deliberately excludes:
 - arbitrary-SHA publication, secrets in upstream build jobs, long-lived GitHub PATs, or persistent npm tokens;
 - generated extension projects that depend on the personal snapshot;
 - automatic conflict resolution, automatic compatibility rewrites, or reverse branch synchronization;
-- automatic paid-plan selection, automatic switch to a future official feed, or deletion of old snapshots; and
+- automatic paid-plan selection, automatic switch to a future official channel, or deletion of old snapshots; and
 - stable-channel warnings or behavior changes merely because the experimental channel exists.
+
+If one real snapshot does not produce exactly one version-only PR, the experimental Maven rule MUST be disabled and
+maintainers MUST update `seed4j.version` manually pending a new design decision. A second updater MUST NOT be introduced
+as an automatic fallback.
 
 Normative operational references:
 

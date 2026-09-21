@@ -25,18 +25,6 @@
       "datasourceTemplate": "maven",
       "depNameTemplate": "com.seed4j:seed4j",
       "versioningTemplate": "maven"
-    },
-    {
-      "customType": "regex",
-      "description": "Update the experimental Maven-owned Seed4J snapshot version",
-      "managerFilePatterns": ["/^pom\\.xml$/"],
-      "matchStrings": [
-        "<!-- renovate: datasource=maven depName=io\\.github\\.renanfranca:seed4j-main-snapshot registryUrl=https://central\\.sonatype\\.com/repository/maven-snapshots/ -->[\\s\\S]*?<seed4j\\.version>(?<currentValue>[^<]+)</seed4j\\.version>"
-      ],
-      "datasourceTemplate": "maven",
-      "depNameTemplate": "io.github.renanfranca:seed4j-main-snapshot",
-      "registryUrlTemplate": "https://central.sonatype.com/repository/maven-snapshots/",
-      "versioningTemplate": "maven"
     }
   ],
   "packageRules": [
@@ -62,17 +50,12 @@
       "enabled": false
     },
     {
-      "description": "Track personal Seed4J snapshots on experimental",
+      "description": "Pause personal snapshots on experimental during full-SHA migration",
       "matchBaseBranches": ["experimental"],
       "matchDatasources": ["maven"],
+      "matchManagers": ["maven"],
       "matchPackageNames": ["io.github.renanfranca:seed4j-main-snapshot"],
-      "registryUrls": ["https://central.sonatype.com/repository/maven-snapshots/"],
-      "ignoreUnstable": false,
-      "automerge": true,
-      "automergeType": "pr",
-      "rebaseWhen": "behind-base-branch",
-      "semanticCommitType": "fix",
-      "semanticCommitScope": "deps"
+      "enabled": false
     }
   ],
   "docker-compose": {

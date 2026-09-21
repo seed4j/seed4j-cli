@@ -52,14 +52,14 @@ The attestation result should expose an npm provenance URL and a SLSA provenance
 ## Identity, provenance, and retention
 
 Each package carries immutable distribution metadata under `META-INF`. It records the release channel, exact dependency
-coordinate, full official `seed4j/seed4j` upstream commit SHA, and unavailable module slugs. The metadata is
-filtered at build time from the same group, artifact, version, channel, upstream SHA, repository, and availability
-properties that Maven owns for both Seed4J dependencies. It cannot be replaced by user configuration, environment
-properties, command options, or a runtime extension.
+coordinate, and unavailable module slugs. For an experimental distribution, the complete official `seed4j/seed4j`
+upstream commit SHA is part of the Maven version and the CLI derives it from that version. The metadata is filtered at
+build time from Maven-owned properties and cannot be replaced by user configuration, environment properties, command
+options, or a runtime extension.
 
 That Maven authority belongs to the branch, not to a runtime selector. `main` contains only the stable official
 coordinate and declares no personal snapshot repository. `experimental` replaces those authority values at the top
-level with the personal coordinate, full upstream SHA, and module availability facts. It also adds a repository that
+level with the personal coordinate and module availability facts. It also adds a repository that
 contains only snapshots. Ordinary Maven build and release commands package the identity owned by the branch in the
 checkout.
 
@@ -88,7 +88,7 @@ metadata.
 The complete path is:
 
 1. the external publisher qualifies official Seed4J `main` and publishes the personal snapshot to Central;
-2. Renovate proposes the qualified Central snapshot to the CLI `experimental` branch;
+2. Renovate's native Maven manager proposes the published full-SHA version to the CLI `experimental` branch;
 3. a protected `experimental` merge receives the standard build; and
 4. the build, authenticated as `github-actions[bot]`, requests qualification and npm publication from trusted `main`
    workflow code.
@@ -135,10 +135,11 @@ evidence, guesses conflict resolution, or enables merge without a current green 
 operator recipe.
 
 Renovate keeps dependency contexts separate. `main` tracks stable `com.seed4j:seed4j` releases and ignores the personal
-coordinate. `experimental` tracks unstable `io.github.renanfranca:seed4j-main-snapshot` versions through the Central
-snapshot registry. A snapshot PR merges automatically only after required checks pass on current `experimental`; an
-incompatible update remains open and red for a maintainer adaptation. The snapshot version includes the first 12
-characters of the SHA, which must match the separately recorded full upstream SHA.
+coordinate. During migration, the personal coordinate is paused until a full-SHA snapshot resolves and builds on
+`experimental`. Final configuration uses one native Maven rule against Central snapshots, with unstable versions
+enabled, and changes only `seed4j.version`. A snapshot PR merges automatically only after required checks pass on current
+`experimental`; an incompatible update remains open and red for a maintainer adaptation. The hosted Renovate application
+determines polling cadence, so the repository does not guarantee a fixed six-hour interval.
 
 After the exact current `experimental` HEAD passes a build explicitly dispatched by `github-actions[bot]`, that build
 dispatches `release.yml` on `main` with `operation=experimental`, `experimental-sha`, and `build-id`. Qualification runs
@@ -157,8 +158,9 @@ The personal Maven publisher belongs to the separate public
 [`renanfranca/seed4j-main-snapshots`](https://github.com/renanfranca/seed4j-main-snapshots) repository. Its
 [`config/publisher.json`](https://github.com/renanfranca/seed4j-main-snapshots/blob/main/config/publisher.json) and
 [`README.md`](https://github.com/renanfranca/seed4j-main-snapshots#pilot-and-schedule-policy) are the dynamic authorities
-for cadence, token expiry, quota review, qualification, retention refresh, failure reporting, and retry behavior. Read
-them again before an operational change instead of treating this CLI repository as a second live configuration source.
+for cadence, token expiry, quota review, qualification, retention refresh, failure reporting, and
+retry behavior. Read them again before an operational change instead of treating this CLI repository as a second live
+configuration source.
 
 The expected current configuration is `pilotCompleted=true`, `scheduleMode=weekly`, and `quotaReview=null`. Under that
 configuration, Monday at `06:17 UTC` is eligible. The other `06:17 UTC` cron entries remain inert with
@@ -167,9 +169,10 @@ recorded Central Usage Center calculation showing both projected monthly release
 80% of their limits. Automation never selects a paid plan.
 
 The publisher skips an unsuccessful upstream build and a snapshot published less than 60 days ago without opening a
-failure issue. A real failure after qualification creates or updates its single assigned publisher issue. The only
-manual publisher operations are `head` and `retry-last-failed`; retry derives the candidate from trusted recorded state
-and does not accept a repository, ref, SHA, coordinate, or version supplied freely by the caller.
+failure issue. A build or deployment failure after qualification creates or updates the single assigned publisher
+issue. The only manual publisher operations are `head` and
+`retry-last-failed`; retry derives the candidate from trusted recorded state and does not accept a repository, ref, SHA,
+coordinate, or version supplied freely by the caller.
 
 ### Automatic versus maintainer intervention
 
@@ -188,6 +191,10 @@ and does not accept a repository, ref, SHA, coordinate, or version supplied free
 | Change from weekly to daily                                  | Maintainer records a quota review showing no more than 80% and changes configuration through a green PR. |
 | Bad experimental npm version                                 | Maintainer follows the rollback procedure below from a trusted local npm session with 2FA.               |
 | Official replacement for the personal channel                | Maintainer follows the procedure below for moving to an official channel.                                |
+
+Accept the native Maven integration after one real snapshot creates exactly one PR whose diff changes only
+`seed4j.version`. If it misses the snapshot or creates duplicates, disable the experimental Maven rule and update that
+single property manually until a separate design decision. Do not add a second experimental updater.
 
 ## Roll back a bad experimental npm version
 
