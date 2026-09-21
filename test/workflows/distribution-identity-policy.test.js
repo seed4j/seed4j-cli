@@ -36,7 +36,6 @@ test('the current main-bound POM has one stable Maven authority and no personal 
     metadata,
     `release-channel=@seed4j.release-channel@
 seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
-seed4j-upstream-commit=@seed4j.upstream-commit@
 unavailable-modules=@seed4j.unavailable-modules@
 `,
   );
@@ -67,12 +66,10 @@ test('the same policy accepts a future branch-owned experimental identity and sn
   assert.match(pom, /<snapshots>[\s\S]*?<enabled>true<\/enabled>/);
 });
 
-test('the migration policy derives full provenance from a full-SHA snapshot version', () => {
+test('the policy derives full provenance from a full-SHA snapshot version without legacy metadata', () => {
   const upstreamSha = '4eebd07bce14c9a6ac70bace157fcc616133e950';
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
-  const pom = experimentalBranchPom(read('pom.xml'))
-    .replace('2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT', `2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT`)
-    .replace(`<seed4j.upstream-commit>${upstreamSha}</seed4j.upstream-commit>`, '<seed4j.upstream-commit />');
+  const pom = experimentalBranchPom(read('pom.xml'));
 
   assert.deepEqual(validateDistributionBuild({ metadata, pom }), {
     artifactId: 'seed4j-main-snapshot',
@@ -85,7 +82,7 @@ test('the migration policy derives full provenance from a full-SHA snapshot vers
   });
 });
 
-test('an experimental snapshot version cannot pass with stale or incomplete full upstream provenance', () => {
+test('an experimental snapshot version cannot pass with incomplete or invalid full upstream provenance', () => {
   const pom = experimentalBranchPom(read('pom.xml'));
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
 
@@ -93,44 +90,64 @@ test('an experimental snapshot version cannot pass with stale or incomplete full
     () =>
       validateDistributionBuild({
         metadata,
-        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', '4eebd07bce14'),
       }),
-    /snapshot version.*full upstream SHA/i,
+    /full upstream SHA/i,
+  );
+  assert.throws(
+    () =>
+      validateDistributionBuild({
+        metadata,
+        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', '4EEBD07BCE14C9A6AC70BACE157FCC616133E950'),
+      }),
+    /full upstream SHA/i,
   );
   assert.throws(
     () =>
       validateDistributionBuild({
         metadata,
         pom: pom.replace(
-          '<seed4j.upstream-commit>4eebd07bce14c9a6ac70bace157fcc616133e950</seed4j.upstream-commit>',
-          '<seed4j.upstream-commit />',
+          '<seed4j.release-channel>experimental</seed4j.release-channel>',
+          '<seed4j.release-channel>experimental</seed4j.release-channel>\n    <seed4j.upstream-commit />',
         ),
       }),
-    /full upstream SHA/i,
+    /legacy upstream commit/i,
   );
 });
 
-test('Renovate keeps the experimental snapshot dependency paused without a custom datasource', () => {
+test('Renovate tracks the experimental snapshot with one active native Maven rule', () => {
   const stablePom = read('pom.xml');
   const experimentalPom = experimentalBranchPom(stablePom);
   const renovate = JSON.parse(read('renovate.json'));
   const managers = Object.fromEntries(renovate.customManagers.map(manager => [manager.depNameTemplate, manager]));
-  const pauseRule = renovate.packageRules.find(
-    rule => rule.description === 'Pause personal snapshots on experimental during full-SHA migration',
-  );
+  const rule = renovate.packageRules.find(rule => rule.description === 'Track personal Seed4J snapshots on experimental');
 
   assert.match(stablePom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
   assert.doesNotMatch(experimentalPom, new RegExp(managers['com.seed4j:seed4j'].matchStrings[0]));
   assert.equal(managers['io.github.renanfranca:seed4j-main-snapshot'], undefined);
   assert.equal('customDatasources' in renovate, false);
-  assert.deepEqual(pauseRule, {
-    description: 'Pause personal snapshots on experimental during full-SHA migration',
-    enabled: false,
+  assert.deepEqual(rule, {
+    description: 'Track personal Seed4J snapshots on experimental',
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],
     matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
+    registryUrls: ['https://central.sonatype.com/repository/maven-snapshots/'],
+    ignoreUnstable: false,
+    automerge: true,
+    automergeType: 'pr',
+    rebaseWhen: 'behind-base-branch',
+    semanticCommitType: 'fix',
+    semanticCommitScope: 'deps',
   });
+  assert.equal(
+    renovate.packageRules.filter(
+      candidate =>
+        candidate.matchPackageNames?.includes('io.github.renanfranca:seed4j-main-snapshot')
+        && candidate.matchBaseBranches?.includes('experimental'),
+    ).length,
+    1,
+  );
   assert.ok(renovate.extends.includes(':automergeRequireAllStatusChecks'));
 });
 
@@ -161,18 +178,14 @@ function experimentalBranchPom(stablePom) {
 
 `;
   return stablePom
-    .replace(
-      '<!-- renovate: datasource=maven depName=com.seed4j:seed4j -->',
-      '<!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->',
-    )
+    .replace('    <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->\n', '')
     .replace('<seed4j.group-id>com.seed4j</seed4j.group-id>', '<seed4j.group-id>io.github.renanfranca</seed4j.group-id>')
     .replace('<seed4j.artifact-id>seed4j</seed4j.artifact-id>', '<seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>')
     .replace(
       /<seed4j\.version>[^<]+<\/seed4j\.version>/,
-      '<seed4j.version>2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT</seed4j.version>',
+      `<seed4j.version>2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT</seed4j.version>`,
     )
     .replace('<seed4j.release-channel>stable</seed4j.release-channel>', '<seed4j.release-channel>experimental</seed4j.release-channel>')
-    .replace('<seed4j.upstream-commit />', `<seed4j.upstream-commit>${upstreamSha}</seed4j.upstream-commit>`)
     .replace(
       '<seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>',
       '<seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>',

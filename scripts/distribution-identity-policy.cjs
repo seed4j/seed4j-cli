@@ -4,13 +4,11 @@ const PROPERTY_NAMES = Object.freeze({
   groupId: 'seed4j.group-id',
   repositoryUrl: 'seed4j.repository-url',
   unavailableModules: 'seed4j.unavailable-modules',
-  upstreamCommit: 'seed4j.upstream-commit',
   version: 'seed4j.version',
 });
 
 const FILTERED_METADATA = `release-channel=@seed4j.release-channel@
 seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
-seed4j-upstream-commit=@seed4j.upstream-commit@
 unavailable-modules=@seed4j.unavailable-modules@
 `;
 
@@ -19,13 +17,18 @@ function distributionIdentity(pom) {
   if (!properties) {
     throw new Error('Maven must define one top-level distribution authority.');
   }
-  return identity(properties);
+  const currentIdentity = identity(properties);
+  if (currentIdentity.channel === 'experimental') {
+    return Object.freeze({ ...currentIdentity, upstreamCommit: requireExperimentalIdentity(currentIdentity) });
+  }
+  return currentIdentity;
 }
 
 function identity(properties) {
-  return Object.freeze(
-    Object.fromEntries(Object.entries(PROPERTY_NAMES).map(([field, property]) => [field, propertyValue(properties, property)])),
-  );
+  return Object.freeze({
+    ...Object.fromEntries(Object.entries(PROPERTY_NAMES).map(([field, property]) => [field, propertyValue(properties, property)])),
+    upstreamCommit: '',
+  });
 }
 
 function propertyValue(properties, name) {
@@ -41,6 +44,9 @@ function propertyValue(properties, name) {
 function validateDistributionBuild({ metadata, pom }) {
   if (metadata !== FILTERED_METADATA) {
     throw new Error('Packaged distribution metadata must contain only Maven authority tokens.');
+  }
+  if (/<seed4j\.upstream-commit(?:\s*\/>|>)/.test(pom)) {
+    throw new Error('Maven distribution authority must not define legacy upstream commit.');
   }
   for (const element of ['groupId', 'artifactId', 'version']) {
     const property = PROPERTY_NAMES[element === 'groupId' ? 'groupId' : element === 'artifactId' ? 'artifactId' : 'version'];
@@ -100,17 +106,10 @@ function requireExperimentalIdentity(identity) {
     throw new Error('Experimental distribution requires complete full upstream SHA facts.');
   }
   const fullVersion = /^\d+\.\d+\.\d+-main\.\d{8}\.\d{6}\.([0-9a-f]{40})-SNAPSHOT$/.exec(identity.version);
-  if (fullVersion) {
-    if (identity.upstreamCommit !== '' && identity.upstreamCommit !== fullVersion[1]) {
-      throw new Error('Experimental snapshot version must match the recorded full upstream SHA.');
-    }
-    return fullVersion[1];
+  if (!fullVersion) {
+    throw new Error('Experimental snapshot version must contain a full upstream SHA.');
   }
-  const shortVersion = /^\d+\.\d+\.\d+-main\.\d{8}\.\d{6}\.([0-9a-f]{12})-SNAPSHOT$/.exec(identity.version);
-  if (!shortVersion || !/^[0-9a-f]{40}$/.test(identity.upstreamCommit) || !identity.upstreamCommit.startsWith(shortVersion[1])) {
-    throw new Error('Experimental snapshot version must match the recorded full upstream SHA.');
-  }
-  return identity.upstreamCommit;
+  return fullVersion[1];
 }
 
 function requireExperimentalRepository(pom) {
