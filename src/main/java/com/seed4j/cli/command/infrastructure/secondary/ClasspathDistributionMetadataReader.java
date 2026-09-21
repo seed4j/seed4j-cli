@@ -28,6 +28,7 @@ class ClasspathDistributionMetadataReader implements DistributionMetadataReader 
   private static final String RESOURCE = "classpath:META-INF/seed4j-cli-distribution.properties";
   private static final String RELEASE_CHANNEL = "release-channel";
   private static final String DEPENDENCY_COORDINATE = "seed4j-dependency-coordinate";
+  private static final String LEGACY_UPSTREAM_COMMIT = "seed4j-upstream-commit";
   private static final String UNAVAILABLE_MODULES = "unavailable-modules";
   private static final Pattern FULL_SHA_SNAPSHOT_VERSION = Pattern.compile(
     "^\\d+\\.\\d+\\.\\d+-main\\.\\d{8}\\.\\d{6}\\.([0-9a-f]{40})-SNAPSHOT$"
@@ -64,7 +65,7 @@ class ClasspathDistributionMetadataReader implements DistributionMetadataReader 
 
   private static DistributionMetadata metadata(Properties properties) {
     requireAvailabilityMetadata(properties);
-    if (properties.containsKey("seed4j-upstream-commit")) {
+    if (properties.containsKey(LEGACY_UPSTREAM_COMMIT)) {
       throw new IllegalArgumentException("Legacy upstream commit metadata is not supported");
     }
     ReleaseChannel channel = channel(properties.getProperty(RELEASE_CHANNEL));
