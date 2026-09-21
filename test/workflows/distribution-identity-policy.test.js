@@ -22,7 +22,6 @@ test('the checked-out branch has one valid Maven distribution authority', () => 
     metadata,
     `release-channel=@seed4j.release-channel@
 seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
-seed4j-upstream-commit=@seed4j.upstream-commit@
 unavailable-modules=@seed4j.unavailable-modules@
 `,
   );
@@ -77,12 +76,10 @@ test('the same policy accepts a future branch-owned experimental identity and sn
   assert.match(pom, /<snapshots>[\s\S]*?<enabled>true<\/enabled>/);
 });
 
-test('the migration policy derives full provenance from a full-SHA snapshot version', () => {
+test('the distribution policy derives full provenance from a full-SHA snapshot version without legacy metadata', () => {
   const upstreamSha = '4eebd07bce14c9a6ac70bace157fcc616133e950';
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
-  const pom = experimentalBranchPom(read('pom.xml'))
-    .replace('2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT', `2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT`)
-    .replace(`<seed4j.upstream-commit>${upstreamSha}</seed4j.upstream-commit>`, '<seed4j.upstream-commit />');
+  const pom = experimentalBranchPom(read('pom.xml'));
 
   assert.deepEqual(validateDistributionBuild({ metadata, pom }), {
     artifactId: 'seed4j-main-snapshot',
@@ -95,7 +92,7 @@ test('the migration policy derives full provenance from a full-SHA snapshot vers
   });
 });
 
-test('an experimental snapshot version cannot pass with stale or incomplete full upstream provenance', () => {
+test('an experimental snapshot version cannot pass with incomplete or invalid full upstream provenance', () => {
   const pom = experimentalBranchPom(read('pom.xml'));
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
 
@@ -103,18 +100,15 @@ test('an experimental snapshot version cannot pass with stale or incomplete full
     () =>
       validateDistributionBuild({
         metadata,
-        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', '4eebd07bce14'),
       }),
-    /snapshot version.*full upstream SHA/i,
+    /full upstream SHA/i,
   );
   assert.throws(
     () =>
       validateDistributionBuild({
         metadata,
-        pom: pom.replace(
-          '<seed4j.upstream-commit>4eebd07bce14c9a6ac70bace157fcc616133e950</seed4j.upstream-commit>',
-          '<seed4j.upstream-commit />',
-        ),
+        pom: pom.replace('4eebd07bce14c9a6ac70bace157fcc616133e950', '4EEBD07BCE14C9A6AC70BACE157FCC616133E950'),
       }),
     /full upstream SHA/i,
   );
@@ -171,18 +165,14 @@ function experimentalBranchPom(pom) {
 
 `;
   return stableBranchPom(pom)
-    .replace(
-      '<!-- renovate: datasource=maven depName=com.seed4j:seed4j -->',
-      '<!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->',
-    )
+    .replace('    <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->\n', '')
     .replace('<seed4j.group-id>com.seed4j</seed4j.group-id>', '<seed4j.group-id>io.github.renanfranca</seed4j.group-id>')
     .replace('<seed4j.artifact-id>seed4j</seed4j.artifact-id>', '<seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>')
     .replace(
       /<seed4j\.version>[^<]+<\/seed4j\.version>/,
-      '<seed4j.version>2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT</seed4j.version>',
+      `<seed4j.version>2.2.1-main.20260907.055800.${upstreamSha}-SNAPSHOT</seed4j.version>`,
     )
     .replace('<seed4j.release-channel>stable</seed4j.release-channel>', '<seed4j.release-channel>experimental</seed4j.release-channel>')
-    .replace('<seed4j.upstream-commit />', `<seed4j.upstream-commit>${upstreamSha}</seed4j.upstream-commit>`)
     .replace(
       '<seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>',
       '<seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>',
@@ -194,14 +184,12 @@ function experimentalBranchPom(pom) {
 function stableBranchPom(pom) {
   return pom
     .replace(
-      '<!-- renovate: datasource=maven depName=io.github.renanfranca:seed4j-main-snapshot registryUrl=https://central.sonatype.com/repository/maven-snapshots/ -->',
-      '<!-- renovate: datasource=maven depName=com.seed4j:seed4j -->',
+      '    <seed4j.group-id>io.github.renanfranca</seed4j.group-id>',
+      '    <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->\n    <seed4j.group-id>com.seed4j</seed4j.group-id>',
     )
-    .replace('<seed4j.group-id>io.github.renanfranca</seed4j.group-id>', '<seed4j.group-id>com.seed4j</seed4j.group-id>')
     .replace('<seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>', '<seed4j.artifact-id>seed4j</seed4j.artifact-id>')
     .replace(/<seed4j\.version>[^<]+<\/seed4j\.version>/, '<seed4j.version>2.2.0</seed4j.version>')
     .replace('<seed4j.release-channel>experimental</seed4j.release-channel>', '<seed4j.release-channel>stable</seed4j.release-channel>')
-    .replace(/<seed4j\.upstream-commit>[a-f0-9]{40}<\/seed4j\.upstream-commit>/, '<seed4j.upstream-commit />')
     .replace(
       '<seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>',
       '<seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>',

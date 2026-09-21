@@ -4,13 +4,11 @@ const PROPERTY_NAMES = Object.freeze({
   groupId: 'seed4j.group-id',
   repositoryUrl: 'seed4j.repository-url',
   unavailableModules: 'seed4j.unavailable-modules',
-  upstreamCommit: 'seed4j.upstream-commit',
   version: 'seed4j.version',
 });
 
 const FILTERED_METADATA = `release-channel=@seed4j.release-channel@
 seed4j-dependency-coordinate=@seed4j.group-id@:@seed4j.artifact-id@:@seed4j.version@
-seed4j-upstream-commit=@seed4j.upstream-commit@
 unavailable-modules=@seed4j.unavailable-modules@
 `;
 
@@ -19,13 +17,18 @@ function distributionIdentity(pom) {
   if (!properties) {
     throw new Error('Maven must define one top-level distribution authority.');
   }
-  return identity(properties);
+  const currentIdentity = identity(properties);
+  if (currentIdentity.channel === 'experimental') {
+    return Object.freeze({ ...currentIdentity, upstreamCommit: requireExperimentalIdentity(currentIdentity) });
+  }
+  return currentIdentity;
 }
 
 function identity(properties) {
-  return Object.freeze(
-    Object.fromEntries(Object.entries(PROPERTY_NAMES).map(([field, property]) => [field, propertyValue(properties, property)])),
-  );
+  return Object.freeze({
+    ...Object.fromEntries(Object.entries(PROPERTY_NAMES).map(([field, property]) => [field, propertyValue(properties, property)])),
+    upstreamCommit: optionalPropertyValue(properties, 'seed4j.upstream-commit'),
+  });
 }
 
 function propertyValue(properties, name) {
@@ -36,6 +39,16 @@ function propertyValue(properties, name) {
     throw new Error(`Maven distribution authority must define ${name} exactly once.`);
   }
   return (matches[0][1] ?? '').trim();
+}
+
+function optionalPropertyValue(properties, name) {
+  const matches = [
+    ...properties.matchAll(new RegExp(`<${escapeRegularExpression(name)}(?:\\s*/>|>([^<]*)<\\/${escapeRegularExpression(name)}>)`, 'g')),
+  ];
+  if (matches.length > 1) {
+    throw new Error(`Maven distribution authority must define ${name} at most once.`);
+  }
+  return (matches[0]?.[1] ?? '').trim();
 }
 
 function validateDistributionBuild({ metadata, pom }) {

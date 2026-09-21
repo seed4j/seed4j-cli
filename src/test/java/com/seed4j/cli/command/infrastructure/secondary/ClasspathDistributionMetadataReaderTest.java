@@ -39,11 +39,11 @@ class ClasspathDistributionMetadataReaderTest {
         Seed4JDependencyCoordinate.versioned(
           "io.github.renanfranca",
           "seed4j-main-snapshot",
-          "2.2.1-main.20260907.055800.4eebd07bce14-SNAPSHOT"
+          "2.2.1-main.20260921.020944.e6209efb882ce56c4c9f980d7ba3127b23b11fa1-SNAPSHOT"
         )
       );
       assertThat(metadata.identity().upstreamCommit()).hasValueSatisfying(commit ->
-        assertThat(commit.value()).isEqualTo("4eebd07bce14c9a6ac70bace157fcc616133e950")
+        assertThat(commit.value()).isEqualTo("e6209efb882ce56c4c9f980d7ba3127b23b11fa1")
       );
       assertThat(metadata.moduleAvailability().unavailableModules()).isEqualTo(Set.of(new DistributionModuleSlug("seed4j-extension")));
       return;
