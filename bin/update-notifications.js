@@ -24,7 +24,8 @@ const packageVersion = require('../package.json').version;
 const experimentalVersion = /^\d+\.\d+\.\d+-experimental\.\d+$/.test(packageVersion);
 
 function startNotifications(args) {
-  if (!experimentalVersion || args[0] === 'completion' || (args[0] === 'skill' && args[1] === 'install')) {
+  const command = args[0] === '--debug' ? args.slice(1) : args;
+  if (!experimentalVersion || command[0] === 'completion' || (command[0] === 'skill' && command[1] === 'install')) {
     return { emit() {} };
   }
 
@@ -92,10 +93,14 @@ function registryCheckDue(cacheFile) {
 function readCache(cacheFile) {
   try {
     const parsed = JSON.parse(readFileSync(cacheFile, 'utf8'));
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return objectRecord(parsed) ? parsed : {};
   } catch {
     return {};
   }
+}
+
+function objectRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function updateCache(cacheFile, update) {
@@ -127,13 +132,19 @@ function updateCache(cacheFile, update) {
 function notice(cacheFile, key, message) {
   let claimed = false;
   const saved = updateCache(cacheFile, state => {
-    state.notices ??= {};
+    if (!objectRecord(state.notices)) state.notices = {};
     if (!Number.isFinite(state.notices[key]) || state.notices[key] > Date.now() || Date.now() - state.notices[key] >= day) {
       state.notices[key] = Date.now();
       claimed = true;
     }
   });
-  if (saved && claimed) writeSync(process.stderr.fd, `${message}\n`);
+  if (saved && claimed) {
+    try {
+      writeSync(process.stderr.fd, `${message}\n`);
+    } catch {
+      // Notice output is advisory.
+    }
+  }
 }
 
 function skillNotices(cacheFile, home) {
