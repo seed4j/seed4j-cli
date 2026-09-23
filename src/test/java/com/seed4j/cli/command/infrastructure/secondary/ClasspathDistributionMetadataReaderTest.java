@@ -28,10 +28,25 @@ class ClasspathDistributionMetadataReaderTest {
   private static final String FULL_SHA_VERSION = "2.2.1-main.20260907.055800." + UPSTREAM_SHA + "-SNAPSHOT";
 
   @Test
-  void shouldReadPackagedStableDistributionMetadata() {
+  void shouldReadPackagedDistributionMetadata() {
     ClasspathDistributionMetadataReader reader = new ClasspathDistributionMetadataReader(new DefaultResourceLoader());
 
     DistributionMetadata metadata = reader.read();
+
+    if (metadata.identity().channel() == ReleaseChannel.EXPERIMENTAL) {
+      assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(
+        Seed4JDependencyCoordinate.versioned(
+          "io.github.renanfranca",
+          "seed4j-main-snapshot",
+          "2.2.1-main.20260921.020944.e6209efb882ce56c4c9f980d7ba3127b23b11fa1-SNAPSHOT"
+        )
+      );
+      assertThat(metadata.identity().upstreamCommit()).hasValueSatisfying(commit ->
+        assertThat(commit.value()).isEqualTo("e6209efb882ce56c4c9f980d7ba3127b23b11fa1")
+      );
+      assertThat(metadata.moduleAvailability().unavailableModules()).isEqualTo(Set.of(new DistributionModuleSlug("seed4j-extension")));
+      return;
+    }
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.STABLE);
     assertThat(metadata.identity().dependencyCoordinate().groupId().value()).isEqualTo("com.seed4j");

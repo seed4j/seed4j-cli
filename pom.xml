@@ -94,15 +94,27 @@
     <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.1.1</spring-boot.version>
-    <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->
-    <seed4j.group-id>com.seed4j</seed4j.group-id>
-    <seed4j.artifact-id>seed4j</seed4j.artifact-id>
-    <seed4j.version>2.2.0</seed4j.version>
-    <seed4j.release-channel>stable</seed4j.release-channel>
-    <seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>
-    <seed4j.unavailable-modules />
+    <seed4j.group-id>io.github.renanfranca</seed4j.group-id>
+    <seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>
+    <seed4j.version>2.2.1-main.20260921.020944.e6209efb882ce56c4c9f980d7ba3127b23b11fa1-SNAPSHOT</seed4j.version>
+    <seed4j.release-channel>experimental</seed4j.release-channel>
+    <seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>
+    <seed4j.unavailable-modules>seed4j-extension</seed4j.unavailable-modules>
     <archunit-junit5.version>1.5.0</archunit-junit5.version>
   </properties>
+
+  <repositories>
+    <repository>
+      <id>seed4j-main-snapshots</id>
+      <url>${seed4j.repository-url}</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
   <build>
     <resources>

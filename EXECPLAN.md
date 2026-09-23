@@ -47,7 +47,8 @@ Renovate will use only its native Maven manager and datasource. The pilot is com
 - [x] Local full-SHA publisher contract implemented and validated; Pages/feed pilot changes removed.
 - [x] First full-SHA snapshot published and validated from publisher `main` (publisher run 35616116724; upstream `e6209efb882ce56c4c9f980d7ba3127b23b11fa1`).
 - [x] `experimental` migrated through protected PR #400.
-- [ ] Final CLI contract installed and native Maven Renovate rule reactivated.
+- [x] Final CLI contract installed and native Maven Renovate rule reactivated on `main` through protected PR #401.
+- [ ] Final `main` revision synchronized to `experimental` through protected checks.
 - [ ] One real hosted Renovate PR observed and recorded.
 
 ## Documentation
