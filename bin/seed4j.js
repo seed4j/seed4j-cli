@@ -3,6 +3,7 @@
 const { spawn, spawnSync } = require('node:child_process');
 const { writeSync } = require('node:fs');
 const { join } = require('node:path');
+const { startNotifications } = require('./update-notifications.js');
 
 const minimumJavaVersion = 25;
 const jarPath = join(__dirname, '..', 'dist', 'seed4j-cli.jar');
@@ -42,6 +43,7 @@ if (javaMajorVersion < minimumJavaVersion) {
 const java = spawn('java', ['-jar', jarPath, ...process.argv.slice(2)], {
   stdio: 'inherit',
 });
+const notifications = startNotifications(process.argv.slice(2));
 
 java.on('error', error => {
   if (error.code === 'ENOENT') {
@@ -62,5 +64,6 @@ java.on('exit', (code, signal) => {
     return;
   }
 
+  if (code === 0) notifications.emit();
   process.exit(code ?? 1);
 });
