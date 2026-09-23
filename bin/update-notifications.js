@@ -34,7 +34,7 @@ function startNotifications(args) {
   const registry = { version: cachedRegistry(cacheFile) };
   if (registry.version === undefined && registryCheckDue(cacheFile)) {
     Promise.resolve()
-      .then(() => fetch('https://registry.npmjs.org/seed4j-cli/dist-tags', { signal: AbortSignal.timeout(1000) }))
+      .then(() => fetch('https://registry.npmjs.org/-/package/seed4j-cli/dist-tags', { signal: AbortSignal.timeout(1000) }))
       .then(response => {
         if (!response.ok) throw new Error('Registry response failed');
         return response.json();
