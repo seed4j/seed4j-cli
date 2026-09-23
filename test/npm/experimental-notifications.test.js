@@ -7,6 +7,7 @@ const { join, resolve } = require('node:path');
 const test = require('node:test');
 
 const repositoryRoot = resolve(__dirname, '../..');
+const registryDistTagsUrl = 'https://registry.npmjs.org/-/package/seed4j-cli/dist-tags';
 
 test('a newer experimental npm release is reported after a successful command', t => {
   const fixture = createFixture(t);
@@ -19,6 +20,7 @@ test('a newer experimental npm release is reported after a successful command', 
   assert.match(result.stderr, /1\.2\.0-experimental\.3/);
   assert.match(result.stderr, /1\.2\.0-experimental\.12/);
   assert.match(result.stderr, /npm install -g seed4j-cli@experimental/);
+  assert.deepEqual(fixture.registryRequests(), [registryDistTagsUrl]);
 });
 
 test('a release notice cannot fail a successful command when stderr rejects the write', t => {
@@ -522,7 +524,7 @@ function createFixture(t) {
   const preload = join(root, 'preload.cjs');
   writeFileSync(
     preload,
-    `globalThis.fetch = async (_, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, 'call\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: value.status !== 500, json: async () => value }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW); if (process.env.SWAP_SKILL_FILE) { const fs = require('node:fs'); const original = fs.readdirSync; fs.readdirSync = (...args) => { const result = original(...args); if (process.env.SWAP_SKILL_FILE && fs.realpathSync(args[0]) === require('node:path').dirname(process.env.SWAP_SKILL_FILE)) { const path = process.env.SWAP_SKILL_FILE; fs.renameSync(path, process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, path); delete process.env.SWAP_SKILL_FILE; } return result; }; }\n`,
+    `globalThis.fetch = async (url, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, url + '\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: url === ${JSON.stringify(registryDistTagsUrl)} && value.status !== 500, json: async () => value }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW); if (process.env.SWAP_SKILL_FILE) { const fs = require('node:fs'); const original = fs.readdirSync; fs.readdirSync = (...args) => { const result = original(...args); if (process.env.SWAP_SKILL_FILE && fs.realpathSync(args[0]) === require('node:path').dirname(process.env.SWAP_SKILL_FILE)) { const path = process.env.SWAP_SKILL_FILE; fs.renameSync(path, process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, path); delete process.env.SWAP_SKILL_FILE; } return result; }; }\n`,
   );
   require('node:fs').appendFileSync(
     preload,
@@ -544,6 +546,7 @@ function createFixture(t) {
       writeFileSync(join(cacheDirectory, 'update-notifications.json'), JSON.stringify(value));
     },
     version: value => writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'seed4j-cli', version: value })),
+    registryRequests: () => readFileSync(registryLog, 'utf8').trim().split('\n'),
     registryCalls: () => readFileSync(registryLog, 'utf8').trim().split('\n').length,
     bundledSkill: content => {
       mkdirSync(join(packageRoot, 'dist'), { recursive: true });
