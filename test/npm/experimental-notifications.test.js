@@ -323,6 +323,18 @@ test('a cached experimental version dated in the future is ignored', t => {
   assert.equal(fixture.registryCalls(), 1);
 });
 
+test('a registry failure dated in the future does not suppress a new lookup', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+  fixture.cache({ registry: { failedAt: 2000000000 } });
+
+  const result = fixture.run(['--version'], { TEST_NOW: '1000000000' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /experimental\.12/);
+  assert.equal(fixture.registryCalls(), 1);
+});
+
 test('a Windows-style invocation reports changed local and global skill trees', t => {
   const fixture = createFixture(t);
   fixture.registry({ experimental: '1.2.0-experimental.3' });
