@@ -95,3 +95,4 @@ Observable tests MUST establish that:
 The commands reference and experimental-channel guide MUST describe both notices, the absence of automatic updates,
 and how to refresh an installed skill. The npm package check and packaged-skill check MUST validate the shipped behavior
 and guidance. The complete Maven verification gate remains governed by the repository's agent validation policy.
+Node npm tests validate the launcher behavior; Java PIT mutation testing is outside the scope of this Node-only change.
