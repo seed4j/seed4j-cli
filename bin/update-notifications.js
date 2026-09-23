@@ -85,7 +85,8 @@ function cachedRegistry(cacheFile) {
 
 function registryCheckDue(cacheFile) {
   const registry = readCache(cacheFile).registry;
-  return !Number.isFinite(registry?.failedAt) || Date.now() - registry.failedAt >= hour;
+  const age = Date.now() - registry?.failedAt;
+  return !Number.isFinite(registry?.failedAt) || age < 0 || age >= hour;
 }
 
 function readCache(cacheFile) {

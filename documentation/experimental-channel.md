@@ -46,6 +46,10 @@ installed agent skill differs from the skill bundled with the active CLI, sugges
 anything automatically. Notices are suppressed during completion generation, skill installation, and unsuccessful
 commands; direct JAR invocations and the stable npm channel do not perform these checks.
 
+Skill inspection detects existing symbolic links without intentionally opening their targets. On Windows, the advisory
+check uses paths and cannot prevent a link swapped in during inspection from being traversed; Linux and macOS use
+directory handles for this protection. The check remains read-only on every platform.
+
 Inspect the registry and installed identity without copying a current version or SHA into documentation that must remain
 accurate over time:
 

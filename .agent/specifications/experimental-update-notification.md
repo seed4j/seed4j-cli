@@ -48,8 +48,12 @@ The CLI MUST compare an existing destination's complete skill contents with the 
 It MUST NOT infer freshness from the npm version alone: an npm upgrade does not update an installed skill. A missing skill
 does not require a notice. A skill with changed, missing, or extra files MUST be reported as **different from the bundled
 skill**, without assuming whether it is old or manually modified. The check MUST be read-only and MUST NOT follow a
-symbolic link at a skill destination into another tree. An unreadable destination MUST NOT block the command or be
-reported as confidently different.
+symbolic link at a skill destination into another tree. It MUST also detect symbolic links within an installed skill
+without intentionally traversing their targets. On Windows, these no-follow requirements apply to links present when
+each path is inspected; a symbolic link substituted concurrently between path inspection and traversal MAY be followed
+during this advisory check. This narrow exception reflects the lack of a no-follow directory-handle traversal in the
+Node.js Windows filesystem API and does not apply on Linux or macOS. An unreadable destination MUST NOT block the
+command or be reported as confidently different.
 
 For each differing destination, the CLI MUST display a notice at most once per rolling 24-hour period while the
 difference persists. The notice MUST identify the affected destination and the appropriate later action:
