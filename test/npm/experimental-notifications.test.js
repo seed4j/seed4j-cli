@@ -204,7 +204,7 @@ test('a root debug option before completion still suppresses notices', t => {
 });
 
 test('root debug boolean assignments before completion suppress notices and reach Java unchanged', t => {
-  for (const option of ['--debug=true', '--debug=false']) {
+  for (const option of ['--debug=true', '--debug=false', '--debug=TRUE', '--debug=FALSE', '--debug=TrUe', '--debug=FaLsE', '--debug=']) {
     const fixture = createFixture(t);
     fixture.registry({ experimental: '1.2.0-experimental.12' });
     fixture.bundledSkill('Bundled skill\n');
@@ -240,7 +240,7 @@ test('a root debug option before skill installation suppresses notices and reach
 });
 
 test('root debug boolean assignments before skill installation suppress notices and reach Java unchanged', t => {
-  for (const option of ['--debug=true', '--debug=false']) {
+  for (const option of ['--debug=true', '--debug=false', '--debug=TRUE', '--debug=FALSE', '--debug=TrUe', '--debug=FaLsE', '--debug=']) {
     const fixture = createFixture(t);
     fixture.registry({ experimental: '1.2.0-experimental.12' });
     fixture.bundledSkill('Bundled skill\n');
