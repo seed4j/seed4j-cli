@@ -1,6 +1,8 @@
 const { createHash } = require('node:crypto');
 const {
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -77,9 +79,8 @@ function newer(available, installed) {
 
 function cachedRegistry(cacheFile) {
   const registry = readCache(cacheFile).registry;
-  return validVersion(registry?.version) && Number.isFinite(registry.checkedAt) && Date.now() - registry.checkedAt < day
-    ? registry.version
-    : undefined;
+  const age = Date.now() - registry?.checkedAt;
+  return validVersion(registry?.version) && Number.isFinite(registry.checkedAt) && age >= 0 && age < day ? registry.version : undefined;
 }
 
 function registryCheckDue(cacheFile) {
@@ -181,21 +182,82 @@ function lstatAvailable(path) {
 }
 
 function skillTree(destination) {
+  const descriptorRoot = process.platform === 'linux' ? '/proc/self/fd' : process.platform === 'darwin' ? '/dev/fd' : undefined;
+  if (!descriptorRoot || !constants.O_NOFOLLOW || !constants.O_DIRECTORY) return skillTreeByPath(destination);
   const files = {};
   const directories = [];
-  function visit(directory, prefix) {
-    if (!lstatSync(directory).isDirectory()) throw new Error('Not a directory');
+  function visit(directoryDescriptor, prefix) {
+    const directory = join(descriptorRoot, String(directoryDescriptor));
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
       const path = join(directory, entry.name);
       if (entry.isDirectory()) {
+        let childDescriptor;
+        try {
+          childDescriptor = openSync(path, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+          directories.push(relative);
+          visit(childDescriptor, relative);
+        } catch (error) {
+          if (lstatSync(path).isSymbolicLink()) files[relative] = null;
+          else throw error;
+        } finally {
+          if (childDescriptor !== undefined) closeSync(childDescriptor);
+        }
+      } else if (entry.isFile()) {
+        let fileDescriptor;
+        try {
+          fileDescriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          files[relative] = fstatSync(fileDescriptor).isFile()
+            ? createHash('sha256').update(readFileSync(fileDescriptor)).digest('hex')
+            : null;
+        } catch (error) {
+          if (lstatSync(path).isSymbolicLink()) files[relative] = null;
+          else throw error;
+        } finally {
+          if (fileDescriptor !== undefined) closeSync(fileDescriptor);
+        }
+      } else files[relative] = null;
+    }
+  }
+  let rootDescriptor;
+  try {
+    rootDescriptor = openSync(destination, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    visit(rootDescriptor, '');
+  } catch (error) {
+    if (lstatSync(destination).isSymbolicLink()) return { directories: [], files: { '.': null } };
+    throw error;
+  } finally {
+    if (rootDescriptor !== undefined) closeSync(rootDescriptor);
+  }
+  if (lstatSync(destination).isSymbolicLink()) return { directories: [], files: { '.': null } };
+  return { directories: directories.sort(), files };
+}
+
+function skillTreeByPath(destination) {
+  const files = {};
+  const directories = [];
+  function visit(directory, prefix) {
+    if (!lstatSync(directory).isDirectory()) throw new Error('Skill directory changed during inspection');
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const path = join(directory, entry.name);
+      const type = lstatSync(path);
+      if (type.isDirectory()) {
         directories.push(relative);
         visit(path, relative);
-      } else if (entry.isFile()) files[relative] = createHash('sha256').update(readFileSync(path)).digest('hex');
-      else files[relative] = null;
+      } else if (type.isFile()) {
+        let descriptor;
+        try {
+          descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+          files[relative] = fstatSync(descriptor).isFile() ? createHash('sha256').update(readFileSync(descriptor)).digest('hex') : null;
+        } finally {
+          if (descriptor !== undefined) closeSync(descriptor);
+        }
+      } else files[relative] = null;
     }
   }
   visit(destination, '');
+  if (lstatSync(destination).isSymbolicLink()) return { directories: [], files: { '.': null } };
   return { directories: directories.sort(), files };
 }
 

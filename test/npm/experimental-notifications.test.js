@@ -276,6 +276,107 @@ test('a symlink inside a skill is reported without reading its target', t => {
   assert.equal(readFileSync(external, 'utf8'), 'External content\n');
 });
 
+test('a skill file replaced with a symlink during inspection is never read through the link', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+  const external = join(fixture.root, 'external.md');
+  writeFileSync(external, 'Bundled skill\n');
+
+  const result = fixture.run(['--version'], { SWAP_SKILL_FILE: join(local, 'SKILL.md'), SWAP_SKILL_TARGET: external });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /differs from the bundled skill/);
+  assert.equal(readFileSync(external, 'utf8'), 'Bundled skill\n');
+});
+
+test('a skill root replaced with a symlink during inspection is never traversed', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+  const external = join(fixture.root, 'external-skill');
+  mkdirSync(external);
+  writeFileSync(join(external, 'SKILL.md'), 'Bundled skill\n');
+
+  const result = fixture.run(['--version'], { SWAP_SKILL_ROOT: local, SWAP_SKILL_TARGET: external });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /differs from the bundled skill/);
+  assert.equal(readFileSync(join(external, 'SKILL.md'), 'utf8'), 'Bundled skill\n');
+});
+
+test('a cached experimental version dated in the future is ignored', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ error: 'offline' });
+  fixture.cache({ registry: { version: '1.2.0-experimental.12', checkedAt: 2000000000 } });
+
+  const result = fixture.run(['--version'], { TEST_NOW: '1000000000' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.equal(fixture.registryCalls(), 1);
+});
+
+test('a Windows-style invocation reports changed local and global skill trees', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  const global = join(fixture.home, '.agents/skills/seed4j-cli');
+  for (const destination of [local, global]) {
+    mkdirSync(destination, { recursive: true });
+    writeFileSync(join(destination, 'SKILL.md'), 'Changed skill\n');
+  }
+
+  const result = fixture.run(['--version'], { TEST_PLATFORM: 'win32' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /seed4j skill install to refresh/);
+  assert.match(result.stderr, /seed4j skill install --global to refresh/);
+});
+
+test('a Windows-style invocation ignores an identical skill and detects missing or extra files', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill({ 'SKILL.md': 'Bundled skill\n', 'references/usage.md': 'Usage\n' });
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(join(local, 'references'), { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Bundled skill\n');
+  writeFileSync(join(local, 'references/usage.md'), 'Usage\n');
+
+  const identical = fixture.run(['--version'], { TEST_PLATFORM: 'win32' });
+  require('node:fs').unlinkSync(join(local, 'references/usage.md'));
+  writeFileSync(join(local, 'extra.md'), 'Extra\n');
+  const different = fixture.run(['--version'], { TEST_PLATFORM: 'win32' });
+
+  assert.equal(identical.status, 0, identical.stderr);
+  assert.equal(identical.stderr, '');
+  assert.match(different.stderr, /differs from the bundled skill/);
+});
+
+test('a Windows-style invocation reports a static symlink without reading its target', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  const external = join(fixture.root, 'external.md');
+  writeFileSync(external, 'Bundled skill\n');
+  symlinkSync(external, join(local, 'SKILL.md'));
+
+  const result = fixture.run(['--version'], { TEST_PLATFORM: 'win32' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /differs from the bundled skill/);
+  assert.equal(readFileSync(external, 'utf8'), 'Bundled skill\n');
+});
+
 function createFixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'seed4j-notifications-'));
   t.after(() => require('node:fs').rmSync(root, { recursive: true, force: true }));
@@ -299,10 +400,23 @@ function createFixture(t) {
   const preload = join(root, 'preload.cjs');
   writeFileSync(
     preload,
-    `globalThis.fetch = async (_, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, 'call\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: value.status !== 500, json: async () => value }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW);\n`,
+    `globalThis.fetch = async (_, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, 'call\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: value.status !== 500, json: async () => value }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW); if (process.env.SWAP_SKILL_FILE) { const fs = require('node:fs'); const original = fs.readdirSync; fs.readdirSync = (...args) => { const result = original(...args); if (process.env.SWAP_SKILL_FILE && fs.realpathSync(args[0]) === require('node:path').dirname(process.env.SWAP_SKILL_FILE)) { const path = process.env.SWAP_SKILL_FILE; fs.renameSync(path, process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, path); delete process.env.SWAP_SKILL_FILE; } return result; }; }\n`,
+  );
+  require('node:fs').appendFileSync(
+    preload,
+    `if (process.env.SWAP_SKILL_ROOT) { const fs = require('node:fs'); const original = fs.lstatSync; fs.lstatSync = (...args) => { const stat = original(...args); if (process.env.SWAP_SKILL_ROOT && args[0] === process.env.SWAP_SKILL_ROOT) { fs.renameSync(args[0], process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, args[0]); delete process.env.SWAP_SKILL_ROOT; } return stat; }; }\n`,
+  );
+  require('node:fs').appendFileSync(
+    preload,
+    `if (process.env.TEST_PLATFORM) { require('node:path'); Object.defineProperty(process, 'platform', { value: process.env.TEST_PLATFORM }); }\n`,
   );
   return {
     registry: value => writeFileSync(registryFile, JSON.stringify(value)),
+    cache: value => {
+      const cacheDirectory = join(home, '.cache/seed4j-cli');
+      mkdirSync(cacheDirectory, { recursive: true });
+      writeFileSync(join(cacheDirectory, 'update-notifications.json'), JSON.stringify(value));
+    },
     version: value => writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'seed4j-cli', version: value })),
     registryCalls: () => readFileSync(registryLog, 'utf8').trim().split('\n').length,
     bundledSkill: content => {
