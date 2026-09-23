@@ -68,7 +68,8 @@ The root help of the experimental CLI MUST include a concise warning that:
 - stable use is restored with `npm install -g seed4j-cli@latest`.
 
 The warning MUST NOT be repeated for every ordinary command invocation. Normal command `stdout` and `stderr` remain
-unchanged unless a command renders root help, renders version information, or requests an unavailable module.
+unchanged unless a command renders root help, renders version information, requests an unavailable module, or the npm
+launcher reports an update notice under the [experimental update notification contract](experimental-update-notification.md).
 
 `seed4j --version` on the experimental channel MUST render all existing applicable runtime information and additionally
 make these facts unambiguous:
