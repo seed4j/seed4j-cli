@@ -24,7 +24,7 @@ const packageVersion = require('../package.json').version;
 const experimentalVersion = /^\d+\.\d+\.\d+-experimental\.\d+$/.test(packageVersion);
 
 function startNotifications(args) {
-  const command = args[0] === '--debug' ? args.slice(1) : args;
+  const command = ['--debug', '--debug=true', '--debug=false'].includes(args[0]) ? args.slice(1) : args;
   if (!experimentalVersion || command[0] === 'completion' || (command[0] === 'skill' && command[1] === 'install')) {
     return { emit() {} };
   }
