@@ -15,6 +15,7 @@
     "bin/",
     "documentation/",
     "dist/seed4j-cli.jar",
+    "dist/skill-manifest.json",
     "LICENSE.txt",
     "README.md"
   ],

@@ -38,6 +38,18 @@ Updates are not automatic across npm dist-tags. Installing `@experimental` expli
 to `@latest` also requires an explicit installation. Never use an unqualified install when validating which channel is
 active.
 
+After a successful experimental npm invocation, the launcher may print an informational `stderr` notice when a newer
+experimental version is available. It identifies the installed and available versions and suggests
+`npm install -g seed4j-cli@experimental` for a later, opt-in update. It may also report that a local or user-level
+installed agent skill differs from the skill bundled with the active CLI, suggesting `seed4j skill install` or
+`seed4j skill install --global` for the affected destination. Neither notice changes the current command or updates
+anything automatically. Notices are suppressed during completion generation, skill installation, and unsuccessful
+commands; direct JAR invocations and the stable npm channel do not perform these checks.
+
+Skill inspection detects existing symbolic links without intentionally opening their targets. On Windows, the advisory
+check uses paths and cannot prevent a link swapped in during inspection from being traversed; Linux and macOS use
+directory handles for this protection. The check remains read-only on every platform.
+
 Inspect the registry and installed identity without copying a current version or SHA into documentation that must remain
 accurate over time:
 

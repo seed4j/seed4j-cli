@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 const { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve, sep } = require('node:path');
@@ -38,6 +39,10 @@ try {
   const overlayProject = join(temporaryRoot, 'overlay-project');
   const packageRoot = process.platform === 'win32' ? join(prefix, 'node_modules/seed4j-cli') : join(prefix, 'lib/node_modules/seed4j-cli');
   const packagedJar = join(packageRoot, 'dist/seed4j-cli.jar');
+  const skillManifest = JSON.parse(readFileSync(join(packageRoot, 'dist/skill-manifest.json'), 'utf8'));
+  assert.deepEqual(skillManifest.directories, ['references']);
+  assert.deepEqual(skillManifest.files, hashedFiles(localDestination));
+  assert.deepEqual(skillManifest.files, hashedFiles(globalDestination));
   const overlayRun = run(
     'java',
     [`-Dloader.path=${overlay}`, '-cp', packagedJar, 'org.springframework.boot.loader.launch.PropertiesLauncher', 'skill', 'install'],
@@ -58,8 +63,21 @@ try {
 function assertCanonicalSkill(destination) {
   assert.deepEqual(listFiles(destination), ['SKILL.md', 'references/applying-modules.md', 'references/module-set-planning.md']);
   assert.match(readFileSync(join(destination, 'SKILL.md'), 'utf8'), /^---\nname: seed4j-cli\ndescription: Use Seed4J CLI/);
+  assert.match(readFileSync(join(destination, 'SKILL.md'), 'utf8'), /finish the current task normally/);
+  assert.match(readFileSync(join(destination, 'SKILL.md'), 'utf8'), /Relay the notice and its/);
   assert.match(readFileSync(join(destination, 'references/applying-modules.md'), 'utf8'), /seed4j apply <module> --plan/);
   assert.match(readFileSync(join(destination, 'references/module-set-planning.md'), 'utf8'), /seed4j apply-set <modules\.\.\.> --plan/);
+}
+
+function hashedFiles(destination) {
+  return Object.fromEntries(
+    listFiles(destination).map(path => [
+      path,
+      createHash('sha256')
+        .update(readFileSync(join(destination, path)))
+        .digest('hex'),
+    ]),
+  );
 }
 
 function writeOverlaySkill(overlay) {
