@@ -34,6 +34,10 @@ extension, or work that explicitly chooses another project generator.
    token or a reserved execution.
 8. Verify generated files and relevant Seed4J and Git state, then return to the surrounding task.
 
+If the experimental npm launcher reports a newer experimental CLI version or an installed skill that differs from the
+bundled skill, finish the current task normally. Do not update the CLI or skill on your own. Relay the notice and its
+suggested command to the user when reporting the result so they can choose whether to update afterward.
+
 ## Mutation preflight
 
 Before any mutating Seed4J command, establish that the invoked process can write the target project. Because commits are

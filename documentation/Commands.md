@@ -582,6 +582,12 @@ An identical reinstall is still `Updated`. The CLI owns and replaces the complet
 changes and stale files, while preserving sibling skills. A destination symbolic link is replaced without following it.
 The bundled files come from the same CLI JAR and require no download.
 
+The experimental npm launcher checks existing local and user-level skill destinations against the complete skill bundled
+with the active CLI. After a successful command, it may report that one differs and suggest `seed4j skill install` for
+the local destination or `seed4j skill install --global` for the user-level destination. A difference can mean an older
+installation or a manual edit. The launcher never replaces the skill automatically; choose whether to refresh it after
+the current work. It does not report a missing skill.
+
 | Exit code | Meaning                                                                                                       |
 | --------- | ------------------------------------------------------------------------------------------------------------- |
 | `0`       | The complete bundled skill was installed or updated.                                                          |
