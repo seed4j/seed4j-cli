@@ -21,6 +21,30 @@ test('a newer experimental npm release is reported after a successful command', 
   assert.match(result.stderr, /npm install -g seed4j-cli@experimental/);
 });
 
+test('a release notice cannot fail a successful command when stderr rejects the write', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+
+  const result = fixture.run(['--version'], { STDERR_WRITE_ERROR: 'EBADF' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+});
+
+test('a skill notice cannot fail a successful command when stderr is broken', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.3' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+
+  const result = fixture.run(['--version'], { STDERR_WRITE_ERROR: 'EPIPE' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+});
+
 test('a linked local skill is reported without following the link', t => {
   const fixture = createFixture(t);
   fixture.registry({ experimental: '1.2.0-experimental.3' });
@@ -68,6 +92,22 @@ test('an experimental release is reported once per rolling day and a new release
   assert.equal(repeated.stderr, '');
   assert.match(refreshed.stderr, /experimental\.13/);
   assert.equal(fixture.registryCalls(), 2);
+});
+
+test('malformed cache containers still persist a single notice across invocations', t => {
+  for (const cache of [[], { notices: 'invalid' }, { notices: [] }]) {
+    const fixture = createFixture(t);
+    fixture.registry({ experimental: '1.2.0-experimental.12' });
+    fixture.cache(cache);
+
+    const first = fixture.run(['--version']);
+    const repeated = fixture.run(['--version']);
+
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stderr, /experimental\.12/);
+    assert.equal(repeated.status, 0, repeated.stderr);
+    assert.equal(repeated.stderr, '', JSON.stringify(cache));
+  }
 });
 
 test('equal, older, missing, and malformed experimental tags do not produce a notice', t => {
@@ -146,6 +186,38 @@ test('completion, skill installation, and unsuccessful commands suppress notices
   assert.equal(install.stderr, '');
   assert.equal(failed.status, 2);
   assert.equal(failed.stderr, '');
+});
+
+test('a root debug option before completion still suppresses notices', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+
+  const result = fixture.run(['--debug', 'completion', 'bash']);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+  assert.equal(result.stderr, '');
+});
+
+test('a root debug option before skill installation suppresses notices and reaches Java unchanged', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+  fixture.bundledSkill('Bundled skill\n');
+  const local = join(fixture.project, '.agents/skills/seed4j-cli');
+  mkdirSync(local, { recursive: true });
+  writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+  const javaArgs = join(fixture.root, 'java-args.json');
+
+  const result = fixture.run(['--debug', 'skill', 'install'], { FAKE_JAVA_ARGS_LOG: javaArgs });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+  assert.equal(result.stderr, '');
+  assert.deepEqual(JSON.parse(readFileSync(javaArgs, 'utf8')).slice(-3), ['--debug', 'skill', 'install']);
 });
 
 test('local and user-level skill differences have separate notices and refresh actions', t => {
@@ -404,7 +476,7 @@ function createFixture(t) {
   const java = join(commands, 'java');
   writeFileSync(
     java,
-    `#!${process.execPath}\nif (process.argv[2] === '--version') { console.log('openjdk 25.0.2'); } else { setTimeout(() => { if (process.env.FAKE_JAVA_SIGNAL) process.kill(process.pid, process.env.FAKE_JAVA_SIGNAL); else { console.log('Java result'); process.exit(Number(process.env.FAKE_JAVA_EXIT_CODE || 0)); } }, Number(process.env.FAKE_JAVA_DELAY_MS || 100)); }\n`,
+    `#!${process.execPath}\nif (process.argv[2] === '--version') { console.log('openjdk 25.0.2'); } else { if (process.env.FAKE_JAVA_ARGS_LOG) require('node:fs').writeFileSync(process.env.FAKE_JAVA_ARGS_LOG, JSON.stringify(process.argv.slice(2))); setTimeout(() => { if (process.env.FAKE_JAVA_SIGNAL) process.kill(process.pid, process.env.FAKE_JAVA_SIGNAL); else { console.log('Java result'); process.exit(Number(process.env.FAKE_JAVA_EXIT_CODE || 0)); } }, Number(process.env.FAKE_JAVA_DELAY_MS || 100)); }\n`,
   );
   chmodSync(java, 0o755);
   const registryFile = join(root, 'registry.json');
@@ -421,6 +493,10 @@ function createFixture(t) {
   require('node:fs').appendFileSync(
     preload,
     `if (process.env.TEST_PLATFORM) { require('node:path'); Object.defineProperty(process, 'platform', { value: process.env.TEST_PLATFORM }); }\n`,
+  );
+  require('node:fs').appendFileSync(
+    preload,
+    `if (process.env.STDERR_WRITE_ERROR) { const fs = require('node:fs'); const original = fs.writeSync; fs.writeSync = (fd, ...args) => { if (fd === 2) { const error = new Error('stderr unavailable'); error.code = process.env.STDERR_WRITE_ERROR; throw error; } return original(fd, ...args); }; }\n`,
   );
   return {
     registry: value => writeFileSync(registryFile, JSON.stringify(value)),
