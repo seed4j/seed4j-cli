@@ -203,6 +203,25 @@ test('a root debug option before completion still suppresses notices', t => {
   assert.equal(result.stderr, '');
 });
 
+test('root debug boolean assignments before completion suppress notices and reach Java unchanged', t => {
+  for (const option of ['--debug=true', '--debug=false']) {
+    const fixture = createFixture(t);
+    fixture.registry({ experimental: '1.2.0-experimental.12' });
+    fixture.bundledSkill('Bundled skill\n');
+    const local = join(fixture.project, '.agents/skills/seed4j-cli');
+    mkdirSync(local, { recursive: true });
+    writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+    const javaArgs = join(fixture.root, 'java-args.json');
+
+    const result = fixture.run([option, 'completion', 'bash'], { FAKE_JAVA_ARGS_LOG: javaArgs });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'Java result\n');
+    assert.equal(result.stderr, '');
+    assert.deepEqual(JSON.parse(readFileSync(javaArgs, 'utf8')).slice(-3), [option, 'completion', 'bash']);
+  }
+});
+
 test('a root debug option before skill installation suppresses notices and reaches Java unchanged', t => {
   const fixture = createFixture(t);
   fixture.registry({ experimental: '1.2.0-experimental.12' });
@@ -218,6 +237,25 @@ test('a root debug option before skill installation suppresses notices and reach
   assert.equal(result.stdout, 'Java result\n');
   assert.equal(result.stderr, '');
   assert.deepEqual(JSON.parse(readFileSync(javaArgs, 'utf8')).slice(-3), ['--debug', 'skill', 'install']);
+});
+
+test('root debug boolean assignments before skill installation suppress notices and reach Java unchanged', t => {
+  for (const option of ['--debug=true', '--debug=false']) {
+    const fixture = createFixture(t);
+    fixture.registry({ experimental: '1.2.0-experimental.12' });
+    fixture.bundledSkill('Bundled skill\n');
+    const local = join(fixture.project, '.agents/skills/seed4j-cli');
+    mkdirSync(local, { recursive: true });
+    writeFileSync(join(local, 'SKILL.md'), 'Modified skill\n');
+    const javaArgs = join(fixture.root, 'java-args.json');
+
+    const result = fixture.run([option, 'skill', 'install'], { FAKE_JAVA_ARGS_LOG: javaArgs });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'Java result\n');
+    assert.equal(result.stderr, '');
+    assert.deepEqual(JSON.parse(readFileSync(javaArgs, 'utf8')).slice(-3), [option, 'skill', 'install']);
+  }
 });
 
 test('local and user-level skill differences have separate notices and refresh actions', t => {
