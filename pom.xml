@@ -101,7 +101,7 @@
     <seed4j.release-channel>stable</seed4j.release-channel>
     <seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>
     <seed4j.unavailable-modules />
-    <archunit-junit5.version>1.5.0</archunit-junit5.version>
+    <archunit-junit5.version>1.5.1</archunit-junit5.version>
   </properties>
 
   <build>
