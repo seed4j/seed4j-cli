@@ -109,7 +109,10 @@ jobs:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           ADAPTER_OUTPUT="$RUNNER_TEMP/synchronization-preparation-output"
+          export SYNC_CONFLICT_DIAGNOSTIC_PATH="$RUNNER_TEMP/synchronization-conflict.json"
+          export SYNC_CONFLICT_PATHS_PATH="$RUNNER_TEMP/synchronization-conflict-paths"
           for attempt in 1 2 3; do
+            rm -f "$SYNC_CONFLICT_DIAGNOSTIC_PATH" "$SYNC_CONFLICT_PATHS_PATH"
             git fetch origin main experimental
             CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
             TARGET_SHA="$(git rev-parse origin/experimental)"
@@ -124,6 +127,11 @@ jobs:
                 MERGE_RESULT=clean
                 PROPOSAL_HEAD_SHA="$(git rev-parse HEAD)"
               else
+                git diff --name-only --diff-filter=U -z > "$SYNC_CONFLICT_PATHS_PATH"
+                if ! SOURCE_SHA="$SOURCE_SHA" TARGET_SHA="$TARGET_SHA" node scripts/main-to-experimental-sync.cjs capture-conflict; then
+                  git merge --abort || true
+                  exit 1
+                fi
                 git merge --abort
                 MERGE_RESULT=conflict
               fi
@@ -152,18 +160,35 @@ jobs:
           SOURCE_SHA: ${{ steps.proposal.outputs.source }}
           TARGET_SHA: ${{ steps.proposal.outputs.target }}
         run: |
-          ISSUE_BODY="$(printf '@renanfranca automatic one-way synchronization stopped because Git could not merge current main `%s` into current experimental `%s`. Both protected branches are unchanged. Resolve the conflict in a reviewed pull request, then refresh synchronization.\n\nWorkflow run: %s/%s/actions/runs/%s' "$SOURCE_SHA" "$TARGET_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          export SYNC_CONFLICT_DIAGNOSTIC_PATH="$RUNNER_TEMP/synchronization-conflict.json"
+          ISSUE_BODY_PATH="$RUNNER_TEMP/synchronization-conflict-body.md"
           SYNC_ISSUES_PATH="$RUNNER_TEMP/synchronization-conflict-issues.json"
           ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-conflict-issue-output"
           gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
           export SYNC_CONFLICT=true SYNC_ISSUES_PATH
+          : > "$ISSUE_OUTPUT"
           GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
           ISSUE_ACTION="$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")"
           ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
+          export SYNC_ISSUE_ACTION="$ISSUE_ACTION"
+          export SYNC_ISSUE_BODY_PATH="$ISSUE_BODY_PATH"
+          export SYNC_ISSUE_COMMENT_PATH="$RUNNER_TEMP/synchronization-conflict-comment.md"
+          export SYNC_ISSUE_DETAIL_PATH="$RUNNER_TEMP/synchronization-conflict-detail.json"
+          export SYNC_ISSUE_COMMENTS_PATH="$RUNNER_TEMP/synchronization-conflict-comments.json"
           if [ "$ISSUE_ACTION" = 'update' ]; then
-            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-assignee renanfranca --add-label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
+            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json body > "$SYNC_ISSUE_DETAIL_PATH"
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" > "$SYNC_ISSUE_COMMENTS_PATH"
+          fi
+          NOTIFICATION_OUTPUT="$RUNNER_TEMP/synchronization-conflict-notification-output"
+          : > "$NOTIFICATION_OUTPUT"
+          GITHUB_OUTPUT="$NOTIFICATION_OUTPUT" node scripts/main-to-experimental-sync.cjs conflict-notification-workflow
+          if [ "$ISSUE_ACTION" = 'update' ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-assignee renanfranca --add-label synchronization-failure --body-file "$ISSUE_BODY_PATH" --title "$SYNC_ISSUE_TITLE"
+            if [ "$(sed -n 's/^notify=//p' "$NOTIFICATION_OUTPUT")" = 'true' ]; then
+              gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$SYNC_ISSUE_COMMENT_PATH"
+            fi
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --assignee renanfranca --label synchronization-failure --body "$ISSUE_BODY" --title "$SYNC_ISSUE_TITLE"
+            gh issue create --repo "$GITHUB_REPOSITORY" --assignee renanfranca --label synchronization-failure --body-file "$ISSUE_BODY_PATH" --title "$SYNC_ISSUE_TITLE"
           fi
 
       - name: 'Synchronize: publish proposal and dispatch exact-head tests'
@@ -207,6 +232,7 @@ jobs:
           ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-resolved-issue-output"
           GH_TOKEN="$ACTIONS_GH_TOKEN" gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
           export SYNC_CONFLICT=false SYNC_ISSUES_PATH
+          : > "$ISSUE_OUTPUT"
           GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
           if [ "$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")" = 'close' ]; then
             ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
@@ -220,6 +246,7 @@ jobs:
           ISSUE_OUTPUT="$RUNNER_TEMP/synchronization-contained-issue-output"
           gh issue list --repo "$GITHUB_REPOSITORY" --state open --label synchronization-failure --limit 100 --json number,title > "$SYNC_ISSUES_PATH"
           export SYNC_CONFLICT=false SYNC_ISSUES_PATH
+          : > "$ISSUE_OUTPUT"
           GITHUB_OUTPUT="$ISSUE_OUTPUT" node scripts/main-to-experimental-sync.cjs issue-workflow
           if [ "$(sed -n 's/^action=//p' "$ISSUE_OUTPUT")" = 'close' ]; then
             ISSUE_NUMBER="$(sed -n 's/^issue=//p' "$ISSUE_OUTPUT")"
