@@ -48,7 +48,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SYNC_BRANCH: automation/sync-main-to-experimental
-      SYNC_ADAPTER_PATH: ${{ runner.temp }}/main-to-experimental-sync.cjs
       SYNC_ISSUE_TITLE: '[synchronization] main to experimental conflict'
       SYNC_PENDING_LABEL: synchronization-pending
     steps:
@@ -109,6 +108,8 @@ jobs:
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
+          export SYNC_ADAPTER_PATH="$RUNNER_TEMP/main-to-experimental-sync.cjs"
+          printf 'SYNC_ADAPTER_PATH=%s\n' "$SYNC_ADAPTER_PATH" >> "$GITHUB_ENV"
           cp scripts/main-to-experimental-sync.cjs "$SYNC_ADAPTER_PATH"
           ADAPTER_OUTPUT="$RUNNER_TEMP/synchronization-preparation-output"
           export SYNC_CONFLICT_DIAGNOSTIC_PATH="$RUNNER_TEMP/synchronization-conflict.json"

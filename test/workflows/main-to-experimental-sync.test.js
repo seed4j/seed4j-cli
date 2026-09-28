@@ -1472,9 +1472,10 @@ function workflowStep(name) {
 function conflictPreparationFixture(files) {
   const root = mkdtempSync(join(tmpdir(), 'seed4j-real-conflict-'));
   const directory = join(root, 'checkout');
-  const runtimeDirectory = join(root, 'runner-temp');
+  const runtimeDirectory = join(root, 'runner temp with spaces');
   mkdirSync(directory);
   mkdirSync(runtimeDirectory);
+  writeFileSync(join(runtimeDirectory, 'github-env'), '');
   git(directory, ['init', '-b', 'main']);
   git(directory, ['config', 'user.name', 'Test']);
   git(directory, ['config', 'user.email', 'test@example.com']);
@@ -1500,18 +1501,28 @@ function conflictPreparationFixture(files) {
   git(directory, ['remote', 'add', 'origin', remote]);
   git(directory, ['push', 'origin', 'main', 'experimental']);
   git(directory, ['switch', 'main']);
-  return { root, directory, runtimeDirectory, source, target, output: join(runtimeDirectory, 'output') };
+  return {
+    root,
+    directory,
+    runtimeDirectory,
+    source,
+    target,
+    output: join(runtimeDirectory, 'output'),
+    environmentFile: join(runtimeDirectory, 'github-env'),
+  };
 }
 
 function runPreparationStep(fixture, overrides = {}) {
+  const inheritedEnvironment = { ...process.env };
+  delete inheritedEnvironment.SYNC_ADAPTER_PATH;
   return spawnSync('bash', ['-e', '-o', 'pipefail', '-c', workflowStep('prepare disposable branch from current experimental')], {
     cwd: fixture.directory,
     encoding: 'utf8',
     env: {
-      ...process.env,
+      ...inheritedEnvironment,
       GITHUB_OUTPUT: fixture.output,
       RUNNER_TEMP: fixture.runtimeDirectory,
-      SYNC_ADAPTER_PATH: join(fixture.runtimeDirectory, 'main-to-experimental-sync.cjs'),
+      GITHUB_ENV: fixture.environmentFile,
       SOURCE_SHA: fixture.source,
       SYNC_BRANCH: 'automation/sync-main-to-experimental',
       ...overrides,
@@ -1579,7 +1590,7 @@ fs.writeFileSync(path, JSON.stringify(state));
       ...process.env,
       PATH: `${fixture.directory}:${process.env.PATH}`,
       RUNNER_TEMP: fixture.runtimeDirectory,
-      SYNC_ADAPTER_PATH: join(fixture.runtimeDirectory, 'main-to-experimental-sync.cjs'),
+      ...workflowOutputs(readFileSync(fixture.environmentFile, 'utf8')),
       SOURCE_SHA: fixture.source,
       TARGET_SHA: fixture.target,
       GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
@@ -1821,6 +1832,25 @@ test('conflicting adapter source cannot prevent trusted capture and a deduplicat
     assert.match(state.comments[0].body, /scripts\/main-to-experimental-sync.cjs/);
     assert.equal(git(fixture.directory, ['rev-parse', 'main']).stdout.trim(), fixture.source);
     assert.equal(git(fixture.directory, ['rev-parse', 'experimental']).stdout.trim(), fixture.target);
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('preparation initializes its trusted adapter from runner storage and persists it for subsequent steps', () => {
+  const fixture = conflictPreparationFixture(['conflict.txt']);
+  try {
+    const preparation = runPreparationStep(fixture);
+    const persistedEnvironment = workflowOutputs(readFileSync(fixture.environmentFile, 'utf8'));
+
+    assert.equal(preparation.status, 0, preparation.stderr);
+    assert.equal(persistedEnvironment.SYNC_ADAPTER_PATH, join(fixture.runtimeDirectory, 'main-to-experimental-sync.cjs'));
+    assert.ok(persistedEnvironment.SYNC_ADAPTER_PATH.includes('runner temp with spaces'));
+    assert.equal(existsSync(persistedEnvironment.SYNC_ADAPTER_PATH), true);
+    assert.equal(runConflictIssueStep(fixture).status, 0);
+    const state = JSON.parse(readFileSync(join(fixture.directory, 'issue-state.json'), 'utf8'));
+    assert.match(state.body, /@renanfranca/);
+    assert.match(state.body, /conflict.txt/);
   } finally {
     rmSync(fixture.root, { recursive: true, force: true });
   }
