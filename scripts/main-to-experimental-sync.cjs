@@ -1,4 +1,4 @@
-const { appendFileSync, readFileSync, statSync } = require('node:fs');
+const { appendFileSync, readFileSync, statSync, writeFileSync } = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
 const SYNC_BRANCH = 'automation/sync-main-to-experimental';
@@ -395,6 +395,85 @@ function qualifyFinalizationBuild(environment) {
   return Object.freeze({ conclusion: evidence.conclusion, sha: evidence.head_sha, status: evidence.status });
 }
 
+function conflictDiagnostic(environment) {
+  const diagnostic = readBoundedJson(environment.SYNC_CONFLICT_DIAGNOSTIC_PATH, 'Synchronization conflict diagnostic');
+  requireSha(diagnostic.sourceSha, 'conflict source SHA');
+  requireSha(diagnostic.targetSha, 'conflict target SHA');
+  if (diagnostic.sourceSha !== environment.SOURCE_SHA || diagnostic.targetSha !== environment.TARGET_SHA) {
+    throw new Error('Synchronization conflict diagnostic does not match the current source and target SHAs.');
+  }
+  if (
+    !Array.isArray(diagnostic.files)
+    || diagnostic.files.length === 0
+    || diagnostic.files.some(file => typeof file !== 'string' || file.length === 0)
+  ) {
+    throw new Error('Synchronization conflict diagnostic requires unmerged files.');
+  }
+  return { sourceSha: diagnostic.sourceSha, targetSha: diagnostic.targetSha, files: [...new Set(diagnostic.files)].sort() };
+}
+
+function conflictBody(environment, diagnostic) {
+  return `@renanfranca automatic one-way synchronization stopped because Git could not merge current main \`${diagnostic.sourceSha}\` into current experimental \`${diagnostic.targetSha}\`.
+
+Conflicting files (sorted, JSON-quoted):
+${diagnostic.files.map(file => `- ${JSON.stringify(file)}`).join('\n')}
+
+Both protected branches are unchanged. Resolve the conflict in a reviewed pull request, then refresh synchronization.
+
+Workflow run: ${environment.GITHUB_SERVER_URL}/${environment.GITHUB_REPOSITORY}/actions/runs/${environment.GITHUB_RUN_ID}
+`;
+}
+
+function conflictMarker(diagnostic) {
+  return `<!-- seed4j-main-to-experimental-conflict:${Buffer.from(JSON.stringify(diagnostic)).toString('base64')} -->`;
+}
+
+function latestConflictMarker(body) {
+  return [...String(body ?? '').matchAll(/<!-- seed4j-main-to-experimental-conflict:[A-Za-z0-9+/=]+ -->/g)].at(-1)?.[0];
+}
+
+function conflictNotification(environment) {
+  const diagnostic = conflictDiagnostic(environment);
+  const marker = conflictMarker(diagnostic);
+  let previousMarker;
+  if (environment.SYNC_ISSUE_ACTION === 'update') {
+    const issue = readBoundedJson(environment.SYNC_ISSUE_DETAIL_PATH, 'Synchronization conflict issue');
+    const pages = readBoundedJson(environment.SYNC_ISSUE_COMMENTS_PATH, 'Synchronization conflict comments');
+    if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page))) {
+      throw new Error('Synchronization conflict comments must be paginated arrays.');
+    }
+    previousMarker = latestConflictMarker(issue.body);
+    for (const comment of pages.flat()) {
+      if (comment.user?.login === AUTOMATION_LOGIN) {
+        previousMarker = latestConflictMarker(comment.body) ?? previousMarker;
+      }
+    }
+  } else if (environment.SYNC_ISSUE_ACTION !== 'create') {
+    throw new Error('Synchronization conflict notification requires create or update.');
+  }
+  const body = conflictBody(environment, diagnostic);
+  writeFileSync(
+    environment.SYNC_ISSUE_BODY_PATH,
+    body + (environment.SYNC_ISSUE_ACTION === 'create' ? marker : (previousMarker ?? '')) + '\n',
+  );
+  writeFileSync(environment.SYNC_ISSUE_COMMENT_PATH, `${body}${marker}\n`);
+  return { notify: environment.SYNC_ISSUE_ACTION === 'update' && previousMarker !== marker ? 'true' : 'false' };
+}
+
+function captureConflict(environment) {
+  requireSha(environment.SOURCE_SHA, 'conflict source SHA');
+  requireSha(environment.TARGET_SHA, 'conflict target SHA');
+  const paths = readFileSync(environment.SYNC_CONFLICT_PATHS_PATH, 'utf8');
+  const files = [...new Set(paths.split('\0').filter(Boolean))].sort();
+  if (!paths.endsWith('\0') || files.length === 0) {
+    throw new Error('Merge failed without unmerged files; synchronization has an operational failure.');
+  }
+  writeFileSync(
+    environment.SYNC_CONFLICT_DIAGNOSTIC_PATH,
+    JSON.stringify({ sourceSha: environment.SOURCE_SHA, targetSha: environment.TARGET_SHA, files }),
+  );
+}
+
 function workflowPreparation(environment) {
   return prepareSynchronization({
     buildConclusion: environment.BUILD_CONCLUSION,
@@ -585,6 +664,20 @@ if (require.main === module) {
       console.error(error.message);
       process.exitCode = 1;
     }
+  } else if (process.argv[2] === 'conflict-notification-workflow' && process.argv.length === 3) {
+    try {
+      writeWorkflowOutputs(conflictNotification(process.env));
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
+  } else if (process.argv[2] === 'capture-conflict' && process.argv.length === 3) {
+    try {
+      captureConflict(process.env);
+    } catch (error) {
+      console.error(error.message);
+      process.exitCode = 1;
+    }
   } else if (process.argv[2] === 'prepare-workflow' && process.argv.length === 3) {
     try {
       const preparation = workflowPreparation(process.env);
@@ -632,7 +725,7 @@ if (require.main === module) {
     }
   } else {
     console.error(
-      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|prepare-workflow|issue-workflow|review-workflow|qualify-finalization-build',
+      'Usage: node scripts/main-to-experimental-sync.cjs dry-run|pr-body|completion-body|capture-conflict|conflict-notification-workflow|prepare-workflow|issue-workflow|review-workflow|qualify-finalization-build',
     );
     process.exitCode = 1;
   }
