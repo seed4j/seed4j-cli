@@ -120,7 +120,9 @@ After a successful push build for the exact current `main` SHA, synchronization 
 to `experimental`. A Git conflict stops before either protected branch changes and creates or updates the assigned
 `synchronization-failure` issue. Before aborting the merge, automation records the unmerged file paths using NUL
 separators and stores a structured diagnosis tied to the attempted source and target SHAs. The issue lists the sorted
-paths, both SHAs, the workflow run, and the required resolution through a reviewed PR. Merge failures without unmerged
+paths, both SHAs, the workflow run, and the required resolution through a reviewed PR. The preparation job copies its
+trusted `main` adapter into runner storage before switching branches and uses that copy throughout preparation and issue
+operations, so older or conflicting adapter source on `experimental` cannot replace the automation code. Merge failures without unmerged
 files fail the workflow as operational errors and do not create conflict issues. Each bounded preparation attempt
 discards the previous diagnosis; only evidence matching the current source and target may update the issue.
 

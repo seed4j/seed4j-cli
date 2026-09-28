@@ -86,7 +86,7 @@ test('the executable workflow preparation adapter owns proposal and already-cont
   assert.equal(alreadyContained.status, 0, alreadyContained.stderr);
   assert.equal(alreadyContained.outputs.action, 'already-contained');
   assert.equal(alreadyContained.outputs.target, targetSha);
-  assert.match(workflow, /node scripts\/main-to-experimental-sync\.cjs prepare-workflow/);
+  assert.match(workflow, /node "\$SYNC_ADAPTER_PATH" prepare-workflow/);
   assert.match(workflow, /steps\.proposal\.outputs\.action == 'propose'/);
 });
 
@@ -1446,7 +1446,7 @@ test('a real synchronization conflict records the file before aborting the merge
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(workflowOutputs(readFileSync(fixture.output, 'utf8')).action, 'report-conflict');
-    assert.deepEqual(JSON.parse(readFileSync(join(fixture.directory, 'synchronization-conflict.json'), 'utf8')), {
+    assert.deepEqual(JSON.parse(readFileSync(join(fixture.runtimeDirectory, 'synchronization-conflict.json'), 'utf8')), {
       sourceSha: fixture.source,
       targetSha: fixture.target,
       files: ['conflicted file.txt'],
@@ -1455,7 +1455,7 @@ test('a real synchronization conflict records the file before aborting the merge
     assert.equal(git(fixture.directory, ['rev-parse', 'main']).stdout.trim(), fixture.source);
     assert.equal(git(fixture.directory, ['rev-parse', 'experimental']).stdout.trim(), fixture.target);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1470,14 +1470,24 @@ function workflowStep(name) {
 }
 
 function conflictPreparationFixture(files) {
-  const directory = mkdtempSync(join(tmpdir(), 'seed4j-real-conflict-'));
+  const root = mkdtempSync(join(tmpdir(), 'seed4j-real-conflict-'));
+  const directory = join(root, 'checkout');
+  const runtimeDirectory = join(root, 'runner-temp');
+  mkdirSync(directory);
+  mkdirSync(runtimeDirectory);
   git(directory, ['init', '-b', 'main']);
   git(directory, ['config', 'user.name', 'Test']);
   git(directory, ['config', 'user.email', 'test@example.com']);
+  mkdirSync(join(directory, 'scripts'));
+  writeFileSync(
+    join(directory, 'scripts/main-to-experimental-sync.cjs'),
+    git(repositoryRoot, ['show', 'f7b3675a0ab07df688f931e623a0fbf4a5ff9062:scripts/main-to-experimental-sync.cjs']).stdout,
+  );
   for (const file of files) writeFileSync(join(directory, file), 'base\n');
   git(directory, ['add', '.']);
   git(directory, ['commit', '-m', 'base']);
   git(directory, ['branch', 'experimental']);
+  copyFileSync(resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), join(directory, 'scripts/main-to-experimental-sync.cjs'));
   for (const file of files) writeFileSync(join(directory, file), 'main\n');
   git(directory, ['commit', '-am', 'main changes']);
   const source = git(directory, ['rev-parse', 'HEAD']).stdout.trim();
@@ -1489,9 +1499,8 @@ function conflictPreparationFixture(files) {
   git(directory, ['init', '--bare', remote]);
   git(directory, ['remote', 'add', 'origin', remote]);
   git(directory, ['push', 'origin', 'main', 'experimental']);
-  mkdirSync(join(directory, 'scripts'));
-  copyFileSync(resolve(repositoryRoot, 'scripts/main-to-experimental-sync.cjs'), join(directory, 'scripts/main-to-experimental-sync.cjs'));
-  return { directory, source, target, output: join(directory, 'output') };
+  git(directory, ['switch', 'main']);
+  return { root, directory, runtimeDirectory, source, target, output: join(runtimeDirectory, 'output') };
 }
 
 function runPreparationStep(fixture, overrides = {}) {
@@ -1501,7 +1510,8 @@ function runPreparationStep(fixture, overrides = {}) {
     env: {
       ...process.env,
       GITHUB_OUTPUT: fixture.output,
-      RUNNER_TEMP: fixture.directory,
+      RUNNER_TEMP: fixture.runtimeDirectory,
+      SYNC_ADAPTER_PATH: join(fixture.runtimeDirectory, 'main-to-experimental-sync.cjs'),
       SOURCE_SHA: fixture.source,
       SYNC_BRANCH: 'automation/sync-main-to-experimental',
       ...overrides,
@@ -1518,7 +1528,7 @@ test('a conflict issue is created with the current sorted files, SHAs, run link 
     const state = JSON.parse(readFileSync(join(fixture.directory, 'issue-state.json'), 'utf8'));
 
     assert.equal(notification.status, 0, notification.stderr);
-    assert.deepEqual(JSON.parse(readFileSync(join(fixture.directory, 'synchronization-conflict.json'), 'utf8')).files, [
+    assert.deepEqual(JSON.parse(readFileSync(join(fixture.runtimeDirectory, 'synchronization-conflict.json'), 'utf8')).files, [
       'a.txt',
       'line\nbreak.txt',
       'z file.txt',
@@ -1531,7 +1541,7 @@ test('a conflict issue is created with the current sorted files, SHAs, run link 
     assert.match(state.body, /reviewed pull request/);
     assert.deepEqual(state.comments, []);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1568,7 +1578,8 @@ fs.writeFileSync(path, JSON.stringify(state));
     env: {
       ...process.env,
       PATH: `${fixture.directory}:${process.env.PATH}`,
-      RUNNER_TEMP: fixture.directory,
+      RUNNER_TEMP: fixture.runtimeDirectory,
+      SYNC_ADAPTER_PATH: join(fixture.runtimeDirectory, 'main-to-experimental-sync.cjs'),
       SOURCE_SHA: fixture.source,
       TARGET_SHA: fixture.target,
       GITHUB_REPOSITORY: 'seed4j/seed4j-cli',
@@ -1596,7 +1607,7 @@ test('a legacy conflict issue receives its first diagnostic comment with a maint
     assert.match(state.comments[0].body, /<!-- seed4j-main-to-experimental-conflict:/);
     assert.match(state.body, /file.txt/);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1609,7 +1620,7 @@ test('unchanged retries stay quiet and changed SHAs or conflict files each trigg
     assert.equal(runConflictIssueStep(fixture).status, 0);
     let state = JSON.parse(readFileSync(join(fixture.directory, 'issue-state.json'), 'utf8'));
     assert.equal(state.comments.length, 0);
-    const diagnosticPath = join(fixture.directory, 'synchronization-conflict.json');
+    const diagnosticPath = join(fixture.runtimeDirectory, 'synchronization-conflict.json');
     writeFileSync(
       diagnosticPath,
       JSON.stringify({ sourceSha: fixture.source, targetSha: fixture.target, files: ['new file.txt', 'file.txt'] }),
@@ -1642,7 +1653,7 @@ test('unchanged retries stay quiet and changed SHAs or conflict files each trigg
     assert.ok(state.comments[2].body.includes(targetSha));
     assert.ok(state.body.includes(targetSha));
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1660,7 +1671,7 @@ test('a diagnostic from an older source or target fails before any issue is chan
     assert.equal(state.body, '');
     assert.deepEqual(state.comments, []);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1672,12 +1683,12 @@ test('a failed merge with no unmerged files is an operational failure and leaves
 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /without unmerged files.*operational failure/);
-    assert.equal(existsSync(join(fixture.directory, 'synchronization-conflict.json')), false);
+    assert.equal(existsSync(join(fixture.runtimeDirectory, 'synchronization-conflict.json')), false);
     assert.equal(existsSync(fixture.output), false);
     assert.equal(git(fixture.directory, ['rev-parse', 'main']).stdout.trim() === fixture.source, false);
     assert.equal(git(fixture.directory, ['rev-parse', 'experimental']).stdout.trim(), fixture.target);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1696,13 +1707,14 @@ test('a failed comment remains retryable after the issue body was refreshed', ()
     assert.equal(state.comments.length, 1);
     assert.match(state.comments[0].body, /@renanfranca/);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
 test('a new preparation attempt discards the previous conflict when experimental advances to a clean merge', () => {
   const fixture = conflictPreparationFixture(['file.txt']);
   try {
+    git(fixture.directory, ['switch', 'experimental']);
     writeFileSync(join(fixture.directory, 'file.txt'), 'main\n');
     git(fixture.directory, ['commit', '-am', 'resolve divergence']);
     const advancedTarget = git(fixture.directory, ['rev-parse', 'HEAD']).stdout.trim();
@@ -1731,6 +1743,7 @@ process.exit(result.status ?? 1);
     );
     chmodSync(executable, 0o755);
 
+    git(fixture.directory, ['switch', 'main']);
     const result = runPreparationStep(fixture, {
       PATH: `${fixture.directory}:${process.env.PATH}`,
       TEST_FETCH_COUNT: join(fixture.directory, 'fetch-count'),
@@ -1740,10 +1753,75 @@ process.exit(result.status ?? 1);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(outputs.action, 'propose');
     assert.equal(outputs.target, advancedTarget);
-    assert.equal(existsSync(join(fixture.directory, 'synchronization-conflict.json')), false);
+    assert.equal(existsSync(join(fixture.runtimeDirectory, 'synchronization-conflict.json')), false);
     assert.equal(git(fixture.directory, ['rev-parse', 'main']).stdout.trim(), fixture.source);
     assert.equal(git(fixture.directory, ['rev-parse', 'origin/experimental']).stdout.trim(), advancedTarget);
   } finally {
-    rmSync(fixture.directory, { recursive: true, force: true });
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('trusted main notifications survive merge abort restoring an older tracked experimental adapter', () => {
+  const fixture = conflictPreparationFixture(['conflict.txt']);
+  try {
+    const initialAdapter = readFileSync(join(fixture.directory, 'scripts/main-to-experimental-sync.cjs'), 'utf8');
+    const experimentalAdapter = git(fixture.directory, ['show', 'experimental:scripts/main-to-experimental-sync.cjs']).stdout;
+    assert.notEqual(initialAdapter, experimentalAdapter);
+    assert.equal(git(fixture.directory, ['branch', '--show-current']).stdout.trim(), 'main');
+    const preparation = runPreparationStep(fixture);
+    const notification = runConflictIssueStep(fixture);
+    const state = JSON.parse(readFileSync(join(fixture.directory, 'issue-state.json'), 'utf8'));
+
+    assert.equal(preparation.status, 0, preparation.stderr);
+    assert.equal(readFileSync(join(fixture.directory, 'scripts/main-to-experimental-sync.cjs'), 'utf8'), experimentalAdapter);
+    assert.equal(notification.status, 0, notification.stderr);
+    assert.equal(state.number, 42);
+    assert.match(state.body, /@renanfranca/);
+    assert.ok(state.body.includes(fixture.source));
+    assert.ok(state.body.includes(fixture.target));
+    assert.match(state.body, /conflict.txt/);
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('conflicting adapter source cannot prevent trusted capture and a deduplicated maintainer alert', () => {
+  const fixture = conflictPreparationFixture(['conflict.txt']);
+  try {
+    git(fixture.directory, ['switch', 'experimental']);
+    const adapterPath = join(fixture.directory, 'scripts/main-to-experimental-sync.cjs');
+    const experimentalAdapter = readFileSync(adapterPath, 'utf8').replace(
+      'readFileSync, statSync }',
+      'readFileSync, statSync, existsSync }',
+    );
+    writeFileSync(adapterPath, experimentalAdapter);
+    git(fixture.directory, ['commit', '-am', 'experimental adapter change']);
+    fixture.target = git(fixture.directory, ['rev-parse', 'HEAD']).stdout.trim();
+    git(fixture.directory, ['push', 'origin', 'experimental']);
+    git(fixture.directory, ['switch', 'main']);
+
+    const preparation = runPreparationStep(fixture);
+    const notification = runConflictIssueStep(fixture, { number: 42, body: 'Legacy conflict', comments: [] });
+    const repeatedNotification = runConflictIssueStep(fixture);
+    const diagnostic = JSON.parse(readFileSync(join(fixture.runtimeDirectory, 'synchronization-conflict.json'), 'utf8'));
+    const state = JSON.parse(readFileSync(join(fixture.directory, 'issue-state.json'), 'utf8'));
+
+    assert.equal(preparation.status, 0, preparation.stderr);
+    assert.match(preparation.stdout, /CONFLICT \(content\): Merge conflict in scripts\/main-to-experimental-sync.cjs/);
+    assert.deepEqual(diagnostic, {
+      sourceSha: fixture.source,
+      targetSha: fixture.target,
+      files: ['conflict.txt', 'scripts/main-to-experimental-sync.cjs'],
+    });
+    assert.equal(readFileSync(adapterPath, 'utf8'), experimentalAdapter);
+    assert.equal(notification.status, 0, notification.stderr);
+    assert.equal(repeatedNotification.status, 0, repeatedNotification.stderr);
+    assert.equal(state.comments.length, 1);
+    assert.match(state.comments[0].body, /@renanfranca/);
+    assert.match(state.comments[0].body, /scripts\/main-to-experimental-sync.cjs/);
+    assert.equal(git(fixture.directory, ['rev-parse', 'main']).stdout.trim(), fixture.source);
+    assert.equal(git(fixture.directory, ['rev-parse', 'experimental']).stdout.trim(), fixture.target);
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 });
