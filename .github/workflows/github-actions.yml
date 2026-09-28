@@ -28,6 +28,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: 'Test: validate workflows'
+        run: ./tests-ci/lint-workflows.sh
       - name: 'Setup: Node.js'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
