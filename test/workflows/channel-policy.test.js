@@ -134,6 +134,7 @@ test('Renovate tracks experimental snapshots through one native Maven rule with 
   });
   assert.deepEqual(rules['Track personal Seed4J snapshots on experimental'], {
     description: 'Track personal Seed4J snapshots on experimental',
+    enabled: true,
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],
@@ -172,3 +173,25 @@ test('the standard build enforces release and workflow policy tests on both chan
 function read(relativePath) {
   return readFileSync(resolve(repositoryRoot, relativePath), 'utf8');
 }
+
+test('shared dependencies update only on main while the personal snapshot remains enabled on experimental', () => {
+  const renovate = JSON.parse(read('renovate.json'));
+  const enabled = (branch, dependency) =>
+    renovate.packageRules.reduce((value, rule) => {
+      const branchMatches = !rule.matchBaseBranches || rule.matchBaseBranches.includes(branch);
+      const nameMatches =
+        !rule.matchPackageNames
+        || rule.matchPackageNames.includes(dependency)
+        || (typeof dependency === 'string' && rule.matchPackageNames.includes('*'));
+      return branchMatches && nameMatches && rule.enabled !== undefined ? rule.enabled : value;
+    }, true);
+
+  for (const dependency of ['org.springframework.boot:spring-boot', 'prettier', 'actions/checkout', 'com.seed4j:seed4j']) {
+    assert.equal(enabled('main', dependency), true);
+    assert.equal(enabled('experimental', dependency), false);
+  }
+  assert.equal(enabled('main', undefined), true);
+  assert.equal(enabled('experimental', undefined), false);
+  assert.equal(enabled('main', 'io.github.renanfranca:seed4j-main-snapshot'), false);
+  assert.equal(enabled('experimental', 'io.github.renanfranca:seed4j-main-snapshot'), true);
+});
