@@ -138,6 +138,7 @@ test('Renovate tracks the experimental snapshot with one active native Maven rul
   assert.equal('customDatasources' in renovate, false);
   assert.deepEqual(rule, {
     description: 'Track personal Seed4J snapshots on experimental',
+    enabled: true,
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],

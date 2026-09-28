@@ -109,6 +109,17 @@ Stable CLI changes travel separately from `main` to `experimental` through a che
 automatic wholesale `experimental` to `main` merge. A generally useful experimental adaptation needs its own PR to
 `main`, designed for stable use, and then flows forward again.
 
+The standard `build` workflow validates GitHub Actions syntax, expressions, and contexts immediately after checkout,
+before build steps. It uses `actionlint` 1.7.12 downloaded into temporary storage and verified against a pinned SHA-256;
+download, checksum, or lint failure fails the `tests` check. ShellCheck and Pyflakes integrations are disabled for this
+gate. Run the same validation locally from the repository root on Linux amd64 with Bash, curl, tar, and sha256sum:
+
+```bash
+./tests-ci/lint-workflows.sh
+```
+
+The command validates all workflows and removes its temporary tool files when it exits.
+
 The standard `build` workflow validates pushes and pull requests for both protected branches. Both branches require pull
 requests, the strict `tests` check, and zero mandatory approvals; force pushes and deletion are disabled, while
 administrator bypass remains available as an accepted maintainer risk. Automation must never use that bypass to merge
@@ -118,7 +129,22 @@ red or stale work. Local Sonar runs on both branches, while SonarCloud publicati
 After a successful push build for the exact current `main` SHA, synchronization creates or refreshes
 `automation/sync-main-to-experimental` from current `experimental`, merges that exact `main` SHA, and opens one PR back
 to `experimental`. A Git conflict stops before either protected branch changes and creates or updates the assigned
-`synchronization-failure` issue. A later authoritative clean or already-contained preparation closes that issue.
+`synchronization-failure` issue. Before aborting the merge, automation records the unmerged file paths using NUL
+separators and stores a structured diagnosis tied to the attempted source and target SHAs. The issue lists the sorted
+paths, both SHAs, the workflow run, and the required resolution through a reviewed PR. The preparation job copies its
+trusted `main` adapter into runner storage before switching branches. Preparation derives the path from `RUNNER_TEMP`
+and persists it through `GITHUB_ENV` for later steps, using that copy throughout preparation and issue
+operations, so older or conflicting adapter source on `experimental` cannot replace the automation code. Merge failures without unmerged
+files fail the workflow as operational errors and do not create conflict issues. Each bounded preparation attempt
+discards the previous diagnosis; only evidence matching the current source and target may update the issue.
+
+Creating an issue mentions `@renanfranca`. An existing issue receives a new diagnostic comment mentioning
+`@renanfranca` when either SHA or the conflict path list changes. A legacy issue without notification evidence receives
+its first alert comment. Structured diagnosis markers in automation comments prevent duplicate mentions on identical
+retries; initial issue creation also records its notification marker. The issue body stays current without posting
+another comment for unchanged evidence. Mentions use GitHub's native notifications. Resolve conflicts in a reviewed PR,
+then dispatch synchronization again from `main`; resolving the existing conflict is a separate maintainer action.
+A later authoritative clean or already-contained preparation closes that issue.
 
 Synchronization separates identities deliberately:
 
@@ -146,8 +172,10 @@ evidence, guesses conflict resolution, or enables merge without a current green 
 [`Synchronize stable changes into experimental`](workflows.md#synchronize-stable-changes-into-experimental) for the short
 operator recipe.
 
-Renovate keeps dependency contexts separate. `main` tracks stable `com.seed4j:seed4j` releases and ignores the personal
-coordinate. The full-SHA snapshot has resolved and built on `experimental`, so the final configuration uses one native
+Renovate updates shared dependencies only on `main`, including Maven, npm, and workflow dependencies. Those updates
+reach `experimental` through the checked synchronization PR rather than duplicate Renovate PRs on both branches.
+`main` tracks stable `com.seed4j:seed4j` releases and ignores the personal coordinate. On `experimental`, Renovate disables
+all dependency updates except `io.github.renanfranca:seed4j-main-snapshot`, which is explicitly enabled. The full-SHA snapshot has resolved and built on `experimental`, so the final configuration uses one native
 Maven rule against Central snapshots, with unstable versions
 enabled, and changes only `seed4j.version`. A snapshot PR merges automatically only after required checks pass on current
 `experimental`; an incompatible update remains open and red for a maintainer adaptation. The hosted Renovate application

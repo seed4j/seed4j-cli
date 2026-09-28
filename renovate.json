@@ -29,6 +29,11 @@
   ],
   "packageRules": [
     {
+      "description": "Update shared dependencies only on main",
+      "matchBaseBranches": ["experimental"],
+      "enabled": false
+    },
+    {
       "description": "Track official Seed4J releases on main",
       "matchBaseBranches": ["main"],
       "matchDatasources": ["maven"],
@@ -61,7 +66,8 @@
       "automergeType": "pr",
       "rebaseWhen": "behind-base-branch",
       "semanticCommitType": "fix",
-      "semanticCommitScope": "deps"
+      "semanticCommitScope": "deps",
+      "enabled": true
     }
   ],
   "docker-compose": {
