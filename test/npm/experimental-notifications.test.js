@@ -263,6 +263,42 @@ test('the registry lookup expires after five seconds including response reading'
   assert.equal(fixture.cachedRegistry().consecutiveFailures, 1);
 });
 
+test('a header request aborted at the deadline is recorded as a timeout', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 6000 });
+
+  const result = fixture.run(['--version']);
+  await waitFor(() => fixture.cachedRegistry()?.failureCategory, 7000);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.equal(fixture.cachedRegistry().failureCategory, 'timeout');
+});
+
+test('a header error at the five-second deadline is recorded as a timeout', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ error: 'offline', delayMs: 5000 });
+
+  const result = fixture.run(['--version']);
+  await waitFor(() => fixture.cachedRegistry()?.failureCategory, 7000);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.equal(fixture.cachedRegistry().failureCategory, 'timeout');
+});
+
+test('a response body aborted at the deadline is recorded as a timeout', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12', bodyAbortAware: true });
+
+  const result = fixture.run(['--version']);
+  await waitFor(() => fixture.cachedRegistry()?.failureCategory, 7000);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.equal(fixture.cachedRegistry().failureCategory, 'timeout');
+});
+
 test('completion, skill installation, and unsuccessful commands suppress notices', t => {
   const fixture = createFixture(t);
   fixture.registry({ experimental: '1.2.0-experimental.12' });
@@ -686,6 +722,10 @@ function createFixture(t) {
     preload,
     `if (process.env.WORKER_SPAWN_ERROR) { const childProcess = require('node:child_process'); const original = childProcess.spawn; childProcess.spawn = (command, ...args) => { if (command === process.execPath) throw new Error('Worker unavailable'); return original(command, ...args); }; }\n`,
   );
+  require('node:fs').appendFileSync(
+    preload,
+    `const originalFetch = globalThis.fetch; globalThis.fetch = async (...args) => { const response = await originalFetch(...args); if (!JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')).bodyAbortAware) return response; return { ...response, json: () => new Promise((resolve, reject) => args[1].signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })) }; };\n`,
+  );
   return {
     registry: value => writeFileSync(registryFile, JSON.stringify(value)),
     cache: value => {
@@ -735,8 +775,8 @@ function createFixture(t) {
 }
 
 async function waitFor(predicate, timeout = 3000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
+  const deadline = performance.now() + timeout;
+  while (performance.now() < deadline) {
     try {
       if (predicate()) return;
     } catch {

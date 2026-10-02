@@ -4,6 +4,8 @@ const [cacheFile, token] = process.argv.slice(2);
 const deadline = 5000;
 const safetyTimer = setTimeout(() => process.exit(0), 10000);
 const controller = new AbortController();
+const deadlineAt = performance.now() + deadline;
+let timedOut = false;
 let requestTimer;
 
 async function check() {
@@ -19,6 +21,7 @@ async function check() {
       }),
       new Promise((_, reject) => {
         requestTimer = setTimeout(() => {
+          timedOut = true;
           controller.abort();
           reject({ category: 'timeout' });
         }, deadline);
@@ -29,7 +32,9 @@ async function check() {
     }
     completeRegistryCheck(cacheFile, token, { version: tags.experimental });
   } catch (error) {
-    completeRegistryCheck(cacheFile, token, { category: error?.category ?? 'network' });
+    completeRegistryCheck(cacheFile, token, {
+      category: timedOut || performance.now() >= deadlineAt ? 'timeout' : (error?.category ?? 'network'),
+    });
   } finally {
     clearTimeout(requestTimer);
     clearTimeout(safetyTimer);
