@@ -1,4 +1,4 @@
-const { completeRegistryCheck } = require('./update-notifications.js');
+const { completeRegistryCheck, validVersion } = require('./update-notifications.js');
 
 const [cacheFile, token] = process.argv.slice(2);
 const deadline = 5000;
@@ -27,7 +27,7 @@ async function check() {
         }, deadline);
       }),
     ]);
-    if (typeof tags?.experimental !== 'string' || !/^\d+\.\d+\.\d+-experimental\.\d+$/.test(tags.experimental)) {
+    if (!validVersion(tags?.experimental)) {
       throw { category: 'invalid-response' };
     }
     completeRegistryCheck(cacheFile, token, { version: tags.experimental });

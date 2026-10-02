@@ -25,7 +25,7 @@ const freshness = 6 * hour;
 const leaseDuration = 30 * 1000;
 const packageRoot = resolve(__dirname, '..');
 const packageVersion = require('../package.json').version;
-const experimentalVersion = /^\d+\.\d+\.\d+-experimental\.\d+$/.test(packageVersion);
+const experimentalVersion = validVersion(packageVersion);
 
 function startNotifications(args) {
   const command = args[0] === '--debug' || /^--debug=(?:true|false)?$/i.test(args[0]) ? args.slice(1) : args;
@@ -340,4 +340,4 @@ function skillTreeByPath(destination) {
   return { directories: directories.sort(), files };
 }
 
-module.exports = { startNotifications, completeRegistryCheck };
+module.exports = { startNotifications, completeRegistryCheck, validVersion };
