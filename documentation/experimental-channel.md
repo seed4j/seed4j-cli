@@ -46,6 +46,13 @@ installed agent skill differs from the skill bundled with the active CLI, sugges
 anything automatically. Notices are suppressed during completion generation, skill installation, and unsuccessful
 commands; direct JAR invocations and the stable npm channel do not perform these checks.
 
+The launcher starts a detached Node worker to check the registry while Java runs. It gives the request and response body
+five seconds, with a ten-second worker safety limit. The command does not wait for the worker: a result saved after the
+command ends can produce a notice on a later invocation. A successful result stays current for six hours, while each
+installed and available version pair is reported at most once per rolling 24 hours. Failed checks retain the last
+successful result without treating it as fresh. The next check becomes eligible after one, five, fifteen, then sixty
+minutes of consecutive failures, with sixty minutes thereafter. Checks resume only when the CLI is invoked again.
+
 Skill inspection detects existing symbolic links without intentionally opening their targets. On Windows, the advisory
 check uses paths and cannot prevent a link swapped in during inspection from being traversed; Linux and macOS use
 directory handles for this protection. The check remains read-only on every platform.

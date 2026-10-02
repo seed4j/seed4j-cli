@@ -112,6 +112,49 @@ test('malformed cache containers still persist a single notice across invocation
   }
 });
 
+test('a corrupt cache is replaced after a successful background lookup', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+  const cacheDirectory = join(fixture.home, '.cache/seed4j-cli');
+  mkdirSync(cacheDirectory, { recursive: true });
+  writeFileSync(join(cacheDirectory, 'update-notifications.json'), '{broken');
+
+  const result = fixture.run(['--version']);
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.12');
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fixture.registryCalls(), 1);
+  assert.equal(fixture.cachedRegistry().consecutiveFailures, 0);
+});
+
+test('a cache write failure stays silent and leaves no temporary file', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+  const cacheDirectory = join(fixture.home, '.cache/seed4j-cli');
+  mkdirSync(join(cacheDirectory, 'update-notifications.json'), { recursive: true });
+
+  const result = fixture.run(['--version']);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+  assert.equal(result.stderr, '');
+  assert.deepEqual(readdirSync(cacheDirectory), ['update-notifications.json']);
+});
+
+test('a worker launch failure records its category without changing command output', t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+
+  const result = fixture.run(['--version'], { WORKER_SPAWN_ERROR: '1', TEST_NOW: '1000000000' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'Java result\n');
+  assert.equal(result.stderr, '');
+  assert.equal(fixture.cachedRegistry().failureCategory, 'launch');
+  assert.equal(fixture.cachedRegistry().consecutiveFailures, 1);
+  assert.equal(fixture.cachedRegistry().nextAttemptAt, 1000060000);
+});
+
 test('equal, older, missing, and malformed experimental tags do not produce a notice', t => {
   for (const tags of [
     { experimental: '1.2.0-experimental.3' },
@@ -130,25 +173,66 @@ test('equal, older, missing, and malformed experimental tags do not produce a no
   }
 });
 
-test('a failed registry lookup backs off for an hour without affecting command output', t => {
+test('HTTP and invalid registry responses record distinct failures without losing the last success', async t => {
+  for (const [response, category] of [
+    [{ status: 500 }, 'http'],
+    [{ experimental: 'latest' }, 'invalid-response'],
+    [{ malformedBody: true }, 'invalid-response'],
+  ]) {
+    const fixture = createFixture(t);
+    fixture.cache({ registry: { version: '1.2.0-experimental.12', checkedAt: 1000000000 } });
+    fixture.registry(response);
+
+    const result = fixture.run(['--version'], { TEST_NOW: '1021600000' });
+    await waitFor(() => fixture.cachedRegistry()?.failureCategory === category);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.equal(fixture.cachedRegistry().version, '1.2.0-experimental.12');
+    assert.equal(fixture.cachedRegistry().checkedAt, 1000000000);
+    assert.equal(fixture.cachedRegistry().failedAt, 1021600000);
+  }
+});
+
+test('registry failures wait 1, 5, 15, then 60 minutes and success clears the sequence', async t => {
   const fixture = createFixture(t);
   fixture.registry({ error: 'offline' });
 
   const first = fixture.run(['--version'], { TEST_NOW: '1000000000' });
-  const backoff = fixture.run(['--version'], { TEST_NOW: '1000001000' });
+  await waitFor(() => fixture.cachedRegistry()?.consecutiveFailures === 1);
+  const backoff = fixture.run(['--version'], { TEST_NOW: '1000059999' });
+  const second = fixture.run(['--version'], { TEST_NOW: '1000060000' });
+  await waitFor(() => fixture.cachedRegistry()?.consecutiveFailures === 2);
+  const third = fixture.run(['--version'], { TEST_NOW: '1000360000' });
+  await waitFor(() => fixture.cachedRegistry()?.consecutiveFailures === 3);
+  const fourth = fixture.run(['--version'], { TEST_NOW: '1001260000' });
+  await waitFor(() => fixture.cachedRegistry()?.consecutiveFailures === 4);
+  const fifth = fixture.run(['--version'], { TEST_NOW: '1004860000' });
+  await waitFor(() => fixture.cachedRegistry()?.consecutiveFailures === 5);
+  const afterFifth = fixture.cachedRegistry();
   fixture.registry({ experimental: '1.2.0-experimental.12' });
-  const retried = fixture.run(['--version'], { TEST_NOW: '1003601000' });
+  const recovered = fixture.run(['--version'], { TEST_NOW: '1008460000' });
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.12');
 
   assert.equal(first.stdout, 'Java result\n');
   assert.equal(first.stderr, '');
   assert.equal(backoff.stderr, '');
-  assert.match(retried.stderr, /experimental\.12/);
-  assert.equal(fixture.registryCalls(), 2);
+  assert.equal(second.stderr, '');
+  assert.equal(third.stderr, '');
+  assert.equal(fourth.stderr, '');
+  assert.equal(fifth.stderr, '');
+  assert.equal(recovered.status, 0);
+  assert.equal(fixture.registryCalls(), 6);
+  assert.equal(afterFifth.attemptedAt, 1004860000);
+  assert.equal(afterFifth.failedAt, 1004860000);
+  assert.equal(afterFifth.nextAttemptAt, 1008460000);
+  assert.equal(fixture.cachedRegistry().consecutiveFailures, 0);
+  assert.equal(fixture.cachedRegistry().failureCategory, undefined);
 });
 
-test('a slow registry lookup does not hold a completed command open', t => {
+test('a slow registry lookup is saved after a quick command and reported on the next run', async t => {
   const fixture = createFixture(t);
-  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 2000 });
+  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 1200 });
 
   const started = Date.now();
   const result = fixture.run(['--version']);
@@ -158,18 +242,25 @@ test('a slow registry lookup does not hold a completed command open', t => {
   assert.equal(result.stdout, 'Java result\n');
   assert.equal(result.stderr, '');
   assert.ok(elapsed < 1000, `Command took ${elapsed} ms`);
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.12');
+
+  const next = fixture.run(['--version']);
+
+  assert.match(next.stderr, /experimental\.12/);
+  assert.equal(fixture.registryCalls(), 1);
 });
 
-test('the registry lookup expires after one second during a longer command', t => {
+test('the registry lookup expires after five seconds including response reading', async t => {
   const fixture = createFixture(t);
-  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 2000 });
+  fixture.registry({ experimental: '1.2.0-experimental.12', bodyDelayMs: 6000 });
 
   const result = fixture.run(['--version'], { FAKE_JAVA_DELAY_MS: '1300' });
+  await waitFor(() => fixture.cachedRegistry()?.failureCategory === 'timeout', 7000);
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
   assert.equal(fixture.registryCalls(), 1);
-  assert.ok(JSON.parse(readFileSync(join(fixture.home, '.cache/seed4j-cli/update-notifications.json'), 'utf8')).registry.failedAt);
+  assert.equal(fixture.cachedRegistry().consecutiveFailures, 1);
 });
 
 test('completion, skill installation, and unsuccessful commands suppress notices', t => {
@@ -313,6 +404,37 @@ test('concurrent invocations claim one notice for the same experimental release'
   assert.equal(results.filter(result => result.stderr.includes('experimental.12')).length, 1);
 });
 
+test('concurrent invocations reserve only one registry lookup', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 500 });
+
+  const results = await Promise.all([fixture.runAsync(['--version']), fixture.runAsync(['--version'])]);
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.12');
+
+  assert.deepEqual(
+    results.map(result => result.status),
+    [0, 0],
+  );
+  assert.equal(fixture.registryCalls(), 1);
+});
+
+test('an expired reservation can be replaced without an older worker overwriting its result', async t => {
+  const fixture = createFixture(t);
+  fixture.registry({ experimental: '1.2.0-experimental.12', delayMs: 1200 });
+
+  const first = fixture.run(['--version'], { TEST_NOW: '1000000000' });
+  await waitFor(() => fixture.registryCalls() === 1);
+  fixture.registry({ experimental: '1.2.0-experimental.13' });
+  const second = fixture.run(['--version'], { TEST_NOW: '1000030000' });
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.13');
+  await new Promise(resolve => setTimeout(resolve, 1300));
+
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(second.status, 0, second.stderr);
+  assert.equal(fixture.registryCalls(), 2);
+  assert.equal(fixture.cachedRegistry().version, '1.2.0-experimental.13');
+});
+
 test('the stable npm channel does not perform notification checks', t => {
   const fixture = createFixture(t);
   fixture.version('1.2.0');
@@ -328,17 +450,22 @@ test('the stable npm channel does not perform notification checks', t => {
   assert.equal(result.stderr, '');
 });
 
-test('expired registry data is not reported when refresh fails', t => {
+test('a successful result expires after six hours and survives a failed refresh', async t => {
   const fixture = createFixture(t);
-  fixture.registry({ experimental: '1.2.0-experimental.12' });
-
-  const first = fixture.run(['--version'], { TEST_NOW: '1000000000' });
+  fixture.cache({ registry: { version: '1.2.0-experimental.12', checkedAt: 1000000000 } });
   fixture.registry({ error: 'offline' });
-  const expired = fixture.run(['--version'], { TEST_NOW: '1086400001' });
 
-  assert.match(first.stderr, /experimental\.12/);
+  const fresh = fixture.run(['--version'], { TEST_NOW: '1021599999' });
+  const expired = fixture.run(['--version'], { TEST_NOW: '1021600000' });
+  await waitFor(() => fixture.cachedRegistry()?.failureCategory === 'network');
+
+  assert.match(fresh.stderr, /experimental\.12/);
   assert.equal(expired.status, 0, expired.stderr);
   assert.equal(expired.stderr, '');
+  assert.equal(fixture.cachedRegistry().version, '1.2.0-experimental.12');
+  assert.equal(fixture.cachedRegistry().checkedAt, 1000000000);
+  assert.equal(fixture.cachedRegistry().failureCategory, 'network');
+  assert.equal(fixture.registryCalls(), 1);
 });
 
 test('a signaled Java process propagates its signal without notices', t => {
@@ -447,6 +574,22 @@ test('a registry failure dated in the future does not suppress a new lookup', t 
   assert.equal(fixture.registryCalls(), 1);
 });
 
+test('a legacy failedAt waits one minute before retrying', async t => {
+  const fixture = createFixture(t);
+  fixture.cache({ registry: { failedAt: 1000000000 } });
+  fixture.registry({ experimental: '1.2.0-experimental.12' });
+
+  const waiting = fixture.run(['--version'], { TEST_NOW: '1000059999' });
+  const retried = fixture.run(['--version'], { TEST_NOW: '1000060000' });
+  await waitFor(() => fixture.cachedRegistry()?.version === '1.2.0-experimental.12');
+
+  assert.equal(waiting.status, 0, waiting.stderr);
+  assert.equal(waiting.stderr, '');
+  assert.equal(retried.status, 0, retried.stderr);
+  assert.equal(fixture.registryCalls(), 1);
+  assert.equal(fixture.cachedRegistry().consecutiveFailures, 0);
+});
+
 test('a Windows-style invocation reports changed local and global skill trees', t => {
   const fixture = createFixture(t);
   fixture.registry({ experimental: '1.2.0-experimental.3' });
@@ -512,6 +655,7 @@ function createFixture(t) {
   for (const directory of [bin, commands, home, project]) mkdirSync(directory, { recursive: true });
   copyFileSync(join(repositoryRoot, 'bin/seed4j.js'), join(bin, 'seed4j.js'));
   copyFileSync(join(repositoryRoot, 'bin/update-notifications.js'), join(bin, 'update-notifications.js'));
+  copyFileSync(join(repositoryRoot, 'bin/update-notification-worker.js'), join(bin, 'update-notification-worker.js'));
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'seed4j-cli', version: '1.2.0-experimental.3' }));
   const java = join(commands, 'java');
   writeFileSync(
@@ -524,7 +668,7 @@ function createFixture(t) {
   const preload = join(root, 'preload.cjs');
   writeFileSync(
     preload,
-    `globalThis.fetch = async (url, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, url + '\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: url === ${JSON.stringify(registryDistTagsUrl)} && value.status !== 500, json: async () => value }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW); if (process.env.SWAP_SKILL_FILE) { const fs = require('node:fs'); const original = fs.readdirSync; fs.readdirSync = (...args) => { const result = original(...args); if (process.env.SWAP_SKILL_FILE && fs.realpathSync(args[0]) === require('node:path').dirname(process.env.SWAP_SKILL_FILE)) { const path = process.env.SWAP_SKILL_FILE; fs.renameSync(path, process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, path); delete process.env.SWAP_SKILL_FILE; } return result; }; }\n`,
+    `globalThis.fetch = async (url, { signal } = {}) => { require('node:fs').appendFileSync(${JSON.stringify(registryLog)}, url + '\\n'); const value = JSON.parse(require('node:fs').readFileSync(${JSON.stringify(registryFile)}, 'utf8')); if (value.delayMs) await new Promise((resolve, reject) => { const timer = setTimeout(resolve, value.delayMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true }); }); if (value.error) throw new Error(value.error); return { ok: url === ${JSON.stringify(registryDistTagsUrl)} && value.status !== 500, json: async () => { if (value.bodyDelayMs) await new Promise(resolve => setTimeout(resolve, value.bodyDelayMs)); if (value.malformedBody) throw new SyntaxError('Malformed JSON'); return value; } }; }; if (process.env.TEST_NOW) Date.now = () => Number(process.env.TEST_NOW); if (process.env.SWAP_SKILL_FILE) { const fs = require('node:fs'); const original = fs.readdirSync; fs.readdirSync = (...args) => { const result = original(...args); if (process.env.SWAP_SKILL_FILE && fs.realpathSync(args[0]) === require('node:path').dirname(process.env.SWAP_SKILL_FILE)) { const path = process.env.SWAP_SKILL_FILE; fs.renameSync(path, process.env.SWAP_SKILL_TARGET + '.original'); fs.symlinkSync(process.env.SWAP_SKILL_TARGET, path); delete process.env.SWAP_SKILL_FILE; } return result; }; }\n`,
   );
   require('node:fs').appendFileSync(
     preload,
@@ -538,6 +682,10 @@ function createFixture(t) {
     preload,
     `if (process.env.STDERR_WRITE_ERROR) { const fs = require('node:fs'); const original = fs.writeSync; fs.writeSync = (fd, ...args) => { if (fd === 2) { const error = new Error('stderr unavailable'); error.code = process.env.STDERR_WRITE_ERROR; throw error; } return original(fd, ...args); }; }\n`,
   );
+  require('node:fs').appendFileSync(
+    preload,
+    `if (process.env.WORKER_SPAWN_ERROR) { const childProcess = require('node:child_process'); const original = childProcess.spawn; childProcess.spawn = (command, ...args) => { if (command === process.execPath) throw new Error('Worker unavailable'); return original(command, ...args); }; }\n`,
+  );
   return {
     registry: value => writeFileSync(registryFile, JSON.stringify(value)),
     cache: value => {
@@ -548,6 +696,7 @@ function createFixture(t) {
     version: value => writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'seed4j-cli', version: value })),
     registryRequests: () => readFileSync(registryLog, 'utf8').trim().split('\n'),
     registryCalls: () => readFileSync(registryLog, 'utf8').trim().split('\n').length,
+    cachedRegistry: () => JSON.parse(readFileSync(join(home, '.cache/seed4j-cli/update-notifications.json'), 'utf8')).registry,
     bundledSkill: content => {
       mkdirSync(join(packageRoot, 'dist'), { recursive: true });
       const files = typeof content === 'string' ? { 'SKILL.md': content } : content;
@@ -583,4 +732,17 @@ function createFixture(t) {
     home,
     project,
   };
+}
+
+async function waitFor(predicate, timeout = 3000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      if (predicate()) return;
+    } catch {
+      // Cache may not exist while the worker is running.
+    }
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.fail('Timed out waiting for the notification cache');
 }

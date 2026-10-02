@@ -26,10 +26,23 @@ experimental version. Comparison MUST respect the numeric semantic-version compo
 sequence; a tag moved to the same or an earlier version MUST NOT be presented as an update. An invalid or missing tag is
 an unavailable check, not an update.
 
-A successful registry result MAY be reused for up to 24 hours. After a registry failure, the launcher SHOULD wait at
-least one hour before retrying. The registry request MUST have a short deadline and run concurrently with the requested
-command. Completion of that command MUST NOT wait for a pending update request. A result that arrives too late MAY first
-produce a notice on a subsequent invocation.
+A successful registry result MAY be reused for up to six hours. The launcher MUST start a detached Node worker alongside
+the Java command. The worker MUST use a five-second deadline covering the response body and MUST end within ten seconds
+as an additional safeguard. It only checks the registry and saves the cache. After Java succeeds, the launcher MUST
+read the cache again before deciding whether to display an update notice. Completion of the Java command MUST NOT wait
+for the worker. A result that arrives later MAY first produce a notice on a subsequent invocation.
+
+After consecutive registry failures, the next check MUST wait one, five, fifteen, then sixty minutes, continuing at
+sixty-minute intervals. A successful check MUST reset this sequence. These waits make a check eligible on the next CLI
+invocation; the launcher MUST NOT schedule additional attempts. The cache MUST retain the last successful `version` and
+`checkedAt` across failures without extending their freshness or recording a notice. It MUST separately record the
+attempt time, failure time and category (timeout, network, HTTP, invalid response, or worker launch), consecutive failure
+count, and next eligible attempt. A legacy `failedAt` without these fields counts as the first failure with an unknown
+cause and a one-minute wait.
+
+The launcher MUST reserve one check per user atomically with a token and a 30-second lease. An expired lease MUST be
+recoverable, and a worker holding an older token MUST NOT overwrite the result of a later reservation. Failed and stale
+results MAY remain in the cache for investigation, but stale results MUST NOT produce update notices.
 
 While a newer release remains available, the launcher MUST display its notice at most once per rolling 24-hour period
 for that installed package and available version. A new available version MAY be reported on the next eligible
@@ -76,7 +89,7 @@ contract.
 
 Registry errors, offline operation, malformed responses, missing or corrupt notification cache, cache write failures,
 and skill inspection failures MUST remain silent and MUST NOT delay or fail the requested command. A cached newer version
-MUST NOT be presented as current after its 24-hour validity has elapsed without a successful refresh. Notification state
+MUST NOT be presented as current after its six-hour validity has elapsed without a successful refresh. Notification state
 MUST be stored outside the project and MUST NOT modify generated files, project history, Git state, or an installed skill.
 
 ## Acceptance and validation
