@@ -29,7 +29,7 @@ Reserve `composition` packages for manual composition roots that must run before
 Use Java 25 and Node.js 22+ before running the toolchain.
 
 - `./mvnw clean package` builds the CLI JAR in `target/`.
-- `./mvnw clean verify` is the complete local validation gate; it runs unit/integration tests, JaCoCo aggregation, Checkstyle, and coverage gates. Its output is large, so agents must not run it automatically.
+- `./mvnw clean verify` is the complete local validation gate; it runs unit/integration tests, JaCoCo aggregation, Checkstyle, and coverage gates.
 - `./mvnw test` runs only the JUnit 5 test suite and is acceptable for narrower validation.
 - `npm run prettier:check` validates formatting for Java, XML, YAML, Markdown, and JSON.
 - `npm run prettier:format` rewrites supported files using the repository formatter configuration.
