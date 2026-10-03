@@ -1,4 +1,5 @@
-const { createHash } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
+const { spawn } = require('node:child_process');
 const {
   constants,
   existsSync,
@@ -19,9 +20,12 @@ const { join, resolve } = require('node:path');
 
 const day = 24 * 60 * 60 * 1000;
 const hour = 60 * 60 * 1000;
+const minute = 60 * 1000;
+const freshness = 6 * hour;
+const leaseDuration = 30 * 1000;
 const packageRoot = resolve(__dirname, '..');
 const packageVersion = require('../package.json').version;
-const experimentalVersion = /^\d+\.\d+\.\d+-experimental\.\d+$/.test(packageVersion);
+const experimentalVersion = validVersion(packageVersion);
 
 function startNotifications(args) {
   const command = args[0] === '--debug' || /^--debug=(?:true|false)?$/i.test(args[0]) ? args.slice(1) : args;
@@ -31,40 +35,53 @@ function startNotifications(args) {
 
   const home = homedir();
   const cacheFile = join(home, '.cache', 'seed4j-cli', 'update-notifications.json');
-  const registry = { version: cachedRegistry(cacheFile) };
-  if (registry.version === undefined && registryCheckDue(cacheFile)) {
-    Promise.resolve()
-      .then(() => fetch('https://registry.npmjs.org/-/package/seed4j-cli/dist-tags', { signal: AbortSignal.timeout(1000) }))
-      .then(response => {
-        if (!response.ok) throw new Error('Registry response failed');
-        return response.json();
-      })
-      .then(tags => {
-        if (!validVersion(tags?.experimental)) throw new Error('Invalid experimental tag');
-        registry.version = tags.experimental;
-        updateCache(cacheFile, state => {
-          state.registry = { version: tags.experimental, checkedAt: Date.now() };
-        });
-      })
-      .catch(() => {
-        updateCache(cacheFile, state => {
-          state.registry = { failedAt: Date.now() };
-        });
-      });
-  }
+  const token = reserveRegistryCheck(cacheFile);
+  if (token) startRegistryWorker(cacheFile, token);
 
   return {
     emit() {
-      if (registry.version && newer(registry.version, packageVersion)) {
+      const version = cachedRegistry(cacheFile);
+      if (version && newer(version, packageVersion)) {
         notice(
           cacheFile,
-          `npm:${packageVersion}:${registry.version}`,
-          `Seed4J CLI ${packageVersion}: experimental version ${registry.version} is available after this work. Run npm install -g seed4j-cli@experimental to update later.`,
+          `npm:${packageVersion}:${version}`,
+          `Seed4J CLI ${packageVersion}: experimental version ${version} is available after this work. Run npm install -g seed4j-cli@experimental to update later.`,
         );
       }
       skillNotices(cacheFile, home);
     },
   };
+}
+
+function reserveRegistryCheck(cacheFile) {
+  const token = randomUUID();
+  let reserved = false;
+  const saved = updateCache(cacheFile, state => {
+    const registry = objectRecord(state.registry) ? state.registry : {};
+    const now = Date.now();
+    if (cachedVersion(registry, now) || !registryCheckDue(registry, now)) return false;
+    state.registry = {
+      ...registry,
+      attemptedAt: now,
+      lease: { token, expiresAt: now + leaseDuration },
+    };
+    reserved = true;
+  });
+  return saved && reserved ? token : undefined;
+}
+
+function startRegistryWorker(cacheFile, token) {
+  try {
+    const worker = spawn(process.execPath, [join(__dirname, 'update-notification-worker.js'), cacheFile, token], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    worker.on('error', () => completeRegistryCheck(cacheFile, token, { category: 'launch' }));
+    worker.unref();
+  } catch {
+    completeRegistryCheck(cacheFile, token, { category: 'launch' });
+  }
 }
 
 function validVersion(version) {
@@ -79,15 +96,55 @@ function newer(available, installed) {
 }
 
 function cachedRegistry(cacheFile) {
-  const registry = readCache(cacheFile).registry;
-  const age = Date.now() - registry?.checkedAt;
-  return validVersion(registry?.version) && Number.isFinite(registry.checkedAt) && age >= 0 && age < day ? registry.version : undefined;
+  return cachedVersion(readCache(cacheFile).registry, Date.now());
 }
 
-function registryCheckDue(cacheFile) {
-  const registry = readCache(cacheFile).registry;
-  const age = Date.now() - registry?.failedAt;
-  return !Number.isFinite(registry?.failedAt) || age < 0 || age >= hour;
+function cachedVersion(registry, now) {
+  const age = now - registry?.checkedAt;
+  return validVersion(registry?.version) && Number.isFinite(registry.checkedAt) && age >= 0 && age < freshness
+    ? registry.version
+    : undefined;
+}
+
+function registryCheckDue(registry, now) {
+  if (objectRecord(registry?.lease) && Number.isFinite(registry.lease.expiresAt) && registry.lease.expiresAt > now) return false;
+  if (Number.isFinite(registry?.failedAt) && registry.failedAt > now) return true;
+  const nextAttemptAt = Number.isFinite(registry?.nextAttemptAt)
+    ? registry.nextAttemptAt
+    : Number.isFinite(registry?.failedAt)
+      ? registry.failedAt + minute
+      : undefined;
+  return nextAttemptAt === undefined || now >= nextAttemptAt;
+}
+
+function completeRegistryCheck(cacheFile, token, result) {
+  updateCache(cacheFile, state => {
+    const registry = state.registry;
+    if (!objectRecord(registry) || registry.lease?.token !== token) return false;
+    const now = Date.now();
+    const { lease, ...previous } = registry;
+    if (result.version) {
+      state.registry = { ...previous, version: result.version, checkedAt: now, consecutiveFailures: 0 };
+      delete state.registry.failedAt;
+      delete state.registry.failureCategory;
+      delete state.registry.nextAttemptAt;
+    } else {
+      const consecutiveFailures =
+        (Number.isInteger(previous.consecutiveFailures) && previous.consecutiveFailures > 0
+          ? previous.consecutiveFailures
+          : Number.isFinite(previous.failedAt)
+            ? 1
+            : 0) + 1;
+      const delays = [1, 5, 15, 60];
+      state.registry = {
+        ...previous,
+        failedAt: now,
+        failureCategory: result.category,
+        consecutiveFailures,
+        nextAttemptAt: now + delays[Math.min(consecutiveFailures - 1, delays.length - 1)] * minute,
+      };
+    }
+  });
 }
 
 function readCache(cacheFile) {
@@ -106,18 +163,26 @@ function objectRecord(value) {
 function updateCache(cacheFile, update) {
   const lock = `${cacheFile}.lock`;
   let descriptor;
+  let temporary;
   try {
     mkdirSync(resolve(cacheFile, '..'), { recursive: true });
     descriptor = openSync(lock, 'wx');
     const state = readCache(cacheFile);
-    update(state);
-    const temporary = `${cacheFile}.${process.pid}.tmp`;
+    if (update(state) === false) return true;
+    temporary = `${cacheFile}.${process.pid}.tmp`;
     writeFileSync(temporary, JSON.stringify(state));
     renameSync(temporary, cacheFile);
     return true;
   } catch {
     return false;
   } finally {
+    if (temporary !== undefined) {
+      try {
+        rmSync(temporary, { force: true });
+      } catch {
+        // Notification cache cleanup is advisory.
+      }
+    }
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
@@ -136,6 +201,8 @@ function notice(cacheFile, key, message) {
     if (!Number.isFinite(state.notices[key]) || state.notices[key] > Date.now() || Date.now() - state.notices[key] >= day) {
       state.notices[key] = Date.now();
       claimed = true;
+    } else {
+      return false;
     }
   });
   if (saved && claimed) {
@@ -273,4 +340,4 @@ function skillTreeByPath(destination) {
   return { directories: directories.sort(), files };
 }
 
-module.exports = { startNotifications };
+module.exports = { startNotifications, completeRegistryCheck, validVersion };

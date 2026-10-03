@@ -7,7 +7,7 @@ const test = require('node:test');
 const repositoryRoot = resolve(__dirname, '../..');
 const documentationRoot = resolve(repositoryRoot, 'documentation');
 
-test('includes every documentation file in the npm package', () => {
+test('includes documentation and the notification worker in the npm package', () => {
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const result = spawnSync(npmCommand, ['pack', '--dry-run', '--json', '--ignore-scripts'], {
     cwd: repositoryRoot,
@@ -24,6 +24,7 @@ test('includes every documentation file in the npm package', () => {
   const missingPaths = documentationPaths.filter(path => !packagedPaths.has(path));
 
   assert.deepEqual(missingPaths, [], `npm package is missing documentation files:\n${missingPaths.map(path => `- ${path}`).join('\n')}`);
+  assert.equal(packagedPaths.has('bin/update-notification-worker.js'), true);
 });
 
 function listRegularFiles(directory) {
