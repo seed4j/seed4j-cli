@@ -42,6 +42,13 @@ seed4j --version
 or break compatibility. Experimental root help warns about that contract, and `seed4j --version` adds the release
 channel, personal snapshot version, and exact official upstream SHA.
 
+After a successful experimental npm command, the launcher may report a newer experimental release on `stderr` with
+`npm install -g seed4j-cli@experimental` as a later, opt-in action. A background worker checks the registry while the
+command runs; a quick command finishes without waiting, so a late result may first appear on the next invocation. A
+successful result remains current for six hours. Failed checks wait one, five, fifteen, then sixty minutes between
+eligible CLI invocations; they do not start scheduled retries. Release notices appear at most once per rolling day for
+each installed and available version pair. The launcher never installs an update automatically.
+
 The experimental channel does not expose the `seed4j-extension` generator through list, apply help, apply-set catalogs,
 or completion. A direct apply request exits `2` before inspecting or changing the project. The separate
 `seed4j extension` runtime-management commands remain supported. See the
@@ -64,6 +71,9 @@ This command displays:
 - Active runtime mode (`standard` or `extension`)
 - Active distribution ID, in extension mode only
 - Active distribution version, in extension mode only
+
+For experimental npm update checks, see [Update notification diagnostics](experimental-channel.md#update-notification-diagnostics)
+to inspect the cache and understand failure categories and retry times.
 
 Example output in `standard` mode:
 

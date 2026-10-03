@@ -1,0 +1,49 @@
+const { completeRegistryCheck, validVersion } = require('./update-notifications.js');
+
+const [cacheFile, token] = process.argv.slice(2);
+const deadline = 5000;
+setTimeout(exit, 10000);
+const controller = new AbortController();
+const deadlineAt = performance.now() + deadline;
+let timedOut = false;
+let requestTimer;
+
+function exit() {
+  controller.abort();
+  clearTimeout(requestTimer);
+  process.exit(0);
+}
+
+async function check() {
+  try {
+    const tags = await Promise.race([
+      fetch('https://registry.npmjs.org/-/package/seed4j-cli/dist-tags', { signal: controller.signal }).then(async response => {
+        if (!response.ok) throw { category: 'http' };
+        try {
+          return await response.json();
+        } catch (error) {
+          throw { category: 'invalid-response' };
+        }
+      }),
+      new Promise((_, reject) => {
+        requestTimer = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+          reject({ category: 'timeout' });
+        }, deadline);
+      }),
+    ]);
+    if (!validVersion(tags?.experimental)) {
+      throw { category: 'invalid-response' };
+    }
+    completeRegistryCheck(cacheFile, token, { version: tags.experimental });
+  } catch (error) {
+    completeRegistryCheck(cacheFile, token, {
+      category: timedOut || performance.now() >= deadlineAt ? 'timeout' : (error?.category ?? 'network'),
+    });
+  } finally {
+    exit();
+  }
+}
+
+check();
