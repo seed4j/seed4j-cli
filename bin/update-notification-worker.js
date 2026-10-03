@@ -2,11 +2,17 @@ const { completeRegistryCheck, validVersion } = require('./update-notifications.
 
 const [cacheFile, token] = process.argv.slice(2);
 const deadline = 5000;
-const safetyTimer = setTimeout(() => process.exit(0), 10000);
+setTimeout(exit, 10000);
 const controller = new AbortController();
 const deadlineAt = performance.now() + deadline;
 let timedOut = false;
 let requestTimer;
+
+function exit() {
+  controller.abort();
+  clearTimeout(requestTimer);
+  process.exit(0);
+}
 
 async function check() {
   try {
@@ -36,8 +42,7 @@ async function check() {
       category: timedOut || performance.now() >= deadlineAt ? 'timeout' : (error?.category ?? 'network'),
     });
   } finally {
-    clearTimeout(requestTimer);
-    clearTimeout(safetyTimer);
+    exit();
   }
 }
 

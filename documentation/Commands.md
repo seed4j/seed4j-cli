@@ -72,6 +72,9 @@ This command displays:
 - Active distribution ID, in extension mode only
 - Active distribution version, in extension mode only
 
+For experimental npm update checks, see [Update notification diagnostics](experimental-channel.md#update-notification-diagnostics)
+to inspect the cache and understand failure categories and retry times.
+
 Example output in `standard` mode:
 
 ```text

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
+const { createServer } = require('node:http');
 const { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
@@ -297,6 +298,127 @@ test('a response body aborted at the deadline is recorded as a timeout', async t
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
   assert.equal(fixture.cachedRegistry().failureCategory, 'timeout');
+});
+
+test('an HTTP 503 with an open body closes the worker and connection while preserving the last success', async t => {
+  const fixture = createFixture(t);
+  fixture.cache({ registry: { version: '1.2.0-experimental.12', checkedAt: 1000000000, lease: { token: 'test-worker' } } });
+  const worker = await startRegistryWorker(t, fixture, response => {
+    response.writeHead(503);
+    response.write('Unavailable');
+  });
+
+  const result = await worker.finished;
+  await waitFor(() => worker.connectionClosed());
+  const registry = fixture.cachedRegistry();
+
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+  assert.ok(result.elapsed < 3000, `Worker took ${result.elapsed} ms`);
+  assert.equal(registry.failureCategory, 'http');
+  assert.equal(registry.version, '1.2.0-experimental.12');
+  assert.equal(registry.checkedAt, 1000000000);
+  assert.equal(registry.consecutiveFailures, 1);
+  assert.equal(registry.lease, undefined);
+});
+
+test('a successful registry check is saved before the worker exits despite pending operations', async t => {
+  const fixture = createFixture(t);
+  fixture.cache({
+    registry: {
+      failedAt: 1000000000,
+      failureCategory: 'http',
+      consecutiveFailures: 2,
+      nextAttemptAt: 1000300000,
+      lease: { token: 'test-worker' },
+    },
+  });
+  const worker = await startRegistryWorker(
+    t,
+    fixture,
+    response => {
+      response.end(JSON.stringify({ experimental: '1.2.0-experimental.13' }));
+    },
+    'setInterval(() => {}, 60000);',
+  );
+
+  const result = await worker.finished;
+  await waitFor(() => worker.connectionClosed());
+  const registry = fixture.cachedRegistry();
+
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+  assert.ok(result.elapsed < 3000, `Worker took ${result.elapsed} ms`);
+  assert.equal(registry.version, '1.2.0-experimental.13');
+  assert.ok(Number.isFinite(registry.checkedAt));
+  assert.equal(registry.consecutiveFailures, 0);
+  assert.equal(registry.failedAt, undefined);
+  assert.equal(registry.failureCategory, undefined);
+  assert.equal(registry.nextAttemptAt, undefined);
+  assert.equal(registry.lease, undefined);
+});
+
+test('a stalled real response body times out and closes the worker despite pending operations', async t => {
+  const fixture = createFixture(t);
+  fixture.cache({ registry: { version: '1.2.0-experimental.12', checkedAt: 1000000000, lease: { token: 'test-worker' } } });
+  const worker = await startRegistryWorker(
+    t,
+    fixture,
+    response => {
+      response.writeHead(200);
+      response.write('{"experimental":');
+    },
+    'setInterval(() => {}, 60000);',
+  );
+
+  const result = await worker.finished;
+  await waitFor(() => worker.connectionClosed());
+  const registry = fixture.cachedRegistry();
+
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+  assert.ok(result.elapsed >= 5000, `Worker took ${result.elapsed} ms`);
+  assert.ok(result.elapsed < 10000, `Worker took ${result.elapsed} ms`);
+  assert.equal(registry.failureCategory, 'timeout');
+  assert.equal(registry.version, '1.2.0-experimental.12');
+  assert.equal(registry.checkedAt, 1000000000);
+  assert.equal(registry.consecutiveFailures, 1);
+  assert.equal(registry.lease, undefined);
+});
+
+test('a cache write failure leaves the previous state intact and the worker exits silently despite pending operations', async t => {
+  const fixture = createFixture(t);
+  const previous = { version: '1.2.0-experimental.12', checkedAt: 1000000000, lease: { token: 'test-worker' } };
+  fixture.cache({ registry: previous });
+  mkdirSync(join(fixture.home, '.cache/seed4j-cli/update-notifications.json.lock'));
+  const worker = await startRegistryWorker(
+    t,
+    fixture,
+    response => {
+      response.end(JSON.stringify({ experimental: '1.2.0-experimental.13' }));
+    },
+    'setInterval(() => {}, 60000);',
+  );
+
+  const result = await worker.finished;
+  await waitFor(() => worker.connectionClosed());
+
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+  assert.ok(result.elapsed < 3000, `Worker took ${result.elapsed} ms`);
+  assert.deepEqual(fixture.cachedRegistry(), previous);
+  assert.deepEqual(readdirSync(join(fixture.home, '.cache/seed4j-cli')).sort(), [
+    'update-notifications.json',
+    'update-notifications.json.lock',
+  ]);
 });
 
 test('completion, skill installation, and unsuccessful commands suppress notices', t => {
@@ -679,6 +801,62 @@ test('a Windows-style invocation reports a static symlink without reading its ta
   assert.match(result.stderr, /differs from the bundled skill/);
   assert.equal(readFileSync(external, 'utf8'), 'Bundled skill\n');
 });
+
+async function startRegistryWorker(t, fixture, respond, preloadContent = '') {
+  let connectionClosed = false;
+  const server = createServer((request, response) => {
+    request.socket.once('close', () => {
+      connectionClosed = true;
+    });
+    respond(response);
+  });
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const preload = join(fixture.root, 'real-fetch.cjs');
+  writeFileSync(
+    preload,
+    `const realFetch = globalThis.fetch;
+globalThis.fetch = (url, options) => {
+  if (url !== ${JSON.stringify(registryDistTagsUrl)}) throw new Error('Unexpected registry URL');
+  return realFetch('http://127.0.0.1:${server.address().port}/dist-tags', options);
+};
+${preloadContent}
+`,
+  );
+  const started = performance.now();
+  const child = spawn(
+    process.execPath,
+    [
+      '--require',
+      preload,
+      join(fixture.packageRoot, 'bin/update-notification-worker.js'),
+      join(fixture.home, '.cache/seed4j-cli/update-notifications.json'),
+      'test-worker',
+    ],
+    { env: { ...process.env, NODE_OPTIONS: '' } },
+  );
+  t.after(() => child.kill());
+  const finished = new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    const guard = setTimeout(() => child.kill('SIGKILL'), 11000);
+    child.stdout.on('data', chunk => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', chunk => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (status, signal) => {
+      clearTimeout(guard);
+      resolve({ status, signal, stdout, stderr, elapsed: performance.now() - started });
+    });
+  });
+  return { finished, connectionClosed: () => connectionClosed };
+}
 
 function createFixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'seed4j-notifications-'));

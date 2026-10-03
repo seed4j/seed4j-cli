@@ -68,6 +68,37 @@ npm view seed4j-cli@experimental dist.attestations --json
 
 The attestation result should expose an npm provenance URL and a SLSA provenance predicate.
 
+## Update notification diagnostics
+
+The notification cache is stored at `<user-home>/.cache/seed4j-cli/update-notifications.json`. On Linux and macOS,
+read `~/.cache/seed4j-cli/update-notifications.json` with:
+
+```bash
+cat ~/.cache/seed4j-cli/update-notifications.json
+```
+
+The `registry` object contains the latest registry check state. All times are Unix timestamps in milliseconds.
+
+| Field                 | Meaning                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `version`             | Experimental version returned by the last successful check.                                                                                                |
+| `checkedAt`           | Time of the last successful check; failures preserve this value and `version`.                                                                             |
+| `attemptedAt`         | Time the most recent registry check was reserved.                                                                                                          |
+| `failedAt`            | Time of the most recent failed check.                                                                                                                      |
+| `failureCategory`     | Cause of that failure: `timeout`, `network`, `http`, `invalid-response`, or `launch`.                                                                      |
+| `consecutiveFailures` | Number of consecutive failures, reset to zero after success.                                                                                               |
+| `nextAttemptAt`       | Earliest time another CLI invocation may retry after a failure.                                                                                            |
+| `lease`               | Temporary reservation containing a worker `token` and `expiresAt`; it prevents duplicate checks for 30 seconds and is removed when the result is recorded. |
+
+`timeout` means the five-second request or body-reading deadline expired; `network` means the request failed;
+`http` means the registry returned an unsuccessful HTTP status; `invalid-response` means the JSON or experimental
+version was invalid; and `launch` means the background worker could not start.
+
+The file stores the latest state, rather than a history. Success clears `failedAt`, `failureCategory`, and
+`nextAttemptAt`. Older caches may contain a failure timestamp without its cause. A cache write failure can prevent
+the result from being recorded, so missing diagnostics do not prove that a check succeeded. The worker remains
+silent, and the main command exits without waiting for the network.
+
 ## Identity, provenance, and retention
 
 Each package carries immutable distribution metadata under `META-INF`. It records the release channel, exact dependency
