@@ -190,7 +190,7 @@ jobs:
 
       - name: 'Release: publish drafted GitHub release'
         if: steps.semantic-release.outputs.released == 'true' && needs.qualify.outputs.channel == 'stable'
-        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
+        uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
         with:
           commitish: ${{ needs.qualify.outputs.sha }}
           name: v${{ steps.semantic-release.outputs.version }}
@@ -288,7 +288,7 @@ jobs:
 
       - name: 'Recovery: publish missing drafted GitHub release'
         if: steps.github-release.outputs.published == 'false'
-        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
+        uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
         with:
           commitish: ${{ steps.release-tag.outputs.sha }}
           name: v${{ inputs.version }}
