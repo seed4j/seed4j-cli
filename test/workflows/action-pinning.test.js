@@ -8,18 +8,43 @@ const test = require('node:test');
 const repositoryRoot = resolve(__dirname, '../..');
 const policyName = 'workflows pin every third-party action to an immutable commit';
 const workflowFiles = ['github-actions.yml', 'release-drafter.yml', 'release.yml', 'synchronize-experimental.yml'];
-const checkout = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
+const historicalWorkflows = {
+  'github-actions.yml': `steps:
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+  - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+  - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+`,
+  'release-drafter.yml': `steps:
+  - name: Draft release
+    uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v6
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+`,
+  'release.yml': `steps:
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+  - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+  - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v5
+  - name: Publish release
+    uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9
+`,
+  'synchronize-experimental.yml': `steps:
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+  - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+`,
+};
 
-function runPolicy(context, transform) {
+function transformWorkflows(workflows, transform) {
+  return Object.fromEntries(Object.entries(workflows).map(([file, content]) => [file, transform(content, file)]));
+}
+
+function runPolicy(context, workflows) {
   const directory = mkdtempSync(join(tmpdir(), 'seed4j-action-pinning-'));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
   const suite = join(directory, 'test/workflows/channel-policy.test.js');
   mkdirSync(dirname(suite), { recursive: true });
   copyFileSync(join(__dirname, 'channel-policy.test.js'), suite);
   mkdirSync(join(directory, '.github/workflows'), { recursive: true });
-  for (const file of workflowFiles) {
-    const content = readFileSync(join(repositoryRoot, '.github/workflows', file), 'utf8');
-    writeFileSync(join(directory, '.github/workflows', file), transform(content, file));
+  for (const [file, content] of Object.entries(workflows)) {
+    writeFileSync(join(directory, '.github/workflows', file), content);
   }
 
   const environment = { ...process.env };
@@ -37,7 +62,10 @@ function runPolicy(context, transform) {
 }
 
 test('pinning policy accepts current workflows', context => {
-  const result = runPolicy(context, content => content);
+  const workflows = Object.fromEntries(
+    workflowFiles.map(file => [file, readFileSync(join(repositoryRoot, '.github/workflows', file), 'utf8')]),
+  );
+  const result = runPolicy(context, workflows);
 
   assert.equal(result.status, 0, result.output);
   assert.match(result.output, /# pass 1\b/);
@@ -71,11 +99,12 @@ for (const update of [
   },
 ]) {
   test(`pinning policy accepts the isolated hash update from PR #${update.pr}`, context => {
-    const result = runPolicy(context, (content, file) => {
+    const workflows = transformWorkflows(historicalWorkflows, (content, file) => {
       if (!update.files.includes(file)) return content;
       assert.ok(content.includes(update.before), `${file}: missing PR #${update.pr} fixture reference`);
       return content.replaceAll(update.before, update.after);
     });
+    const result = runPolicy(context, workflows);
 
     assert.equal(result.status, 0, result.output);
     assert.match(result.output, /# pass 1\b/);
@@ -85,10 +114,13 @@ for (const update of [
 for (const syntax of ['uses:', '- uses:']) {
   for (const comment of ['', ' # v7']) {
     test(`pinning policy accepts different complete hashes with ${syntax}${comment}`, context => {
-      const result = runPolicy(context, (content, file) =>
-        file === 'release-drafter.yml'
-          ? `${content}\n      ${syntax} actions/checkout@0123456789abcdef0123456789abcdef01234567${comment}\n`
-          : content,
+      const result = runPolicy(
+        context,
+        transformWorkflows(historicalWorkflows, (content, file) =>
+          file === 'release-drafter.yml'
+            ? `${content}\n      ${syntax} actions/checkout@0123456789abcdef0123456789abcdef01234567${comment}\n`
+            : content,
+        ),
       );
 
       assert.equal(result.status, 0, result.output);
@@ -107,8 +139,11 @@ for (const syntax of ['uses:', '- uses:']) {
       'actions/checkout@0123456789abcdef0123456789abcdef0123456g',
     ]) {
       test(`pinning policy rejects ${reference} with ${syntax}${comment} alongside a valid occurrence`, context => {
-        const result = runPolicy(context, (content, file) =>
-          file === 'release-drafter.yml' ? `${content}\n      ${syntax} ${reference}${comment}\n` : content,
+        const result = runPolicy(
+          context,
+          transformWorkflows(historicalWorkflows, (content, file) =>
+            file === 'release-drafter.yml' ? `${content}\n      ${syntax} ${reference}${comment}\n` : content,
+          ),
         );
 
         assert.equal(result.status, 1, result.output);
@@ -121,8 +156,11 @@ for (const syntax of ['uses:', '- uses:']) {
 }
 
 test('pinning policy rejects an unknown action with a complete hash', context => {
-  const result = runPolicy(context, (content, file) =>
-    file === 'release-drafter.yml' ? `${content}\n      - uses: unknown/action@0123456789abcdef0123456789abcdef01234567 # v1\n` : content,
+  const result = runPolicy(
+    context,
+    transformWorkflows(historicalWorkflows, (content, file) =>
+      file === 'release-drafter.yml' ? `${content}\n      - uses: unknown/action@0123456789abcdef0123456789abcdef01234567 # v1\n` : content,
+    ),
   );
 
   assert.equal(result.status, 1, result.output);
@@ -131,19 +169,40 @@ test('pinning policy rejects an unknown action with a complete hash', context =>
   assert.ok(result.output.includes('unknown/action@0123456789abcdef0123456789abcdef01234567'), result.output);
 });
 
+test('pinning policy accepts synthetic hashes independently of historical versions', context => {
+  const workflows = transformWorkflows(historicalWorkflows, content => content.replaceAll(/@[0-9a-f]{40}/g, `@${'a'.repeat(40)}`));
+  workflows['release.yml'] += `  - uses: actions/checkout@${'b'.repeat(40)} # synthetic revision\n`;
+  for (const file of workflowFiles) {
+    assert.notEqual(workflows[file], historicalWorkflows[file], `${file}: synthetic hashes were not applied`);
+  }
+  const result = runPolicy(context, workflows);
+
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /# pass 1\b/);
+});
+
 for (const action of [
-  checkout,
-  'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
-  'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6',
-  'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
-  'release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9',
+  'actions/checkout',
+  'actions/create-github-app-token',
+  'actions/setup-java',
+  'actions/setup-node',
+  'release-drafter/release-drafter',
 ]) {
   test(`pinning policy rejects removal of expected action ${action}`, context => {
-    const result = runPolicy(context, content =>
-      content.replaceAll(action, action === checkout ? 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020' : checkout),
+    const workflows = transformWorkflows(historicalWorkflows, content =>
+      content
+        .split('\n')
+        .filter(line => !line.includes(`uses: ${action}@`))
+        .join('\n'),
     );
+    assert.notDeepEqual(workflows, historicalWorkflows, `${action}: no occurrence removed`);
+    for (const content of Object.values(workflows)) {
+      assert.ok(!content.includes(`${action}@`), `${action}: an occurrence remains`);
+    }
+    const result = runPolicy(context, workflows);
 
     assert.equal(result.status, 1, result.output);
     assert.match(result.output, /# fail 1\b/);
+    assert.ok(result.output.includes(action), result.output);
   });
 }
