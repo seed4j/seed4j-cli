@@ -71,21 +71,29 @@ test('workflows pin every third-party action to an immutable commit', () => {
     '.github/workflows/release-drafter.yml',
     '.github/workflows/release.yml',
     '.github/workflows/synchronize-experimental.yml',
-  ].map(read);
-  const uses = workflows.flatMap(workflow => [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)].map(match => match[1]));
+  ];
+  const uses = workflows.flatMap(file =>
+    [...read(file).matchAll(/^[\t ]*(?:-[\t ]+)?uses:[\t ]*([^\s#]+)[\t ]*(?:#.*)?$/gm)].map(match => ({
+      file,
+      reference: match[1],
+    })),
+  );
 
   assert.ok(uses.length > 0);
+  for (const { file, reference } of uses) {
+    assert.match(reference, /@[0-9a-f]{40}$/, `${file}: ${reference} must end with a full lowercase commit SHA`);
+  }
   assert.deepEqual(
-    [...new Set(uses)].sort(),
+    [...new Set(uses.map(({ reference }) => reference.split('@')[0]))].sort(),
     [
-      'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
-      'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
-      'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6',
-      'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
-      'release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9',
+      'actions/checkout',
+      'actions/create-github-app-token',
+      'actions/setup-java',
+      'actions/setup-node',
+      'release-drafter/release-drafter',
     ].sort(),
+    uses.map(({ file, reference }) => `${file}: ${reference}`).join('\n'),
   );
-  assert.ok(uses.every(action => /@[0-9a-f]{40}$/.test(action)));
 });
 
 test('experimental releases require their exact green HEAD and cannot mutate stable release surfaces', () => {
