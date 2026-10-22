@@ -31,11 +31,11 @@ jobs:
       - name: 'Test: validate workflows'
         run: ./tests-ci/lint-workflows.sh
       - name: 'Setup: Node.js'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24.22.1
       - name: 'Setup: Java'
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: 'temurin'
           java-version: 25.0.4+101.0.LTS

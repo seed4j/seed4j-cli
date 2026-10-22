@@ -156,14 +156,14 @@ jobs:
           echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: 'Setup: Node.js'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24.22.1
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
       - name: 'Setup: Java'
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: 'temurin'
           java-version: 25.0.4+101.0.LTS
@@ -190,7 +190,7 @@ jobs:
 
       - name: 'Release: publish drafted GitHub release'
         if: steps.semantic-release.outputs.released == 'true' && needs.qualify.outputs.channel == 'stable'
-        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
+        uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
         with:
           commitish: ${{ needs.qualify.outputs.sha }}
           name: v${{ steps.semantic-release.outputs.version }}
@@ -240,14 +240,14 @@ jobs:
         run: git checkout --detach "${{ steps.release-tag.outputs.sha }}"
 
       - name: 'Setup: Node.js'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24.22.1
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
       - name: 'Setup: Java'
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: 'temurin'
           java-version: 25.0.4+101.0.LTS
@@ -288,7 +288,7 @@ jobs:
 
       - name: 'Recovery: publish missing drafted GitHub release'
         if: steps.github-release.outputs.published == 'false'
-        uses: release-drafter/release-drafter@34d80673e067bdc0c24568d3af899c216adcfaa9 # v7
+        uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
         with:
           commitish: ${{ steps.release-tag.outputs.sha }}
           name: v${{ inputs.version }}
