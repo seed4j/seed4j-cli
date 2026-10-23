@@ -93,7 +93,7 @@
     <properties-maven-plugin.version>1.3.1</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
-    <spring-boot.version>4.1.1</spring-boot.version>
+    <spring-boot.version>4.1.2</spring-boot.version>
     <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->
     <seed4j.group-id>com.seed4j</seed4j.group-id>
     <seed4j.artifact-id>seed4j</seed4j.artifact-id>
