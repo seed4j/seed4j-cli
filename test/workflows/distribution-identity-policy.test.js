@@ -157,9 +157,9 @@ test('builds and releases use the checked-out branch POM without profile-owned i
   const release = read('scripts/prepare-release.js');
 
   assert.doesNotMatch(build, /SEED4J_MAVEN_PROFILE|-Pexperimental/);
-  assert.match(build, /\.\/mvnw --batch-mode -ntp clean verify/);
+  assert.match(build, /\.\/mvnw --batch-mode clean verify/);
   assert.doesNotMatch(release, /mavenProfile|mavenArguments|-Pexperimental/);
-  assert.match(release, /run\('\.\/mvnw', \['--batch-mode', '-ntp', 'clean', 'package'\]\)/);
+  assert.match(release, /run\('\.\/mvnw', \['--batch-mode', 'clean', 'package'\]\)/);
 });
 
 function experimentalBranchPom(stablePom) {
