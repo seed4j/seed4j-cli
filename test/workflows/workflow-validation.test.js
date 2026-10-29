@@ -132,11 +132,25 @@ test('the tests check runs workflow validation after checkout and propagates its
 
     assert.equal(result.status, 17, result.stderr);
     assert.ok(buildWorkflow.indexOf('actions/checkout') < workflowStep.index);
-    assert.ok(workflowStep.index < buildWorkflow.indexOf('./mvnw --batch-mode -ntp clean verify'));
+    assert.ok(workflowStep.index < buildWorkflow.indexOf('./mvnw --batch-mode clean verify'));
     assert.deepEqual(readdirSync(fixture.temporaryDirectory), []);
   } finally {
     rmSync(fixture.directory, { recursive: true, force: true });
   }
+});
+
+test('Java setup steps verify JDK signatures, disable Maven download progress, and omit redundant -ntp flags', () => {
+  const buildWorkflow = readFileSync(join(repositoryRoot, '.github/workflows/github-actions.yml'), 'utf8');
+  const releaseWorkflow = readFileSync(join(repositoryRoot, '.github/workflows/release.yml'), 'utf8');
+  const prepareReleaseScript = readFileSync(join(repositoryRoot, 'scripts/prepare-release.js'), 'utf8');
+  const setupJavaBlock =
+    /- name: 'Setup: Java'\n\s+uses: actions\/setup-java@[0-9a-f]{40} # v\d+\n\s+with:\n\s+distribution: 'temurin'\n\s+java-version: [^\n]+\n\s+cache: maven\n\s+verify-signature: true\n\s+show-download-progress: false/g;
+
+  assert.equal((buildWorkflow.match(setupJavaBlock) ?? []).length, 1);
+  assert.equal((releaseWorkflow.match(setupJavaBlock) ?? []).length, 2);
+  assert.doesNotMatch(buildWorkflow, /-ntp\b/);
+  assert.doesNotMatch(releaseWorkflow, /-ntp\b/);
+  assert.doesNotMatch(prepareReleaseScript, /-ntp\b/);
 });
 
 test('a failed actionlint download fails validation and removes temporary files', () => {

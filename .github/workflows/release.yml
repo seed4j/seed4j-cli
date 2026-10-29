@@ -168,6 +168,8 @@ jobs:
           distribution: 'temurin'
           java-version: 25.0.5+8.0.LTS
           cache: maven
+          verify-signature: true
+          show-download-progress: false
 
       - name: 'Setup: npm dependencies'
         run: npm ci
@@ -252,6 +254,8 @@ jobs:
           distribution: 'temurin'
           java-version: 25.0.5+8.0.LTS
           cache: maven
+          verify-signature: true
+          show-download-progress: false
 
       - name: 'Setup: npm dependencies'
         run: npm ci

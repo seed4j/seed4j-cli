@@ -13,12 +13,12 @@ try {
   fail(error.message);
 }
 
-run('./mvnw', ['--batch-mode', '-ntp', 'versions:set', `-DnewVersion=${releaseVersion}`, '-DgenerateBackupPoms=false']);
+run('./mvnw', ['--batch-mode', 'versions:set', `-DnewVersion=${releaseVersion}`, '-DgenerateBackupPoms=false']);
 run('npm', ['version', releaseVersion, '--no-git-tag-version', '--allow-same-version']);
 validateMavenMetadata();
 validateNpmMetadata();
 run('npm', ['run', 'test:npm-package']);
-run('./mvnw', ['--batch-mode', '-ntp', 'clean', 'package']);
+run('./mvnw', ['--batch-mode', 'clean', 'package']);
 validateCliVersion();
 run('npm', ['run', 'package:prepare']);
 run('npm', ['pack', '--dry-run']);
@@ -42,7 +42,7 @@ function run(command, arguments_) {
 }
 
 function validateMavenMetadata() {
-  const result = spawnSync('./mvnw', ['--batch-mode', '-ntp', 'help:evaluate', '-Dexpression=project.version', '-q', '-DforceStdout'], {
+  const result = spawnSync('./mvnw', ['--batch-mode', 'help:evaluate', '-Dexpression=project.version', '-q', '-DforceStdout'], {
     cwd: repositoryRoot,
     encoding: 'utf8',
   });

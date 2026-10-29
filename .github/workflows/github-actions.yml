@@ -40,6 +40,8 @@ jobs:
           distribution: 'temurin'
           java-version: 25.0.5+8.0.LTS
           cache: maven
+          verify-signature: true
+          show-download-progress: false
       - name: 'Setup: npm dependencies'
         run: npm ci
       - name: 'Test: pull request commit messages'
@@ -61,7 +63,7 @@ jobs:
           docker ps -a
       - name: 'Test: run tests'
         run: |
-          ./mvnw --batch-mode -ntp clean verify
+          ./mvnw --batch-mode clean verify
       - name: 'Test: npm package and bundled skill'
         run: |
           npm run test:release
