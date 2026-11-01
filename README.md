@@ -4,7 +4,6 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=coverage)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
 
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=alert_status)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=alert_status)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
 
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=seed4j_seed4j-cli&metric=bugs)](https://sonarcloud.io/project/overview?id=seed4j_seed4j-cli)
@@ -149,4 +148,4 @@ seed4j --version
 <!-- seed4j-needle-documentation -->
 
 [github-actions-seed4j-cli-image]: https://github.com/seed4j/seed4j-cli/actions/workflows/github-actions.yml/badge.svg?branch=main
-[github-actions-url]: https://github.com/jhipster/seed4j-cli/actions
+[github-actions-url]: https://github.com/seed4j/seed4j-cli/actions
