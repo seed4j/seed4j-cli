@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-final class ModuleCatalogOutput {
+public final class ModuleCatalogOutput {
 
   private static final String ROW_INDENT = " ".repeat(2);
   private static final String COLUMN_SEPARATOR = " ".repeat(2);
@@ -15,7 +15,7 @@ final class ModuleCatalogOutput {
 
   private ModuleCatalogOutput() {}
 
-  static List<String> slugsIn(String output) {
+  public static List<String> slugsIn(String output) {
     return output.lines().map(ModuleCatalogOutput::slugFromLine).flatMap(Optional::stream).toList();
   }
 

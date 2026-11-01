@@ -9,6 +9,7 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.domain.RuntimeProcessMode;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
+import com.seed4j.cli.bootstrap.infrastructure.primary.ModuleCatalogOutput;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -49,6 +50,31 @@ class PreSpringBootstrapCompositionTest {
         .contains("Runtime mode: standard")
         .doesNotContain("Distribution ID")
         .doesNotContain("Distribution version");
+    }
+  }
+
+  @Test
+  void shouldLoadExternalConfigurationFileWhenRunningStandardRuntimeLocally() throws IOException {
+    Files.createDirectories(userHome.resolve(".config/seed4j-cli"));
+    Files.copy(
+      Path.of("src/test/resources/cli/config/seed4j-cli-hidden-resources.yml"),
+      userHome.resolve(".config/seed4j-cli/config.yml")
+    );
+    PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
+      new Seed4JCliHome(userHome),
+      new Seed4JCliExecutablePath(executablePath),
+      RuntimeProcessMode.PARENT,
+      new JavaExecutablePath(Path.of("unused-java"))
+    );
+    PreSpringBootstrapRunner runner = PreSpringBootstrapConfiguration.preSpringBootstrapRunner(runtimeEnvironment);
+
+    try (SystemOutputCaptor outputCaptor = new SystemOutputCaptor()) {
+      int exitCode = runner.exitCodeFor(new String[] { "list" });
+
+      assertThat(exitCode).isZero();
+      assertThat(ModuleCatalogOutput.slugsIn(outputCaptor.getStandardOutput()))
+        .contains("maven-java")
+        .doesNotContain("gradle-java", "gitpod");
     }
   }
 
