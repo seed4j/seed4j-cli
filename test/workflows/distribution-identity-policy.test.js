@@ -10,6 +10,7 @@ const repositoryRoot = resolve(__dirname, '../..');
 test('the current main-bound POM has one stable Maven authority and no personal snapshot declaration', () => {
   const pom = read('pom.xml');
   const metadata = read('src/main/resources/META-INF/seed4j-cli-distribution.properties');
+  const expectedVersion = /<seed4j\.version>([^<]+)<\/seed4j\.version>/.exec(pom)[1].trim();
 
   const identity = validateDistributionBuild({ metadata, pom });
 
@@ -25,6 +26,7 @@ test('the current main-bound POM has one stable Maven authority and no personal 
       version: '<authoritative-version>',
     },
   );
+  assert.equal(identity.version, expectedVersion);
   assert.match(identity.version, /^\d+\.\d+\.\d+$/);
   const dependencies = seed4jDependencies(pom);
   assert.equal(dependencies.length, 2);
@@ -281,7 +283,6 @@ test('stable test support accepts an explicit jar type and the identity still de
   const explicitJar = changeDependency(pom, 1, dependency => dependency.replace('<scope>', '<type>jar</type><scope>'));
 
   assert.deepEqual(validateDistributionBuild({ metadata, pom: explicitJar }), distributionIdentity(pom));
-  assert.equal(validateDistributionBuild({ metadata, pom }).version, '2.4.0');
 });
 
 test('Renovate tracks the experimental snapshot with one active native Maven rule', () => {
