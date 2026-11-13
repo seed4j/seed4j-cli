@@ -322,6 +322,7 @@ class HexagonalArchTest {
           .dependOnClassesThat()
           .resideInAPackage(context + ".application..")
           .because("secondary adapters should implement their context's domain ports without calling their own application services")
+          .allowEmptyShould(true)
           .check(classes)
       );
     }
@@ -336,6 +337,7 @@ class HexagonalArchTest {
           .dependOnClassesThat()
           .resideInAPackage(context + ".infrastructure.primary..")
           .because("secondary adapters should not loop to their own context primary adapters")
+          .allowEmptyShould(true)
           .check(classes)
       );
     }

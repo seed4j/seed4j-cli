@@ -6,6 +6,7 @@ import com.seed4j.module.domain.landscape.Seed4JLandscape;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
+import com.seed4j.project.domain.ModuleSlug;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.Collections;
 import java.util.Comparator;
@@ -157,11 +158,7 @@ class ApplyModuleDependencyPlanner {
       return new DependencyPlanningContext(
         visibleModules.stream().collect(Collectors.toMap(resource -> resource.slug().get(), Function.identity())),
         visibleModules,
-        history
-          .actions()
-          .stream()
-          .map(action -> action.module().get())
-          .collect(Collectors.toUnmodifiableSet())
+        history.modules().stream().map(ModuleSlug::get).collect(Collectors.toUnmodifiableSet())
       );
     }
 

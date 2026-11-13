@@ -36,7 +36,9 @@ It is not an official Seed4J distribution and MUST NOT be described as one.
 | `seed4j-extension` module | Available                            | Unavailable                                                                   |
 | Ordinary command output   | Existing behavior                    | Existing behavior unless channel disclosure or the unavailable module applies |
 
-`main` MUST continue to depend on the official stable coordinate for both its runtime and tests-classifier dependencies.
+`main` MUST continue to use the official stable `com.seed4j:seed4j` runtime and `com.seed4j:seed4j-test` test support,
+sharing the same version; test support MUST use scope `test` and a JAR without a classifier. The official runtime and
+test support MAY have distinct artifact IDs.
 It MUST NOT declare the personal snapshot repository. Existing stable npm publication, GitHub Release, attached JAR,
 version output, command help, module catalog, completion, and exit behavior MUST remain unchanged.
 

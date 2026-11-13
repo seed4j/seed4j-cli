@@ -59,10 +59,8 @@
     </dependency>
     <dependency>
       <groupId>${seed4j.group-id}</groupId>
-      <artifactId>${seed4j.artifact-id}</artifactId>
+      <artifactId>seed4j-test</artifactId>
       <version>${seed4j.version}</version>
-      <type>test-jar</type>
-      <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -97,7 +95,7 @@
     <!-- renovate: datasource=maven depName=com.seed4j:seed4j -->
     <seed4j.group-id>com.seed4j</seed4j.group-id>
     <seed4j.artifact-id>seed4j</seed4j.artifact-id>
-    <seed4j.version>2.2.0</seed4j.version>
+    <seed4j.version>2.4.0</seed4j.version>
     <seed4j.release-channel>stable</seed4j.release-channel>
     <seed4j.repository-url>https://repo.maven.apache.org/maven2</seed4j.repository-url>
     <seed4j.unavailable-modules />

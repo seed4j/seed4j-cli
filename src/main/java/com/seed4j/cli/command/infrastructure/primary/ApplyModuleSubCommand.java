@@ -10,6 +10,7 @@ import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ProjectPath;
 import com.seed4j.project.domain.history.ModuleParameters;
 import com.seed4j.project.domain.history.ProjectHistory;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -56,7 +57,7 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     ResolvedModuleParameters resolvedParameters = new ApplyModuleParameterResolver().resolve(
       module.propertiesDefinition(),
       parametersFromOptions(),
-      history.latestProperties().get()
+      history.properties().get()
     );
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan(history), resolvedParameters));
     return ExitCode.OK;
@@ -72,7 +73,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
       return missingDependencies(dependencyPlan);
     }
 
-    ModuleParameters parameters = history.latestProperties().merge(new ModuleParameters(parametersFromOptions()));
+    Map<String, Object> mergedParameters = new HashMap<>(history.properties().get());
+    mergedParameters.putAll(parametersFromOptions());
+    ModuleParameters parameters = new ModuleParameters(mergedParameters);
     validateRequiredOptions(parameters);
     applyModule(projectPath, parameters);
     return ExitCode.OK;
