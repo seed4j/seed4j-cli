@@ -33,9 +33,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Stream;
 import picocli.CommandLine;
 
 class CliFixture {
@@ -65,6 +69,19 @@ class CliFixture {
     Path historyFile = projectPath.resolve(HISTORY_FILE);
     Files.createDirectories(historyFile.getParent());
     Files.writeString(historyFile, EMPTY_HISTORY);
+  }
+
+  static Map<Path, String> projectFiles(Path projectPath) throws IOException {
+    Map<Path, String> files = new TreeMap<>();
+    try (Stream<Path> paths = Files.walk(projectPath)) {
+      for (Path path : paths
+        .filter(Files::isRegularFile)
+        .filter(path -> !path.startsWith(projectPath.resolve(".git")))
+        .toList()) {
+        files.put(projectPath.relativize(path), HexFormat.of().formatHex(Files.readAllBytes(path)));
+      }
+    }
+    return files;
   }
 
   static void loadGitConfig(Path project) {

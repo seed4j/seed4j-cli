@@ -15,7 +15,6 @@ import com.seed4j.cli.shared.error.domain.Assert;
 import com.seed4j.project.application.ProjectsApplicationService;
 import com.seed4j.project.domain.ModuleSlug;
 import com.seed4j.project.domain.ProjectPath;
-import com.seed4j.project.domain.history.ProjectAction;
 import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -42,19 +41,13 @@ public class ProjectsModuleSetPlanningHistoryReader implements ModuleSetPlanning
   }
 
   private static Set<ModuleSetSlug> appliedModules(ProjectHistory history) {
-    return history
-      .actions()
-      .stream()
-      .map(ProjectAction::module)
-      .map(ModuleSlug::get)
-      .map(ModuleSetSlug::new)
-      .collect(Collectors.toUnmodifiableSet());
+    return history.modules().stream().map(ModuleSlug::get).map(ModuleSetSlug::new).collect(Collectors.toUnmodifiableSet());
   }
 
   private static ModuleSetHistoryParameters historyParameters(ProjectHistory history) {
     Map<ModuleSetPropertyKey, ModuleSetParameterValue> recognizedParameters = new LinkedHashMap<>();
     List<UnsupportedModuleSetHistoryParameter> unsupportedParameters = new ArrayList<>();
-    for (Map.Entry<String, Object> entry : history.latestProperties().get().entrySet()) {
+    for (Map.Entry<String, Object> entry : history.properties().get().entrySet()) {
       switch (historyParameter(entry)) {
         case RecognizedHistoryParameter(ModuleSetPropertyKey key, ModuleSetParameterValue value) -> recognizedParameters.put(key, value);
         case UnsupportedHistoryParameter(UnsupportedModuleSetHistoryParameter parameter) -> unsupportedParameters.add(parameter);

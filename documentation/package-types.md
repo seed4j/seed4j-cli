@@ -10,7 +10,6 @@ To mark a package, you have to add a `package-info.java` file at the package roo
 ```java
 @com.seed4j.cli.SharedKernel
 package com.seed4j.cli;
-
 ```
 
 or:
@@ -18,5 +17,4 @@ or:
 ```java
 @com.seed4j.cli.BusinessContext
 package com.seed4j.cli;
-
 ```
