@@ -610,6 +610,11 @@ Follow the canonical [project creation workflow](workflows.md#create-a-project-w
 
 ## Options and Parameters
 
+The root command accepts `--debug` before the command name, for example `seed4j --debug list`. It runs the command
+normally and also prints Spring Boot startup diagnostics: debug logs and the auto-configuration report
+(`CONDITIONS EVALUATION REPORT`). It is not accepted after the command name: `seed4j list --debug` fails with
+`Unknown option: '--debug'` and exit code `2`.
+
 Most commands accept additional options and parameters:
 
 - `--project-path=<projectpath>`: Specifies the project directory (defaults to current directory)

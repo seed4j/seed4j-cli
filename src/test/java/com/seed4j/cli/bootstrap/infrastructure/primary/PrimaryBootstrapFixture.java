@@ -15,7 +15,7 @@ import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapTestSupport.CliLaunchResult;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeConfiguration;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,7 +46,7 @@ final class PrimaryBootstrapFixture {
   private PreSpringBootstrapRunner runner(PreSpringRuntimeEnvironment runtimeEnvironment) {
     PreSpringBootstrapApplicationService applicationService = new PreSpringBootstrapApplicationService(
       runtimeEnvironment,
-      new FileSystemRuntimeConfiguration(runtimeEnvironment.cliHome()),
+      new FileSystemRuntimeModeConfigurationReader(runtimeEnvironment.cliHome()),
       childRuntimeLauncher,
       localCliRunner,
       new FileSystemPackagedExecutableDetector(),

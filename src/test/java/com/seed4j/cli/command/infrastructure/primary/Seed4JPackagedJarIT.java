@@ -65,6 +65,20 @@ class Seed4JPackagedJarIT {
   }
 
   @Test
+  void shouldShowSpringBootDiagnosticsOnlyWhenDebugFlagPrecedesTheCommand() throws IOException, InterruptedException {
+    Run plain = cli("list");
+    Run debug = cli("--debug", "list");
+    Run misplaced = cli("list", "--debug");
+
+    assertThat(plain.exitCode()).withFailMessage(plain.err()).isZero();
+    assertThat(plain.out()).containsPattern("(?m)^  init\\s").doesNotContain("CONDITIONS EVALUATION REPORT");
+    assertThat(debug.exitCode()).withFailMessage(debug.err()).isZero();
+    assertThat(debug.out()).containsPattern("(?m)^  init\\s").contains("CONDITIONS EVALUATION REPORT");
+    assertThat(misplaced.exitCode()).isEqualTo(2);
+    assertThat(misplaced.err()).contains("Unknown option: '--debug'");
+  }
+
+  @Test
   void shouldReportThePackagedEngineVersionAndShipOnlyTheRuntimeModules() throws IOException, InterruptedException {
     Properties distribution = distribution();
     List<String> seed4jLibraries;

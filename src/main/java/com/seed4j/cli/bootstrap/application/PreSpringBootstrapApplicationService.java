@@ -3,18 +3,19 @@ package com.seed4j.cli.bootstrap.application;
 import com.seed4j.cli.bootstrap.domain.BootstrapOutput;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
+import com.seed4j.cli.bootstrap.domain.ConfiguredRuntimeMode;
 import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PackagedExecutableDetector;
 import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
-import com.seed4j.cli.bootstrap.domain.RuntimeConfiguration;
+import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationReader;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public class PreSpringBootstrapApplicationService {
 
   private final PreSpringRuntimeEnvironment runtime;
-  private final RuntimeConfiguration runtimeConfiguration;
+  private final RuntimeModeConfigurationReader runtimeModeConfigurationReader;
   private final ChildRuntimeLauncher childRuntimeLauncher;
   private final LocalCliRunner localCliRunner;
   private final PackagedExecutableDetector packagedExecutableDetector;
@@ -22,14 +23,20 @@ public class PreSpringBootstrapApplicationService {
 
   public PreSpringBootstrapApplicationService(
     PreSpringRuntimeEnvironment runtime,
-    RuntimeConfiguration runtimeConfiguration,
+    RuntimeModeConfigurationReader runtimeModeConfigurationReader,
     ChildRuntimeLauncher childRuntimeLauncher,
     LocalCliRunner localCliRunner,
     PackagedExecutableDetector packagedExecutableDetector,
     BootstrapOutput bootstrapOutput
   ) {
+    Assert.notNull("runtime", runtime);
+    Assert.notNull("runtimeModeConfigurationReader", runtimeModeConfigurationReader);
+    Assert.notNull("childRuntimeLauncher", childRuntimeLauncher);
+    Assert.notNull("localCliRunner", localCliRunner);
+    Assert.notNull("packagedExecutableDetector", packagedExecutableDetector);
+    Assert.notNull("bootstrapOutput", bootstrapOutput);
     this.runtime = runtime;
-    this.runtimeConfiguration = runtimeConfiguration;
+    this.runtimeModeConfigurationReader = runtimeModeConfigurationReader;
     this.childRuntimeLauncher = childRuntimeLauncher;
     this.localCliRunner = localCliRunner;
     this.packagedExecutableDetector = packagedExecutableDetector;
@@ -39,7 +46,11 @@ public class PreSpringBootstrapApplicationService {
   public int exitCodeFor(Seed4JCliArguments arguments) {
     Assert.notNull("arguments", arguments);
     try {
-      runtimeConfiguration.requireStandardMode();
+      ConfiguredRuntimeMode configuredMode = runtimeModeConfigurationReader.configuredMode();
+      if (configuredMode.support().unsupported()) {
+        bootstrapOutput.unsupportedRuntimeMode(configuredMode);
+        return 1;
+      }
       if (runtime.processMode().child()) {
         return localCliRunner.run(arguments);
       }
