@@ -164,6 +164,14 @@ class PreSpringBootstrapPrimaryTest {
           """
         ),
         Arguments.of(
+          "runtime mode set to standard with surrounding spaces and mixed case",
+          """
+          seed4j:
+            runtime:
+              mode: "  Standard  "
+          """
+        ),
+        Arguments.of(
           "config file exists without runtime.mode",
           """
           seed4j:
@@ -187,6 +195,38 @@ class PreSpringBootstrapPrimaryTest {
           feature-flags:
             experimental: true
           """
+        )
+      );
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("unsupportedModes")
+    void shouldExplainUnsupportedRuntimeModeBeforeLaunchingAnything(String configuredMode, String expectedMessage) throws IOException {
+      Path userHome = Files.createTempDirectory("seed4j-cli-unsupported-mode-primary-");
+      writeRuntimeConfiguration(userHome, "seed4j:\n  runtime:\n    mode: " + configuredMode + "\n");
+      PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);
+
+      BootstrapLaunch launch = fixture.launch("--version");
+
+      assertThat(launch.result().exitCode()).isEqualTo(1);
+      assertThat(launch.result().output()).contains(expectedMessage);
+      assertThat(fixture.childLaunchRequest()).isNull();
+      assertThat(fixture.localRunArguments()).isEmpty();
+    }
+
+    static Stream<Arguments> unsupportedModes() {
+      return Stream.of(
+        Arguments.of(
+          "extension",
+          "Loading runtime extension JARs is no longer supported. Set seed4j.runtime.mode: standard in ~/.config/seed4j-cli/config.yml."
+        ),
+        Arguments.of(
+          "EXTENSION",
+          "Loading runtime extension JARs is no longer supported. Set seed4j.runtime.mode: standard in ~/.config/seed4j-cli/config.yml."
+        ),
+        Arguments.of(
+          "corporate",
+          "Invalid ~/.config/seed4j-cli/config.yml: Invalid seed4j.runtime.mode 'corporate'. Valid value: standard."
         )
       );
     }

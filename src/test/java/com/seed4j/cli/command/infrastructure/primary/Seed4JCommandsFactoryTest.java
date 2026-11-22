@@ -45,7 +45,30 @@ class Seed4JCommandsFactoryTest {
       .contains("Seed4J CLI")
       .contains("-h, --help      Show this help message and exit.")
       .contains("-V, --version   Print version information and exit.")
+      .contains("--debug")
+      .contains("Show Spring Boot startup diagnostics (debug logs and")
+      .contains("auto-configuration report).")
       .contains("Commands:");
+  }
+
+  @Test
+  void shouldRunCommandWhenDebugFlagPrecedesIt(CapturedOutput output) {
+    String[] args = { "--debug", "list" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isZero();
+    assertThat(output).containsPattern("(?m)^\\s{2}init\\s{2,}").doesNotContain("Unknown option");
+  }
+
+  @Test
+  void shouldRejectDebugFlagAfterCommand(CapturedOutput output) {
+    String[] args = { "list", "--debug" };
+
+    int exitCode = commandLine(modules, projects).execute(args);
+
+    assertThat(exitCode).isEqualTo(2);
+    assertThat(output).contains("Unknown option: '--debug'");
   }
 
   @Test
