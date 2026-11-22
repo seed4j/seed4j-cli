@@ -1,55 +1,57 @@
 package com.seed4j.cli.bootstrap.application;
 
-import com.seed4j.cli.bootstrap.domain.BootstrapDiagnostics;
 import com.seed4j.cli.bootstrap.domain.BootstrapOutput;
+import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
+import com.seed4j.cli.bootstrap.domain.InvalidRuntimeConfigurationException;
 import com.seed4j.cli.bootstrap.domain.LocalCliRunner;
 import com.seed4j.cli.bootstrap.domain.PackagedExecutableDetector;
-import com.seed4j.cli.bootstrap.domain.RuntimeExtensionSelectionRepository;
-import com.seed4j.cli.bootstrap.domain.RuntimeModeConfigurationRepository;
+import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
+import com.seed4j.cli.bootstrap.domain.RuntimeConfiguration;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliArguments;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliLauncher;
-import com.seed4j.cli.bootstrap.domain.Seed4JCliRuntime;
 import com.seed4j.cli.shared.error.domain.Assert;
 
 public class PreSpringBootstrapApplicationService {
 
-  private final Seed4JCliLauncher seed4jCliLauncher;
+  private final PreSpringRuntimeEnvironment runtime;
+  private final RuntimeConfiguration runtimeConfiguration;
+  private final ChildRuntimeLauncher childRuntimeLauncher;
+  private final LocalCliRunner localCliRunner;
+  private final PackagedExecutableDetector packagedExecutableDetector;
+  private final BootstrapOutput bootstrapOutput;
 
-  // Pre-Spring bootstrap is composed manually because Spring is not available yet.
-  @SuppressWarnings({ "java:S107", "PMD.ExcessiveParameterList" })
   public PreSpringBootstrapApplicationService(
-    Seed4JCliRuntime seed4jCliRuntime,
-    RuntimeModeConfigurationRepository runtimeModeConfigurationRepository,
-    RuntimeExtensionSelectionRepository runtimeExtensionSelectionRepository,
+    PreSpringRuntimeEnvironment runtime,
+    RuntimeConfiguration runtimeConfiguration,
     ChildRuntimeLauncher childRuntimeLauncher,
     LocalCliRunner localCliRunner,
     PackagedExecutableDetector packagedExecutableDetector,
-    BootstrapDiagnostics bootstrapDiagnostics,
     BootstrapOutput bootstrapOutput
   ) {
-    Assert.notNull("seed4jCliRuntime", seed4jCliRuntime);
-    Assert.notNull("runtimeModeConfigurationRepository", runtimeModeConfigurationRepository);
-    Assert.notNull("runtimeExtensionSelectionRepository", runtimeExtensionSelectionRepository);
-    Assert.notNull("childRuntimeLauncher", childRuntimeLauncher);
-    Assert.notNull("localCliRunner", localCliRunner);
-    Assert.notNull("packagedExecutableDetector", packagedExecutableDetector);
-    Assert.notNull("bootstrapDiagnostics", bootstrapDiagnostics);
-    Assert.notNull("bootstrapOutput", bootstrapOutput);
-    this.seed4jCliLauncher = new Seed4JCliLauncher(
-      seed4jCliRuntime,
-      runtimeModeConfigurationRepository,
-      runtimeExtensionSelectionRepository,
-      childRuntimeLauncher,
-      localCliRunner,
-      packagedExecutableDetector,
-      bootstrapDiagnostics,
-      bootstrapOutput
-    );
+    this.runtime = runtime;
+    this.runtimeConfiguration = runtimeConfiguration;
+    this.childRuntimeLauncher = childRuntimeLauncher;
+    this.localCliRunner = localCliRunner;
+    this.packagedExecutableDetector = packagedExecutableDetector;
+    this.bootstrapOutput = bootstrapOutput;
   }
 
   public int exitCodeFor(Seed4JCliArguments arguments) {
     Assert.notNull("arguments", arguments);
-    return seed4jCliLauncher.launch(arguments);
+    try {
+      runtimeConfiguration.requireStandardMode();
+      if (runtime.processMode().child()) {
+        return localCliRunner.run(arguments);
+      }
+      if (packagedExecutableDetector.packagedExecutable(runtime.executablePath().path())) {
+        return childRuntimeLauncher.launch(new ChildRuntimeLaunchRequest(runtime.executablePath(), arguments));
+      }
+
+      bootstrapOutput.standardModeFallback();
+      return localCliRunner.run(arguments);
+    } catch (InvalidRuntimeConfigurationException exception) {
+      bootstrapOutput.runtimeConfigurationError(exception.getMessage());
+      return 1;
+    }
   }
 }

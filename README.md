@@ -128,13 +128,14 @@ seed4j --version
 - [Create a project step by step](documentation/workflows.md#create-a-project-with-modules)
 - [Install Bash completion](documentation/Commands.md#bash-completion)
 - [Install the optional agent skill](documentation/Commands.md#install-the-agent-skill)
-- [Install or switch an extension runtime](documentation/Commands.md#install-a-runtime-extension)
+- [Update an installation that used a runtime extension](documentation/workflows.md#update-an-installation-that-used-a-runtime-extension)
 - [Look up options, configuration, and failure behavior](documentation/Commands.md#options-and-parameters)
 
 <!-- seed4j-needle-startupCommand -->
 
 ## Documentation
 
+- [Release notes](documentation/release-notes.md)
 - [Documentation by audience](documentation/README.md)
 - [Commands Guide](documentation/Commands.md)
 - [Task workflows](documentation/workflows.md)

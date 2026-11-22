@@ -1,12 +1,12 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.history.infrastructure.primary.ProjectHistorySummary;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JSlug;
 import com.seed4j.module.domain.landscape.Seed4JLandscape;
 import com.seed4j.module.domain.landscape.Seed4JLandscapeDependency;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
 import com.seed4j.module.domain.resource.Seed4JModulesResources;
-import com.seed4j.project.domain.history.ProjectHistory;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 class ApplyModuleDependencyPlanner {
 
-  ApplyModuleDependencyPlan plan(Seed4JModuleResource module, Seed4JModulesApplicationService modules, ProjectHistory history) {
+  ApplyModuleDependencyPlan plan(Seed4JModuleResource module, Seed4JModulesApplicationService modules, ProjectHistorySummary history) {
     DependencyPlanningContext context = DependencyPlanningContext.from(modules.resources(), history);
     DependencyDiscoveryProgress progress = discoverDependencies(module, context, DependencyDiscoveryProgress.empty());
     List<ApplyModuleDependencyPlanLine> lines = orderedDependencies(progress.dependencies(), modules.landscape())
@@ -152,16 +152,12 @@ class ApplyModuleDependencyPlanner {
       appliedModules = Set.copyOf(appliedModules);
     }
 
-    private static DependencyPlanningContext from(Seed4JModulesResources resources, ProjectHistory history) {
+    private static DependencyPlanningContext from(Seed4JModulesResources resources, ProjectHistorySummary history) {
       List<Seed4JModuleResource> visibleModules = resources.stream().sorted(byModuleSlug()).toList();
       return new DependencyPlanningContext(
         visibleModules.stream().collect(Collectors.toMap(resource -> resource.slug().get(), Function.identity())),
         visibleModules,
-        history
-          .actions()
-          .stream()
-          .map(action -> action.module().get())
-          .collect(Collectors.toUnmodifiableSet())
+        Set.copyOf(history.modules())
       );
     }
 

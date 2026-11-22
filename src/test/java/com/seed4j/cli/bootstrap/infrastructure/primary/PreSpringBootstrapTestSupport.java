@@ -4,18 +4,8 @@ import com.seed4j.cli.SystemOutputCaptor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 final class PreSpringBootstrapTestSupport {
-
-  static final String RUNTIME_MODE_PROPERTY = "seed4j.cli.runtime.mode";
-  static final String DISTRIBUTION_ID_PROPERTY = "seed4j.cli.runtime.distribution.id";
-  static final String DISTRIBUTION_VERSION_PROPERTY = "seed4j.cli.runtime.distribution.version";
-  static final String LOADER_PATH_PROPERTY = "loader.path";
-  private static final String BASELINE_RUNTIME_MODE = "baseline-mode";
 
   private PreSpringBootstrapTestSupport() {}
 
@@ -24,17 +14,6 @@ final class PreSpringBootstrapTestSupport {
       int exitCode = runner.exitCodeFor(arguments);
       return new CliLaunchResult(exitCode, outputCaptor.getOutput());
     }
-  }
-
-  static ScopedRuntimeProperties baselineRuntimeProperties() {
-    ScopedRuntimeProperties runtimeProperties = ScopedRuntimeProperties.capture(
-      Set.of(RUNTIME_MODE_PROPERTY, DISTRIBUTION_ID_PROPERTY, DISTRIBUTION_VERSION_PROPERTY, LOADER_PATH_PROPERTY)
-    );
-    System.setProperty(RUNTIME_MODE_PROPERTY, BASELINE_RUNTIME_MODE);
-    System.clearProperty(DISTRIBUTION_ID_PROPERTY);
-    System.clearProperty(DISTRIBUTION_VERSION_PROPERTY);
-    System.clearProperty(LOADER_PATH_PROPERTY);
-    return runtimeProperties;
   }
 
   static void writeRuntimeConfiguration(Path userHome, String content) throws IOException {
@@ -55,36 +34,4 @@ final class PreSpringBootstrapTestSupport {
   }
 
   record CliLaunchResult(int exitCode, String output) {}
-
-  static final class ScopedRuntimeProperties implements AutoCloseable {
-
-    private final Map<String, Optional<String>> originalValues;
-
-    private ScopedRuntimeProperties(Map<String, Optional<String>> originalValues) {
-      this.originalValues = originalValues;
-    }
-
-    static ScopedRuntimeProperties capture(Set<String> propertyKeys) {
-      Map<String, Optional<String>> capturedValues = new LinkedHashMap<>();
-      for (String propertyKey : propertyKeys) {
-        capturedValues.put(propertyKey, Optional.ofNullable(System.getProperty(propertyKey)));
-      }
-      return new ScopedRuntimeProperties(Map.copyOf(capturedValues));
-    }
-
-    @Override
-    public void close() {
-      for (Map.Entry<String, Optional<String>> originalValue : originalValues.entrySet()) {
-        restore(originalValue);
-      }
-    }
-
-    private void restore(Map.Entry<String, Optional<String>> originalValue) {
-      if (originalValue.getValue().isPresent()) {
-        System.setProperty(originalValue.getKey(), originalValue.getValue().orElseThrow());
-      } else {
-        System.clearProperty(originalValue.getKey());
-      }
-    }
-  }
 }

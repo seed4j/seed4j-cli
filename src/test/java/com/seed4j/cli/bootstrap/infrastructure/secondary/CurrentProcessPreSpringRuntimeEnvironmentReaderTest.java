@@ -37,11 +37,7 @@ class CurrentProcessPreSpringRuntimeEnvironmentReaderTest {
 
     Path executablePath = CurrentProcessPreSpringRuntimeEnvironmentReader.resolveExecutablePath(
       codeSourcePath,
-      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata(
-        "org.springframework.boot.loader.launch.PropertiesLauncher --version",
-        executableJarPath.toString(),
-        tempDirectory
-      )
+      new CurrentProcessPreSpringRuntimeEnvironmentReader.ProcessLaunchMetadata("--version", executableJarPath.toString(), tempDirectory)
     );
 
     assertThat(executablePath).isEqualTo(executableJarPath);

@@ -6,7 +6,7 @@ import java.util.Set;
 
 public record DistributionMetadata(DistributionIdentity identity, Seed4JModuleAvailability moduleAvailability) {
   private static final DistributionModuleSlug EXTENSION_GENERATOR = new DistributionModuleSlug("seed4j-extension");
-  private static final Seed4JDependencyCoordinate STABLE_COORDINATE = Seed4JDependencyCoordinate.unversioned("com.seed4j", "seed4j");
+  private static final Seed4JDependencyCoordinate STABLE_COORDINATE = Seed4JDependencyCoordinate.unversioned("com.seed4j", "seed4j-engine");
 
   public DistributionMetadata {
     Assert.notNull("identity", identity);

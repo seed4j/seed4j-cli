@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleSlug;
 import com.seed4j.module.domain.properties.Seed4JPropertyKey;
@@ -13,7 +14,6 @@ import com.seed4j.module.domain.resource.Seed4JModuleOperation;
 import com.seed4j.module.domain.resource.Seed4JModulePropertiesDefinition;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
-import com.seed4j.project.application.ProjectsApplicationService;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ class ApplyModuleSubCommandTest {
   @Test
   void shouldBuildCommandSpecWithPropertyWithoutCandidates() {
     Seed4JModulesApplicationService modules = mock(Seed4JModulesApplicationService.class);
-    ProjectsApplicationService projects = mock(ProjectsApplicationService.class);
+    JavaProjectHistories projects = mock(JavaProjectHistories.class);
     Seed4JModuleResource module = mock(Seed4JModuleResource.class);
     when(module.slug()).thenReturn(new Seed4JModuleSlug("test-module"));
     Seed4JModuleApiDoc apiDoc = mock(Seed4JModuleApiDoc.class);

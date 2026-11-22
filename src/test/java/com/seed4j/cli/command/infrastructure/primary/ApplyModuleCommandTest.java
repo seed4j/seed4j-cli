@@ -2,23 +2,28 @@ package com.seed4j.cli.command.infrastructure.primary;
 
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLine;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.experimentalCommandLine;
+import static com.seed4j.cli.command.infrastructure.primary.CliFixture.projectFiles;
 import static com.seed4j.cli.command.infrastructure.primary.CliFixture.setupProjectTestFolder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
+import com.seed4j.history.infrastructure.primary.ProjectHistorySummary;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
-import com.seed4j.project.application.ProjectsApplicationService;
-import com.seed4j.project.domain.ProjectPath;
-import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -34,7 +39,7 @@ class ApplyModuleCommandTest {
   private static final String PACKAGE_NAME = "packageName";
 
   @Autowired
-  private ProjectsApplicationService projects;
+  private JavaProjectHistories projects;
 
   @Autowired
   private Seed4JModulesApplicationService modules;
@@ -162,7 +167,7 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(output)
         .contains(
           """
@@ -200,6 +205,77 @@ class ApplyModuleCommandTest {
     }
 
     @Test
+    void shouldPlanInitWithoutCreatingNonexistentProject(@TempDir Path temporaryDirectory, CapturedOutput output) {
+      Path projectPath = temporaryDirectory.resolve("nonexistent-project");
+
+      int exitCode = commandLine(modules, projects).execute(
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "sampleApplication",
+        "--project-name",
+        "Sample application",
+        "--node-package-manager",
+        "npm",
+        "--plan"
+      );
+
+      assertThat(exitCode).isZero();
+      assertThat(projectPath).doesNotExist();
+      assertThat(output).contains("No changes were applied.").doesNotContain("Missing required parameters:");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "apply", "apply-set" })
+    void shouldPlanUsingSeed4J220HistoryWithoutMigration(String command, CapturedOutput output) throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      Path history = projectPath.resolve(".seed4j/modules");
+      Files.writeString(
+        history.resolve("20260101120000-init.json"),
+        """
+        {
+          "module": "init",
+          "date": "2026-01-01T12:00:00Z",
+          "properties": {
+            "baseName": "legacyApplication",
+            "projectName": "Legacy application",
+            "nodePackageManager": "npm",
+            "indentSize": 2
+          }
+        }
+        """
+      );
+      Files.writeString(
+        history.resolve("20260102120000000-init.json"),
+        """
+        {
+          "module": "init",
+          "date": "2026-01-02T12:00:00Z",
+          "properties": { "indentSize": 4 }
+        }
+        """
+      );
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBefore = GitTestUtil.getCommits(projectPath);
+
+      int exitCode = commandLine(modules, projects).execute(command, "init", "--project-path", projectPath.toString(), "--plan");
+
+      assertThat(exitCode).isZero();
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
+      assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBefore);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactly("init", "init");
+      assertThat(output)
+        .contains("✓ indentSize: 4\n" + (command.equals("apply") ? "  " : "    ") + "Source: project history")
+        .contains("✓ baseName: legacyApplication", "✓ projectName: Legacy application", "✓ nodePackageManager: npm")
+        .doesNotContain("Missing required parameters:");
+      if (command.equals("apply-set")) {
+        assertThat(output).contains("1. init (reapplied)", "Status: VALID");
+      }
+    }
+
+    @Test
     void shouldPlanInitModuleWithHistorySourcesAndExplicitOverrides(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       String[] applyArgs = {
@@ -216,14 +292,17 @@ class ApplyModuleCommandTest {
       };
       int applyExitCode = commandLine(modules, projects).execute(applyArgs);
       assertThat(applyExitCode).isZero();
-      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforePlan = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforePlan = GitTestUtil.getCommits(projectPath);
       String[] planArgs = { "apply", "init", "--project-path", projectPath.toString(), "--base-name", "explicitOverride", "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(planArgs);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforePlan.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforePlan.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
       assertThat(output)
         .contains(
@@ -267,14 +346,17 @@ class ApplyModuleCommandTest {
       };
       int applyExitCode = commandLine(modules, projects).execute(applyArgs);
       assertThat(applyExitCode).isZero();
-      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforePlan = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforePlan = GitTestUtil.getCommits(projectPath);
       String[] planArgs = { "apply", "angular-core", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(planArgs);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforePlan.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforePlan.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
       assertThat(output).contains(
         """
@@ -305,14 +387,17 @@ class ApplyModuleCommandTest {
       };
       int initExitCode = commandLine(modules, projects).execute(initArgs);
       assertThat(initExitCode).isZero();
-      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforeApply = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforeApply = GitTestUtil.getCommits(projectPath);
       String[] args = { "apply", "angular-core", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforeApply.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforeApply.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
       assertThat(output.getErr())
         .contains(
@@ -339,7 +424,7 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(output).contains(
         """
         Dependency plan:
@@ -370,14 +455,17 @@ class ApplyModuleCommandTest {
       };
       int initExitCode = commandLine(modules, projects).execute(initArgs);
       assertThat(initExitCode).isZero();
-      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforeApply = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforeApply = GitTestUtil.getCommits(projectPath);
       String[] args = { "apply", "optional-typescript", "--project-path", projectPath.toString() };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforeApply.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforeApply.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
       assertThat(output.getErr())
         .contains(
@@ -400,7 +488,7 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(output).contains(
         """
         Dependency plan:
@@ -434,14 +522,17 @@ class ApplyModuleCommandTest {
       String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
       int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
       assertThat(mavenJavaExitCode).isZero();
-      int historyActionsBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforePlan = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforePlan = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforePlan = GitTestUtil.getCommits(projectPath);
       String[] planArgs = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = commandLine(modules, projects).execute(planArgs);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforePlan);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforePlan.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforePlan.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
       assertThat(output).contains(
         """
@@ -475,14 +566,17 @@ class ApplyModuleCommandTest {
       String[] mavenJavaArgs = { "apply", "maven-java", "--project-path", projectPath.toString(), "--package-name", "com.mycompany.myapp" };
       int mavenJavaExitCode = commandLine(modules, projects).execute(mavenJavaArgs);
       assertThat(mavenJavaExitCode).isZero();
-      int historyActionsBeforeApply = projects.getHistory(new ProjectPath(projectPath.toString())).actions().size();
-      String commitsBeforeApply = GitTestUtil.getCommits(projectPath);
+      ProjectHistorySummary historyBeforeApply = projects.get(projectPath.toString());
+      Map<Path, String> filesBefore = projectFiles(projectPath);
+      List<String> commitsBeforeApply = GitTestUtil.getCommits(projectPath);
       String[] args = { "apply", "sonarqube-java-backend", "--project-path", projectPath.toString() };
 
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isEqualTo(2);
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).hasSize(historyActionsBeforeApply);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforeApply.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforeApply.properties());
+      assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforeApply);
       assertThat(output.getErr())
         .contains(
@@ -567,7 +661,7 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(output)
         .contains(
           """
@@ -606,7 +700,7 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).actions()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(output)
         .contains(
           """
@@ -708,8 +802,8 @@ class ApplyModuleCommandTest {
     }
 
     private Object projectPropertyValue(Path projectPath, String propertyKey) {
-      ProjectHistory history = projects.getHistory(new ProjectPath(projectPath.toString()));
-      return history.latestProperties().parameters().getOrDefault(propertyKey, null);
+      ProjectHistorySummary history = projects.get(projectPath.toString());
+      return history.properties().getOrDefault(propertyKey, null);
     }
 
     @Test
@@ -825,6 +919,52 @@ class ApplyModuleCommandTest {
 
       assertThat(exitCode).isZero();
       assertThat(projectPropertyValue(projectPath, END_OF_LINE)).isEqualTo("lf");
+    }
+
+    @Test
+    void shouldPersistExplicitOverridesAndRetainEarlierParameters() throws IOException {
+      Path projectPath = setupProjectTestFolder();
+      int initExitCode = commandLine(modules, projects).execute(
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--base-name",
+        "sampleApplication",
+        "--project-name",
+        "Original",
+        "--node-package-manager",
+        "npm"
+      );
+      assertThat(initExitCode).isZero();
+
+      int overrideExitCode = commandLine(modules, projects).execute(
+        "apply",
+        "init",
+        "--project-path",
+        projectPath.toString(),
+        "--project-name",
+        "Atualizado"
+      );
+      int javaExitCode = commandLine(modules, projects).execute(
+        "apply",
+        "maven-java",
+        "--project-path",
+        projectPath.toString(),
+        "--package-name",
+        "com.example.app"
+      );
+
+      assertThat(overrideExitCode).isZero();
+      assertThat(javaExitCode).isZero();
+      assertThat(projects.get(projectPath.toString()).properties())
+        .containsEntry("baseName", "sampleApplication")
+        .containsEntry("projectName", "Atualizado")
+        .containsEntry("nodePackageManager", "npm")
+        .containsEntry("packageName", "com.example.app")
+        .doesNotContainKey("endOfLine");
+      assertThat(Files.readString(projectPath.resolve("README.md"))).contains("Atualizado");
+      assertThat(Files.readString(projectPath.resolve("pom.xml"))).contains("com.example.app", "sampleApplication");
     }
 
     @Test

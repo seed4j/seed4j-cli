@@ -4,8 +4,8 @@ import static com.seed4j.cli.command.infrastructure.primary.CliFixture.commandLi
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.IntegrationTest;
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
-import com.seed4j.project.application.ProjectsApplicationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,20 +17,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class ListModulesCommandCliTest {
 
   @Autowired
-  private ProjectsApplicationService projects;
+  private JavaProjectHistories projects;
 
   @Autowired
   private Seed4JModulesApplicationService modules;
-
-  @Test
-  void shouldNotLeakTheExtensionOnlySlugWhenListingModulesInStandardRuntimeMode(CapturedOutput output) {
-    String[] args = { "list" };
-
-    int exitCode = commandLine(modules, projects).execute(args);
-
-    assertThat(exitCode).isZero();
-    assertThat(output).doesNotContain("runtime-extension-list-only");
-  }
 
   @Test
   void shouldRenderTypedDependenciesWhenModuleHasDependencies(CapturedOutput output) {

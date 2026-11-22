@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.seed4j.cli.UnitTest;
 import com.seed4j.cli.command.application.AgentSkillInstallApplicationService;
-import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
 import com.seed4j.cli.command.domain.AgentSkillInstallationException;
 import com.seed4j.cli.command.domain.AgentSkillInstallationPath;
 import com.seed4j.cli.command.domain.AgentSkillInstallationResult;
@@ -107,7 +106,6 @@ class AgentSkillInstallationCommandsTest {
     Seed4JVersionProvider versionProvider = new Seed4JVersionProvider(
       "1",
       "2",
-      new RuntimeDisplayApplicationService(com.seed4j.cli.command.domain.RuntimeDisplay::standard),
       new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
         com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
       )

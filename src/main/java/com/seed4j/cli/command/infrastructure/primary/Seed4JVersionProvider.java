@@ -1,11 +1,6 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
 import com.seed4j.cli.command.application.DistributionMetadataApplicationService;
-import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
-import com.seed4j.cli.command.domain.RuntimeDisplay;
-import com.seed4j.cli.command.domain.RuntimeDistributionId;
-import com.seed4j.cli.command.domain.RuntimeDistributionVersion;
-import com.seed4j.cli.command.domain.RuntimeModeDisplay;
 import com.seed4j.cli.command.domain.distribution.DependencyVersion;
 import com.seed4j.cli.command.domain.distribution.DistributionMetadata;
 import com.seed4j.cli.command.domain.distribution.Seed4JUpstreamCommit;
@@ -21,18 +16,15 @@ class Seed4JVersionProvider implements IVersionProvider {
 
   private final String projectCliVersion;
   private final String projectSeed4JVersion;
-  private final RuntimeDisplayApplicationService runtimeDisplayApplicationService;
   private final DistributionMetadataApplicationService distribution;
 
   Seed4JVersionProvider(
     @Value("${project.version:}") String projectCliVersion,
     @Value("${project.seed4j-version:}") String projectSeed4JVersion,
-    RuntimeDisplayApplicationService runtimeDisplayApplicationService,
     DistributionMetadataApplicationService distribution
   ) {
     this.projectCliVersion = projectCliVersion;
     this.projectSeed4JVersion = projectSeed4JVersion;
-    this.runtimeDisplayApplicationService = runtimeDisplayApplicationService;
     this.distribution = distribution;
   }
 
@@ -50,50 +42,26 @@ class Seed4JVersionProvider implements IVersionProvider {
       .version()
       .map(DependencyVersion::value)
       .orElseGet(() -> resolvedVersion(projectSeed4JVersion, resolvedCliVersion));
-    RuntimeDisplay runtimeDisplay = runtimeDisplayApplicationService.activeRuntime();
-
-    String commonOutput = stableVersionOutput(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay);
     if (metadata.identity().channel().experimental()) {
-      commonOutput = experimentalVersionOutput(resolvedCliVersion, resolvedSeed4JVersion, runtimeDisplay, metadata);
+      return experimentalVersionOutput(resolvedCliVersion, resolvedSeed4JVersion, metadata);
     }
 
-    if (runtimeDisplay.mode() != RuntimeModeDisplay.EXTENSION) {
-      return commonOutput;
-    }
-
-    return """
-    %s
-    Distribution ID: %s
-    Distribution version: %s""".formatted(
-      commonOutput,
-      runtimeDisplay.distributionId().map(RuntimeDistributionId::value).orElse(UNKNOWN_VERSION),
-      runtimeDisplay.distributionVersion().map(RuntimeDistributionVersion::value).orElse(UNKNOWN_VERSION)
-    );
-  }
-
-  private static String stableVersionOutput(String cliVersion, String seed4JVersion, RuntimeDisplay runtimeDisplay) {
     return """
     Seed4J CLI v%s
     Seed4J version: %s
-    Runtime mode: %s""".formatted(cliVersion, seed4JVersion, runtimeDisplay.mode().name().toLowerCase());
+    Runtime mode: standard""".formatted(resolvedCliVersion, resolvedSeed4JVersion);
   }
 
-  private static String experimentalVersionOutput(
-    String cliVersion,
-    String seed4JVersion,
-    RuntimeDisplay runtimeDisplay,
-    DistributionMetadata metadata
-  ) {
+  private static String experimentalVersionOutput(String cliVersion, String seed4JVersion, DistributionMetadata metadata) {
     return """
     Seed4J CLI v%s
     Release channel: experimental
     Seed4J version: %s
     Seed4J upstream commit: %s
-    Runtime mode: %s""".formatted(
+    Runtime mode: standard""".formatted(
       cliVersion,
       seed4JVersion,
-      metadata.identity().upstreamCommit().map(Seed4JUpstreamCommit::value).orElse(UNKNOWN_VERSION),
-      runtimeDisplay.mode().name().toLowerCase()
+      metadata.identity().upstreamCommit().map(Seed4JUpstreamCommit::value).orElse(UNKNOWN_VERSION)
     );
   }
 

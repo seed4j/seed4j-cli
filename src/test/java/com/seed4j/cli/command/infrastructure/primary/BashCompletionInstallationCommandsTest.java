@@ -9,8 +9,8 @@ import com.seed4j.cli.command.domain.BashCompletionInstallationException;
 import com.seed4j.cli.command.domain.BashCompletionInstallationPath;
 import com.seed4j.cli.command.domain.BashCompletionInstallationResult;
 import com.seed4j.cli.command.domain.BashCompletionScript;
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
-import com.seed4j.project.application.ProjectsApplicationService;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ import picocli.CommandLine.ExitCode;
 class BashCompletionInstallationCommandsTest {
 
   @Autowired
-  private ProjectsApplicationService projects;
+  private JavaProjectHistories projects;
 
   @Autowired
   private Seed4JModulesApplicationService modules;
