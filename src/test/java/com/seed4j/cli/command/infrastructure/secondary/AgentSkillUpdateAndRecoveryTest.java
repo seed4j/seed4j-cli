@@ -159,8 +159,10 @@ class AgentSkillUpdateAndRecoveryTest {
     assertThat(Files.readString(externalSkill.resolve("SKILL.md"))).isEqualTo("external skill\n");
   }
 
-  private static Path createDestinationSymlinkToExternalSkill(Path temporaryDirectory, AgentSkillInstallationFixture fixture)
-    throws IOException {
+  private static Path createDestinationSymlinkToExternalSkill(
+    Path temporaryDirectory,
+    AgentSkillInstallationFixture fixture
+  ) throws IOException {
     Path externalSkill = temporaryDirectory.resolve("external-skill");
     Files.createDirectories(fixture.skillsDirectory());
     Files.createDirectories(externalSkill);

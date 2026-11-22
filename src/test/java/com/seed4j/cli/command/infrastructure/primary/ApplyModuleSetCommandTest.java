@@ -942,8 +942,12 @@ class ApplyModuleSetCommandTest {
 
     @ParameterizedTest
     @MethodSource("supportedHistoryParameters")
-    void shouldResolveTypedHistoryAtSeed4JBoundary(ModuleSetPropertyType type, Object value, String renderedValue, CapturedOutput output)
-      throws IOException {
+    void shouldResolveTypedHistoryAtSeed4JBoundary(
+      ModuleSetPropertyType type,
+      Object value,
+      String renderedValue,
+      CapturedOutput output
+    ) throws IOException {
       ModuleSetSlug moduleSlug = new ModuleSetSlug("typed-module");
       ModuleSetPropertyKey historyValue = new ModuleSetPropertyKey("historyValue");
       ModuleSetPropertyDefinition property = new ModuleSetPropertyDefinition(

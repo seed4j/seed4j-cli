@@ -137,8 +137,10 @@ class PreSpringBootstrapPrimaryTest {
 
     @ParameterizedTest(name = "[{index}] {0}")
     @MethodSource("standardMode")
-    void shouldLaunchTheStandardChildRuntimeWhenConfigDoesNotSelectExtensionMode(String scenarioName, String configContent)
-      throws IOException {
+    void shouldLaunchTheStandardChildRuntimeWhenConfigDoesNotSelectExtensionMode(
+      String scenarioName,
+      String configContent
+    ) throws IOException {
       Path userHome = Files.createTempDirectory("seed4j-cli-standard-config-primary-");
       writeRuntimeConfiguration(userHome, configContent);
       PrimaryBootstrapFixture fixture = PrimaryBootstrapFixture.packaged(userHome);

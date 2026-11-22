@@ -405,9 +405,7 @@ class HexagonalArchTest {
     }
 
     private String[] businessContextsOrSharedKernelsPackages() {
-      return Stream.of(businessContextsPackages, sharedKernelsPackages)
-        .flatMap(Collection::stream)
-        .toArray(String[]::new);
+      return Stream.of(businessContextsPackages, sharedKernelsPackages).flatMap(Collection::stream).toArray(String[]::new);
     }
   }
 

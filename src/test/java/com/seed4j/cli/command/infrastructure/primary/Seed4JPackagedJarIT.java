@@ -128,7 +128,8 @@ class Seed4JPackagedJarIT {
   @ParameterizedTest
   @CsvSource({ "legacy-aggregated.json, history.json", "legacy-action.json, 20261020120000-init.json" })
   void shouldReadLegacyHistoryAndPreferExplicitOptionsWithoutChangingProject(String fixture, String filename)
-    throws IOException, InterruptedException {
+    throws IOException, InterruptedException
+  {
     Path project = workspace.resolve("legacy-project");
     Path history = Files.createDirectories(project.resolve(".seed4j/modules"));
     try (InputStream input = getClass().getResourceAsStream("/history/" + fixture)) {
