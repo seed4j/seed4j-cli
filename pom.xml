@@ -94,7 +94,7 @@
     <pitest-maven.version>1.30.2</pitest-maven.version>
     <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
     <properties-maven-plugin.version>1.4.0</properties-maven-plugin.version>
-    <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+    <sonar-maven-plugin.version>5.9.0.7382</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
     <spring-boot.version>4.2.0</spring-boot.version>
     <!-- renovate: datasource=maven depName=com.seed4j:seed4j-engine -->
