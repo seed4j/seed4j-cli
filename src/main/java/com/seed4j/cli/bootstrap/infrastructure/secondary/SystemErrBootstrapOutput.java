@@ -29,7 +29,7 @@ public class SystemErrBootstrapOutput implements BootstrapOutput {
     }
 
     System.err.println(
-      "Invalid %s: Invalid seed4j.runtime.mode '%s'. Valid value: standard.".formatted(CONFIG_LOCATION, mode.value().orElse(""))
+      "Invalid %s: Invalid seed4j.runtime.mode '%s'. Valid value: standard.".formatted(CONFIG_LOCATION, mode.value().orElseThrow())
     );
   }
 }
