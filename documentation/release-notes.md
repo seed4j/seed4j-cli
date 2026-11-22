@@ -2,8 +2,9 @@
 
 ## Breaking change in the next release
 
-Seed4J CLI now uses the Seed4J engine and the packaged core modules. Loading runtime extension JARs and the associated
-`--debug` option have been removed from both channels.
+Seed4J CLI now uses the Seed4J engine and the packaged core modules. Loading runtime extension JARs has been removed from
+both channels. `seed4j --debug <command>` remains available and shows Spring Boot startup diagnostics: debug logs and the
+auto-configuration report.
 
 If `~/.config/seed4j-cli/config.yml` still contains `seed4j.runtime.mode: extension`, the launcher exits with code `1`
 before Spring starts. Set `seed4j.runtime.mode: standard` in that file and run `seed4j list` again. The CLI leaves your

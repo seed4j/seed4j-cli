@@ -4,6 +4,7 @@ import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
 import com.seed4j.cli.bootstrap.domain.JavaExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
+import com.seed4j.cli.shared.error.domain.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +15,9 @@ public class JavaProcessChildLauncher implements ChildRuntimeLauncher {
   private final ChildProcessCommandExecutor processExecutor;
 
   public JavaProcessChildLauncher(JavaExecutablePath javaExecutable, Seed4JCliHome cliHome, ChildProcessCommandExecutor processExecutor) {
+    Assert.notNull("javaExecutable", javaExecutable);
+    Assert.notNull("cliHome", cliHome);
+    Assert.notNull("processExecutor", processExecutor);
     this.javaExecutable = javaExecutable;
     this.cliHome = cliHome;
     this.processExecutor = processExecutor;
