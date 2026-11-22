@@ -6,7 +6,7 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeConfiguration;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaProcessChildLauncher;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
@@ -32,7 +32,7 @@ public final class PreSpringBootstrapConfiguration {
     Assert.notNull("runtimeEnvironment", runtimeEnvironment);
     PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
       runtimeEnvironment,
-      new FileSystemRuntimeConfiguration(runtimeEnvironment.cliHome()),
+      new FileSystemRuntimeModeConfigurationReader(runtimeEnvironment.cliHome()),
       new JavaProcessChildLauncher(
         runtimeEnvironment.javaExecutablePath(),
         runtimeEnvironment.cliHome(),

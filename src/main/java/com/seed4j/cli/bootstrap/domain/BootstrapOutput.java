@@ -4,4 +4,6 @@ public interface BootstrapOutput {
   void standardModeFallback();
 
   void runtimeConfigurationError(String message);
+
+  void unsupportedRuntimeMode(ConfiguredRuntimeMode mode);
 }

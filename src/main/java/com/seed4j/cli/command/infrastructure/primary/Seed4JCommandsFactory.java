@@ -4,6 +4,7 @@ import com.seed4j.cli.command.application.DistributionMetadataApplicationService
 import java.util.List;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Model.OptionSpec;
 
 @Component
 class Seed4JCommandsFactory {
@@ -24,6 +25,14 @@ class Seed4JCommandsFactory {
 
   public CommandSpec buildCommandSpec() {
     CommandSpec spec = CommandSpec.create().name("seed4j").mixinStandardHelpOptions(true).versionProvider(versionProvider);
+    spec.addOption(
+      OptionSpec.builder("--debug")
+        .description("Show Spring Boot startup diagnostics (debug logs and auto-configuration report).")
+        .type(Boolean.class)
+        .defaultValue("false")
+        .build()
+    );
+
     spec.usageMessage().description(description()).headerHeading("%n").commandListHeading("%nCommands:%n");
 
     seed4JCommands.forEach(command -> spec.addSubcommand(command.name(), command.spec()));

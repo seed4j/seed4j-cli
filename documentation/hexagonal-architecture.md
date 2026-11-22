@@ -136,8 +136,9 @@ A secondary adapter must not call its own bounded context's application layer. I
 
 ### Engine bootstrap and project history
 
-The packaged launcher checks the user YAML before starting Spring and forwards its effective Java home to the standard
-child process. The child starts the CLI and Spring Boot discovers the Seed4J engine through auto-configuration. The
+The packaged launcher reads the configured runtime mode from the user YAML before starting Spring, lets the bootstrap
+domain (`ConfiguredRuntimeMode`) decide whether that mode is supported, and forwards its effective user home (`user.home`)
+to the standard child process. The child starts the CLI and Spring Boot discovers the Seed4J engine through auto-configuration. The
 engine exposes its catalog from the packaged core modules. Commands read applied modules and latest properties from
 `JavaProjectHistories`. Applying a module lets the engine persist the action and handle Git according to the command
 options.
