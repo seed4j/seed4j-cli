@@ -6,7 +6,7 @@ Choose the path that matches what you need to accomplish.
 
 Start at the repository [Quick Start](../README.md#quick-start), then use the [commands reference](Commands.md) for exact command syntax, options, exit behavior, configuration paths, and runtime contracts.
 
-For a concrete end-to-end outcome, follow the [project creation workflow](workflows.md#create-a-project-with-modules). To extend the CLI runtime, follow the [runtime extension workflow](workflows.md#create-and-install-a-runtime-extension) together with the normative [extension command reference](Commands.md#install-a-runtime-extension).
+For a concrete end-to-end outcome, follow the [project creation workflow](workflows.md#create-a-project-with-modules). For a previous extension installation, see the [migration workflow](workflows.md#update-an-installation-that-used-a-runtime-extension).
 
 Coding agents can optionally install the bundled [Seed4J CLI agent skill](Commands.md#install-the-agent-skill). Local
 installation is the recommended default because it scopes discovery to the project that selected Seed4J.

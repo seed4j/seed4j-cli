@@ -1,106 +1,48 @@
-# Migrate the experimental channel to full-SHA versions
+# Adopt the Seed4J engine in the CLI
 
 ## Purpose and success
 
-Replace the Pages/custom-datasource pilot with a self-contained Maven identity:
-
-```text
-<upstream-base>-main.<yyyyMMdd>.<HHmmss>.<40-character-sha>-SNAPSHOT
-```
-
-Renovate will use only its native Maven manager and datasource. The pilot is complete when a real snapshot creates exactly one pull request against `experimental`, changes only `seed4j.version`, passes the protected checks, and automerges when compatible.
+Both CLI channels use the modular Seed4J engine. Existing projects retain their history and plans remain read only. Users with an installed runtime extension get an actionable migration diagnostic while keeping their original files. The stable channel still lists the `seed4j-extension` generator. The experimental channel retains its existing restriction.
 
 ## Context and limits
 
-- The work spans this repository and the adjacent `../seed4j-main-snapshots` publisher repository.
-- Remove all uncommitted Pages, `latest.json`, `digest`, and custom-datasource pilot changes.
-- Preserve the public CLI output `Seed4J upstream commit`, deriving the value from the Maven version.
-- Remove `seed4j.upstream-commit` from the POM and packaged metadata as an independent source.
-- Keep the full SHA in the publisher manifest, JAR provenance, and published snapshot POM `<scm><tag>`.
-- Existing short-SHA snapshots remain in Central and are neither republished nor deleted.
-- Do not change CLI commands, options, or public APIs.
-- Hosted branch synchronization, Central publication, and Renovate acceptance require external execution after the corresponding local changes are integrated.
-
-## Decisions
-
-- Use the complete SHA in the Maven version. The resulting version is approximately 76 characters and remains below Maven's 256-character limit.
-- Keep the timestamp before the SHA to preserve chronological ordering.
-- Migrate in stages to prevent duplicate pull requests and conflicts between `main` and `experimental`.
-- Preserve compatibility with short-SHA versions only during migration; no transitional support remains in the final state.
-- Do not enable GitHub Pages or create another external feed.
+Start from stable `main`. Integrate its green GitHub SHA into `experimental` with a merge commit, then retain the experimental snapshot identity in `pom.xml`. Maven coordinates for custom extensions remain tracked in [Seed4J #14926](https://github.com/seed4j/seed4j/issues/14926) and [CLI #6](https://github.com/seed4j/seed4j-cli/issues/6). The previous full SHA migration plan is available in Git at `ef6307c:EXECPLAN.md`.
 
 ## Milestones
 
-1. **Pause Renovate and prepare compatibility on CLI `main`.** Remove the experimental regex manager and temporarily disable Maven updates for the personal coordinate. Accept either a short-SHA version accompanied by `seed4j.upstream-commit` or a full-SHA version whose provenance is derived from the version; when both exist, require exact equality. Keep the current stable POM property until `main` has synchronized to `experimental`. Validate locally, then integrate and wait for protected synchronization. Before publishing the new format, confirm no experimental snapshot PR is open and at least one hosted Renovate cycle has read the paused configuration.
-2. **Change and prove the publisher contract.** Use the full SHA in deterministic version derivation and reject versions longer than 256 characters. Update the manifest, overlay, expected names, fixtures, dry run, README, and tests. Remove the feed job, scripts, tests, Pages permissions, and feed-specific reporting changes. Validate locally, integrate on publisher `main`, manually run `operation=head`, and verify the public POM, JAR, and tests JAR, including GAV, full version, `<scm><tag>`, embedded SHA, and the absence of sources/Javadoc.
-3. **Migrate CLI `experimental`.** Open a dedicated PR against `experimental` using the proven full-SHA snapshot. Change only `seed4j.version` for the dependency identity, remove `seed4j.upstream-commit` and its packaged metadata token, and prove that CLI output still shows the full SHA derived from the version. Require the protected `tests` check before merge.
-4. **Finalize CLI `main` and reactivate Renovate.** Remove the empty stable POM property and transitional short-version/legacy-metadata support. Require full-SHA versions for experimental distributions while stable distributions remain SHA-free. Keep `Seed4JUpstreamCommit` as an internal derived concept. Configure one active experimental Maven rule using the Central snapshot repository, `ignoreUnstable=false`, and protected automerge. Ensure no custom datasource, experimental regex manager, or competing Maven rule exists. Integrate and verify clean synchronization to `experimental`.
-5. **Run hosted acceptance.** Publish the next eligible full-SHA snapshot, wait for Renovate's daily cadence, and accept only one PR based on `experimental` whose diff is restricted to `seed4j.version`. Verify that the version SHA matches the official commit, published POM, manifest, and CLI metadata; then verify checks, automerge, and compatible experimental npm publication.
+1. Preserve the transition at the public CLI and launcher boundaries. Replace the extension management handlers, reject `seed4j.runtime.mode: extension` before Spring, and retain the standard subprocess with the effective home. Exercise exit codes and preservation of legacy files through the packaged JAR.
+2. Adopt the engine with Spring Boot 4.2.0, Maven Central release 2.4.0, and engine history reads. Update distribution policy, Renovate, README, command and architecture guides, and release notes. Run workflow tests, formatting, Maven tests, packaged acceptance and Habit Hooks before integration.
+3. Merge the green main SHA into experimental. Set the published modular snapshot, Sonatype repository and generator restriction in the POM. Repeat acceptance with an empty Maven cache. After the experimental check and merge, dispatch synchronization on main and verify its result, issue #503 and the downstream build.
 
 ## Progress
 
-- [x] Full-SHA version contract selected.
-- [x] Maven size, format, and ordering constraints confirmed.
-- [x] Staged migration selected.
-- [x] Local Renovate pause and transitional CLI compatibility implemented and validated.
-- [x] Pause integrated on CLI `main`, synchronized, and observed by one hosted Renovate cycle (2026-09-21 14:51 UTC).
-- [x] Local full-SHA publisher contract implemented and validated; Pages/feed pilot changes removed.
-- [x] First full-SHA snapshot published and validated from publisher `main` (publisher run 35616116724; upstream `e6209efb882ce56c4c9f980d7ba3127b23b11fa1`).
-- [x] `experimental` migrated through protected PR #400.
-- [x] Final CLI contract installed and native Maven Renovate rule reactivated on `main` through protected PR #401.
-- [ ] Final `main` revision synchronized to `experimental` through protected checks.
-- [ ] One real hosted Renovate PR observed and recorded.
-
-## Documentation
-
-- This `EXECPLAN.md` is the durable migration plan.
-- Update the experimental specification, channel runbook, and workflow guide so the Maven version is the indivisible identity.
-- Update the publisher README with the 40-character format.
-- Remove every normative reference to Pages, `latest.json`, `digest`, two-field updates, and custom datasources.
-- Document rollback as pausing the Maven rule and manually updating one version.
-
-## Rollout and recovery
-
-The required order is: pause Renovate, prepare compatibility, change the publisher, publish and validate, migrate `experimental`, finalize `main`, and reactivate Renovate.
-
-- If Central rejects the new format, keep Renovate paused and restore the short-SHA publisher format; do not enable Pages automatically.
-- If the Maven manager does not detect the snapshot, keep it paused and update `seed4j.version` manually pending a new decision.
-- If duplicate pull requests appear, disable the experimental rule immediately and inspect their origin; do not restore a regex manager.
-- If a snapshot is incompatible, leave its PR red and adapt the CLI there or in a replacement PR; never bypass protected checks.
-- Remove short-version compatibility only after a full-SHA snapshot resolves and builds successfully on `experimental`.
+- [x] Created `feat/adopt-seed4j-engine` from `ef6307c` and advanced it to current upstream `main`, `9987cf1`.
+- [x] Removed the old runtime extension paths and verified the transition.
+- [x] Adopted the engine and validated the stable distribution locally.
+- [x] Exercised both Renovate managers locally with candidate version changes.
+- [x] Merged [PR #511](https://github.com/seed4j/seed4j-cli/pull/511). The exact main SHA `f503bbfe963f9295240393beaa633f054c5b7595` passed its push build.
+- [x] Merged the green main SHA into `feat/experimental-seed4j-engine` and validated the snapshot locally.
+- [ ] Merge the experimental PR after hosted `tests`.
+- [ ] Dispatch synchronization from main and verify `already-contained`, issue #503 and the experimental build.
+- [ ] Observe the first hosted modular Renovate update.
 
 ## Validation
 
-Publisher validation:
+| Scenario                          | Stable evidence                                                                                                                                                                                                                                 | Experimental evidence                                                                                                                                                                                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Empty Maven repository            | A newly created Maven repository resolved the public engine, API, core modules and test support at `2.4.0`.                                                                                                                                     | Pending                                                                                                                                                                                                                                                                          |
+| Packaged libraries and identity   | `Seed4JPackagedJarIT` verified `--version` and exactly three Seed4J runtime libraries at `2.4.0`. The archive lists Spring Boot `4.2.0`.                                                                                                        | Pending                                                                                                                                                                                                                                                                          |
+| Catalog and effective home        | `Seed4JPackagedJarIT` found core modules and the stable generator, opened the generator help and verified a hidden slug from a home path with a space.                                                                                          | Pending                                                                                                                                                                                                                                                                          |
+| Project history and options       | Both aggregated and per-action legacy history passed. `apply --plan` and `apply-set --plan` preferred explicit options, reused history and preserved the complete project snapshot. `apply init --no-commit` wrote exactly one action.          | Pending                                                                                                                                                                                                                                                                          |
+| Installed extension migration     | Legacy YAML with installed JAR returned `1` with empty stdout. The home snapshot matched byte for byte. Editing only the mode restored `list`. Help returned `0` and each former management command returned `2`, preserving the home snapshot. | Pending                                                                                                                                                                                                                                                                          |
+| Local gates                       | `npm run test:workflows` passed 253 tests. `npm run prettier:check` and `habit-hooks` passed. `./mvnw test` passed 529 tests. Packaged Maven integration passed eight tests. The packed npm skill smoke test passed.                            | Pending                                                                                                                                                                                                                                                                          |
+| Hosted `tests` and `clean verify` | [PR #511 build](https://github.com/seed4j/seed4j-cli/actions/runs/45020125548) and [exact main push build](https://github.com/seed4j/seed4j-cli/actions/runs/45020584577) both passed.                                                          | Pending                                                                                                                                                                                                                                                                          |
+| Renovate upgrade                  | Renovate 44.257.9 extracted one active regex updater for `com.seed4j:seed4j-engine`. Its replacement changed only `seed4j.version`, and all three Maven dependency entries resolved to the candidate version.                                   | Renovate 44.257.9 extracted one active Maven updater for `io.github.renanfranca:seed4j-core-modules` from the intended experimental POM. Its replacement changed only `seed4j.version`, and all three entries resolved to the candidate snapshot. Hosted observation is pending. |
 
-- `npm test`
-- `npm run prettier:check`
-- `npm run dry-run`
-- `./mvnw --version`
-- `habit-hooks`
-- Public resolution of the POM, JAR, and tests JAR from Central.
+The behavior tests first reproduced the old management command exit, extension startup and loss of the effective home.
+The packaged library test found the old monolith before the dependency change. After the suite was green, the design review
+removed the unused bootstrap resolver seam and repeated the packaged checkpoint.
 
-CLI validation:
-
-- `npm run test:workflows`
-- `npm run prettier:check`
-- `./mvnw test`
-- Renovate configuration validation with the pinned diagnostic version.
-- `habit-hooks`
-
-Required behavior:
-
-- Accept an experimental version containing exactly 40 lowercase hexadecimal SHA characters.
-- Reject a short, invalid, or published-POM-divergent SHA in the final contract.
-- Keep stable distributions SHA-free.
-- Derive and display the complete SHA in CLI output.
-- Detect exactly one experimental dependency.
-- Prove that Renovate changes only `seed4j.version`.
-- Reject any reintroduction of Pages, a custom datasource, `digest`, or a second experimental manager.
-
-Observed at the previous milestone boundary:
-
-- CLI: 39 workflow-policy tests and 648 Maven tests passed; repository-wide Prettier, Renovate 44.103.6 validation, and `habit-hooks` passed.
-- Publisher: 49 tests, changed-file Prettier, dry run, Maven wrapper check, and `habit-hooks` passed. The repository-wide Prettier command remains red only for 17 pre-existing `.agent/tmp` evidence files outside this migration.
-
-Observed after integration: the hosted Renovate job at 2026-09-21 14:51 UTC loaded the paused `experimental` rule; no snapshot PR was open. Publisher PR #11 passed and merged. Manual `operation=head` run 35616116724 passed; Central serves the full-SHA POM, JAR, and tests JAR with matching GAV and `<scm><tag>`, and does not serve sources or Javadoc. CLI PR #400 passed protected `tests` and merged into `experimental`; the packaged `--version` output showed the same full SHA.
+The experimental merge resolves branch-specific identity and test conflicts using the common modular implementation. Its
+POM retains the snapshot repository and the generator restriction. A packaged test expectation was corrected to compare
+the version's final component with the reported upstream SHA.

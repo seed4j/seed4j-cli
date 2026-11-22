@@ -53,16 +53,19 @@
       <version>${seed4j.version}</version>
     </dependency>
     <dependency>
+      <groupId>${seed4j.group-id}</groupId>
+      <artifactId>seed4j-core-modules</artifactId>
+      <version>${seed4j.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>${seed4j.group-id}</groupId>
-      <artifactId>${seed4j.artifact-id}</artifactId>
+      <artifactId>seed4j-test</artifactId>
       <version>${seed4j.version}</version>
-      <type>test-jar</type>
-      <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -93,10 +96,10 @@
     <properties-maven-plugin.version>1.4.0</properties-maven-plugin.version>
     <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
     <picocli-spring-boot-starter.version>4.7.7</picocli-spring-boot-starter.version>
-    <spring-boot.version>4.1.2</spring-boot.version>
+    <spring-boot.version>4.2.0</spring-boot.version>
     <seed4j.group-id>io.github.renanfranca</seed4j.group-id>
-    <seed4j.artifact-id>seed4j-main-snapshot</seed4j.artifact-id>
-    <seed4j.version>2.2.1-main.20261026.013057.4646ed8310c45e1e0585985a06b9e06f11ee5ead-SNAPSHOT</seed4j.version>
+    <seed4j.artifact-id>seed4j-engine</seed4j.artifact-id>
+    <seed4j.version>2.4.1-main.20261121.231244.65403861f94c000ecf2e0db50ed53e030b39d290-SNAPSHOT</seed4j.version>
     <seed4j.release-channel>experimental</seed4j.release-channel>
     <seed4j.repository-url>https://central.sonatype.com/repository/maven-snapshots/</seed4j.repository-url>
     <seed4j.unavailable-modules>seed4j-extension</seed4j.unavailable-modules>

@@ -13,6 +13,7 @@ unavailable-modules=@seed4j.unavailable-modules@
 `;
 
 function distributionIdentity(pom) {
+  pom = withoutComments(pom);
   const properties = /<properties>([\s\S]*?)<\/properties>/.exec(pom)?.[1];
   if (!properties) {
     throw new Error('Maven must define one top-level distribution authority.');
@@ -42,18 +43,12 @@ function propertyValue(properties, name) {
 }
 
 function validateDistributionBuild({ metadata, pom }) {
+  pom = withoutComments(pom);
   if (metadata !== FILTERED_METADATA) {
     throw new Error('Packaged distribution metadata must contain only Maven authority tokens.');
   }
   if (/<seed4j\.upstream-commit(?:\s*\/>|>)/.test(pom)) {
     throw new Error('Maven distribution authority must not define legacy upstream commit.');
-  }
-  for (const element of ['groupId', 'artifactId', 'version']) {
-    const property = PROPERTY_NAMES[element === 'groupId' ? 'groupId' : element === 'artifactId' ? 'artifactId' : 'version'];
-    const matches = pom.match(new RegExp(`<${element}>\\$\\{${escapeRegularExpression(property)}\\}<\\/${element}>`, 'g'));
-    if ((matches ?? []).length !== 2) {
-      throw new Error(`Both Seed4J dependencies must use Maven-owned ${property}.`);
-    }
   }
   if (
     !/<include>META-INF\/seed4j-cli-distribution\.properties<\/include>/.test(pom)
@@ -72,14 +67,89 @@ function validateDistributionBuild({ metadata, pom }) {
   } else {
     throw new Error(`Unsupported distribution release channel '${currentIdentity.channel}'.`);
   }
+  requireSeed4JDependencies(pom);
   return validatedIdentity;
+}
+
+function withoutComments(xml) {
+  return xml.replace(/<!--[\s\S]*?-->/g, '');
+}
+
+function requireSeed4JDependencies(pom) {
+  const expectedDependencies = [
+    { role: 'engine', artifactId: '${seed4j.artifact-id}', scope: 'compile' },
+    { role: 'core modules', artifactId: 'seed4j-core-modules', scope: 'compile' },
+    { role: 'test support', artifactId: 'seed4j-test', scope: 'test' },
+  ];
+  const project = childElements(pom, 'project')[0] ?? '';
+  const dependencies = childElements(project, 'dependencies')
+    .flatMap(dependencies => childElements(dependencies, 'dependency'))
+    .map(dependency =>
+      Object.fromEntries(
+        ['groupId', 'artifactId', 'version', 'scope', 'type', 'classifier'].map(field => [field, childElements(dependency, field)]),
+      ),
+    );
+  for (const expected of expectedDependencies) {
+    requireDependency(
+      dependencies.filter(dependency => dependency.artifactId.includes(expected.artifactId)),
+      expected,
+    );
+  }
+  const seed4jGroups = ['${seed4j.group-id}', 'com.seed4j', 'io.github.renanfranca'];
+  const seed4jDependencies = dependencies.filter(dependency => dependency.groupId.some(group => seed4jGroups.includes(group)));
+  if (seed4jDependencies.length !== expectedDependencies.length) {
+    throw new Error('Only the engine, core modules and test support may be declared as direct Seed4J dependencies.');
+  }
+}
+
+function childElements(xml, name) {
+  const elements = [];
+  let depth = 0;
+  let start = 0;
+  let elementName = '';
+  for (const tag of xml.matchAll(/<\/?([\w.:-]+)\b[^>]*>/g)) {
+    const closing = tag[0].startsWith('</');
+    const empty = tag[0].endsWith('/>');
+    if (!closing && depth === 0) {
+      start = tag.index + tag[0].length;
+      elementName = tag[1];
+    }
+    if (!empty) {
+      depth += closing ? -1 : 1;
+    }
+    if (depth === 0 && elementName === name) {
+      elements.push(empty ? '' : xml.slice(start, tag.index).trim());
+    }
+  }
+  return elements;
+}
+
+function requireDependency(dependencies, { role, artifactId, scope }) {
+  if (dependencies.length !== 1) {
+    throw new Error(`Seed4J ${role} dependency artifactId must be '${artifactId}' and declared exactly once in project dependencies.`);
+  }
+  const dependency = dependencies[0];
+  for (const [field, expected, defaultValue] of [
+    ['groupId', '${seed4j.group-id}'],
+    ['artifactId', artifactId],
+    ['version', '${seed4j.version}'],
+    ['type', 'jar', 'jar'],
+    ['classifier', '', ''],
+    ['scope', scope, 'compile'],
+  ]) {
+    const values = dependency[field];
+    const value = values.length === 0 ? defaultValue : values[0];
+    if (values.length > 1 || value !== expected) {
+      throw new Error(`Seed4J ${role} dependency ${field} must be '${expected}'${defaultValue === undefined ? ' exactly once' : ''}.`);
+    }
+  }
 }
 
 function requireStableIdentity(identity) {
   if (
     identity.channel !== 'stable'
     || identity.groupId !== 'com.seed4j'
-    || identity.artifactId !== 'seed4j'
+    || identity.artifactId !== 'seed4j-engine'
     || !/^\d+\.\d+\.\d+$/.test(identity.version)
     || identity.repositoryUrl !== 'https://repo.maven.apache.org/maven2'
     || identity.upstreamCommit !== ''
@@ -99,7 +169,7 @@ function requireExperimentalIdentity(identity) {
   if (
     identity.channel !== 'experimental'
     || identity.groupId !== 'io.github.renanfranca'
-    || identity.artifactId !== 'seed4j-main-snapshot'
+    || identity.artifactId !== 'seed4j-engine'
     || identity.repositoryUrl !== 'https://central.sonatype.com/repository/maven-snapshots/'
     || identity.unavailableModules !== 'seed4j-extension'
   ) {

@@ -1,15 +1,14 @@
 package com.seed4j.cli.command.infrastructure.primary;
 
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
+import com.seed4j.history.infrastructure.primary.ProjectHistorySummary;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.domain.Seed4JModuleToApply;
 import com.seed4j.module.domain.properties.Seed4JModuleProperties;
 import com.seed4j.module.domain.properties.Seed4JPropertyKey;
 import com.seed4j.module.domain.resource.Seed4JModulePropertyDefinition;
 import com.seed4j.module.domain.resource.Seed4JModuleResource;
-import com.seed4j.project.application.ProjectsApplicationService;
-import com.seed4j.project.domain.ProjectPath;
-import com.seed4j.project.domain.history.ModuleParameters;
-import com.seed4j.project.domain.history.ProjectHistory;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -28,9 +27,9 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   private final Seed4JModulesApplicationService modules;
   private final Seed4JModuleResource module;
   private final CommandSpec commandSpec;
-  private final ProjectsApplicationService projects;
+  private final JavaProjectHistories projects;
 
-  public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, ProjectsApplicationService projects) {
+  public ApplyModuleSubCommand(Seed4JModulesApplicationService modules, Seed4JModuleResource module, JavaProjectHistories projects) {
     this.modules = modules;
     this.module = module;
     this.projects = projects;
@@ -48,33 +47,34 @@ class ApplyModuleSubCommand implements Callable<Integer> {
   @Override
   public Integer call() {
     String projectPath = projectPath();
-    ProjectHistory history = projects.getHistory(new ProjectPath(projectPath));
+    ProjectHistorySummary history = projects.get(projectPath);
     return executionMode() == ApplyModuleExecutionMode.PLAN ? plan(projectPath, history) : apply(projectPath, history);
   }
 
-  private Integer plan(String projectPath, ProjectHistory history) {
+  private Integer plan(String projectPath, ProjectHistorySummary history) {
     ResolvedModuleParameters resolvedParameters = new ApplyModuleParameterResolver().resolve(
       module.propertiesDefinition(),
       parametersFromOptions(),
-      history.latestProperties().get()
+      history.properties()
     );
     System.out.print(new ApplyModulePlanRenderer().render(module.slug().get(), projectPath, dependencyPlan(history), resolvedParameters));
     return ExitCode.OK;
   }
 
-  private ApplyModuleDependencyPlan dependencyPlan(ProjectHistory history) {
+  private ApplyModuleDependencyPlan dependencyPlan(ProjectHistorySummary history) {
     return new ApplyModuleDependencyPlanner().plan(module, modules, history);
   }
 
-  private Integer apply(String projectPath, ProjectHistory history) {
+  private Integer apply(String projectPath, ProjectHistorySummary history) {
     ApplyModuleDependencyPlan dependencyPlan = dependencyPlan(history);
     if (dependencyPlan.notReady()) {
       return missingDependencies(dependencyPlan);
     }
 
-    ModuleParameters parameters = history.latestProperties().merge(new ModuleParameters(parametersFromOptions()));
-    validateRequiredOptions(parameters);
-    applyModule(projectPath, parameters);
+    Map<String, Object> mergedParameters = new HashMap<>(history.properties());
+    mergedParameters.putAll(parametersFromOptions());
+    validateRequiredOptions(mergedParameters);
+    applyModule(projectPath, mergedParameters);
     return ExitCode.OK;
   }
 
@@ -83,8 +83,8 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     return ExitCode.USAGE;
   }
 
-  private void applyModule(String projectPath, ModuleParameters parameters) {
-    Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath, commitEnabled(), parameters.get());
+  private void applyModule(String projectPath, Map<String, Object> parameters) {
+    Seed4JModuleProperties properties = new Seed4JModuleProperties(projectPath, commitEnabled(), parameters);
     modules.apply(new Seed4JModuleToApply(module.slug(), properties));
   }
 
@@ -120,12 +120,12 @@ class ApplyModuleSubCommand implements Callable<Integer> {
     return commandSpec.findOption(toDashedFormat(property.key())).getValue();
   }
 
-  private void validateRequiredOptions(ModuleParameters moduleParameters) {
+  private void validateRequiredOptions(Map<String, Object> moduleParameters) {
     List<OptionSpec> missingOptions = module
       .propertiesDefinition()
       .stream()
       .filter(Seed4JModulePropertyDefinition::isMandatory)
-      .filter(property -> !moduleParameters.get().containsKey(property.key().get()))
+      .filter(property -> !moduleParameters.containsKey(property.key().get()))
       .map(property -> commandSpec.findOption(toDashedFormat(property.key())))
       .toList();
 

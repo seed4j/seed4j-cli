@@ -90,7 +90,7 @@ There is no special rule keeping the project below `1.0.0`. For example, a break
 classification.
 
 Renovate uses `fix(deps)` for Maven dependencies shipped at runtime and `chore(deps)` for build or test tooling. An
-update to `com.seed4j:seed4j`, Spring Boot, JGit, or another runtime dependency therefore releases a patch after its
+update to `com.seed4j:seed4j-engine`, Spring Boot, JGit, or another runtime dependency therefore releases a patch after its
 checks pass. If a major dependency update changes the CLI contract incompatibly, mark the merge commit with `!` or a
 `BREAKING CHANGE:` footer instead.
 

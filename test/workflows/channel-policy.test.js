@@ -124,21 +124,17 @@ test('Renovate tracks experimental snapshots through one native Maven rule with 
     ignoreUnstable: true,
     matchBaseBranches: ['main'],
     matchDatasources: ['maven'],
-    matchPackageNames: ['com.seed4j:seed4j'],
+    matchManagers: ['custom.regex'],
+    matchPackageNames: ['com.seed4j:seed4j-engine'],
     semanticCommitScope: 'deps',
     semanticCommitType: 'fix',
   });
-  assert.deepEqual(rules['Ignore personal snapshots on main'], {
-    description: 'Ignore personal snapshots on main',
+  assert.deepEqual(rules['Use only the regex updater for official Seed4J modules on main'], {
+    description: 'Use only the regex updater for official Seed4J modules on main',
     enabled: false,
     matchBaseBranches: ['main'],
-    matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
-  });
-  assert.deepEqual(rules['Ignore official Seed4J releases on experimental'], {
-    description: 'Ignore official Seed4J releases on experimental',
-    enabled: false,
-    matchBaseBranches: ['experimental'],
-    matchPackageNames: ['com.seed4j:seed4j'],
+    matchManagers: ['maven'],
+    matchPackageNames: ['com.seed4j:seed4j-engine', 'com.seed4j:seed4j-core-modules', 'com.seed4j:seed4j-test'],
   });
   assert.deepEqual(rules['Track personal Seed4J snapshots on experimental'], {
     description: 'Track personal Seed4J snapshots on experimental',
@@ -146,7 +142,7 @@ test('Renovate tracks experimental snapshots through one native Maven rule with 
     matchBaseBranches: ['experimental'],
     matchDatasources: ['maven'],
     matchManagers: ['maven'],
-    matchPackageNames: ['io.github.renanfranca:seed4j-main-snapshot'],
+    matchPackageNames: ['io.github.renanfranca:seed4j-core-modules'],
     registryUrls: ['https://central.sonatype.com/repository/maven-snapshots/'],
     ignoreUnstable: false,
     automerge: true,
@@ -158,13 +154,13 @@ test('Renovate tracks experimental snapshots through one native Maven rule with 
   assert.equal(
     renovate.packageRules.filter(
       rule =>
-        rule.matchBaseBranches?.includes('experimental') && rule.matchPackageNames?.includes('io.github.renanfranca:seed4j-main-snapshot'),
+        rule.matchBaseBranches?.includes('experimental') && rule.matchPackageNames?.includes('io.github.renanfranca:seed4j-core-modules'),
     ).length,
     1,
   );
   assert.equal('customDatasources' in renovate, false);
   assert.equal(
-    renovate.customManagers.some(manager => manager.depNameTemplate === 'io.github.renanfranca:seed4j-main-snapshot'),
+    renovate.customManagers.some(manager => manager.depNameTemplate === 'io.github.renanfranca:seed4j-core-modules'),
     false,
   );
   assert.ok(renovate.extends.includes(':automergeRequireAllStatusChecks'));
@@ -184,22 +180,28 @@ function read(relativePath) {
 
 test('shared dependencies update only on main while the personal snapshot remains enabled on experimental', () => {
   const renovate = JSON.parse(read('renovate.json'));
-  const enabled = (branch, dependency) =>
+  const enabled = (branch, dependency, manager = 'maven') =>
     renovate.packageRules.reduce((value, rule) => {
       const branchMatches = !rule.matchBaseBranches || rule.matchBaseBranches.includes(branch);
       const nameMatches =
         !rule.matchPackageNames
         || rule.matchPackageNames.includes(dependency)
         || (typeof dependency === 'string' && rule.matchPackageNames.includes('*'));
-      return branchMatches && nameMatches && rule.enabled !== undefined ? rule.enabled : value;
+      const managerMatches = !rule.matchManagers || rule.matchManagers.includes(manager);
+      return branchMatches && nameMatches && managerMatches && rule.enabled !== undefined ? rule.enabled : value;
     }, true);
 
-  for (const dependency of ['org.springframework.boot:spring-boot', 'prettier', 'actions/checkout', 'com.seed4j:seed4j']) {
+  for (const dependency of ['org.springframework.boot:spring-boot', 'prettier', 'actions/checkout']) {
     assert.equal(enabled('main', dependency), true);
     assert.equal(enabled('experimental', dependency), false);
   }
   assert.equal(enabled('main', undefined), true);
   assert.equal(enabled('experimental', undefined), false);
-  assert.equal(enabled('main', 'io.github.renanfranca:seed4j-main-snapshot'), false);
-  assert.equal(enabled('experimental', 'io.github.renanfranca:seed4j-main-snapshot'), true);
+  assert.equal(enabled('main', 'com.seed4j:seed4j-engine', 'custom.regex'), true);
+  assert.equal(enabled('experimental', 'com.seed4j:seed4j-engine', 'custom.regex'), false);
+  for (const artifact of ['seed4j-engine', 'seed4j-core-modules', 'seed4j-test']) {
+    assert.equal(enabled('main', 'com.seed4j:' + artifact), false);
+    assert.equal(enabled('experimental', 'io.github.renanfranca:' + artifact), artifact === 'seed4j-core-modules');
+  }
+  assert.equal(enabled('experimental', 'io.github.renanfranca:seed4j-core-modules'), true);
 });

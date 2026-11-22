@@ -17,7 +17,7 @@ import java.util.Optional;
 
 public class CurrentProcessPreSpringRuntimeEnvironmentReader {
 
-  private static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
+  static final String CHILD_MODE_PROPERTY = "seed4j.cli.runtime.child";
 
   public PreSpringRuntimeEnvironment current() {
     Path codeSourcePath = currentCodeSourcePath();
