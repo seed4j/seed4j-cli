@@ -16,8 +16,4 @@ public record Seed4JCliHome(Path path) {
   public Path configPath() {
     return path.resolve(".config/seed4j-cli/config.yml");
   }
-
-  public Path runtimeCacheDirectory() {
-    return path.resolve(".config/seed4j-cli/runtime/cache");
-  }
 }

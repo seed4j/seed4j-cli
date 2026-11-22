@@ -32,7 +32,7 @@ class SpringBootLocalCliRunnerTest {
       Path configPath = userHomePath.resolve(".config/seed4j-cli/config.yml");
       Files.createDirectories(configPath.getParent());
       Files.writeString(configPath, "seed4j:\n  runtime:\n    mode: standard\n");
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(userHomePath), null, 0);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(userHomePath), 0);
 
       fixture.run("--version");
 
@@ -47,47 +47,7 @@ class SpringBootLocalCliRunnerTest {
       Path legacyConfigPath = userHomePath.resolve(".config/seed4j-cli.yml");
       Files.createDirectories(legacyConfigPath.getParent());
       Files.writeString(legacyConfigPath, "seed4j:\n  runtime:\n    mode: extension\n");
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(userHomePath), null, 0);
-
-      fixture.run("--version");
-
-      assertThat(fixture.operations.propertyEntries).isEmpty();
-    }
-
-    @Test
-    void shouldAddSpringMainSourcesWhenRuntimeExtensionStartClassPropertyIsPresent() {
-      RunnerFixture fixture = new RunnerFixture(
-        new Seed4JCliHome(Path.of("/tmp")),
-        "com.mycompany.extension.ExtensionRuntimeApplication",
-        0
-      );
-
-      fixture.run("--version");
-
-      assertThat(fixture.operations.propertyEntries).containsExactly(
-        "spring.main.sources=com.mycompany.extension.ExtensionRuntimeApplication"
-      );
-    }
-
-    @Test
-    void shouldPreserveExternalConfigLocationWhenAlsoAddingSpringMainSources() throws IOException {
-      Path userHomePath = Files.createTempDirectory("seed4j-cli-");
-      Path configPath = userHomePath.resolve(".config/seed4j-cli/config.yml");
-      Files.createDirectories(configPath.getParent());
-      Files.writeString(configPath, "seed4j:\n  runtime:\n    mode: extension\n");
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(userHomePath), "com.mycompany.extension.ExtensionRuntimeApplication", 0);
-
-      fixture.run("--version");
-
-      assertThat(fixture.operations.propertyEntries).containsExactly(
-        "spring.config.location=classpath:/config/,file:%s".formatted(configPath),
-        "spring.main.sources=com.mycompany.extension.ExtensionRuntimeApplication"
-      );
-    }
-
-    @Test
-    void shouldIgnoreBlankRuntimeExtensionStartClassProperty() {
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), "   ", 0);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(userHomePath), 0);
 
       fixture.run("--version");
 
@@ -100,7 +60,7 @@ class SpringBootLocalCliRunnerTest {
 
     @Test
     void shouldConfigureTheApplicationAsNonWeb() {
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), null, 0);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), 0);
 
       fixture.run("--version");
 
@@ -109,7 +69,7 @@ class SpringBootLocalCliRunnerTest {
 
     @Test
     void shouldDisableTheSpringBanner() {
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), null, 0);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), 0);
 
       fixture.run("--version");
 
@@ -119,7 +79,7 @@ class SpringBootLocalCliRunnerTest {
     @Test
     void shouldReturnTheSpringExitCode() {
       int expectedExitCode = 37;
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), null, expectedExitCode);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), expectedExitCode);
 
       int exitCode = fixture.run("--version");
 
@@ -138,7 +98,7 @@ class SpringBootLocalCliRunnerTest {
 
     @Test
     void shouldEnableLazyInitialization() {
-      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), null, 0);
+      RunnerFixture fixture = new RunnerFixture(new Seed4JCliHome(Path.of("/tmp")), 0);
 
       fixture.run("--version");
 
@@ -155,8 +115,7 @@ class SpringBootLocalCliRunnerTest {
           return operations;
         },
         mock(SpringBootExitCodeResolver.class),
-        new Seed4JCliHome(Path.of("/tmp")),
-        () -> null
+        new Seed4JCliHome(Path.of("/tmp"))
       );
 
       runner.run(arguments("--version"));
@@ -178,10 +137,10 @@ class SpringBootLocalCliRunnerTest {
     private final SpringBootExitCodeResolver exitCodeResolver;
     private final SpringBootLocalCliRunner runner;
 
-    private RunnerFixture(Seed4JCliHome cliHome, String runtimeExtensionStartClass, int exitCode) {
+    private RunnerFixture(Seed4JCliHome cliHome, int exitCode) {
       exitCodeResolver = mock(SpringBootExitCodeResolver.class);
       when(exitCodeResolver.resolve(any(SpringApplicationContextAdapter.class))).thenReturn(exitCode);
-      runner = new SpringBootLocalCliRunner(() -> operations, exitCodeResolver, cliHome, () -> runtimeExtensionStartClass);
+      runner = new SpringBootLocalCliRunner(() -> operations, exitCodeResolver, cliHome);
     }
 
     private int run(String... values) {

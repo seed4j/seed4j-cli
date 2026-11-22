@@ -17,14 +17,15 @@ const files = [
   'scripts/prepare-release.js',
 ];
 const pom = readFileSync(join(repositoryRoot, 'pom.xml'), 'utf8');
-const version = /<seed4j\.version>(\d+)\.(\d+)\.(\d+)<\/seed4j\.version>/.exec(pom);
-assert.ok(version, 'the POM must declare a stable seed4j.version');
-const [major, minor, patch] = version.slice(1).map(Number);
+const version = /<seed4j\.version>(\d+)\.(\d+)\.(\d+)([^<]*)<\/seed4j\.version>/.exec(pom);
+assert.ok(version, 'the POM must declare a seed4j.version');
+const [major, minor, patch] = version.slice(1, 4).map(Number);
+const suffix = version[4];
 
 for (const [change, nextVersion] of [
-  ['patch', `${major}.${minor}.${patch + 1}`],
-  ['minor', `${major}.${minor + 1}.0`],
-  ['major', `${major + 1}.0.0`],
+  ['patch', `${major}.${minor}.${patch + 1}${suffix}`],
+  ['minor', `${major}.${minor + 1}.0${suffix}`],
+  ['major', `${major + 1}.0.0${suffix}`],
 ]) {
   test(`the complete identity suite accepts a ${change} update to ${nextVersion}`, context => {
     const originals = files.map(file => [file, readFileSync(join(repositoryRoot, file))]);

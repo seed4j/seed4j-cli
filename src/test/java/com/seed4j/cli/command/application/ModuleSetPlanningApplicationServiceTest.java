@@ -141,7 +141,7 @@ class ModuleSetPlanningApplicationServiceTest {
       DistributionMetadata metadata = new DistributionMetadata(
         new DistributionIdentity(
           ReleaseChannel.EXPERIMENTAL,
-          Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", "snapshot-version"),
+          Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-engine", "snapshot-version"),
           Optional.of(new Seed4JUpstreamCommit("0123456789abcdef0123456789abcdef01234567"))
         ),
         new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug(unavailable.value())))

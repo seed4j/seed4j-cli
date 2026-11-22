@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
-const { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, readFileSync, readdirSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve, sep } = require('node:path');
 
@@ -34,25 +34,11 @@ try {
   assertCanonicalSkill(globalDestination);
   assert.deepEqual(readdirSync(globalWorkingDirectory), []);
 
-  const overlay = join(temporaryRoot, 'extension-overlay');
-  writeOverlaySkill(overlay);
-  const overlayProject = join(temporaryRoot, 'overlay-project');
   const packageRoot = process.platform === 'win32' ? join(prefix, 'node_modules/seed4j-cli') : join(prefix, 'lib/node_modules/seed4j-cli');
-  const packagedJar = join(packageRoot, 'dist/seed4j-cli.jar');
   const skillManifest = JSON.parse(readFileSync(join(packageRoot, 'dist/skill-manifest.json'), 'utf8'));
   assert.deepEqual(skillManifest.directories, ['references']);
   assert.deepEqual(skillManifest.files, hashedFiles(localDestination));
   assert.deepEqual(skillManifest.files, hashedFiles(globalDestination));
-  const overlayRun = run(
-    'java',
-    [`-Dloader.path=${overlay}`, '-cp', packagedJar, 'org.springframework.boot.loader.launch.PropertiesLauncher', 'skill', 'install'],
-    overlayProject,
-    environment,
-    true,
-  );
-  const overlayDestination = resolve(overlayProject, '.agents/skills/seed4j-cli');
-  assert.equal(overlayRun.stdout, `Installed Seed4J CLI skill at ${overlayDestination}.\n`);
-  assertCanonicalSkill(overlayDestination);
 } finally {
   if (tarballPath) {
     rmSync(tarballPath, { force: true });
@@ -78,14 +64,6 @@ function hashedFiles(destination) {
         .digest('hex'),
     ]),
   );
-}
-
-function writeOverlaySkill(overlay) {
-  const references = join(overlay, 'skills/seed4j-cli/references');
-  mkdirSync(references, { recursive: true });
-  writeFileSync(join(overlay, 'skills/seed4j-cli/SKILL.md'), 'shadowed skill\n');
-  writeFileSync(join(references, 'applying-modules.md'), 'shadowed skill\n');
-  writeFileSync(join(references, 'module-set-planning.md'), 'shadowed skill\n');
 }
 
 function listFiles(directory) {

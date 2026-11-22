@@ -23,7 +23,7 @@ class DistributionMetadataApplicationServiceTest {
     DistributionMetadata metadata = new DistributionMetadata(
       new DistributionIdentity(
         ReleaseChannel.EXPERIMENTAL,
-        Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", "snapshot-version"),
+        Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-engine", "snapshot-version"),
         Optional.of(upstreamCommit)
       ),
       new Seed4JModuleAvailability(Set.of(new DistributionModuleSlug("seed4j-extension")))

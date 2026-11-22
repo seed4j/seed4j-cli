@@ -28,14 +28,20 @@ class ClasspathDistributionMetadataReaderTest {
   private static final String FULL_SHA_VERSION = "2.2.1-main.20260907.055800." + UPSTREAM_SHA + "-SNAPSHOT";
 
   @Test
-  void shouldReadPackagedStableDistributionMetadata() {
-    ClasspathDistributionMetadataReader reader = new ClasspathDistributionMetadataReader(new DefaultResourceLoader());
+  void shouldReadTheStableEngineIdentity() {
+    ClasspathDistributionMetadataReader reader = readerFor(
+      """
+      release-channel=stable
+      seed4j-dependency-coordinate=com.seed4j:seed4j-engine:2.4.0
+      unavailable-modules=
+      """
+    );
 
     DistributionMetadata metadata = reader.read();
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.STABLE);
     assertThat(metadata.identity().dependencyCoordinate().groupId().value()).isEqualTo("com.seed4j");
-    assertThat(metadata.identity().dependencyCoordinate().artifactId().value()).isEqualTo("seed4j");
+    assertThat(metadata.identity().dependencyCoordinate().artifactId().value()).isEqualTo("seed4j-engine");
     assertThat(metadata.identity().dependencyCoordinate().version()).isPresent();
     assertThat(metadata.identity().upstreamCommit()).isEmpty();
     assertThat(metadata.moduleAvailability().available("seed4j-extension")).isTrue();
@@ -49,7 +55,7 @@ class ClasspathDistributionMetadataReaderTest {
     DistributionMetadata metadata = reader.read();
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.STABLE);
-    assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(Seed4JDependencyCoordinate.unversioned("com.seed4j", "seed4j"));
+    assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(Seed4JDependencyCoordinate.unversioned("com.seed4j", "seed4j-engine"));
     assertThat(metadata.identity().upstreamCommit()).isEmpty();
     assertThat(metadata.moduleAvailability().available("seed4j-extension")).isTrue();
   }
@@ -68,7 +74,7 @@ class ClasspathDistributionMetadataReaderTest {
   void shouldReadExperimentalDistributionIdentityAndAvailability() {
     String experimentalMetadata = """
     release-channel=experimental
-    seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:%s
+    seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:%s
     unavailable-modules=seed4j-extension
     """.formatted(FULL_SHA_VERSION);
     ClasspathDistributionMetadataReader reader = readerFor(experimentalMetadata);
@@ -77,7 +83,7 @@ class ClasspathDistributionMetadataReaderTest {
 
     assertThat(metadata.identity().channel()).isEqualTo(ReleaseChannel.EXPERIMENTAL);
     assertThat(metadata.identity().dependencyCoordinate()).isEqualTo(
-      Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-main-snapshot", FULL_SHA_VERSION)
+      Seed4JDependencyCoordinate.versioned("io.github.renanfranca", "seed4j-engine", FULL_SHA_VERSION)
     );
     assertThat(metadata.identity().upstreamCommit()).hasValueSatisfying(commit -> assertThat(commit.value()).isEqualTo(UPSTREAM_SHA));
     assertThat(metadata.moduleAvailability().unavailableModules()).isEqualTo(Set.of(new DistributionModuleSlug("seed4j-extension")));
@@ -87,7 +93,7 @@ class ClasspathDistributionMetadataReaderTest {
   void shouldRejectLegacyUpstreamCommitMetadata() {
     String experimentalMetadata = """
     release-channel=experimental
-    seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:%s
+    seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:%s
     seed4j-upstream-commit=%s
     unavailable-modules=seed4j-extension
     """.formatted(FULL_SHA_VERSION, UPSTREAM_SHA);
@@ -105,7 +111,7 @@ class ClasspathDistributionMetadataReaderTest {
           "missing availability",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:snapshot-version
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:snapshot-version
           """
         )
       ),
@@ -114,7 +120,7 @@ class ClasspathDistributionMetadataReaderTest {
           "extension available experimentally",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:2.2.1-main.20260907.055800.0123456789abcdef0123456789abcdef01234567-SNAPSHOT
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:2.2.1-main.20260907.055800.0123456789abcdef0123456789abcdef01234567-SNAPSHOT
           unavailable-modules=
           """
         )
@@ -124,7 +130,7 @@ class ClasspathDistributionMetadataReaderTest {
           "unknown channel",
           """
           release-channel=preview
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:snapshot-version
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:snapshot-version
           unavailable-modules=seed4j-extension
           """
         )
@@ -143,7 +149,7 @@ class ClasspathDistributionMetadataReaderTest {
           "incomplete dependency coordinate",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine
           unavailable-modules=seed4j-extension
           """
         )
@@ -153,7 +159,7 @@ class ClasspathDistributionMetadataReaderTest {
           "invalid upstream version",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:snapshot-version
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:snapshot-version
           unavailable-modules=seed4j-extension
           """
         )
@@ -163,7 +169,7 @@ class ClasspathDistributionMetadataReaderTest {
           "short SHA version",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:2.2.1-main.20260907.055800.0123456789ab-SNAPSHOT
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:2.2.1-main.20260907.055800.0123456789ab-SNAPSHOT
           unavailable-modules=seed4j-extension
           """
         )
@@ -173,7 +179,7 @@ class ClasspathDistributionMetadataReaderTest {
           "stable unavailable module",
           """
           release-channel=stable
-          seed4j-dependency-coordinate=com.seed4j:seed4j:2.2.0
+          seed4j-dependency-coordinate=com.seed4j:seed4j-engine:2.4.0
           unavailable-modules=seed4j-extension
           """
         )
@@ -183,7 +189,7 @@ class ClasspathDistributionMetadataReaderTest {
           "more than extension unavailable experimentally",
           """
           release-channel=experimental
-          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-main-snapshot:2.2.1-main.20260907.055800.0123456789abcdef0123456789abcdef01234567-SNAPSHOT
+          seed4j-dependency-coordinate=io.github.renanfranca:seed4j-engine:2.2.1-main.20260907.055800.0123456789abcdef0123456789abcdef01234567-SNAPSHOT
           unavailable-modules=seed4j-extension,another-module
           """
         )

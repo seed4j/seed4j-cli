@@ -20,10 +20,6 @@ public record Seed4JCliArguments(String[] values) {
     return List.copyOf(Arrays.asList(values));
   }
 
-  public boolean contains(String value) {
-    return asList().contains(value);
-  }
-
   @Override
   @ExcludeFromGeneratedCodeCoverage
   public boolean equals(Object other) {
