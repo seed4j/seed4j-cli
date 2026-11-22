@@ -10,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.seed4j.cli.IntegrationTest;
 import com.seed4j.cli.command.application.ModuleSetExecutionApplicationService;
 import com.seed4j.cli.command.application.ModuleSetPlanningApplicationService;
-import com.seed4j.cli.command.application.RuntimeDisplayApplicationService;
-import com.seed4j.cli.command.domain.RuntimeDisplay;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetCatalog;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetGitState;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetHistoryParameters;
@@ -30,18 +28,17 @@ import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyRequirement;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetPropertyType;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetSlug;
 import com.seed4j.cli.command.domain.moduleset.ModuleSetStringParameterValue;
+import com.seed4j.cli.command.infrastructure.secondary.EngineModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.infrastructure.secondary.JGitModuleSetGitStateReader;
 import com.seed4j.cli.command.infrastructure.secondary.NioModuleSetProjectPathValidator;
-import com.seed4j.cli.command.infrastructure.secondary.ProjectsModuleSetPlanningHistoryReader;
 import com.seed4j.cli.command.infrastructure.secondary.Seed4JModuleSetCatalog;
 import com.seed4j.history.application.ProjectHistoryApplicationService;
 import com.seed4j.history.domain.ProjectAction;
 import com.seed4j.history.domain.ProjectActionToAppend;
+import com.seed4j.history.infrastructure.primary.JavaProjectHistories;
+import com.seed4j.history.infrastructure.primary.ProjectHistorySummary;
 import com.seed4j.module.application.Seed4JModulesApplicationService;
 import com.seed4j.module.infrastructure.secondary.git.GitTestUtil;
-import com.seed4j.project.application.ProjectsApplicationService;
-import com.seed4j.project.domain.ProjectPath;
-import com.seed4j.project.domain.history.ProjectHistory;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -76,7 +73,7 @@ import picocli.CommandLine;
 class ApplyModuleSetCommandTest {
 
   @Autowired
-  private ProjectsApplicationService projects;
+  private JavaProjectHistories projects;
 
   @Autowired
   private Seed4JModulesApplicationService modules;
@@ -117,7 +114,7 @@ class ApplyModuleSetCommandTest {
     void shouldKeepEarlierModuleSetCommandExecutableAfterBuildingAnotherCommandTree(CapturedOutput output) {
       ModuleSetPlanningApplicationService planning = planningService(
         new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
-        new ProjectsModuleSetPlanningHistoryReader(projects)
+        new EngineModuleSetPlanningHistoryReader(projects)
       );
       ApplyModuleSetCommand applyModuleSetCommand = applyModuleSetCommand(planning);
       Seed4JCommandsFactory factory = new Seed4JCommandsFactory(
@@ -125,7 +122,6 @@ class ApplyModuleSetCommandTest {
         new Seed4JVersionProvider(
           "1",
           "2",
-          new RuntimeDisplayApplicationService(RuntimeDisplay::standard),
           new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
             com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable
           )
@@ -310,12 +306,12 @@ class ApplyModuleSetCommandTest {
     void shouldRejectInaccessiblePosixDirectoryWithoutApplyingOrMutatingProject(@TempDir Path projectPath) throws IOException {
       Assumptions.assumeTrue(Files.getFileStore(projectPath).supportsFileAttributeView("posix"));
       Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(projectPath);
-      ProjectHistory historyBefore = projects.getHistory(new ProjectPath(projectPath.toString()));
+      ProjectHistorySummary historyBefore = projects.get(projectPath.toString());
       Map<Path, String> filesBefore = projectFiles(projectPath);
       NioModuleSetProjectPathValidator projectPathValidator = new NioModuleSetProjectPathValidator();
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
         new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
-        new ProjectsModuleSetPlanningHistoryReader(projects),
+        new EngineModuleSetPlanningHistoryReader(projects),
         projectPathValidator,
         new JGitModuleSetGitStateReader(),
         new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
@@ -355,10 +351,8 @@ class ApplyModuleSetCommandTest {
       try (Stream<Path> paths = Files.list(projectPath)) {
         assertThat(paths).isEmpty();
       }
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules()).containsExactlyElementsOf(historyBefore.modules());
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).properties().get()).isEqualTo(
-        historyBefore.properties().get()
-      );
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBefore.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBefore.properties());
       assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(projectPath.resolve(".git")).doesNotExist();
       assertThat(Files.getPosixFilePermissions(projectPath)).isEqualTo(originalPermissions);
@@ -586,7 +580,7 @@ class ApplyModuleSetCommandTest {
       }
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
         new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
-        new ProjectsModuleSetPlanningHistoryReader(projects),
+        new EngineModuleSetPlanningHistoryReader(projects),
         new NioModuleSetProjectPathValidator(),
         new JGitModuleSetGitStateReader(),
         new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
@@ -620,7 +614,7 @@ class ApplyModuleSetCommandTest {
         .contains("Status: INVALID")
         .endsWith("No changes were applied.\n");
       assertThat(pathsAfter).containsExactlyElementsOf(pathsBefore);
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(projectPath.resolve(".git")).doesNotExist();
     }
   }
@@ -667,7 +661,7 @@ class ApplyModuleSetCommandTest {
         .containsOnlyOnce("✓ baseName:")
         .containsOnlyOnce("✓ nodePackageManager:")
         .contains("Status: VALID");
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules()).isEmpty();
+      assertThat(projects.get(projectPath.toString()).modules()).isEmpty();
       assertThat(GitTestUtil.getCommits(projectPath)).isEmpty();
     }
 
@@ -808,7 +802,7 @@ class ApplyModuleSetCommandTest {
         )
       );
       Map<Path, String> filesBefore = projectFiles(projectPath);
-      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new EngineModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
@@ -848,7 +842,7 @@ class ApplyModuleSetCommandTest {
         )
       );
       Map<Path, String> filesBefore = projectFiles(projectPath);
-      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new EngineModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--indent-size", "3", "--plan" };
 
       int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
@@ -926,7 +920,7 @@ class ApplyModuleSetCommandTest {
         )
       );
       Map<Path, String> filesBefore = projectFiles(projectPath);
-      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new EngineModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
@@ -972,7 +966,7 @@ class ApplyModuleSetCommandTest {
         )
       );
       Map<Path, String> filesBefore = projectFiles(projectPath);
-      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new EngineModuleSetPlanningHistoryReader(projects));
       String[] args = { "typed-module", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
@@ -1017,7 +1011,7 @@ class ApplyModuleSetCommandTest {
         )
       );
       Map<Path, String> filesBefore = projectFiles(projectPath);
-      ModuleSetPlanningApplicationService planning = planningService(catalog, new ProjectsModuleSetPlanningHistoryReader(projects));
+      ModuleSetPlanningApplicationService planning = planningService(catalog, new EngineModuleSetPlanningHistoryReader(projects));
       String[] args = { "integer-module", "--project-path", projectPath.toString(), "--plan" };
 
       int exitCode = new CommandLine(applyModuleSetCommand(planning).spec()).execute(args);
@@ -1236,9 +1230,7 @@ class ApplyModuleSetCommandTest {
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules())
-        .extracting(module -> module.get())
-        .containsExactly("init", "maven-java");
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactly("init", "maven-java");
       assertThat(GitTestUtil.getCommits(projectPath)).hasSize(2);
       assertThat(output.getOut())
         .contains(
@@ -1304,9 +1296,7 @@ class ApplyModuleSetCommandTest {
       int exitCode = commandLine(modules, projects).execute(args);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules())
-        .extracting(module -> module.get())
-        .containsExactly("init", "maven-java");
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactly("init", "maven-java");
       assertThat(projectPath.resolve("pom.xml")).exists();
       assertThat(projectPath.resolve(".git")).doesNotExist();
       assertThat(output.getOut())
@@ -1333,7 +1323,7 @@ class ApplyModuleSetCommandTest {
       };
       int applyExitCode = commandLine(modules, projects).execute(applyArgs);
       assertThat(applyExitCode).isZero();
-      ProjectHistory historyBeforePlan = projects.getHistory(new ProjectPath(projectPath.toString()));
+      ProjectHistorySummary historyBeforePlan = projects.get(projectPath.toString());
       Map<Path, String> filesBefore = projectFiles(projectPath);
       List<String> commitsBeforePlan = GitTestUtil.getCommits(projectPath);
       String[] planArgs = { "apply-set", "init", "--project-path", projectPath.toString(), "--plan" };
@@ -1341,12 +1331,8 @@ class ApplyModuleSetCommandTest {
       int exitCode = commandLine(modules, projects).execute(planArgs);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules()).containsExactlyElementsOf(
-        historyBeforePlan.modules()
-      );
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).properties().get()).isEqualTo(
-        historyBeforePlan.properties().get()
-      );
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBeforePlan.modules());
+      assertThat(projects.get(projectPath.toString()).properties()).isEqualTo(historyBeforePlan.properties());
       assertThat(projectFiles(projectPath)).isEqualTo(filesBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBeforePlan);
       assertThat(output)
@@ -1382,9 +1368,7 @@ class ApplyModuleSetCommandTest {
       int exitCode = commandLine(modules, projects).execute(applySetArgs);
 
       assertThat(exitCode).isZero();
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules())
-        .extracting(module -> module.get())
-        .containsExactly("init", "init");
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactly("init", "init");
       assertThat(GitTestUtil.getCommits(projectPath)).hasSize(2);
       assertThat(output.getOut())
         .contains("1. init (reapplied)")
@@ -1427,13 +1411,11 @@ class ApplyModuleSetCommandTest {
     void shouldWarnThatDirtyWorktreePlanIsReadOnlyWithoutApplyingModules(CapturedOutput output) throws IOException {
       Path projectPath = setupProjectTestFolder();
       java.nio.file.Files.writeString(projectPath.resolve("existing-change.txt"), "keep me");
-      List<com.seed4j.project.domain.ModuleSlug> historyBefore = List.copyOf(
-        projects.getHistory(new ProjectPath(projectPath.toString())).modules()
-      );
+      List<String> historyBefore = List.copyOf(projects.get(projectPath.toString()).modules());
       List<String> commitsBefore = GitTestUtil.getCommits(projectPath);
       ModuleSetPlanningApplicationService planning = new ModuleSetPlanningApplicationService(
         new Seed4JModuleSetCatalog(modules, com.seed4j.cli.command.domain.distribution.DistributionMetadata::stable),
-        new ProjectsModuleSetPlanningHistoryReader(projects),
+        new EngineModuleSetPlanningHistoryReader(projects),
         new NioModuleSetProjectPathValidator(),
         new JGitModuleSetGitStateReader(),
         new com.seed4j.cli.command.application.DistributionMetadataApplicationService(
@@ -1470,7 +1452,7 @@ class ApplyModuleSetCommandTest {
         )
         .doesNotContain("Execution will continue automatically.");
       assertThat(output.getOut()).contains("Status: VALID").contains("No changes were applied.").doesNotContain("Applying module set:");
-      assertThat(projects.getHistory(new ProjectPath(projectPath.toString())).modules()).containsExactlyElementsOf(historyBefore);
+      assertThat(projects.get(projectPath.toString()).modules()).containsExactlyElementsOf(historyBefore);
       assertThat(GitTestUtil.getCommits(projectPath)).isEqualTo(commitsBefore);
     }
 

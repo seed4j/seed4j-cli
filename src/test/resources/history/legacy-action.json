@@ -1,0 +1,9 @@
+{
+  "module": "init",
+  "date": "2026-10-20T12:00:00Z",
+  "properties": {
+    "projectName": "Legacy Integration App",
+    "baseName": "legacyIntegrationApp",
+    "nodePackageManager": "npm"
+  }
+}

@@ -67,7 +67,7 @@ function validateDistributionBuild({ metadata, pom }) {
   } else {
     throw new Error(`Unsupported distribution release channel '${currentIdentity.channel}'.`);
   }
-  requireSeed4JDependencies(pom, validatedIdentity);
+  requireSeed4JDependencies(pom);
   return validatedIdentity;
 }
 
@@ -75,7 +75,12 @@ function withoutComments(xml) {
   return xml.replace(/<!--[\s\S]*?-->/g, '');
 }
 
-function requireSeed4JDependencies(pom, identity) {
+function requireSeed4JDependencies(pom) {
+  const expectedDependencies = [
+    { role: 'engine', artifactId: '${seed4j.artifact-id}', scope: 'compile' },
+    { role: 'core modules', artifactId: 'seed4j-core-modules', scope: 'compile' },
+    { role: 'test support', artifactId: 'seed4j-test', scope: 'test' },
+  ];
   const project = childElements(pom, 'project')[0] ?? '';
   const dependencies = childElements(project, 'dependencies')
     .flatMap(dependencies => childElements(dependencies, 'dependency'))
@@ -83,22 +88,18 @@ function requireSeed4JDependencies(pom, identity) {
       Object.fromEntries(
         ['groupId', 'artifactId', 'version', 'scope', 'type', 'classifier'].map(field => [field, childElements(dependency, field)]),
       ),
-    )
-    .filter(
-      dependency =>
-        dependency.artifactId.some(value => ['${seed4j.artifact-id}', 'seed4j-test', identity.artifactId].includes(value))
-        || dependency.groupId.some(value => ['${seed4j.group-id}', identity.groupId].includes(value)),
     );
-  const support = dependencies.filter(testSupportDependency);
-  const runtime = dependencies.filter(dependency => !testSupportDependency(dependency));
-  requireDependency(runtime, 'runtime', '${seed4j.artifact-id}', 'jar', '');
-  requireDependency(
-    support,
-    'test support',
-    identity.channel === 'stable' ? 'seed4j-test' : '${seed4j.artifact-id}',
-    identity.channel === 'stable' ? 'jar' : 'test-jar',
-    identity.channel === 'stable' ? '' : 'tests',
-  );
+  for (const expected of expectedDependencies) {
+    requireDependency(
+      dependencies.filter(dependency => dependency.artifactId.includes(expected.artifactId)),
+      expected,
+    );
+  }
+  const seed4jGroups = ['${seed4j.group-id}', 'com.seed4j', 'io.github.renanfranca'];
+  const seed4jDependencies = dependencies.filter(dependency => dependency.groupId.some(group => seed4jGroups.includes(group)));
+  if (seed4jDependencies.length !== expectedDependencies.length) {
+    throw new Error('Only the engine, core modules and test support may be declared as direct Seed4J dependencies.');
+  }
 }
 
 function childElements(xml, name) {
@@ -123,27 +124,18 @@ function childElements(xml, name) {
   return elements;
 }
 
-function testSupportDependency(dependency) {
-  return (
-    dependency.artifactId.includes('seed4j-test')
-    || dependency.scope.includes('test')
-    || dependency.type.includes('test-jar')
-    || dependency.classifier.includes('tests')
-  );
-}
-
-function requireDependency(dependencies, role, artifactId, type, classifier) {
+function requireDependency(dependencies, { role, artifactId, scope }) {
   if (dependencies.length !== 1) {
-    throw new Error(`Seed4J ${role} dependency must be declared exactly once in project dependencies.`);
+    throw new Error(`Seed4J ${role} dependency artifactId must be '${artifactId}' and declared exactly once in project dependencies.`);
   }
   const dependency = dependencies[0];
   for (const [field, expected, defaultValue] of [
     ['groupId', '${seed4j.group-id}'],
     ['artifactId', artifactId],
     ['version', '${seed4j.version}'],
-    ['type', type, 'jar'],
-    ['classifier', classifier, ''],
-    ...(role === 'test support' ? [['scope', 'test']] : []),
+    ['type', 'jar', 'jar'],
+    ['classifier', '', ''],
+    ['scope', scope, 'compile'],
   ]) {
     const values = dependency[field];
     const value = values.length === 0 ? defaultValue : values[0];
@@ -157,7 +149,7 @@ function requireStableIdentity(identity) {
   if (
     identity.channel !== 'stable'
     || identity.groupId !== 'com.seed4j'
-    || identity.artifactId !== 'seed4j'
+    || identity.artifactId !== 'seed4j-engine'
     || !/^\d+\.\d+\.\d+$/.test(identity.version)
     || identity.repositoryUrl !== 'https://repo.maven.apache.org/maven2'
     || identity.upstreamCommit !== ''
@@ -177,7 +169,7 @@ function requireExperimentalIdentity(identity) {
   if (
     identity.channel !== 'experimental'
     || identity.groupId !== 'io.github.renanfranca'
-    || identity.artifactId !== 'seed4j-main-snapshot'
+    || identity.artifactId !== 'seed4j-engine'
     || identity.repositoryUrl !== 'https://central.sonatype.com/repository/maven-snapshots/'
     || identity.unavailableModules !== 'seed4j-extension'
   ) {

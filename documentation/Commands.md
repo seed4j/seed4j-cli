@@ -13,19 +13,13 @@ This document provides an overview of the Seed4J CLI commands available in this 
   - [Apply a Module Set](#apply-a-module-set)
   - [Bash Completion](#bash-completion)
   - [Install the Agent Skill](#install-the-agent-skill)
-  - [Install a Runtime Extension](#install-a-runtime-extension)
-  - [Enable a Runtime Extension](#enable-a-runtime-extension)
-  - [Disable a Runtime Extension](#disable-a-runtime-extension)
+  - [Former Runtime Extension Commands](#former-runtime-extension-commands)
 - [Project Creation Workflow Example](#project-creation-workflow-example)
 - [Options and Parameters](#options-and-parameters)
   - [Parameters Reuse](#parameter-reuse)
 - [External Configuration](#external-configuration)
   - [Hidden Resources](#hidden-resources)
   - [Runtime Mode](#runtime-mode)
-  - [Extension Runtime Metadata](#extension-runtime-metadata)
-  - [Extension Mode Behavior](#extension-mode-behavior)
-  - [Runtime Validation and Failure Cases](#runtime-validation-and-failure-cases)
-  - [Creating a Seed4J Extension](#creating-a-seed4j-extension)
 
 ## Getting Started
 
@@ -68,9 +62,7 @@ This command displays:
 
 - Seed4J CLI version
 - Seed4J version
-- Active runtime mode (`standard` or `extension`)
-- Active distribution ID, in extension mode only
-- Active distribution version, in extension mode only
+- Runtime mode (`standard`)
 
 For experimental npm update checks, see [Update notification diagnostics](experimental-channel.md#update-notification-diagnostics)
 to inspect the cache and understand failure categories and retry times.
@@ -79,18 +71,8 @@ Example output in `standard` mode:
 
 ```text
 Seed4J CLI v0.0.1-SNAPSHOT
-Seed4J version: 2.2.0
+Seed4J version: 2.4.0
 Runtime mode: standard
-```
-
-Example output in `extension` mode:
-
-```text
-Seed4J CLI v0.0.1-SNAPSHOT
-Seed4J version: 2.2.0
-Runtime mode: extension
-Distribution ID: company-extension
-Distribution version: 1.0.0
 ```
 
 ### List Available Modules
@@ -550,7 +532,7 @@ seed4j completion bash --no-complete-values --install
 
 Value completion is limited to explicit static candidates in CLI metadata, known module property values, and module default values. It does not complete filesystem paths, shell history values, project history values, or values inferred from `.seed4j`.
 
-The generated script is static. Regenerate it after installing or changing an extension runtime, switching runtime mode, or changing hidden-resource configuration so Bash sees the same commands as the active CLI runtime. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
+The generated script is static. Regenerate it after changing hidden-resource configuration or the CLI version so Bash sees the current catalog. After regenerating, run `source ~/.local/share/bash-completion/completions/seed4j` again in the current terminal or open a new terminal.
 
 ### Install the Agent Skill
 
@@ -613,92 +595,14 @@ invocation outside the restricted sandbox. The installed skill also explains the
 for Seed4J's default commits. Missing Git permission is not a reason to add `--no-commit`; use that option only when the
 user explicitly requested no Git initialization or Seed4J commits.
 
-### Install a Runtime Extension
+### Former Runtime Extension Commands
 
-To install or replace the active runtime extension:
+`seed4j extension --help` explains the removal of runtime extension JAR loading. The former `seed4j extension install`,
+`seed4j extension enable`, and `seed4j extension disable` commands exit with code `2` and print a transition diagnostic.
 
-```bash
-seed4j extension install <jar> --distribution-id <id> --distribution-version <version>
-```
-
-Behavior:
-
-- validates that `<jar>` is a Seed4J runtime extension JAR (`BOOT-INF/classes` is required)
-- writes `~/.config/seed4j-cli/runtime/active/extension.jar`
-- writes `~/.config/seed4j-cli/runtime/active/metadata.yml`
-- guarantees `seed4j.runtime.mode: extension` in `~/.config/seed4j-cli/config.yml`
-- replaces existing active runtime files without `--force`
-
-On success, the command prints:
-
-```text
-Extension runtime installed successfully.
-Runtime jar: /home/user/.config/seed4j-cli/runtime/active/extension.jar
-Metadata: /home/user/.config/seed4j-cli/runtime/active/metadata.yml
-Config: /home/user/.config/seed4j-cli/config.yml
-Validate installation with:
-  seed4j --version
-  seed4j list
-```
-
-When a runtime is already installed, the command also prints:
-
-```text
-Replaced active runtime extension.
-```
-
-Fail-fast behavior:
-
-- returns non-zero exit code when the extension JAR layout is invalid
-- returns non-zero exit code when `~/.config/seed4j-cli/config.yml` is invalid
-
-### Enable a Runtime Extension
-
-To switch the CLI runtime mode to the active extension runtime:
-
-```bash
-seed4j extension enable
-```
-
-Behavior:
-
-- validates the active runtime files before changing the mode
-- writes `seed4j.runtime.mode: extension` in `~/.config/seed4j-cli/config.yml`
-- preserves other existing config keys when the YAML is valid
-- returns non-zero exit code and leaves the config unchanged when active runtime artifacts are invalid
-
-On success, the command prints:
-
-```text
-Extension runtime enabled successfully.
-Config: /home/user/.config/seed4j-cli/config.yml
-```
-
-### Disable a Runtime Extension
-
-To switch the CLI runtime mode back to the standard runtime:
-
-```bash
-seed4j extension disable
-```
-
-Behavior:
-
-- writes `seed4j.runtime.mode: standard` in `~/.config/seed4j-cli/config.yml`
-- creates `~/.config/seed4j-cli/config.yml` when missing
-- preserves other existing config keys when the YAML is valid
-- does not remove `~/.config/seed4j-cli/runtime/active/extension.jar`
-- does not remove `~/.config/seed4j-cli/runtime/active/metadata.yml`
-- returns non-zero exit code and leaves the config unchanged when `~/.config/seed4j-cli/config.yml` is invalid
-
-On success, the command prints:
-
-```text
-Extension runtime disabled successfully.
-Config: /home/user/.config/seed4j-cli/config.yml
-```
-
-MVP limitation: `seed4j extension disable` runs through the normal CLI bootstrap. If `seed4j.runtime.mode: extension` already makes the launcher fail before commands are created, this command cannot recover automatically yet. Use a valid config file or edit `~/.config/seed4j-cli/config.yml` manually to set `seed4j.runtime.mode: standard`. A launcher bypass recovery path is intentionally left for a later implementation.
+For a previous installation with `seed4j.runtime.mode: extension`, follow the [configuration migration](#runtime-mode)
+before running other commands. Stable still provides the `seed4j-extension` generator. Use
+`seed4j apply seed4j-extension --help` to inspect its options.
 
 ## Project Creation Workflow Example
 
@@ -712,7 +616,6 @@ Most commands accept additional options and parameters:
 - `--[no-]commit`: Initializes Git if needed and commits generated changes (defaults to true). `--no-commit` skips both Git
   initialization and commit.
 - `--plan`: Prints resolved module parameters and their value sources without applying changes.
-- `--debug`: Enables runtime bootstrap diagnostics (mainly for `extension` mode runtime troubleshooting)
 - `--project-name=<projectname>`: The full project name (required for some modules)
 - `--base-name=<basename>`: The project's short name, used for naming files and classes (only letters and numbers allowed)
 - `--package-name=<packagename>`: The base Java package (required for Java projects)
@@ -790,175 +693,15 @@ If you hide the `gradle-java` module, running `seed4j list` will not show it in 
 
 #### Runtime Mode
 
-Use runtime mode to control how the CLI bootstraps:
+The CLI runs in standard mode. If `~/.config/seed4j-cli/config.yml` still selects `seed4j.runtime.mode: extension`, the CLI
+exits with code `1` before starting Spring and leaves the configuration and runtime artifacts untouched.
 
-- `standard` (default): uses the standard runtime
-- `extension`: loads an additional runtime extension JAR and metadata
-
-Configure it in `~/.config/seed4j-cli/config.yml`:
+Set the previous mode to `standard`, keeping the other settings in the file.
 
 ```yaml
 seed4j:
   runtime:
-    mode: extension
+    mode: standard
 ```
 
-If `seed4j.runtime.mode` is not declared, Seed4J CLI falls back to `standard`.
-
-`seed4j extension install` config note:
-
-- sets `seed4j.runtime.mode` to `extension` automatically on successful installation
-- creates `~/.config/seed4j-cli/config.yml` when missing
-- preserves other existing config keys when the YAML is valid
-
-`seed4j extension enable` and `seed4j extension disable` config note:
-
-- `enable` validates the active runtime extension before writing `extension` mode
-- `disable` writes `standard` mode without deleting active runtime extension files
-- both commands fail fast without rewriting invalid YAML/config content
-
-`--debug` runtime note:
-
-- `--debug` is a CLI flag (no value required) shown in `seed4j --help`
-- in `extension` mode it enables bootstrap diagnostics for `com.seed4j.cli.bootstrap.domain`
-- in `extension` mode it does not force `logging.level.root=ERROR`, so DEBUG diagnostics can be emitted
-- the supported operational contract is the literal token `--debug`
-
-#### Extension Runtime Metadata
-
-When `seed4j.runtime.mode: extension` is enabled, Seed4J CLI expects:
-
-- `~/.config/seed4j-cli/runtime/active/extension.jar`
-- `~/.config/seed4j-cli/runtime/active/metadata.yml`
-
-`extension.jar` requirements:
-
-- `extension.jar` must be generated from a project built as a Seed4J extension.
-- Follow [Creating a Seed4J Extension](#creating-a-seed4j-extension) to create and package the artifact correctly.
-- Use `seed4j-sample-extension` as the practical reference implementation for structure and packaging.
-
-Recommended setup for extension mode:
-
-```bash
-# 1) build your Seed4J extension project
-./mvnw clean package
-
-# 2) install/replace the active runtime extension
-seed4j extension install target/<your-extension-artifact>.jar \
-  --distribution-id company-extension \
-  --distribution-version 1.0.0
-
-# 3) validate extension runtime loading
-seed4j --version
-seed4j list
-
-# Optional) switch back to standard mode without deleting active extension files
-seed4j extension disable
-```
-
-The install command creates or replaces these runtime files:
-
-- `~/.config/seed4j-cli/runtime/active/extension.jar`
-- `~/.config/seed4j-cli/runtime/active/metadata.yml`
-
-`metadata.yml` contract:
-
-```yaml
-distribution:
-  id: company-extension
-  version: 1.0.0
-```
-
-Rules:
-
-- `distribution.id` is required
-- `distribution.version` is required
-
-#### Extension Mode Behavior
-
-`extension` mode has two explicit contracts:
-
-- additive discovery for `seed4j list`
-- shared runtime behavior for `seed4j apply`
-
-`seed4j list` contract in `extension` mode:
-
-- keeps all core modules from the standard catalog
-- adds extension modules on top of the core catalog
-- keeps module slugs unique (no duplicated entries in `list`)
-- is not reduced by extension-level global config resources (`config/application*`, `logback*`)
-
-`seed4j apply` contract in `extension` mode:
-
-- runs with one shared Spring runtime context (core + extension)
-- shares dependency readers/resources globally across core and extension modules
-- allows extension overrides to affect core module output only when there is real overlap
-- requires overlap on the same logical source/key for dependency version overrides
-- requires overlap on the same classpath resource path for template/resource overrides
-
-Practical implications for overrides:
-
-- Node dependency overrides for core modules require the same logical source used by core readers (for example `COMMON`)
-- adding a custom source namespace does not override the core value by itself
-- template/resource overrides require collision on the exact classpath path consumed by the core module (for example `/generator/prettier/.prettierrc.mustache`)
-
-`BOOT-INF/lib` policy in `extension` mode:
-
-- CLI packaged runtime is the infrastructure baseline
-- extension libraries are added to `loader.path` only when they are missing from the CLI runtime
-- identity resolution prioritizes nested `META-INF/maven/**/pom.properties` and falls back to jar file name inference only when metadata is unavailable
-- extension older version for the same coordinate is non-blocking (CLI version wins)
-- extension newer version for the same coordinate is blocking (fail-fast)
-- not safely comparable versions for the same coordinate are blocking (fail-fast)
-- no inferable identity plus same file-name collision with a CLI library is blocking (fail-fast)
-
-#### Runtime Validation and Failure Cases
-
-Seed4J CLI fails fast (non-zero exit code) in these runtime configuration errors:
-
-- Invalid `seed4j.runtime.mode` value or type
-- Invalid YAML structure in `~/.config/seed4j-cli/config.yml`
-- Missing `extension.jar` or `metadata.yml` in extension mode
-- Invalid `metadata.yml` required fields (`distribution.id`, `distribution.version`)
-- Extension runtime jar missing `BOOT-INF/classes`
-- Extension nested runtime library metadata is incomplete or conflicting
-- Extension library requires a newer version than the CLI for the same coordinate
-- Extension/CLI library versions are not safely comparable for the same coordinate
-
-Representative fail-fast messages:
-
-Invalid extension jar layout:
-
-```text
-Invalid runtime jar file: /home/user/.config/seed4j-cli/runtime/active/extension.jar. Expected a Spring Boot fat jar containing BOOT-INF/classes.
-```
-
-Invalid runtime library metadata (`pom.properties`) in a nested extension library:
-
-```text
-Runtime library metadata for 'shared-lib.jar' is incomplete: pom.properties must define groupId, artifactId and version.
-Runtime library metadata for 'shared-lib.jar' is conflicting: multiple identities found [com.acme:shared-lib:1.0.0, org.example:shared-lib:2.0.0].
-```
-
-Blocking version conflict when extension requires a newer library than the CLI:
-
-```text
-Extension runtime library conflict detected for coordinate 'ch.qos.logback:logback-classic': CLI uses version 1.5.32 while extension requires 1.6.0.
-```
-
-Blocking conflict for versions that are not safely comparable:
-
-```text
-Extension runtime library conflict detected for coordinate 'com.acme:shared-lib': CLI version RELEASE and extension version v1 are not safely comparable.
-```
-
-In this case, follow [Creating a Seed4J Extension](#creating-a-seed4j-extension), rebuild the artifact, and replace `~/.config/seed4j-cli/runtime/active/extension.jar`.
-
-Operational note:
-
-- `extension` mode requires executing the packaged CLI JAR
-- `standard` mode can still run locally outside a packaged JAR (with a fallback warning)
-
-#### Creating a Seed4J Extension
-
-Follow the canonical [runtime extension workflow](workflows.md#create-and-install-a-runtime-extension) to build the sample module, package it, install it, and validate activation. This heading remains available so existing links to this reference path and fragment continue to resolve.
+Run `seed4j list` to confirm the installation works again.

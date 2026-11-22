@@ -25,7 +25,7 @@ class DistributionMetadataTest {
   void shouldRejectExperimentalIdentityWithoutUpstreamCommit() {
     Seed4JDependencyCoordinate coordinate = Seed4JDependencyCoordinate.versioned(
       "io.github.renanfranca",
-      "seed4j-main-snapshot",
+      "seed4j-engine",
       "snapshot-version"
     );
 
@@ -36,7 +36,7 @@ class DistributionMetadataTest {
 
   @Test
   void shouldRejectExperimentalIdentityWithoutDependencyVersion() {
-    Seed4JDependencyCoordinate coordinate = Seed4JDependencyCoordinate.unversioned("io.github.renanfranca", "seed4j-main-snapshot");
+    Seed4JDependencyCoordinate coordinate = Seed4JDependencyCoordinate.unversioned("io.github.renanfranca", "seed4j-engine");
 
     assertThatThrownBy(() -> new DistributionIdentity(ReleaseChannel.EXPERIMENTAL, coordinate, Optional.of(UPSTREAM_COMMIT)))
       .isInstanceOf(IllegalArgumentException.class)

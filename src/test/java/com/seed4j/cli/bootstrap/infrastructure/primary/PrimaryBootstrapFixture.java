@@ -4,7 +4,6 @@ import static com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrap
 import static com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapTestSupport.launchCapturingOutput;
 
 import com.seed4j.cli.bootstrap.application.PreSpringBootstrapApplicationService;
-import com.seed4j.cli.bootstrap.domain.BootstrapDiagnostics;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLaunchRequest;
 import com.seed4j.cli.bootstrap.domain.ChildRuntimeLauncher;
 import com.seed4j.cli.bootstrap.domain.JavaExecutablePath;
@@ -16,10 +15,7 @@ import com.seed4j.cli.bootstrap.domain.Seed4JCliExecutablePath;
 import com.seed4j.cli.bootstrap.domain.Seed4JCliHome;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapTestSupport.CliLaunchResult;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.PreSpringRuntimeEnvironmentSeed4JCliRuntime;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeConfiguration;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +27,6 @@ final class PrimaryBootstrapFixture {
   private final Path executablePath;
   private final RecordingChildRuntimeLauncher childRuntimeLauncher;
   private final RecordingLocalCliRunner localCliRunner;
-  private final RecordingBootstrapDiagnostics bootstrapDiagnostics;
   private final PreSpringBootstrapRunner runner;
 
   private PrimaryBootstrapFixture(Path userHome, Path executablePath, RuntimeProcessMode processMode) {
@@ -39,25 +34,22 @@ final class PrimaryBootstrapFixture {
     Seed4JCliHome cliHome = new Seed4JCliHome(userHome);
     childRuntimeLauncher = new RecordingChildRuntimeLauncher();
     localCliRunner = new RecordingLocalCliRunner();
-    bootstrapDiagnostics = new RecordingBootstrapDiagnostics();
     PreSpringRuntimeEnvironment runtimeEnvironment = new PreSpringRuntimeEnvironment(
       cliHome,
       new Seed4JCliExecutablePath(executablePath),
       processMode,
       new JavaExecutablePath(javaExecutablePath())
     );
-    runner = runner(cliHome, runtimeEnvironment);
+    runner = runner(runtimeEnvironment);
   }
 
-  private PreSpringBootstrapRunner runner(Seed4JCliHome cliHome, PreSpringRuntimeEnvironment runtimeEnvironment) {
+  private PreSpringBootstrapRunner runner(PreSpringRuntimeEnvironment runtimeEnvironment) {
     PreSpringBootstrapApplicationService applicationService = new PreSpringBootstrapApplicationService(
-      new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
-      new FileSystemRuntimeModeConfigurationRepository(cliHome),
-      new FileSystemRuntimeExtensionSelectionRepository(cliHome, new JarRuntimeExtensionPackageValidator()),
+      runtimeEnvironment,
+      new FileSystemRuntimeConfiguration(runtimeEnvironment.cliHome()),
       childRuntimeLauncher,
       localCliRunner,
       new FileSystemPackagedExecutableDetector(),
-      bootstrapDiagnostics,
       new SystemErrBootstrapOutput()
     );
     return new PreSpringBootstrapRunner(applicationService);
@@ -96,10 +88,6 @@ final class PrimaryBootstrapFixture {
     return localCliRunner.arguments();
   }
 
-  boolean debugLoggingEnabled() {
-    return bootstrapDiagnostics.enabled();
-  }
-
   record BootstrapLaunch(CliLaunchResult result, ChildRuntimeLaunchRequest childRuntimeRequest) {}
 
   private static final class RecordingChildRuntimeLauncher implements ChildRuntimeLauncher {
@@ -134,20 +122,6 @@ final class PrimaryBootstrapFixture {
 
     private List<String> arguments() {
       return arguments;
-    }
-  }
-
-  private static final class RecordingBootstrapDiagnostics implements BootstrapDiagnostics {
-
-    private boolean enabled;
-
-    @Override
-    public void enableDebugLogging() {
-      enabled = true;
-    }
-
-    private boolean enabled() {
-      return enabled;
     }
   }
 }

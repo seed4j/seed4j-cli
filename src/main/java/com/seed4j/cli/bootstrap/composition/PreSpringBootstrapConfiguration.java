@@ -6,16 +6,9 @@ import com.seed4j.cli.bootstrap.domain.PreSpringRuntimeEnvironment;
 import com.seed4j.cli.bootstrap.infrastructure.primary.PreSpringBootstrapRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.CurrentProcessPreSpringRuntimeEnvironmentReader;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemPackagedExecutableDetector;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeExtensionSelectionRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeModeConfigurationRepository;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.JarRuntimeExtensionPackageValidator;
+import com.seed4j.cli.bootstrap.infrastructure.secondary.FileSystemRuntimeConfiguration;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaChildProcessCommandExecutor;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.JavaProcessChildLauncher;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.LogbackBootstrapDiagnostics;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.PreSpringRuntimeEnvironmentSeed4JCliRuntime;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionLoaderPathResolver;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionOverlayCache;
-import com.seed4j.cli.bootstrap.infrastructure.secondary.RuntimeExtensionStartClassResolver;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SpringBootLocalCliRunner;
 import com.seed4j.cli.bootstrap.infrastructure.secondary.SystemErrBootstrapOutput;
 import com.seed4j.cli.shared.error.domain.Assert;
@@ -38,19 +31,15 @@ public final class PreSpringBootstrapConfiguration {
   static PreSpringBootstrapRunner preSpringBootstrapRunner(PreSpringRuntimeEnvironment runtimeEnvironment) {
     Assert.notNull("runtimeEnvironment", runtimeEnvironment);
     PreSpringBootstrapApplicationService preSpringBootstrapApplicationService = new PreSpringBootstrapApplicationService(
-      new PreSpringRuntimeEnvironmentSeed4JCliRuntime(runtimeEnvironment),
-      new FileSystemRuntimeModeConfigurationRepository(runtimeEnvironment.cliHome()),
-      new FileSystemRuntimeExtensionSelectionRepository(runtimeEnvironment.cliHome(), new JarRuntimeExtensionPackageValidator()),
+      runtimeEnvironment,
+      new FileSystemRuntimeConfiguration(runtimeEnvironment.cliHome()),
       new JavaProcessChildLauncher(
-        runtimeEnvironment.javaExecutablePath().path(),
-        new JavaChildProcessCommandExecutor(),
-        new RuntimeExtensionStartClassResolver(),
-        new RuntimeExtensionOverlayCache(runtimeEnvironment.cliHome()),
-        new RuntimeExtensionLoaderPathResolver()
+        runtimeEnvironment.javaExecutablePath(),
+        runtimeEnvironment.cliHome(),
+        new JavaChildProcessCommandExecutor()
       ),
       new SpringBootLocalCliRunner(Seed4JCliApp.class, runtimeEnvironment.cliHome()),
       new FileSystemPackagedExecutableDetector(),
-      new LogbackBootstrapDiagnostics(),
       new SystemErrBootstrapOutput()
     );
     return new PreSpringBootstrapRunner(preSpringBootstrapApplicationService);

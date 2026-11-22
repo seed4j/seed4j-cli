@@ -134,6 +134,14 @@ Secondary infrastructure can also define its own technical interfaces when it ne
 
 A secondary adapter must not call its own bounded context's application layer. It may integrate an external bounded context through that context's public application API when the external API is the mechanism behind a domain capability. In a Spring runtime, make these adapters ordinary components with constructor injection. Reserve explicit `composition` packages for manual wiring that must happen before Spring exists, such as bootstrap selection; do not add them for application flows already created inside the Spring context.
 
+### Engine bootstrap and project history
+
+The packaged launcher checks the user YAML before starting Spring and forwards its effective Java home to the standard
+child process. The child starts the CLI and Spring Boot discovers the Seed4J engine through auto-configuration. The
+engine exposes its catalog from the packaged core modules. Commands read applied modules and latest properties from
+`JavaProjectHistories`. Applying a module lets the engine persist the action and handle Git according to the command
+options.
+
 ### Module-set planning and execution flow
 
 The executable `apply-set` command is a concrete example of these boundaries. `ApplyModuleSetCommand` is the primary
@@ -150,17 +158,16 @@ by `ModuleSetExecutionApplicationService`; execution never reads the catalog or 
 parameters.
 
 Planning depends on four domain capabilities. The `ModuleSetCatalog` contract is stable for the lifetime of its planner;
-resources, landscape, and extensions are assembled before the Picocli tree, and the process executes one command without
+resources and landscape are assembled before the Picocli tree, and the process executes one command without
 catalog hot reload:
 
 - `ModuleSetCatalog` exposes visible module metadata and deterministic landscape ordering;
-- `ModuleSetPlanningHistoryReader` exposes applied modules and latest parameter facts through the Seed4J public history
-  API;
+- `ModuleSetPlanningHistoryReader` exposes applied modules and latest parameter facts from the engine's `JavaProjectHistories`;
 - `ModuleSetProjectPathValidator` reports whether the user-visible destination is valid or apparently creatable without a
   write probe; and
 - `ModuleSetGitStateReader` reports `NO_WORKTREE`, `CLEAN`, or `DIRTY` without exposing JGit types.
 
-Their secondary implementations are `Seed4JModuleSetCatalog`, `ProjectsModuleSetPlanningHistoryReader`,
+Their secondary implementations are `Seed4JModuleSetCatalog`, `EngineModuleSetPlanningHistoryReader`,
 `NioModuleSetProjectPathValidator`, and `JGitModuleSetGitStateReader`. The NIO adapter owns filesystem metadata checks, and
 the JGit adapter owns repository discovery and tracked, staged, and untracked status inspection. Neither adapter leaks
 storage layouts or framework representations into the plan.
@@ -190,7 +197,7 @@ Picocli ApplyModuleSetCommand
   -> ModuleSetPlanningApplicationService
     -> ModuleSetCatalog / ModuleSetPlanningHistoryReader
     -> ModuleSetProjectPathValidator / ModuleSetGitStateReader
-      <- Seed4J / Projects / NIO / JGit secondary adapters
+      <- Seed4J engine / NIO / JGit secondary adapters
   -> ModuleSetExecutionApplicationService
     -> ModuleSetModuleApplier
       <- Seed4JModuleSetModuleApplier -> individual Seed4J apply API
@@ -209,8 +216,7 @@ used independently by the secondary Seed4J catalog. Missing or malformed metadat
 Primary adapters use the application service to render root help, version identity, module discovery, unavailable-module
 diagnostics, and completion. Domain planning receives typed availability and rejects an unavailable apply-set request
 before invoking project, history, filesystem, Git, dependency, or property capabilities. Secondary catalogs enforce the
-same availability boundary before exposing external Seed4J resources. Runtime overlay extraction excludes the packaged
-metadata resource, so extension-controlled classpath content cannot change distribution identity.
+same availability boundary before exposing the engine catalog.
 
 ```text
 Packaged META-INF metadata

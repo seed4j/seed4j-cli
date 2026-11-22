@@ -16,7 +16,7 @@ Maintainers should also follow the build, publisher, intervention, rollback, and
 | npm installation             | `npm install -g seed4j-cli@latest` | `npm install -g seed4j-cli@experimental`                   |
 | npm version                  | Stable semantic version            | `<next-stable>-experimental.<n>`                           |
 | npm dist-tag                 | `latest`                           | `experimental`                                             |
-| Seed4J dependency            | `com.seed4j:seed4j` release        | `io.github.renanfranca:seed4j-main-snapshot` snapshot      |
+| Seed4J dependency            | `com.seed4j:seed4j-engine` release | `io.github.renanfranca:seed4j-engine` snapshot             |
 | Maven repository             | Release repositories               | `https://central.sonatype.com/repository/maven-snapshots/` |
 | `seed4j-extension` generator | Available                          | Unavailable                                                |
 | Support                      | Normal project support             | Unofficial, best effort, and limited retention             |
@@ -104,8 +104,7 @@ silent, and the main command exits without waiting for the network.
 Each package carries immutable distribution metadata under `META-INF`. It records the release channel, exact dependency
 coordinate, and unavailable module slugs. For an experimental distribution, the complete official `seed4j/seed4j`
 upstream commit SHA is part of the Maven version and the CLI derives it from that version. The metadata is filtered at
-build time from Maven-owned properties and cannot be replaced by user configuration, environment properties, command
-options, or a runtime extension.
+build time from Maven-owned properties and cannot be replaced by user configuration, environment properties, or command options.
 
 That Maven authority belongs to the branch, not to a runtime selector. `main` contains only the stable official
 coordinate and declares no personal snapshot repository. `experimental` replaces those authority values at the top
@@ -129,9 +128,7 @@ Experimental root help displays a warning once when help is requested. Ordinary 
 Requesting it directly or in an apply set exits `2` before project, history, filesystem, Git, dependency, property, or
 execution inspection and reports that no changes were applied.
 
-The `seed4j extension` command group remains available. Installing, enabling, disabling, and inspecting runtime
-extensions is separate from generating a new extension project. Runtime extensions cannot override the packaged channel
-metadata.
+The former `seed4j extension` commands print the same [transition diagnostics](Commands.md#former-runtime-extension-commands) as stable.
 
 ## Build, release, and branch isolation
 
@@ -212,10 +209,9 @@ operator recipe.
 
 Renovate updates shared dependencies only on `main`, including Maven, npm, and workflow dependencies. Those updates
 reach `experimental` through the checked synchronization PR rather than duplicate Renovate PRs on both branches.
-`main` tracks stable `com.seed4j:seed4j` releases and ignores the personal coordinate. On `experimental`, Renovate disables
-all dependency updates except `io.github.renanfranca:seed4j-main-snapshot`, which is explicitly enabled. The full-SHA snapshot has resolved and built on `experimental`, so the final configuration uses one native
-Maven rule against Central snapshots, with unstable versions
-enabled, and changes only `seed4j.version`. A snapshot PR merges automatically only after required checks pass on current
+On `main`, Renovate tracks `com.seed4j:seed4j-engine` with the regex manager. On `experimental`, its native Maven manager
+tracks `io.github.renanfranca:seed4j-core-modules` in the Sonatype snapshot repository. Each channel updates only
+`seed4j.version`, which moves the engine, core modules and test support together. A snapshot PR merges automatically only after required checks pass on current
 `experimental`; an incompatible update remains open and red for a maintainer adaptation. The hosted Renovate application
 determines polling cadence, so the repository does not guarantee a fixed six-hour interval.
 
